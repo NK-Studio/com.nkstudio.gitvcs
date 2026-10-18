@@ -180,6 +180,21 @@
     overflow: hidden;
 }
 
+/* 세로 그래프의 아바타 원과, 그림이 없을 때의 머리글자(작성자 색 바탕은 그래프 층이 그린다). */
+.commit-graph__avatar {
+    position: absolute;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+.commit-graph__initials {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    color: #ffffff;
+}
+
 .commit-graph-row {
     flex-direction: row;
     align-items: center;

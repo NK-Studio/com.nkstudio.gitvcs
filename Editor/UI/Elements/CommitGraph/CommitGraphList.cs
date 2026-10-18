@@ -28,6 +28,9 @@ namespace GitVersionControl
 
         private readonly ListView _list;
         private readonly VisualElement _overlay;
+        private readonly GraphLabelLayer _avatarLayer;
+        private readonly VisualElement _avatarHost;
+        private readonly IAvatarProvider _avatars;
         private readonly Label _graphHeader;
         private VerticalGraphLayout _layout = VerticalGraphLayout.Build(null, false);
         private List<object> _items = new();
@@ -50,8 +53,10 @@ namespace GitVersionControl
 
         public VisualElement Root { get; }
 
-        public CommitGraphList(VisualElement host)
+        /// <param name="avatars">작성자 아바타. null 이거나 설정에서 꺼져 있으면 작은 점으로 그린다.</param>
+        public CommitGraphList(VisualElement host, IAvatarProvider avatars = null)
         {
+            _avatars = avatars;
             Root = new VisualElement();
             Root.AddToClassList("commit-graph");
             host.Add(Root);
@@ -89,9 +94,35 @@ namespace GitVersionControl
             _overlay.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             body.Add(_overlay);
 
+            // 아바타·머리글자는 선 위에 얹는다(선이 그림을 가로지르지 않게). 보이는 줄 수만큼만 요소를 재사용한다.
+            _avatarHost = new VisualElement { pickingMode = PickingMode.Ignore };
+            _avatarHost.AddToClassList("commit-graph__overlay");
+            body.Add(_avatarHost);
+            _avatarLayer = new GraphLabelLayer(_avatarHost);
+
             // 목록을 스크롤하거나 크기가 바뀌면 선을 다시 그린다. ListView 는 생성자에서 안쪽 ScrollView 를 만든다.
-            _list.RegisterCallback<GeometryChangedEvent>(_ => _overlay.MarkDirtyRepaint());
-            _list.Q<ScrollView>().verticalScroller.valueChanged += _ => _overlay.MarkDirtyRepaint();
+            _list.RegisterCallback<GeometryChangedEvent>(_ => Redraw());
+            _list.Q<ScrollView>().verticalScroller.valueChanged += _ => Redraw();
+            if (_avatars != null)
+            {
+                // 아바타는 받는 대로 나타난다. 패널에서 떨어지면 구독을 끊는다.
+                Root.RegisterCallback<AttachToPanelEvent>(_ => _avatars.AvatarLoaded += Redraw);
+                Root.RegisterCallback<DetachFromPanelEvent>(_ => _avatars.AvatarLoaded -= Redraw);
+            }
+        }
+
+        private bool AvatarsEnabled => _avatars != null && _avatars.IsEnabled;
+
+        private void Redraw()
+        {
+            // 설정에서 아바타를 켜고 끄면 열 간격이 달라지므로 배치부터 다시 한다.
+            if (_layout.HasAvatars != AvatarsEnabled && Graph != null)
+            {
+                SetGraph(Graph, _wipCount);
+                return;
+            }
+            _overlay.MarkDirtyRepaint();
+            PlaceAvatars();
         }
 
         public GitGraph Graph { get; private set; }
@@ -104,7 +135,7 @@ namespace GitVersionControl
 
             Graph = graph;
             _wipCount = wipCount;
-            _layout = VerticalGraphLayout.Build(graph, wipCount > 0);
+            _layout = VerticalGraphLayout.Build(graph, wipCount > 0, AvatarsEnabled);
             _items = new List<object>();
             if (_layout.HasWip)
             {
@@ -115,6 +146,7 @@ namespace GitVersionControl
             _list.RefreshItems();
 
             _overlay.style.width = _layout.Width;
+            _avatarHost.style.width = _layout.Width;
             _graphHeader.style.width = _layout.Width;
             _graphHeader.style.minWidth = _layout.Width;
 
@@ -129,6 +161,39 @@ namespace GitVersionControl
                 _list.ClearSelection();
             }
             _overlay.MarkDirtyRepaint();
+            PlaceAvatars();
+        }
+
+        /// <summary>
+        /// 보이는 커밋마다 아바타(없으면 작성자 색 위 머리글자)를 원 자리에 놓는다. 병합 커밋은 작은 빈 원 그대로 둔다(GitKraken 과 같다).
+        /// </summary>
+        private void PlaceAvatars()
+        {
+            _avatarLayer.Begin();
+            if (_layout.HasAvatars && Graph != null)
+            {
+                float scrollY = ScrollY;
+                float height = _overlay.contentRect.height;
+                const float radius = VerticalGraphLayout.AvatarRadius;
+                foreach (GitGraphNode node in _layout.NodesNewestFirst)
+                {
+                    float y = VerticalGraphLayout.RowCenterY(_layout.RowOf[node], scrollY);
+                    if (node.Commit.IsMerge || y < -VerticalGraphLayout.RowHeight || y > height + VerticalGraphLayout.RowHeight)
+                    {
+                        continue;
+                    }
+                    Vector2 center = new(_layout.LaneX(node.Lane.Row), y);
+                    Texture2D avatar = _avatars.TryGet(node.Commit.AuthorEmail, node.Commit.Hash);
+                    if (avatar != null)
+                    {
+                        _avatarLayer.PlaceCircleImage("commit-graph__avatar", avatar, center, radius);
+                        continue;
+                    }
+                    _avatarLayer.Place("commit-graph__initials", GitDisplay.Initials(node.Commit.AuthorName),
+                        center - new Vector2(radius, radius), new Vector2(radius * 2f, radius * 2f), 8f);
+                }
+            }
+            _avatarLayer.End();
         }
 
         public GitGraphNode SelectedNode => _list.selectedItem as GitGraphNode;
@@ -304,8 +369,8 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                float xc = VerticalGraphLayout.LaneX(edge.Child.Lane.Row);
-                float xp = VerticalGraphLayout.LaneX(edge.Parent.Lane.Row);
+                float xc = _layout.LaneX(edge.Child.Lane.Row);
+                float xp = _layout.LaneX(edge.Parent.Lane.Row);
 
                 // 병합으로 들어오는 선은 들어오는 가지(부모) 색, 나머지는 새 커밋 쪽 줄 색(가로 탐색기와 같은 규칙).
                 painter.strokeColor = GraphStyle.LaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
@@ -340,7 +405,7 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                float x = VerticalGraphLayout.LaneX(node.Lane.Row);
+                float x = _layout.LaneX(node.Lane.Row);
                 float y = VerticalGraphLayout.RowCenterY(row, scrollY);
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(x, y));
@@ -359,7 +424,7 @@ namespace GitVersionControl
                 return;
             }
             GitGraphNode head = _layout.NodesNewestFirst.FirstOrDefault(node => node.IsHead);
-            float x = VerticalGraphLayout.LaneX(head?.Lane.Row ?? 0);
+            float x = _layout.LaneX(head?.Lane.Row ?? 0);
             float y = VerticalGraphLayout.RowCenterY(0, scrollY);
 
             painter.strokeColor = _mutedColor;
@@ -389,8 +454,21 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                Vector2 center = new(VerticalGraphLayout.LaneX(node.Lane.Row), y);
+                Vector2 center = new(_layout.LaneX(node.Lane.Row), y);
                 Color laneColor = GraphStyle.LaneColor(node.Lane);
+                if (_layout.HasAvatars && node.Commit.IsMerge == false)
+                {
+                    // 아바타 원: 줄 색 테두리 + 작성자 색 바탕(그림을 받기 전·머리글자 뒤에 보인다). 그림은 위 층이 얹는다.
+                    const float avatarRadius = VerticalGraphLayout.AvatarRadius;
+                    if (node.IsHead)
+                    {
+                        FillCircle(painter, center, avatarRadius + 4f, _headColor);
+                        FillCircle(painter, center, avatarRadius + 3f, _outlineColor);
+                    }
+                    FillCircle(painter, center, avatarRadius + 2f, laneColor);
+                    FillCircle(painter, center, avatarRadius, GraphStyle.AuthorColor(node.Commit.AuthorName));
+                    continue;
+                }
                 if (node.IsHead)
                 {
                     FillCircle(painter, center, 8f, _headColor);

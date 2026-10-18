@@ -55,7 +55,7 @@ namespace GitVersionControl
             _wipTitle = Root.Require<Label>("wip-title");
 
             _errorNotice.SetVisible(false);
-            _graph = new CommitGraphList(_graphHost);
+            _graph = new CommitGraphList(_graphHost, services.Avatars);
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
             _diff.ShowCloseButton(true);
