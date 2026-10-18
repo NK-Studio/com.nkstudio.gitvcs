@@ -73,7 +73,7 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Focus_PlacesWorldPointAtRatio()
+        public void Test_Focus_CentersWorldPointByDefault()
         {
             GraphViewport viewport = new(2f, Vector2.zero);
             Vector2 world = new(1000f, 500f);
@@ -81,7 +81,7 @@ namespace GitVersionControl.Tests
 
             viewport.Focus(world, canvasSize);
 
-            AssertVector(new Vector2(800f * 0.75f, 600f * 0.35f), viewport.ToCanvas(world));
+            AssertVector(new Vector2(400f, 300f), viewport.ToCanvas(world));
         }
 
         [Test]
@@ -95,14 +95,14 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Focus_DoesNotPanAboveTop()
+        public void Test_Focus_NearTop_StillCenters()
         {
+            // 줄이 하나뿐이라 커밋이 그래프 맨 위에 있어도 화면 가운데에 온다(위쪽 여백을 허용한다).
             GraphViewport viewport = new(1f, new Vector2(0f, 300f));
 
             viewport.Focus(new Vector2(1000f, 10f), new Vector2(800f, 600f));
 
-            Assert.AreEqual(0f, viewport.Pan.y, Tolerance);
-            Assert.AreEqual(1000f - 600f, viewport.Pan.x, Tolerance);
+            AssertVector(new Vector2(400f, 300f), viewport.ToCanvas(new Vector2(1000f, 10f)));
         }
 
         private static void AssertVector(Vector2 expected, Vector2 actual)

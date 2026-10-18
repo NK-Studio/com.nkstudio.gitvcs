@@ -44,13 +44,12 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 월드 지점을 화면의 정해진 비율 위치에 둔다. 새 커밋이 오른쪽에 쌓이므로 기본은 가로 3/4, 세로 위쪽 1/3.
+        /// 월드 지점을 화면의 정해진 비율 위치에 둔다. 기본은 정중앙.
+        /// 예전에는 가로 3/4·세로 35% 에 두고 그래프가 화면 위로 내려오지 않게 막았는데, 커밋·줄이 적으면 HEAD 가 오른쪽 위 구석에 붙어 보였다.
         /// </summary>
-        public void Focus(Vector2 world, Vector2 canvasSize, float horizontalRatio = 0.75f, float verticalRatio = 0.35f)
+        public void Focus(Vector2 world, Vector2 canvasSize, float horizontalRatio = 0.5f, float verticalRatio = 0.5f)
         {
-            Pan = new Vector2(
-                world.x * Zoom - canvasSize.x * horizontalRatio,
-                Mathf.Max(0f, world.y * Zoom - canvasSize.y * verticalRatio));
+            Pan = world * Zoom - new Vector2(canvasSize.x * horizontalRatio, canvasSize.y * verticalRatio);
         }
     }
 }
