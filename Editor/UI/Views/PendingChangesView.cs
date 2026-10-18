@@ -21,6 +21,7 @@ namespace GitVersionControl
         private readonly VisualElement _behindNotice;
         private readonly Label _behindText;
         private readonly Button _commitButton;
+        private string _template;
 
         public override string Title => GitText.Get("tab.pending");
         public override string Badge => _selection.Rows.Count > 0 ? _selection.Rows.Count.ToString() : null;
@@ -64,6 +65,32 @@ namespace GitVersionControl
                 UpdateCommitArea();
             });
             _commitButton.clicked += Commit;
+            LoadTemplate();
+        }
+
+        /// <summary>
+        /// 커밋 템플릿(<see cref="GitCommitTemplate"/>)을 읽어 두고, 메시지 칸이 비어 있으면 채운다.
+        /// </summary>
+        private async void LoadTemplate()
+        {
+            _template = await GitCommitTemplate.ReadAsync();
+            if (_template != null && string.IsNullOrWhiteSpace(_message.value))
+            {
+                _message.value = TemplateText();
+            }
+        }
+
+        private string TemplateText()
+        {
+            return _template != null ? _template.Replace("\r\n", "\n").TrimEnd() : string.Empty;
+        }
+
+        /// <summary>
+        /// 실제로 커밋될 메시지. 템플릿을 쓰면 '#' 안내 줄을 뺀다(git 편집기와 같다).
+        /// </summary>
+        private string MessageToCommit()
+        {
+            return _template != null ? GitCommitTemplate.StripComments(_message.value) : _message.value.Trim();
         }
 
         public override void OnRepositoryChanged()
@@ -109,7 +136,7 @@ namespace GitVersionControl
             _behindText.text = GitText.Format("pending.behind", behind);
 
             _commitButton.text = GitText.Format("pending.commitButton", selected);
-            _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && string.IsNullOrWhiteSpace(_message.value) == false);
+            _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
         }
 
         private async void Commit()
@@ -121,11 +148,11 @@ namespace GitVersionControl
             }
 
             List<GitStatusEntry> entries = _selection.CheckedEntries();
-            string message = _message.value.Trim();
+            string message = MessageToCommit();
             GitResult result = await Services.Runner.RunAsync(GitText.Get("op.commit"), () => Services.Commands.CommitAsync(entries, message), refreshAssets: false);
             if (result.Success)
             {
-                _message.value = string.Empty;
+                _message.value = TemplateText();
                 Services.Runner.SetStatus(GitDisplay.FirstLine(result.Output));
             }
         }

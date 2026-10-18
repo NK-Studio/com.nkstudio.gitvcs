@@ -1,0 +1,100 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+
+namespace GitVersionControl
+{
+    /// <summary>
+    /// git 의 커밋 템플릿(<c>git config commit.template</c>, 예: .gitmessage.txt). 터미널에서 <c>git commit</c> 을 하면 편집기에 뜨는
+    /// 그 안내문을 커밋 입력란에 미리 채우고(Fork 와 같다), 커밋할 때는 git 처럼 '#' 로 시작하는 줄을 빼고 남긴다.
+    /// </summary>
+    public static class GitCommitTemplate
+    {
+        public const char CommentChar = '#';
+
+        /// <summary>
+        /// 템플릿 파일 내용. 설정이 없거나 파일을 못 읽으면 null. 상대 경로는 저장소 루트 기준이다(git 이 루트에서 돌 때와 같다).
+        /// </summary>
+        public static async Task<string> ReadAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("config", "--path", "--get", "commit.template");
+            string path = result.Success ? result.Output.Trim() : string.Empty;
+            if (path.Length == 0)
+            {
+                return null;
+            }
+            string fullPath = ResolvePath(path, GitRepository.RepoRoot ?? GitRepository.ProjectRoot);
+            try
+            {
+                return File.Exists(fullPath) ? File.ReadAllText(fullPath) : null;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        public static string ResolvePath(string path, string repoRoot)
+        {
+            return Path.IsPathRooted(path) || string.IsNullOrEmpty(repoRoot) ? path : Path.Combine(repoRoot, path);
+        }
+
+        /// <summary>
+        /// 템플릿을 제목·설명 칸으로 나눈다. 첫 줄이 주석이 아닌 글이면 제목, 나머지(주석 포함)는 설명.
+        /// 예: "# 제목\n# -" → ("", "# 제목\n# -"), "Feat: \n\n# 안내" → ("Feat:", "# 안내").
+        /// </summary>
+        public static (string subject, string description) Split(string template)
+        {
+            string normalized = Normalize(template).TrimEnd();
+            int newline = normalized.IndexOf('\n');
+            string firstLine = newline < 0 ? normalized : normalized.Substring(0, newline);
+            if (firstLine.Trim().Length == 0 || IsComment(firstLine))
+            {
+                return (string.Empty, normalized.TrimStart('\n'));
+            }
+            string rest = newline < 0 ? string.Empty : normalized.Substring(newline + 1).TrimStart('\n');
+            return (firstLine.Trim(), rest);
+        }
+
+        /// <summary>
+        /// git 의 <c>--cleanup=strip</c> 과 같은 정리: 주석 줄을 빼고, 줄 끝 공백을 지우고, 이어진 빈 줄은 하나로, 앞뒤 빈 줄은 없앤다.
+        /// 남는 글이 없으면 빈 문자열(= 커밋할 메시지가 없다).
+        /// </summary>
+        public static string StripComments(string message)
+        {
+            List<string> lines = new();
+            bool pendingBlank = false;
+            foreach (string raw in Normalize(message).Split('\n'))
+            {
+                if (IsComment(raw))
+                {
+                    continue;
+                }
+                string line = raw.TrimEnd();
+                if (line.Length == 0)
+                {
+                    pendingBlank = lines.Count > 0;
+                    continue;
+                }
+                if (pendingBlank)
+                {
+                    lines.Add(string.Empty);
+                    pendingBlank = false;
+                }
+                lines.Add(line);
+            }
+            return string.Join("\n", lines);
+        }
+
+        private static bool IsComment(string line)
+        {
+            return line.Length > 0 && line[0] == CommentChar;
+        }
+
+        private static string Normalize(string text)
+        {
+            return (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
+        }
+    }
+}

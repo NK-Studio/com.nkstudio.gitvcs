@@ -5,6 +5,7 @@ namespace GitVersionControl
     /// <summary>
     /// 인덱스 커밋 입력란(<c>CommitBox.uxml</c>): 제목·설명·Amend·커밋(GitKraken 레이아웃은 커밋 후 푸시도).
     /// 입력 중인 문구는 <see cref="StagingState"/> 에 남아 창을 다시 만들어도(언어 전환·도메인 리로드) 이어진다.
+    /// 커밋 템플릿(<see cref="GitCommitTemplate"/>)이 있으면 빈 입력란에 채우고, 커밋할 때 '#' 주석 줄을 뺀다.
     /// </summary>
     public sealed class CommitBox
     {
@@ -17,6 +18,7 @@ namespace GitVersionControl
         private readonly Button _commitButton;
         private readonly Button _commitPushButton;
         private int _stagedCount;
+        private string _template;
 
         public VisualElement Root { get; }
 
@@ -48,6 +50,48 @@ namespace GitVersionControl
             _amend.RegisterValueChangedCallback(evt => OnAmendChanged(evt.newValue));
             _commitButton.clicked += () => Commit(push: false);
             _commitPushButton.clicked += () => Commit(push: true);
+            LoadTemplate();
+        }
+
+        /// <summary>
+        /// 템플릿을 읽어 두고, 입력란이 비어 있으면 채운다.
+        /// </summary>
+        private async void LoadTemplate()
+        {
+            _template = await GitCommitTemplate.ReadAsync();
+            if (_template != null && IsEmpty(_subject.value, _description.value) && _amend.value == false)
+            {
+                FillTemplate();
+            }
+        }
+
+        private void FillTemplate()
+        {
+            (string subject, string description) = _template != null ? GitCommitTemplate.Split(_template) : (string.Empty, string.Empty);
+            _subject.value = subject;
+            _description.value = description;
+        }
+
+        /// <summary>
+        /// 사용자가 아무것도 쓰지 않은 상태인가(비어 있거나 템플릿 그대로).
+        /// </summary>
+        private bool IsUntouched()
+        {
+            if (IsEmpty(_subject.value, _description.value))
+            {
+                return true;
+            }
+            if (_template == null)
+            {
+                return false;
+            }
+            (string subject, string description) = GitCommitTemplate.Split(_template);
+            return _subject.value == subject && _description.value == description;
+        }
+
+        private static bool IsEmpty(string subject, string description)
+        {
+            return string.IsNullOrWhiteSpace(subject) && string.IsNullOrWhiteSpace(description);
         }
 
         /// <summary>
@@ -75,12 +119,12 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// Amend 를 켜면 비어 있는 입력란에 마지막 커밋 메시지를 채운다(Fork·GitKraken 과 같다). 끌 때는 사용자가 쓴 글을 지우지 않는다.
+        /// Amend 를 켜면 비어 있는(또는 템플릿 그대로인) 입력란에 마지막 커밋 메시지를 채운다(Fork·GitKraken 과 같다). 끌 때는 사용자가 쓴 글을 지우지 않는다.
         /// </summary>
         private async void OnAmendChanged(bool isAmend)
         {
             Render();
-            if (isAmend == false || string.IsNullOrWhiteSpace(_subject.value) == false || string.IsNullOrWhiteSpace(_description.value) == false)
+            if (isAmend == false || IsUntouched() == false)
             {
                 return;
             }
@@ -117,6 +161,11 @@ namespace GitVersionControl
         private async void Commit(bool push)
         {
             string message = JoinMessage(_subject.value, _description.value);
+            // 템플릿 안내문('#' 줄)은 git 편집기에서처럼 커밋 메시지에 남기지 않는다.
+            if (_template != null)
+            {
+                message = GitCommitTemplate.StripComments(message);
+            }
             bool isAmend = _amend.value;
             GitBranchInfo branch = _services.Repository.Branch;
             string title = GitText.Get(push ? "staging.commitAndPush" : "op.commit");
@@ -133,9 +182,8 @@ namespace GitVersionControl
 
             if (result.Success)
             {
-                _subject.value = string.Empty;
-                _description.value = string.Empty;
                 _amend.value = false;
+                FillTemplate();
             }
         }
     }
