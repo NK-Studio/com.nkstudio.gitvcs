@@ -77,6 +77,7 @@ namespace GitVersionControl
             settings.ShowOverlays = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.overlays")), settings.ShowOverlays);
             settings.RefreshOnFocus = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.refreshOnFocus"), GitText.Get("settings.refreshOnFocusTooltip")), settings.RefreshOnFocus);
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
+            GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
 
             EditorGUILayout.Space();
             DrawDiff(settings);

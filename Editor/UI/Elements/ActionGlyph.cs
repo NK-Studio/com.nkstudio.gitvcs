@@ -16,6 +16,11 @@ namespace GitVersionControl
         Terminal,
 
         /// <summary>
+        /// 새로고침(위가 트인 원과 끝의 화살촉).
+        /// </summary>
+        Refresh,
+
+        /// <summary>
         /// 경로 목록 보기(가로줄 세 개).
         /// </summary>
         PathList,
@@ -24,6 +29,26 @@ namespace GitVersionControl
         /// 트리 보기(세로 줄기에서 갈라지는 두 가지와 끝 칸).
         /// </summary>
         FileTree,
+
+        /// <summary>
+        /// HEAD 로 가기(문이 있는 집). Material Symbols "home" 외곽선을 옮겼다.
+        /// </summary>
+        Home,
+
+        /// <summary>
+        /// 확대(손잡이 달린 돋보기 안의 +). Material Symbols "zoom_in".
+        /// </summary>
+        ZoomIn,
+
+        /// <summary>
+        /// 축소(돋보기 안의 −). Material Symbols "zoom_out".
+        /// </summary>
+        ZoomOut,
+
+        /// <summary>
+        /// 새 브랜치(세로 줄기 위아래 두 점과, 오른쪽 점에서 휘어 들어오는 가지).
+        /// </summary>
+        Branch,
     }
 
     /// <summary>
@@ -106,6 +131,13 @@ namespace GitVersionControl
                     Polyline(painter, P(4f, 6f), P(9f, 10f), P(4f, 14f));
                     Polyline(painter, P(10.5f, 15f), P(16f, 15f));
                     break;
+                case ActionGlyphKind.Refresh:
+                    // 오른쪽 위(-60°)에서 시계 방향으로 돌아 왼쪽 위(240°)에서 끝나는 원. 화살촉은 그 끝에서 트인 쪽을 향한다.
+                    painter.BeginPath();
+                    painter.Arc(P(10f, 10.5f), 6f * scale, -60f, 240f);
+                    painter.Stroke();
+                    Polyline(painter, P(3.6f, 4.4f), P(7f, 5.3f), P(6.1f, 8.7f));
+                    break;
                 case ActionGlyphKind.PathList:
                     Polyline(painter, P(3f, 5f), P(17f, 5f));
                     Polyline(painter, P(3f, 10f), P(17f, 10f));
@@ -117,6 +149,31 @@ namespace GitVersionControl
                     Polyline(painter, P(5f, 10f), P(10f, 10f));
                     DrawBox(painter, P, 10.5f, 7.5f);
                     DrawBox(painter, P, 10.5f, 12.5f);
+                    break;
+                case ActionGlyphKind.Home:
+                    // 문 왼쪽 아래에서 시작해 문 → 오른쪽 벽 → 지붕 → 왼쪽 벽으로 한 바퀴.
+                    Polyline(painter, P(8.3f, 16.9f), P(8.3f, 11.7f), P(11.7f, 11.7f), P(11.7f, 16.9f), P(16f, 16.9f),
+                        P(16f, 7.8f), P(10f, 3.3f), P(4f, 7.8f), P(4f, 16.9f), P(8.3f, 16.9f));
+                    break;
+                case ActionGlyphKind.ZoomIn:
+                    DrawMagnifier(painter, P, scale);
+                    Polyline(painter, P(6.2f, 7.8f), P(9.4f, 7.8f));
+                    Polyline(painter, P(7.8f, 6.2f), P(7.8f, 9.4f));
+                    break;
+                case ActionGlyphKind.ZoomOut:
+                    DrawMagnifier(painter, P, scale);
+                    Polyline(painter, P(6.2f, 7.8f), P(9.4f, 7.8f));
+                    break;
+                case ActionGlyphKind.Branch:
+                    // 점이 굵은 선보다 무거워 보여서 다른 아이콘보다 안쪽(약 5~15)에 작게 그린다.
+                    DrawRing(painter, P(7f, 5.6f), 1.6f * scale);
+                    DrawRing(painter, P(7f, 14.4f), 1.6f * scale);
+                    DrawRing(painter, P(13.2f, 6.8f), 1.6f * scale);
+                    Polyline(painter, P(7f, 7.2f), P(7f, 12.8f));
+                    painter.BeginPath();
+                    painter.MoveTo(P(13.2f, 8.4f));
+                    painter.BezierCurveTo(P(13.2f, 11f), P(7f, 10f), P(7f, 12.8f));
+                    painter.Stroke();
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);
@@ -144,6 +201,27 @@ namespace GitVersionControl
         private static void DrawBox(Painter2D painter, Func<float, float, Vector2> p, float left, float top)
         {
             Polyline(painter, p(left, top), p(left + 5f, top), p(left + 5f, top + 5f), p(left, top + 5f), p(left, top));
+        }
+
+        /// <summary>
+        /// 확대·축소의 돋보기(왼쪽 위 원과 오른쪽 아래로 뻗는 손잡이). 안의 +/− 는 부르는 쪽이 그린다.
+        /// </summary>
+        private static void DrawMagnifier(Painter2D painter, Func<float, float, Vector2> p, float scale)
+        {
+            DrawRing(painter, p(7.8f, 7.8f), 4.7f * scale);
+            Polyline(painter, p(11.2f, 11.2f), p(16.5f, 16.5f));
+        }
+
+        /// <summary>
+        /// 속이 빈 원. 0°→360° 한 번은 시작·끝이 같아 비어 버릴 수 있어 반원 두 개로 잇는다.
+        /// </summary>
+        private static void DrawRing(Painter2D painter, Vector2 center, float radius)
+        {
+            painter.BeginPath();
+            painter.Arc(center, radius, 0f, 180f);
+            painter.Arc(center, radius, 180f, 360f);
+            painter.ClosePath();
+            painter.Stroke();
         }
 
         /// <summary>

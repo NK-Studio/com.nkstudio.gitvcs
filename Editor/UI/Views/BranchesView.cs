@@ -15,7 +15,6 @@ namespace GitVersionControl
         private readonly TextField _newName;
         private readonly ToolbarToggle _switchAfterCreate;
         private readonly ToolbarButton _createButton;
-        private readonly ToolbarButton _reloadButton;
         private readonly VisualElement _errorNotice;
         private readonly Label _errorText;
         private readonly VisualElement _emptyNotice;
@@ -40,7 +39,6 @@ namespace GitVersionControl
             _newName = Root.Require<TextField>("new-name");
             _switchAfterCreate = Root.Require<ToolbarToggle>("switch-after-create");
             _createButton = Root.Require<ToolbarButton>("create-button");
-            _reloadButton = Root.Require<ToolbarButton>("reload-button");
             _errorNotice = Root.Require<VisualElement>("error-notice");
             _errorText = Root.Require<Label>("error-text");
             _emptyNotice = Root.Require<VisualElement>("empty-notice");
@@ -56,7 +54,6 @@ namespace GitVersionControl
             _switchAfterCreate.SetValueWithoutNotify(state.SwitchAfterCreate);
             _switchAfterCreate.RegisterValueChangedCallback(evt => _state.SwitchAfterCreate = evt.newValue);
             _createButton.clicked += Create;
-            _reloadButton.clicked += Load;
 
             _branches.ItemChosen += item =>
             {
@@ -88,6 +85,14 @@ namespace GitVersionControl
             Render();
         }
 
+        public override void Reload()
+        {
+            if (_isLoading == false)
+            {
+                Load();
+            }
+        }
+
         private void ReloadIfNeeded()
         {
             if (_isLoading == false && _loadedKey != CurrentKey)
@@ -117,7 +122,7 @@ namespace GitVersionControl
             bool hasCommits = Services.Repository.HeadCommit != null;
             _emptyNotice.SetVisible(hasCommits == false);
             _listPane.SetVisible(hasCommits);
-            _reloadButton.SetEnabled(_isLoading == false);
+            _branches.SetLoading(_isLoading);
             _createButton.SetEnabled(Services.Runner.IsBusy == false && hasCommits && string.IsNullOrWhiteSpace(_newName.value) == false);
         }
 

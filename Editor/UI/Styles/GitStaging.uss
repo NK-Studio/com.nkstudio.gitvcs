@@ -17,7 +17,7 @@
     flex-shrink: 0;
     justify-content: center;
     align-items: center;
-    height: 40px;
+    height: 32px;
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
 }
@@ -29,7 +29,7 @@
 
 .staging__title {
     font-size: 11px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
 }
 
@@ -128,7 +128,7 @@
     height: 28px;
     padding: 0 10px;
     -unity-text-align: middle-left;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
@@ -158,6 +158,12 @@
 }
 
 .commit-graph__header-graph {
+    flex-shrink: 0;
+}
+
+.commit-graph__header-refs {
+    width: 170px;
+    min-width: 170px;
     flex-shrink: 0;
 }
 
@@ -191,15 +197,63 @@
     margin: 0;
     padding: 0;
     -unity-text-align: middle-center;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: #ffffff;
 }
 
 .commit-graph-row {
     flex-direction: row;
     align-items: center;
-    height: 26px;
+    height: 34px;
     padding: 0 4px 0 0;
+}
+
+/* 왼쪽 브랜치/태그 칸: 이름표 하나 + "+n". 폭은 CommitGraphList.RefsColumnWidth 와 같아야 그래프 열 위치가 맞는다. */
+.commit-graph-row__refs {
+    width: 170px;
+    min-width: 170px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 6px 0 8px;
+}
+
+.commit-graph-ref {
+    flex-shrink: 1;
+    height: 22px;
+    margin: 0;
+    padding: 0 8px;
+    border-width: 1px;
+    border-radius: 4px;
+    font-size: 12px;
+    -unity-text-align: middle-left;
+    color: var(--git-text);
+}
+
+/* 현재 브랜치: 강조색 바탕(GitKraken 의 체크 표시 이름표). */
+.commit-graph-ref--current {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    color: var(--git-accent-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+/* 원격: 바탕 없이 테두리만(로컬과 구분). */
+.commit-graph-ref--remote {
+    color: var(--git-text-muted);
+}
+
+.commit-graph-ref--tag {
+    background-color: rgba(229, 192, 123, 0.25);
+    border-color: rgb(229, 192, 123);
+}
+
+.commit-graph-ref__more {
+    flex-shrink: 0;
+    margin-left: 4px;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
 }
 
 .commit-graph-row__graph {
@@ -207,15 +261,24 @@
     height: 100%;
 }
 
+/* 메시지 앞의 가지 색 막대(색은 코드가 줄마다 칠한다). */
 .commit-graph-row__message {
     flex-direction: row;
     align-items: center;
     overflow: hidden;
+    height: 100%;
+    padding-left: 10px;
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
 }
+
+.commit-graph-row .commit-row__subject {
+    font-size: 13px;
+}
+
 
 .commit-graph-row--wip .commit-row__subject {
     color: var(--git-text-muted);
-    -unity-font-style: italic;
 }
 
 /* ── blame-row: 파일 Blame 창의 한 줄 ─────────────────── */

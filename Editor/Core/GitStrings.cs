@@ -45,6 +45,9 @@ namespace GitVersionControl
             ["actionbar.stash"] = new[] { "Stash", "Stash" },
             ["actionbar.pop"] = new[] { "Pop", "Pop" },
             ["actionbar.terminal"] = new[] { "터미널", "Terminal" },
+            ["actionbar.newBranch"] = new[] { "Branch", "Branch" },
+            ["actionbar.newBranchTooltip"] = new[] { "지금 위치(HEAD)에서 새 브랜치를 만듭니다.", "Create a new branch at the current position (HEAD)." },
+            ["actionbar.newBranchPrompt"] = new[] { "'{0}' 에서 시작할 새 브랜치 이름:", "Name of the new branch starting at '{0}':" },
             ["actionbar.undoTooltip"] = new[] { "실행 취소: {0}", "Undo: {0}" },
             ["actionbar.redoTooltip"] = new[] { "다시 실행: {0}", "Redo: {0}" },
             ["actionbar.nothingToUndo"] = new[] { "되돌릴 작업이 없습니다.", "Nothing to undo." },
@@ -55,6 +58,7 @@ namespace GitVersionControl
             ["actionbar.stashTooltip"] = new[] { "작업 중인 변경(새 파일 포함)을 stash 에 넣고 작업 트리를 비웁니다.", "Put all changes (including new files) on the stash and clean the working tree." },
             ["actionbar.popTooltip"] = new[] { "가장 최근 stash 를 작업 트리에 되돌립니다. stash {0}개.", "Apply the latest stash and drop it. {0} stashed." },
             ["actionbar.terminalTooltip"] = new[] { "저장소 폴더에서 터미널을 엽니다.", "Open a terminal in the repository folder." },
+            ["actionbar.refreshTooltip"] = new[] { "저장소 상태와 지금 보고 있는 탭을 다시 읽습니다.", "Reload the repository status and the current tab." },
             ["actionbar.terminalFailed"] = new[] { "터미널을 열지 못했습니다.", "Could not open a terminal." },
 
             // ── 되돌리기 기록 ──
@@ -76,9 +80,6 @@ namespace GitVersionControl
             ["diff.show"] = new[] { "변경 내용 보기(Diff)", "Show Changes (Diff)" },
             ["diff.unified"] = new[] { "통합", "Unified" },
             ["diff.sideBySide"] = new[] { "나란히", "Side by Side" },
-            ["diff.algorithmChoice"] = new[] { "알고리즘: {0}", "Algorithm: {0}" },
-            ["diff.contextLines"] = new[] { "문맥 {0}줄", "Context: {0}" },
-            ["diff.contextAll"] = new[] { "파일 전체", "Whole File" },
             ["diff.openExternal"] = new[] { "외부 도구로 열기", "Open Externally" },
             ["diff.openExternalTooltip"] = new[] { "설정의 외부 비교 도구(내장 뷰어를 쓰는 중이면 git difftool)로 엽니다.", "Open in the configured external tool (git difftool when the built-in viewer is selected)." },
             ["diff.previousChange"] = new[] { "이전 변경 묶음", "Previous Change" },
@@ -167,7 +168,8 @@ namespace GitVersionControl
             ["staging.commitAndPush"] = new[] { "커밋 후 푸시", "Commit & Push" },
             ["staging.commitAndPushTooltip"] = new[] { "Stage 한 파일을 커밋하고 바로 원격에 올립니다.", "Commit staged files and push right away." },
             ["graph.columnGraph"] = new[] { "그래프", "Graph" },
-            ["graph.wip"] = new[] { "// 작업 중 — 변경 {0}개", "// WIP — {0} changes" },
+            ["graph.wip"] = new[] { "// 작업 중", "// WIP" },
+            ["graph.columnRefs"] = new[] { "브랜치 / 태그", "Branch / Tag" },
             ["graph.wipTitle"] = new[] { "{1} 의 변경 {0}개", "{0} changes on {1}" },
             ["op.stage"] = new[] { "Stage", "Stage" },
             ["op.unstage"] = new[] { "Unstage", "Unstage" },
@@ -347,7 +349,6 @@ namespace GitVersionControl
             ["explorer.rangeMonth"] = new[] { "지난 1개월", "Last Month" },
             ["explorer.rangeQuarter"] = new[] { "지난 3개월", "Last 3 Months" },
             ["explorer.rangeAll"] = new[] { "전체", "All" },
-            ["explorer.avatars"] = new[] { "아바타", "Avatars" },
             ["explorer.next"] = new[] { "다음", "Next" },
             ["explorer.nextTooltip"] = new[] { "검색에 맞는 다음 커밋으로 이동", "Go to the next matching commit" },
             ["explorer.head"] = new[] { "HEAD 로 이동", "Go to HEAD" },
@@ -509,6 +510,20 @@ namespace GitVersionControl
             ["settings.initMessage"] = new[] { "{0} 에 git 저장소를 만듭니다.", "Create a git repository in {0}." },
             ["settings.initNoGitignore"] = new[] { "\n\n.gitignore 가 없습니다. Library/Temp 등이 변경 목록에 잡히므로 먼저 추가하는 것을 권장합니다.", "\n\nThere is no .gitignore. Library, Temp and others will show up as changes, so adding one first is recommended." },
             ["settings.initFailed"] = new[] { "git init 실패", "git init Failed" },
+
+            // ── 에디터 메인 도구 막대의 Git 버튼 ──
+            ["mainToolbar.tooltip"] = new[] { "Git 메뉴", "Git menu" },
+            ["mainToolbar.tooltipBranch"] = new[] { "Git 메뉴 — 현재 브랜치: {0}", "Git menu — current branch: {0}" },
+            ["mainToolbar.openWindow"] = new[] { "Git 창 열기…", "Open Git Window…" },
+            ["mainToolbar.hide"] = new[] { "도구 막대에서 Git 숨기기", "Hide Git from Toolbar" },
+            ["mainToolbar.settings"] = new[] { "설정", "Settings" },
+            ["mainToolbar.projectSettings"] = new[] { "Project Settings › Version Control", "Project Settings › Version Control" },
+            ["mainToolbar.preferences"] = new[] { "Preferences › Git", "Preferences › Git" },
+            ["mainToolbar.help"] = new[] { "Git Version Control 더 알아보기", "Learn more about Git Version Control" },
+            ["mainToolbar.hidden"] = new[] { "도구 막대의 Git 버튼을 숨겼습니다. 다시 보이려면 Preferences > Git 또는 Project Settings > Version Control 에서 \"도구 막대에 Git 버튼 표시\" 를 켜세요.", "The Git button was hidden from the toolbar. To show it again, turn on \"Show Git Button in Toolbar\" in Preferences > Git or Project Settings > Version Control." },
+            ["mainToolbar.attachFailed"] = new[] { "Git 버튼을 에디터 도구 막대에 붙이지 못했습니다(이 Unity 버전의 내부 구조가 다릅니다: {0}). Git 창은 Window > Version Control > Git 으로 열 수 있습니다.", "Could not add the Git button to the editor toolbar (this Unity version's internals differ: {0}). Open the Git window from Window > Version Control > Git." },
+            ["settings.mainToolbar"] = new[] { "도구 막대에 Git 버튼 표시", "Show Git Button in Toolbar" },
+            ["settings.mainToolbarTooltip"] = new[] { "에디터 맨 위 도구 막대에 Git 메뉴 버튼(현재 브랜치 표시)을 둡니다.", "Show a Git menu button (with the current branch) in the editor's main toolbar." },
         };
     }
 }

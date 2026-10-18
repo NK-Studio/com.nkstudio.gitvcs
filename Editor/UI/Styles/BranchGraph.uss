@@ -16,7 +16,7 @@
 }
 
 .branch-graph__initials {
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-center;
     color: var(--git-graph-pill-text);
 }
@@ -43,7 +43,7 @@
     padding: 1px 5px;
     border-radius: 4px;
     font-size: 9px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-graph-pill-text);
     background-color: var(--git-graph-pill-bg);
 }

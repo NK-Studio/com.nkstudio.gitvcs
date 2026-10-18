@@ -3,22 +3,32 @@
  * 색·모서리는 모두 Themes/*.uss 의 --git-* 토큰을 쓴다(창 루트에 테마 시트 하나가 붙는다, GitTheme).
  */
 
-/* 글꼴: IBM Plex Sans KR, 한글 글꼴에 없는 글자는 JP → SC → TC 순서로 대체(글꼴 에셋의 대체 표). 모두 SIL OFL 1.1(Fonts/IBMPlexSansKR-OFL.txt).
-   굵은 글자는 -unity-font-style: bold 대신 Bold 에셋을 직접 쓴다 — bold 로 두면 Regular 를 억지로 두껍게 그려 글자가 뭉개진다.
-   글꼴 에셋은 동적이라 그릴 때마다 바뀌지만 GitFontAssetSaveGuard 가 저장을 막는다. 코드(diff·blame)는 코드에서 고정폭 글꼴을 따로 지정한다. */
+/* 글꼴: IBM Plex Sans KR(SIL OFL 1.1, Fonts/IBMPlexSansKR-OFL.txt). TTF 를 직접 참조한다(글꼴 에셋·아틀라스 파일 없음).
+   한글 글꼴에 없는 글자(일본어·중국어 일부 한자 등)는 에디터 기본 대체 글꼴이 그린다.
+   굵은 글자는 -unity-font-style: bold 대신 Bold 파일을 직접 쓴다 — bold 로 두면 Regular 를 억지로 두껍게 그려 글자가 뭉개진다.
+   코드(diff·blame)는 코드에서 고정폭 글꼴을 따로 지정한다. */
 .git-window {
     color: var(--git-text);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
 }
 
-/* 누를 수 있는 것에는 손가락 커서. */
+/* 누를 수 있는 것에는 손가락 커서.
+   cursor 는 상속되지 않고 마우스 아래에서 골라진(pick) 요소의 값을 쓴다. 그래서 안쪽 글자·아이콘(Label 등) 위에서는
+   기본 화살표로 돌아가므로 자손(*)에도 같이 준다. */
 .git-window .unity-button,
+.git-window .unity-button *,
 .git-window .unity-toolbar-button,
+.git-window .unity-toolbar-button *,
 .git-window .unity-toolbar-toggle,
+.git-window .unity-toolbar-toggle *,
 .git-window .unity-toolbar-menu,
+.git-window .unity-toolbar-menu *,
 .git-window .unity-base-popup-field__input,
+.git-window .unity-base-popup-field__input *,
 .git-window .unity-toggle__input,
-.git-window .git-sidebar__tab {
+.git-window .unity-toggle__input *,
+.git-window .git-sidebar__tab,
+.git-window .git-sidebar__tab * {
     cursor: link;
 }
 
@@ -43,7 +53,9 @@
     border-left-color: var(--git-warning);
 }
 
+/* 오류 상자는 기본으로 숨긴다. 뷰가 오류가 있을 때만 SetVisible(true)(인라인 display)로 꺼낸다 — 첫 로드 전에 빈 빨간 상자가 깜빡이지 않게. */
 .notice--error {
+    display: none;
     border-left-color: var(--git-danger);
 }
 
@@ -65,7 +77,7 @@
     min-width: 14px;
     border-radius: 3px;
     font-size: 9px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-center;
     color: var(--git-state-text);
     padding: 0;
@@ -177,13 +189,13 @@
 
 .view-mode-switch__button--selected .view-mode-switch__label {
     color: var(--git-selected-text);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 /* 큰 칸(스테이징 패널 맨 위)에 둘 때. */
 .view-mode-switch--large .view-mode-switch__button {
-    height: 26px;
-    padding: 0 14px;
+    height: 20px;
+    padding: 0 10px;
 }
 
 .view-mode-switch--large .view-mode-switch__label {
@@ -191,13 +203,48 @@
 }
 
 .view-mode-switch--large .view-mode-switch__icon {
-    width: 15px;
-    height: 15px;
+    width: 13px;
+    height: 13px;
 }
 
 /* ── file-browser: 목록·트리를 겹쳐 두고 하나만 보인다 ── */
 .file-browser > .list {
     flex-grow: 1;
+}
+
+/* ── file-tree: 트리 보기(위에 모두 펼치기/접기 글자 버튼, 아래 TreeView) ── */
+.file-browser > .file-tree {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+.file-tree__toolbar {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    height: 22px;
+    min-height: 22px;
+    padding: 0 4px;
+    background-color: var(--git-list-bg);
+}
+
+.file-tree__expand-toggle {
+    height: 18px;
+    margin: 0;
+    padding: 0 6px;
+    border-width: 0;
+    border-radius: var(--git-radius);
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 11px;
+    color: var(--git-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-text-align: middle-left;
+}
+
+.file-tree__expand-toggle:hover {
+    background-color: var(--git-hover);
 }
 
 /* ── list: ListView 공용 ───────────────────────────── */
@@ -233,6 +280,11 @@
 .notice,
 .unity-toolbar {
     flex-shrink: 0;
+}
+
+/* 불러오는 중에는 아직 비었다고 말할 수 없으므로 ListView 기본 "List is empty" 를 숨긴다. */
+.list--loading .unity-list-view__empty-label {
+    display: none;
 }
 
 .list__empty {

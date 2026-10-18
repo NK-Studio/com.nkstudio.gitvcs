@@ -42,7 +42,7 @@
 
 .pending-changes__commit-title {
     font-size: 10px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text-muted);
     margin-bottom: 2px;
 }
@@ -108,7 +108,7 @@
     flex-grow: 1;
     flex-shrink: 1;
     font-size: 10px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
 }
 
@@ -183,6 +183,13 @@
     width: 30px;
     height: 30px;
     margin: 2px 0;
-    font-size: 14px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 버튼 안의 선 아이콘(ActionGlyph: 집·돋보기). 색은 버튼 글자색을 따른다. */
+.branch-explorer__overlay-icon {
+    width: 18px;
+    height: 18px;
 }

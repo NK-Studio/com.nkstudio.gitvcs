@@ -1,9 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
     <ui:VisualElement class="view branch-explorer">
         <uie:Toolbar class="branch-explorer__toolbar">
-            <uie:ToolbarButton name="reload-button" tooltip="@common.reload" class="git-toolbar__action--icon" />
             <ui:DropdownField name="range" class="branch-explorer__range" />
-            <uie:ToolbarToggle name="avatars" text="@explorer.avatars" tooltip="@settings.avatarsTooltip" />
             <ui:Label name="summary" class="view__toolbar-label" />
             <ui:VisualElement class="spacer" />
             <uie:ToolbarSearchField name="search" class="branch-explorer__search" />
@@ -21,9 +19,9 @@
             <ui:VisualElement name="graph-pane" class="branch-explorer__graph-pane">
                 <ui:VisualElement name="graph-host" class="branch-explorer__graph-pane" />
                 <ui:VisualElement class="branch-explorer__overlay">
-                    <ui:Button name="head-button" text="H" tooltip="@explorer.head" class="branch-explorer__overlay-button" />
-                    <ui:Button name="zoom-in-button" text="+" tooltip="@explorer.zoomIn" class="branch-explorer__overlay-button" />
-                    <ui:Button name="zoom-out-button" text="−" tooltip="@explorer.zoomOut" class="branch-explorer__overlay-button" />
+                    <ui:Button name="head-button" tooltip="@explorer.head" class="branch-explorer__overlay-button" />
+                    <ui:Button name="zoom-in-button" tooltip="@explorer.zoomIn" class="branch-explorer__overlay-button" />
+                    <ui:Button name="zoom-out-button" tooltip="@explorer.zoomOut" class="branch-explorer__overlay-button" />
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="detail-host" class="view__pane" />

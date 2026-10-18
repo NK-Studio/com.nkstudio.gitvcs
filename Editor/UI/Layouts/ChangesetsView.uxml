@@ -5,7 +5,6 @@
             <ui:Label name="summary" class="view__toolbar-label" />
             <ui:VisualElement class="spacer" />
             <uie:ToolbarButton name="more-button" />
-            <uie:ToolbarButton name="reload-button" text="@common.reload" />
         </uie:Toolbar>
 
         <ui:VisualElement name="error-notice" class="notice notice--error">

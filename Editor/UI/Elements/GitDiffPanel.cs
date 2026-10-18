@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// diff 보기 본체: 도구 막대(보기 방식·알고리즘·공백·문맥·외부 도구), 통계 줄, 줄 목록.
+    /// diff 보기 본체: 도구 막대(보기 방식·외부 도구), 통계 줄, 줄 목록. git diff 옵션은 설정에서 고른다.
     /// git diff 출력(<see cref="GitDiff.Parse"/>)을 통합 보기 또는 나란히 보기로 그린다.
     /// 줄 번호, 더한·지운 줄 배경, 줄 안에서 실제로 바뀐 부분 강조, 변경 묶음(hunk) 사이 이동을 지원한다.
     /// 독립 창(<see cref="GitDiffWindow"/>)과 Fork 형태 레이아웃의 오른쪽 칸이 같은 패널을 쓴다.
@@ -18,11 +18,6 @@ namespace GitVersionControl
     {
         private const string MonospaceFontPath = "Fonts/RobotoMono/RobotoMono-Regular.ttf";
         private const float RowHeight = 18f;
-
-        /// <summary>
-        /// 문맥 줄 수 선택지. 마지막 값은 "파일 전체".
-        /// </summary>
-        private static readonly int[] ContextChoices = { 0, 3, 5, 10, 25, GitDiffOptions.MaxContextLines };
 
         private readonly IGitDiffService _service;
         private readonly Font _monospace;
@@ -41,6 +36,7 @@ namespace GitVersionControl
         private ToolbarToggle _splitToggle;
 
         private ToolbarButton _closeButton;
+        private ToolbarButton _reloadButton;
 
         /// <summary>
         /// 닫기(×)를 눌렀을 때. <see cref="ShowCloseButton"/> 로 버튼을 켠 곳(GitKraken 레이아웃의 가운데)만 쓴다.
@@ -52,6 +48,14 @@ namespace GitVersionControl
         public void ShowCloseButton(bool isVisible)
         {
             _closeButton.SetVisible(isVisible);
+        }
+
+        /// <summary>
+        /// 다시 읽기 버튼. 따로 뜨는 창(diff·비교·파일 기록)에서만 쓰고, Git 창 안에서는 끈다 — 창 위쪽 새로고침이 diff 까지 다시 읽는다.
+        /// </summary>
+        public void ShowReloadButton(bool isVisible)
+        {
+            _reloadButton.SetVisible(isVisible);
         }
         public GitDiffTarget Target => _target;
 
@@ -79,6 +83,9 @@ namespace GitVersionControl
             };
             _list.AddToClassList("git-diff__list");
             Root.Add(_list);
+
+            Root.RegisterCallback<AttachToPanelEvent>(_ => GitVcsSettings.DiffOptionsChanged += OnDiffOptionsChanged);
+            Root.RegisterCallback<DetachFromPanelEvent>(_ => GitVcsSettings.DiffOptionsChanged -= OnDiffOptionsChanged);
 
             ApplyLayout();
             ShowEmpty();
@@ -134,25 +141,7 @@ namespace GitVersionControl
             toolbar.Add(_unifiedToggle);
             toolbar.Add(_splitToggle);
 
-            toolbar.Add(Dropdown(
-                Enum.GetValues(typeof(DiffAlgorithm)).Cast<DiffAlgorithm>().ToList(),
-                settings.DiffAlgorithm,
-                value => GitText.Format("diff.algorithmChoice", value.ToString().ToLowerInvariant()),
-                value => settings.DiffAlgorithm = value,
-                GitText.Get("settings.diffAlgorithmTooltip")));
-            toolbar.Add(Dropdown(
-                Enum.GetValues(typeof(DiffWhitespace)).Cast<DiffWhitespace>().ToList(),
-                settings.DiffWhitespace,
-                value => GitText.Get("diffWhitespace." + value),
-                value => settings.DiffWhitespace = value,
-                null));
-            toolbar.Add(Dropdown(
-                ContextChoices.ToList(),
-                ContextChoices.Contains(settings.DiffContextLines) ? settings.DiffContextLines : 3,
-                value => value >= GitDiffOptions.MaxContextLines ? GitText.Get("diff.contextAll") : GitText.Format("diff.contextLines", value),
-                value => settings.DiffContextLines = value,
-                GitText.Get("settings.diffContextTooltip")));
-
+            // 알고리즘·공백·문맥 줄 수는 설정(Project Settings > Version Control)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
             ToolbarButton external = new(() =>
             {
                 if (_target != null)
@@ -167,9 +156,9 @@ namespace GitVersionControl
             };
             toolbar.Add(external);
 
-            ToolbarButton reload = new(Reload) { tooltip = GitText.Get("common.reload") };
-            ToolbarIcons.SetRefreshIcon(reload);
-            toolbar.Add(reload);
+            _reloadButton = new ToolbarButton(Reload) { tooltip = GitText.Get("common.reload") };
+            ToolbarIcons.SetRefreshIcon(_reloadButton);
+            toolbar.Add(_reloadButton);
 
             _closeButton = new ToolbarButton(() => CloseRequested?.Invoke()) { text = "×", tooltip = GitText.Get("common.close") };
             _closeButton.SetVisible(false);
@@ -206,17 +195,12 @@ namespace GitVersionControl
             return info;
         }
 
-        private DropdownField Dropdown<T>(List<T> values, T current, Func<T, string> label, Action<T> apply, string tooltip)
+        private void OnDiffOptionsChanged()
         {
-            List<string> labels = values.Select(label).ToList();
-            DropdownField field = new(labels, Math.Max(0, values.IndexOf(current))) { tooltip = tooltip };
-            field.AddToClassList("git-diff__dropdown");
-            field.RegisterValueChangedCallback(_ =>
+            if (_target != null)
             {
-                apply(values[field.index]);
                 Reload();
-            });
-            return field;
+            }
         }
 
         private static VisualElement Spacer()

@@ -14,20 +14,13 @@
 }
 
 .git-diff__title {
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-left;
     margin: 0 6px;
     flex-shrink: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.git-diff__dropdown {
-    width: 140px;
-    margin: 0 2px;
-    flex-shrink: 1;
-    min-width: 60px;
 }
 
 .git-diff__info {
@@ -43,7 +36,7 @@
 
 .git-diff__stat {
     font-size: 11px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     margin-right: 6px;
     padding: 0;
 }

@@ -20,6 +20,7 @@ namespace GitVersionControl
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
+            _diff.ShowReloadButton(false);
             Root.Require<VisualElement>("diff-host").Add(_diff.Root);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: false);
 
@@ -36,6 +37,14 @@ namespace GitVersionControl
                 _diff.Reload();
             }
             NotifyBadgeChanged();
+        }
+
+        public override void Reload()
+        {
+            if (_diff.Target != null)
+            {
+                _diff.Reload();
+            }
         }
 
         public override void OnBusyChanged(bool isBusy)

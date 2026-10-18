@@ -21,7 +21,6 @@ namespace GitVersionControl
 
         private readonly BranchExplorerState _state;
         private readonly ITabNavigator _navigator;
-        private readonly ToolbarButton _reloadButton;
         private readonly DropdownField _range;
         private readonly Label _summary;
         private readonly ToolbarSearchField _search;
@@ -52,7 +51,6 @@ namespace GitVersionControl
             _navigator = navigator;
             _commitMenu = new CommitMenu(services);
 
-            _reloadButton = Root.Require<ToolbarButton>("reload-button");
             _range = Root.Require<DropdownField>("range");
             _summary = Root.Require<Label>("summary");
             _search = Root.Require<ToolbarSearchField>("search");
@@ -66,21 +64,10 @@ namespace GitVersionControl
             _split = Root.Require<TwoPaneSplitView>("split");
 
             _graph = new BranchGraphElement(state.Zoom, state.Pan, services.Avatars);
-
-            ToolbarToggle avatars = Root.Require<ToolbarToggle>("avatars");
-            avatars.SetValueWithoutNotify(GitVcsSettings.instance.ShowAvatars);
-            avatars.RegisterValueChangedCallback(evt =>
-            {
-                GitVcsSettings.instance.ShowAvatars = evt.newValue;
-                _graph.Redraw();
-            });
             Root.Require<VisualElement>("graph-host").Add(_graph);
             _detail = new CommitDetailPanel(Root.Require<VisualElement>("detail-host"), services, closable: true);
             _detail.Hide();
             _split.CollapseChild(1);
-
-            ToolbarIcons.SetRefreshIcon(_reloadButton);
-            _reloadButton.clicked += Load;
 
             _range.choices = RangeKeys.Select(GitText.Get).ToList();
             _range.index = Math.Max(0, Math.Min(state.RangeIndex, RangeKeys.Length - 1));
@@ -102,9 +89,9 @@ namespace GitVersionControl
             _nextMatchButton.SetEnabled(string.IsNullOrWhiteSpace(state.Search) == false);
             _nextMatchButton.clicked += FocusNextMatch;
 
-            Root.Require<Button>("head-button").clicked += () => _graph.FocusNode(_graph.FindHead());
-            Root.Require<Button>("zoom-in-button").clicked += () => _graph.ZoomBy(1.25f);
-            Root.Require<Button>("zoom-out-button").clicked += () => _graph.ZoomBy(1f / 1.25f);
+            OverlayButton("head-button", ActionGlyphKind.Home).clicked += () => _graph.FocusNode(_graph.FindHead());
+            OverlayButton("zoom-in-button", ActionGlyphKind.ZoomIn).clicked += () => _graph.ZoomBy(1.25f);
+            OverlayButton("zoom-out-button", ActionGlyphKind.ZoomOut).clicked += () => _graph.ZoomBy(1f / 1.25f);
 
             _graph.NodeSelected += Select;
             _graph.NodeContextMenu += PopulateNodeMenu;
@@ -131,6 +118,14 @@ namespace GitVersionControl
             if (IsActive)
             {
                 ReloadIfNeeded();
+            }
+        }
+
+        public override void Reload()
+        {
+            if (_isLoading == false)
+            {
+                Load();
             }
         }
 
@@ -216,11 +211,20 @@ namespace GitVersionControl
             bool hasCommits = Services.Repository.HeadCommit != null;
             _emptyNotice.SetVisible(hasCommits == false);
             _split.SetVisible(hasCommits);
-            _reloadButton.SetEnabled(_isLoading == false);
             if (_isLoading)
             {
                 _summary.text = GitText.Get("common.loading");
             }
+        }
+
+        /// <summary>그래프 오른쪽 아래 떠 있는 버튼에 선 아이콘(ActionGlyph)을 넣는다.</summary>
+        private Button OverlayButton(string name, ActionGlyphKind icon)
+        {
+            Button button = Root.Require<Button>(name);
+            ActionGlyph glyph = new(icon);
+            glyph.AddToClassList("branch-explorer__overlay-icon");
+            button.Add(glyph);
+            return button;
         }
 
         private void Select(GitGraphNode node)

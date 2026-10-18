@@ -86,6 +86,7 @@ namespace GitVersionControl
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
             SplitPaneClamp.Attach(layout.Require<TwoPaneSplitView>("body"));
             _toolbar = new GitToolbar(layout, _services, this);
+            _toolbar.RefreshRequested += () => _views.Find(view => view.IsActive)?.Reload();
             CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar"));
 
             _services.Repository.Changed += OnRepositoryChanged;

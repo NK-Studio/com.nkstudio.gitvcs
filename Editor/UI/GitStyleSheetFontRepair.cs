@@ -4,15 +4,14 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEditor;
-using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
     /// <summary>
-    /// 패키지를 새로 받으면 USS 가 글꼴 에셋보다 먼저 가져와져, <c>-unity-font-definition: url("../Fonts/…")</c> 참조가 빈 채로 남을 수 있다
+    /// 패키지를 새로 받으면 USS 가 글꼴 파일보다 먼저 가져와져, <c>-unity-font-definition: url("../Fonts/…")</c> 참조가 빈 채로 남을 수 있다
     /// (2026-10-19 실측: ArrowsAndCats 에서 Git 창 글자가 하나도 안 보였고, 그 USS 만 다시 가져오자 고쳐졌다).
-    /// 에디터 세션마다 한 번, 원문의 글꼴 url 수보다 실제로 잡힌 글꼴 에셋이 적은 USS 만 골라 다시 가져온다. 정상이면 아무것도 하지 않는다.
+    /// 에디터 세션마다 한 번, 원문의 글꼴 url 수보다 실제로 잡힌 글꼴(Font)이 적은 USS 만 골라 다시 가져온다. 정상이면 아무것도 하지 않는다.
     /// </summary>
     [InitializeOnLoad]
     internal static class GitStyleSheetFontRepair
@@ -67,7 +66,7 @@ namespace GitVersionControl
                     continue;
                 }
                 StyleSheet sheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(path);
-                int resolved = assetsField?.GetValue(sheet) is UnityEngine.Object[] assets ? assets.Count(asset => asset != null && asset is FontAsset) : -1;
+                int resolved = assetsField?.GetValue(sheet) is UnityEngine.Object[] assets ? assets.Count(asset => asset != null && asset is UnityEngine.Font) : -1;
                 if (resolved < expected)
                 {
                     broken.Add(path);

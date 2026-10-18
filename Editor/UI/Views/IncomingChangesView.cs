@@ -98,6 +98,14 @@ namespace GitVersionControl
             Render();
         }
 
+        public override void Reload()
+        {
+            if (_isLoading == false)
+            {
+                Load();
+            }
+        }
+
         private void ReloadIfNeeded()
         {
             if (_isLoading == false && _loadedKey != CurrentKey)
@@ -174,6 +182,7 @@ namespace GitVersionControl
 
             _errorNotice.SetVisible(string.IsNullOrEmpty(_error) == false);
             _errorText.text = _error ?? string.Empty;
+            _commits.SetLoading(_isLoading);
 
             string info = null;
             if (HasUpstream == false)

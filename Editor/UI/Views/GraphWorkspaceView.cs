@@ -18,7 +18,6 @@ namespace GitVersionControl
         private const int MaxCommits = 5000;
 
         private readonly ITabNavigator _navigator;
-        private readonly ToolbarButton _reloadButton;
         private readonly Label _summary;
         private readonly VisualElement _errorNotice;
         private readonly Label _errorText;
@@ -44,7 +43,6 @@ namespace GitVersionControl
         public GraphWorkspaceView(GitServices services, StagingState state, ITabNavigator navigator) : base(services, "GraphWorkspaceView")
         {
             _navigator = navigator;
-            _reloadButton = Root.Require<ToolbarButton>("reload-button");
             _summary = Root.Require<Label>("summary");
             _errorNotice = Root.Require<VisualElement>("error-notice");
             _errorText = Root.Require<Label>("error-text");
@@ -59,14 +57,13 @@ namespace GitVersionControl
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
             _diff.ShowCloseButton(true);
+            _diff.ShowReloadButton(false);
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);
             _detail = new CommitDetailPanel(_detailHost, services, closable: false);
             _detail.ShowPlaceholder();
 
-            ToolbarIcons.SetRefreshIcon(_reloadButton);
-            _reloadButton.clicked += Load;
             _graph.WipSelected += ShowWip;
             _graph.CommitSelected += ShowCommit;
             _graph.ContextMenuRequested += PopulateCommitMenu;
@@ -100,7 +97,18 @@ namespace GitVersionControl
         {
             _staging.OnBusyChanged();
             _commit.Render();
-            _reloadButton.SetEnabled(_isLoading == false);
+        }
+
+        public override void Reload()
+        {
+            if (_diff.Target != null)
+            {
+                _diff.Reload();
+            }
+            if (_isLoading == false)
+            {
+                Load();
+            }
         }
 
         public override void Dispose()
@@ -119,7 +127,7 @@ namespace GitVersionControl
             _wipTitle.text = GitText.Format("graph.wipTitle", entries.Count, Services.Repository.Branch?.Name ?? "-");
             if (_graph.Graph != null)
             {
-                _graph.SetGraph(_graph.Graph, entries.Count);
+                _graph.SetGraph(_graph.Graph, WipCounts.From(entries));
             }
             if (_diff.Target != null)
             {
@@ -139,19 +147,17 @@ namespace GitVersionControl
         private async void Load()
         {
             _isLoading = true;
-            _reloadButton.SetEnabled(false);
             _summary.text = GitText.Get("common.loading");
             string key = CurrentKey;
 
             (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits);
             _isLoading = false;
             _loadedKey = key;
-            _reloadButton.SetEnabled(true);
 
             _errorNotice.SetVisible(string.IsNullOrEmpty(error) == false);
             _errorText.text = error ?? string.Empty;
 
-            _graph.SetGraph(graph, Services.Repository.Entries.Count);
+            _graph.SetGraph(graph, WipCounts.From(Services.Repository.Entries));
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count)
                             + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
 

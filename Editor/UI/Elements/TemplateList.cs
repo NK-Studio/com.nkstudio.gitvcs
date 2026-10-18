@@ -79,6 +79,12 @@ namespace GitVersionControl
             ListView.RefreshItems();
         }
 
+        /// <summary>불러오는 중에는 ListView 기본 "List is empty" 를 숨긴다.</summary>
+        public void SetLoading(bool isLoading)
+        {
+            ListView.EnableInClassList("list--loading", isLoading);
+        }
+
         public void ClearSelection()
         {
             ListView.ClearSelection();

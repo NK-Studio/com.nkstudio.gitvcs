@@ -38,7 +38,7 @@
 }
 
 .file-row--folder .file-row__path {
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 .file-row__icon {
@@ -71,13 +71,13 @@
     padding-left: 8px;
     color: var(--git-warning);
     font-size: 10px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 /* 폴더 이름 옆 파일 수. */
 .file-row__note--count {
     color: var(--git-text-muted);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
 }
 
 /* ── commit-row ───────────────────────────────────── */
@@ -98,7 +98,7 @@
     max-width: 60%;
     margin-right: 6px;
     font-size: 10px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-refs);
 }
 
@@ -132,13 +132,13 @@
 }
 
 .branch-row--current .branch-row__name {
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 /* 구역 제목 줄("로컬", "원격"): 이름 칸만 굵게 보이고 나머지 칸은 숨긴다. */
 .branch-row--section .branch-row__name {
     padding-left: 2px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 .branch-row--section .branch-row__track,

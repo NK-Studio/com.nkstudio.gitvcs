@@ -30,12 +30,15 @@ namespace GitVersionControl
             {
                 label = "Git",
                 guiHandler = _ => Draw(),
-                keywords = new[] { "Git", "GitHub", "Avatar", "Login" },
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar" },
             };
         }
 
         private static void Draw()
         {
+            EditorGUILayout.Space();
+            GitVcsSettings settings = GitVcsSettings.instance;
+            GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
             EditorGUILayout.Space();
             EditorGUILayout.LabelField(GitText.Get("github.title"), EditorStyles.boldLabel);
             EditorGUILayout.LabelField(GitText.Get("github.description"), EditorStyles.wordWrappedMiniLabel);

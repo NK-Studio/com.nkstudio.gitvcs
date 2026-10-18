@@ -30,16 +30,20 @@
                 <ui:Button name="push-button" text="@actionbar.push" class="git-action" />
             </ui:VisualElement>
             <ui:VisualElement class="git-actionbar__group">
-                <ui:Button name="stash-button" text="@actionbar.stash" tooltip="@actionbar.stashTooltip" class="git-action" />
-                <ui:Button name="pop-button" text="@actionbar.pop" class="git-action" />
+                <ui:Button name="new-branch-button" text="@actionbar.newBranch" tooltip="@actionbar.newBranchTooltip" class="git-action" />
             </ui:VisualElement>
             <ui:VisualElement class="git-actionbar__group">
-                <ui:Button name="terminal-button" text="@actionbar.terminal" tooltip="@actionbar.terminalTooltip" class="git-action" />
+                <ui:Button name="stash-button" text="@actionbar.stash" tooltip="@actionbar.stashTooltip" class="git-action" />
+                <ui:Button name="pop-button" text="@actionbar.pop" class="git-action" />
             </ui:VisualElement>
             <ui:VisualElement class="spacer" />
             <ui:VisualElement class="git-actionbar__side">
                 <ui:Label name="status-label" class="git-actionbar__status ellipsis" />
-                <ui:Button name="refresh-button" tooltip="@common.refresh" class="git-actionbar__refresh" />
+            </ui:VisualElement>
+            <!-- 터미널·새로고침은 맨 오른쪽. 새로고침은 창에 하나만 두고, 저장소 상태와 보고 있는 탭 내용을 함께 다시 읽는다. -->
+            <ui:VisualElement class="git-actionbar__group">
+                <ui:Button name="terminal-button" text="@actionbar.terminal" tooltip="@actionbar.terminalTooltip" class="git-action" />
+                <ui:Button name="refresh-button" text="@common.refresh" tooltip="@actionbar.refreshTooltip" class="git-action" />
             </ui:VisualElement>
         </ui:VisualElement>
 

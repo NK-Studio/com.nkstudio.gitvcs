@@ -13,7 +13,6 @@ namespace GitVersionControl
         private readonly ToolbarToggle _allBranches;
         private readonly Label _summary;
         private readonly ToolbarButton _moreButton;
-        private readonly ToolbarButton _reloadButton;
         private readonly VisualElement _errorNotice;
         private readonly Label _errorText;
         private readonly VisualElement _emptyNotice;
@@ -42,7 +41,6 @@ namespace GitVersionControl
             _allBranches = Root.Require<ToolbarToggle>("all-branches");
             _summary = Root.Require<Label>("summary");
             _moreButton = Root.Require<ToolbarButton>("more-button");
-            _reloadButton = Root.Require<ToolbarButton>("reload-button");
             _errorNotice = Root.Require<VisualElement>("error-notice");
             _errorText = Root.Require<Label>("error-text");
             _emptyNotice = Root.Require<VisualElement>("empty-notice");
@@ -60,7 +58,6 @@ namespace GitVersionControl
             });
             _moreButton.text = GitText.Format("changesets.more", PageSize);
             _moreButton.clicked += () => Load(append: true);
-            _reloadButton.clicked += () => Load(append: false);
             _commits.SelectionChanged += OnCommitSelected;
             _commits.ContextMenuRequested += PopulateCommitMenu;
         }
@@ -90,6 +87,14 @@ namespace GitVersionControl
             if (IsActive)
             {
                 ReloadIfNeeded();
+            }
+        }
+
+        public override void Reload()
+        {
+            if (_isLoading == false)
+            {
+                Load(append: false);
             }
         }
 
@@ -156,7 +161,7 @@ namespace GitVersionControl
         {
             _summary.text = _isLoading ? GitText.Get("common.loading") : GitText.Format("changesets.summary", _loaded.Count, _hasMore ? "+" : string.Empty);
             _moreButton.SetEnabled(_isLoading == false && _hasMore);
-            _reloadButton.SetEnabled(_isLoading == false);
+            _commits.SetLoading(_isLoading);
             _errorNotice.SetVisible(string.IsNullOrEmpty(_error) == false);
             _errorText.text = _error ?? string.Empty;
             _emptyNotice.SetVisible(HasHistory == false);

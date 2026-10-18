@@ -5,7 +5,7 @@ namespace GitVersionControl
 {
     /// <summary>
     /// 창 위쪽 작업 막대(<c>.git-actionbar</c>). GitKraken·Fork 처럼 아이콘+글자 버튼을 묶어 둔다:
-    /// 저장소·브랜치(누르면 브랜치 탭) | 실행 취소·다시 실행 | Fetch·Pull·Push | Stash·Pop | 터미널 | 진행 상태·새로고침.
+    /// 저장소·브랜치(누르면 브랜치 탭) | 가운데: 실행 취소·다시 실행 | Fetch·Pull·Push | 새 브랜치 | Stash·Pop | 오른쪽: 진행 상태 | 터미널·새로고침.
     /// Pull·Push·Pop 버튼에는 받을/올릴 커밋 수와 stash 수를 숫자로 겹쳐 보인다.
     /// </summary>
     public sealed class GitToolbar
@@ -13,9 +13,9 @@ namespace GitVersionControl
         private const string CompactModifier = "git-actionbar--compact";
 
         /// <summary>
-        /// 이 폭보다 좁으면 버튼 글자를 숨긴다. 저장소·브랜치 칸(약 300) + 버튼 8개(각 54) + 새로고침이 한 줄에 들어가는 폭.
+        /// 이 폭보다 좁으면 버튼 글자를 숨긴다. 저장소·브랜치 칸(약 300) + 버튼 10개(각 54)가 한 줄에 들어가는 폭.
         /// </summary>
-        private const float CompactWidth = 780f;
+        private const float CompactWidth = 840f;
 
         private readonly GitServices _services;
         private readonly VisualElement _bar;
@@ -27,13 +27,17 @@ namespace GitVersionControl
         private readonly ActionButton _fetch;
         private readonly ActionButton _pull;
         private readonly ActionButton _push;
+        private readonly ActionButton _newBranch;
         private readonly ActionButton _stash;
         private readonly ActionButton _pop;
         private readonly ActionButton _terminal;
-        private readonly Button _refreshButton;
+        private readonly ActionButton _refresh;
 
         private int _stashCount;
         private bool _isCountingStash;
+
+        /// <summary>새로고침 버튼을 눌렀을 때. 창이 보고 있는 탭에 다시 읽기를 전한다.</summary>
+        public event System.Action RefreshRequested;
 
         public GitToolbar(VisualElement root, GitServices services, ITabNavigator navigator)
         {
@@ -47,11 +51,11 @@ namespace GitVersionControl
             _fetch = new ActionButton(root.Require<Button>("fetch-button"), ActionGlyphKind.Fetch);
             _pull = new ActionButton(root.Require<Button>("pull-button"), ActionGlyphKind.Pull);
             _push = new ActionButton(root.Require<Button>("push-button"), ActionGlyphKind.Push);
+            _newBranch = new ActionButton(root.Require<Button>("new-branch-button"), ActionGlyphKind.Branch);
             _stash = new ActionButton(root.Require<Button>("stash-button"), ActionGlyphKind.Stash);
             _pop = new ActionButton(root.Require<Button>("pop-button"), ActionGlyphKind.Pop);
             _terminal = new ActionButton(root.Require<Button>("terminal-button"), ActionGlyphKind.Terminal);
-            _refreshButton = root.Require<Button>("refresh-button");
-            ToolbarIcons.SetRefreshIcon(_refreshButton);
+            _refresh = new ActionButton(root.Require<Button>("refresh-button"), ActionGlyphKind.Refresh);
 
             IGitOperationRunner runner = services.Runner;
             IGitCommandService commands = services.Commands;
@@ -65,10 +69,16 @@ namespace GitVersionControl
                 GitBranchInfo branch = services.Repository.Branch;
                 _ = runner.RunAsync(GitText.Get("op.push"), () => commands.PushAsync(branch), refreshAssets: false);
             };
+            BranchActions branchActions = new(services);
+            _newBranch.Clicked += () => _ = CreateBranchAsync(branchActions);
             _stash.Clicked += Stash;
             _pop.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pop"), commands.StashPopAsync, refreshAssets: true);
             _terminal.Clicked += OpenTerminal;
-            _refreshButton.clicked += () => services.Repository.RequestRefresh(immediate: true);
+            _refresh.Clicked += () =>
+            {
+                services.Repository.RequestRefresh(immediate: true);
+                RefreshRequested?.Invoke();
+            };
 
             commands.UndoJournal.Changed += Render;
             _bar.RegisterCallback<GeometryChangedEvent>(evt => _bar.EnableInClassList(CompactModifier, evt.newRect.width < CompactWidth));
@@ -105,12 +115,13 @@ namespace GitVersionControl
             _push.SetEnabled(idle && ready && branch != null && branch.Detached == false && branch.HasCommits);
             _push.SetBadge(ahead);
             _push.Tooltip = GitText.Format("actionbar.pushTooltip", ahead);
+            _newBranch.SetEnabled(idle && ready && branch != null && branch.HasCommits);
             _stash.SetEnabled(idle && ready && repository.Entries.Count > 0);
             _pop.SetEnabled(idle && ready && _stashCount > 0);
             _pop.SetBadge(_stashCount);
             _pop.Tooltip = GitText.Format("actionbar.popTooltip", _stashCount);
             _terminal.SetEnabled(ready);
-            _refreshButton.SetEnabled(repository.IsRefreshing == false);
+            _refresh.SetEnabled(repository.IsRefreshing == false);
         }
 
         /// <summary>
@@ -136,6 +147,23 @@ namespace GitVersionControl
                 return;
             }
             _ = _services.Runner.RunAsync(GitText.Get("op.stash"), _services.Commands.StashAsync, refreshAssets: true);
+        }
+
+        /// <summary>
+        /// 지금 HEAD 에서 새 브랜치를 만든다. 이름을 묻고, 만든 뒤 바로 전환할지 한 번 더 묻는다(창을 닫으면 만들기만).
+        /// </summary>
+        private async System.Threading.Tasks.Task CreateBranchAsync(BranchActions branchActions)
+        {
+            GitBranchInfo branch = _services.Repository.Branch;
+            string from = branch == null || branch.Detached ? "HEAD" : GitDisplay.Nfc(branch.Name);
+            string title = GitText.Get("branches.createTitle");
+            string name = GitTextPromptWindow.Ask(title, GitText.Format("actionbar.newBranchPrompt", from), string.Empty)?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+            bool switchTo = _services.Dialogs.Confirm(title, GitText.Format("commit.createBranchSwitch", name), GitText.Get("commit.createAndSwitch"), GitText.Get("commit.createOnly"));
+            await branchActions.CreateAsync(name, switchTo);
         }
 
         private void OpenTerminal()

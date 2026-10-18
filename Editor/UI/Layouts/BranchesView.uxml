@@ -5,8 +5,6 @@
             <ui:TextField name="new-name" class="branches__new-name" />
             <uie:ToolbarToggle name="switch-after-create" text="@branches.switchAfterCreate" value="true" />
             <uie:ToolbarButton name="create-button" text="@common.create" />
-            <ui:VisualElement class="spacer" />
-            <uie:ToolbarButton name="reload-button" text="@common.reload" />
         </uie:Toolbar>
 
         <ui:VisualElement name="error-notice" class="notice notice--error">

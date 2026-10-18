@@ -28,6 +28,12 @@ namespace GitVersionControl
         [SerializeField] private float _diffWindowScale = 1f;
         [SerializeField] private int _theme = (int)GitThemeStyle.JetBrains;
         [SerializeField] private int _layout;
+        [SerializeField] private bool _showInMainToolbar = true;
+
+        /// <summary>
+        /// 내장 diff 의 git 옵션(알고리즘·공백·문맥 줄 수)이 바뀌었을 때. 열려 있는 diff 가 다시 읽는다 — 설정 화면에서만 바꾼다.
+        /// </summary>
+        public static event System.Action DiffOptionsChanged;
 
         /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
         public string GitExecutable
@@ -101,7 +107,10 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _diffAlgorithm, index);
+                if (SetAndSave(ref _diffAlgorithm, index))
+                {
+                    DiffOptionsChanged?.Invoke();
+                }
             }
         }
 
@@ -111,7 +120,10 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _diffWhitespace, index);
+                if (SetAndSave(ref _diffWhitespace, index))
+                {
+                    DiffOptionsChanged?.Invoke();
+                }
             }
         }
 
@@ -124,7 +136,10 @@ namespace GitVersionControl
             set
             {
                 int clamped = Mathf.Clamp(value, 0, GitDiffOptions.MaxContextLines);
-                SetAndSave(ref _diffContextLines, clamped);
+                if (SetAndSave(ref _diffContextLines, clamped))
+                {
+                    DiffOptionsChanged?.Invoke();
+                }
             }
         }
 
@@ -227,14 +242,25 @@ namespace GitVersionControl
             }
         }
 
-        private void SetAndSave<T>(ref T field, T value)
+        /// <summary>
+        /// 에디터 메인 도구 막대에 Git 버튼을 둘지. 바꾸기는 <see cref="GitMainToolbar.SetShown"/> 를 통한다 — 도구 막대를 다시 그려야 해서.
+        /// </summary>
+        public bool ShowInMainToolbar
+        {
+            get => _showInMainToolbar;
+            set => SetAndSave(ref _showInMainToolbar, value);
+        }
+
+        /// <returns>값이 실제로 바뀌었으면 true.</returns>
+        private bool SetAndSave<T>(ref T field, T value)
         {
             if (Equals(field, value))
             {
-                return;
+                return false;
             }
             field = value;
             Save(true);
+            return true;
         }
     }
 }

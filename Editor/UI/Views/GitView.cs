@@ -50,6 +50,13 @@ namespace GitVersionControl
         {
         }
 
+        /// <summary>
+        /// 창의 새로고침 버튼을 눌렀을 때, 보고 있는 탭에만 온다. 저장소 상태가 그대로여도 자기 내용(git log 등)을 강제로 다시 읽는다.
+        /// </summary>
+        public virtual void Reload()
+        {
+        }
+
         /// <summary>작업 실행기의 바쁨 상태가 바뀔 때(버튼을 끄고 켜려고).</summary>
         public virtual void OnBusyChanged(bool isBusy)
         {

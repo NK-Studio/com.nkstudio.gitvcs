@@ -13,6 +13,11 @@ namespace GitVersionControl
     {
         private const float RowHeight = 20f;
 
+        private const string Block = "file-tree";
+
+        private readonly VisualElement _root;
+        private readonly VisualElement _toolbar;
+        private readonly Button _expandToggle;
         private readonly TreeView _tree;
         private readonly IAssetNavigator _assets;
         private readonly FileRowBinder _binder;
@@ -24,6 +29,10 @@ namespace GitVersionControl
         /// </summary>
         private readonly Dictionary<string, int> _idByFilePath = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _collapsedFolders = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>지금 목록에 있는 폴더 줄 id. 모두 펼침/접기 버튼의 글자를 정할 때 쓴다.</summary>
+        private readonly List<int> _shownFolderIds = new();
+        private bool _toggleRefreshQueued;
         private int _nextId;
 
         /// <summary>체크박스를 쓸 때 파일의 체크 상태를 묻는다. null 이면 체크박스를 숨긴다.</summary>
@@ -60,7 +69,7 @@ namespace GitVersionControl
         /// </summary>
         public event Action<DropdownMenu, string, IReadOnlyList<FileListItem>> FolderPathContextMenuRequested;
 
-        public VisualElement Root => _tree;
+        public VisualElement Root => _root;
 
         public FileTree(IAssetNavigator assets, FileRowBinder binder)
         {
@@ -86,6 +95,20 @@ namespace GitVersionControl
                     FileChosen?.Invoke(node.Item);
                 }
             };
+            _tree.itemExpandedChanged += _ => QueueToggleRefresh();
+
+            // GitKraken 처럼 트리 위에 "모두 펼치기 / 모두 접기" 글자 버튼 하나를 둔다. 다 펼쳐져 있으면 접기, 아니면 펼치기.
+            _expandToggle = new Button(ToggleExpandAll);
+            _expandToggle.AddToClassList(Block + "__expand-toggle");
+            _toolbar = new VisualElement();
+            _toolbar.AddToClassList(Block + "__toolbar");
+            _toolbar.Add(_expandToggle);
+
+            _root = new VisualElement();
+            _root.AddToClassList(Block);
+            _root.Add(_toolbar);
+            _root.Add(_tree);
+            RefreshExpandToggle();
         }
 
         public void SetItems(IEnumerable<FileListItem> items)
@@ -93,6 +116,7 @@ namespace GitVersionControl
             RememberExpansion();
             List<int> selectedIds = _tree.selectedIds.ToList();
             List<FileTreeNode> roots = FileTreeBuilder.Build(items);
+            _shownFolderIds.Clear();
             _tree.SetRootItems(roots.Select(ToItemData).ToList());
             _tree.Rebuild();
 
@@ -108,6 +132,7 @@ namespace GitVersionControl
             // 새로고침 전에 고른 줄을 다시 고른다(사라진 파일은 빠진다). 알림은 보내지 않는다 — 사용자가 바꾼 선택이 아니다.
             List<int> stillPresent = selectedIds.Where(id => _tree.viewController.GetIndexForId(id) >= 0).ToList();
             _tree.SetSelectionByIdWithoutNotify(stillPresent);
+            RefreshExpandToggle();
         }
 
         public void Refresh()
@@ -118,6 +143,47 @@ namespace GitVersionControl
         public void ClearSelection()
         {
             _tree.ClearSelection();
+        }
+
+        private bool AllFoldersExpanded()
+        {
+            return _shownFolderIds.All(id => _tree.IsExpanded(id));
+        }
+
+        private void ToggleExpandAll()
+        {
+            if (AllFoldersExpanded())
+            {
+                _tree.CollapseAll();
+            }
+            else
+            {
+                _tree.ExpandAll();
+            }
+            RefreshExpandToggle();
+        }
+
+        /// <summary>
+        /// 펼침이 바뀔 때마다 부른다. ExpandAll 처럼 한 번에 폴더 여럿이 바뀌면 줄마다 알림이 오므로 다음 프레임에 한 번만 다시 센다.
+        /// </summary>
+        private void QueueToggleRefresh()
+        {
+            if (_toggleRefreshQueued)
+            {
+                return;
+            }
+            _toggleRefreshQueued = true;
+            _tree.schedule.Execute(() =>
+            {
+                _toggleRefreshQueued = false;
+                RefreshExpandToggle();
+            });
+        }
+
+        private void RefreshExpandToggle()
+        {
+            _toolbar.SetVisible(_shownFolderIds.Count > 0);
+            _expandToggle.text = GitText.Get(AllFoldersExpanded() ? "fileView.collapseAll" : "fileView.expandAll");
         }
 
         /// <summary>지금 화면의 펼침 상태를 폴더 경로로 기록한다. 다음 SetItems 뒤에 되살린다.</summary>
@@ -153,6 +219,7 @@ namespace GitVersionControl
                     id = ++_nextId;
                     _idByFolderPath[node.Path] = id;
                 }
+                _shownFolderIds.Add(id);
             }
             else if (_idByFilePath.TryGetValue(node.Item.RepoPath, out id) == false)
             {

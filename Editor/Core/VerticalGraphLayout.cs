@@ -12,29 +12,29 @@ namespace GitVersionControl
     public sealed class VerticalGraphLayout
     {
         /// <summary>
-        /// 한 줄 높이. 원(지름 10)과 위아래로 지나가는 선 사이에 여유를 두고, 메시지 한 줄이 들어가는 높이.
+        /// 한 줄 높이. GitKraken 처럼 넉넉히 둬서 아바타(지름 24)·HEAD 고리와 위아래 선 사이에 여유를 두고, 13px 메시지가 답답하지 않게 한다.
         /// </summary>
-        public const float RowHeight = 26f;
+        public const float RowHeight = 34f;
 
         /// <summary>
-        /// 브랜치 열 사이 간격. 아바타를 그릴 때는 원(지름 18 + 테두리)이 옆 열과 겹치지 않게 넓힌다.
+        /// 브랜치 열 사이 간격. 아바타를 그릴 때는 원(지름 24 + 테두리)이 옆 열과 겹치지 않게 넓힌다.
         /// </summary>
-        public const float LaneSpacing = 14f;
-        public const float AvatarLaneSpacing = 22f;
+        public const float LaneSpacing = 18f;
+        public const float AvatarLaneSpacing = 30f;
 
         /// <summary>
-        /// 아바타 원의 반지름. 줄 높이(26)에 HEAD 고리까지 들어가는 크기.
+        /// 아바타 원의 반지름. 줄 높이(34)에 HEAD 고리까지 들어가는 크기.
         /// </summary>
-        public const float AvatarRadius = 9f;
+        public const float AvatarRadius = 12f;
 
-        public const float LeftPadding = 12f;
-        public const float AvatarLeftPadding = 14f;
-        public const float MinWidth = 40f;
+        public const float LeftPadding = 14f;
+        public const float AvatarLeftPadding = 20f;
+        public const float MinWidth = 48f;
 
         /// <summary>
         /// 그래프 칸의 최대 폭. 브랜치가 아주 많아도 메시지 칸을 밀어내지 않게 자른다(넘는 열은 가려진다).
         /// </summary>
-        public const float MaxWidth = 220f;
+        public const float MaxWidth = 260f;
 
         public readonly List<GitGraphNode> NodesNewestFirst;
         public readonly Dictionary<GitGraphNode, int> RowOf = new();

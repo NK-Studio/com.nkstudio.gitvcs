@@ -2,7 +2,6 @@
     <!-- GitKraken 형태: 가운데 세로 커밋 그래프(파일을 고르면 그 자리에 diff), 오른쪽 작업 패널(Unstaged·Staged·커밋) 또는 고른 커밋 상세. -->
     <ui:VisualElement class="view graph-workspace">
         <uie:Toolbar class="graph-workspace__toolbar">
-            <uie:ToolbarButton name="reload-button" tooltip="@common.reload" class="git-toolbar__action--icon" />
             <ui:Label name="summary" class="view__toolbar-label" />
         </uie:Toolbar>
 
