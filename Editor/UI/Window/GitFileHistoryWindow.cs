@@ -86,7 +86,7 @@ namespace GitVersionControl
             _summary.text = GitText.Get("common.loading");
             (List<GitCommitInfo> commits, string error) = await GitFileOperations.FileLogAsync(_repoPath, MaxCommits);
             _pathByCommit = await GitFileOperations.FollowPathsAsync(_repoPath, MaxCommits);
-            _summary.text = error ?? GitText.Format("history.summary", _repoPath, commits.Count)
+            _summary.text = error ?? GitText.Format("history.summary", GitDisplay.Nfc(_repoPath), commits.Count)
                 + (commits.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
             _commits.SetItems(commits);
             if (commits.Count > 0)

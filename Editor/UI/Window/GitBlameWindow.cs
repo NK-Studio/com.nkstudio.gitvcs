@@ -65,7 +65,7 @@ namespace GitVersionControl
             (List<GitBlameLine> lines, string error) = await GitFileOperations.BlameAsync(_repoPath);
             _lines = lines;
             MarkBlocks();
-            _summary.text = error ?? GitText.Format("blame.summary", _repoPath, lines.Count);
+            _summary.text = error ?? GitText.Format("blame.summary", GitDisplay.Nfc(_repoPath), lines.Count);
             _list.itemsSource = _lines;
             _list.Rebuild();
         }

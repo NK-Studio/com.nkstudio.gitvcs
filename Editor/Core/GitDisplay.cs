@@ -97,6 +97,20 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 한글 자모가 풀린 글자를 한 글자로 합친다(유니코드 NFC). macOS 는 파일 이름·입력값을 NFD("ㅊㅚㅇ")로 넘기는 경우가 있어,
+        /// 맥에서 만든 커밋의 작성자·메시지·경로가 윈도우에서 자모로 풀려 보인다. 화면에 보일 글자에만 쓴다 —
+        /// 경로·브랜치 이름은 git 명령에 그대로 넘겨야 같은 대상을 가리키므로 원본은 바꾸지 않는다.
+        /// </summary>
+        public static string Nfc(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text ?? string.Empty;
+            }
+            return text.IsNormalized(System.Text.NormalizationForm.FormC) ? text : text.Normalize(System.Text.NormalizationForm.FormC);
+        }
+
+        /// <summary>
         /// 메뉴 항목에 넣을 이름. 메뉴는 '/' 를 하위 메뉴 구분으로 읽으므로 "feature/x" 가 하위 메뉴로 쪼개진다 — 모양이 같은 '∕'(U+2215)로 바꾼다.
         /// </summary>
         public static string MenuSafe(string text)

@@ -13,6 +13,30 @@ namespace GitVersionControl.Tests
         private const string F = "\x1f";
         private const string R = "\x1e";
 
+        /// <summary>
+        /// macOS 가 넘기는 자모 분리형(NFD) "최영": ㅊ+ㅚ / ㅇ+ㅕ+ㅇ.
+        /// </summary>
+        private const string DecomposedName = "최영";
+
+        [Test]
+        public void Test_Nfc_ComposesDecomposedHangul()
+        {
+            Assert.AreEqual("최영", GitDisplay.Nfc(DecomposedName));
+            Assert.AreEqual("plain", GitDisplay.Nfc("plain"));
+            Assert.AreEqual(string.Empty, GitDisplay.Nfc(null));
+        }
+
+        [Test]
+        public void Test_ParseCommits_ComposesMacAuthorAndSubject()
+        {
+            string output = "h" + F + "h" + F + "" + F + DecomposedName + F + "a@b.com" + F + "1700000000" + F + "" + F + "Fix: " + DecomposedName + R;
+
+            GitCommitInfo commit = GitHistory.ParseCommits(output)[0];
+
+            Assert.AreEqual("최영", commit.AuthorName);
+            Assert.AreEqual("Fix: 최영", commit.Subject);
+        }
+
         [Test]
         public void Test_ParseCommits_ReadsFieldsAndParents()
         {

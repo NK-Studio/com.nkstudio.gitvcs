@@ -87,7 +87,8 @@ namespace GitVersionControl
             }
 
             Label label = pool.Labels[pool.Used++];
-            label.text = text;
+            // 줄 이름·이름표(브랜치·태그)는 맥에서 만든 이름이면 자모로 풀려 있을 수 있다. 그래프의 글자는 모두 여기를 지난다.
+            label.text = GitDisplay.Nfc(text);
             label.style.display = DisplayStyle.Flex;
             label.style.left = position.x;
             label.style.top = position.y;

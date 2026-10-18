@@ -37,11 +37,11 @@ namespace GitVersionControl
             row.Require<Image>("icon").image = _icons.GetIcon(item.ProjectPath, item.RepoPath);
 
             Label path = row.Require<Label>("path");
-            path.text = nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath;
+            path.text = GitDisplay.Nfc(nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath);
             path.tooltip = item.Tooltip;
 
             Label original = row.Require<Label>("original");
-            original.text = item.OriginalRepoPath != null ? $"← {item.OriginalRepoPath}" : string.Empty;
+            original.text = item.OriginalRepoPath != null ? $"← {GitDisplay.Nfc(item.OriginalRepoPath)}" : string.Empty;
             original.SetVisible(item.OriginalRepoPath != null);
 
             Label note = row.Require<Label>("note");
@@ -62,7 +62,7 @@ namespace GitVersionControl
             row.Require<Image>("icon").image = _folderIcon;
 
             Label path = row.Require<Label>("path");
-            path.text = folder.Name;
+            path.text = GitDisplay.Nfc(folder.Name);
             path.tooltip = folder.Path;
 
             row.Require<Label>("original").SetVisible(false);

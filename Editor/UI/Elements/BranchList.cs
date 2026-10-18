@@ -68,7 +68,8 @@ namespace GitVersionControl
                 return;
             }
 
-            name.text = branch.IsCurrent ? $"● {branch.Name}" : branch.Name;
+            string displayName = GitDisplay.Nfc(branch.Name);
+            name.text = branch.IsCurrent ? $"● {displayName}" : displayName;
             name.tooltip = branch.IsCurrent ? GitText.Get("branches.current") : branch.RefName;
 
             Label track = row.Require<Label>("track");

@@ -75,7 +75,7 @@ namespace GitVersionControl
             _placeholder.SetVisible(false);
             _body.SetVisible(true);
 
-            string lane = string.IsNullOrEmpty(laneName) ? string.Empty : $"  ·  {laneName}";
+            string lane = string.IsNullOrEmpty(laneName) ? string.Empty : $"  ·  {GitDisplay.Nfc(laneName)}";
             _title.text = $"{commit.ShortHash}  ·  {commit.AuthorName} <{commit.AuthorEmail}>  ·  {GitDisplay.FormatDate(commit.Date)}{lane}";
             _message.SetValueWithoutNotify(commit.Subject);
             _files.SetItems(Array.Empty<FileListItem>());

@@ -19,7 +19,7 @@ namespace GitVersionControl
             row.Require<Label>("hash").text = commit.ShortHash;
 
             Label refs = row.Require<Label>("refs");
-            refs.text = string.IsNullOrEmpty(commit.Refs) ? string.Empty : $"[{commit.Refs}]";
+            refs.text = string.IsNullOrEmpty(commit.Refs) ? string.Empty : $"[{GitDisplay.Nfc(commit.Refs)}]";
             refs.EnableInClassList(RefsHiddenModifier, string.IsNullOrEmpty(commit.Refs));
 
             Label subject = row.Require<Label>("subject");

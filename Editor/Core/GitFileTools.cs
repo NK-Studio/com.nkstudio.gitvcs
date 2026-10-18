@@ -107,7 +107,7 @@ namespace GitVersionControl
                 switch (key)
                 {
                     case "author":
-                        current.AuthorName = value;
+                        current.AuthorName = GitDisplay.Nfc(value);
                         break;
                     case "author-time":
                         if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds))
@@ -116,7 +116,7 @@ namespace GitVersionControl
                         }
                         break;
                     case "summary":
-                        current.Summary = value;
+                        current.Summary = GitDisplay.Nfc(value);
                         break;
                 }
             }

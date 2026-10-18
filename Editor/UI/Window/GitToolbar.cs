@@ -81,7 +81,7 @@ namespace GitVersionControl
             GitBranchInfo branch = repository.Branch;
             _repoName.text = string.IsNullOrEmpty(GitRepository.RepoRoot) ? "-" : Path.GetFileName(GitRepository.RepoRoot.TrimEnd('/'));
             _repoName.tooltip = GitRepository.RepoRoot;
-            _branchButton.text = branch == null ? "-" : branch.Detached ? "HEAD (detached)" : branch.Name;
+            _branchButton.text = branch == null ? "-" : branch.Detached ? "HEAD (detached)" : GitDisplay.Nfc(branch.Name);
             _branchButton.tooltip = GitDisplay.FormatBranch(branch);
             _status.text = _services.Runner.StatusText;
             _status.tooltip = _services.Runner.StatusText;

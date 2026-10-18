@@ -255,7 +255,7 @@ namespace GitVersionControl
         {
 
             int version = ++_loadVersion;
-            _title.text = _target.OriginalRepoPath != null ? $"{_target.OriginalRepoPath} → {_target.RepoPath}" : _target.RepoPath;
+            _title.text = GitDisplay.Nfc(_target.OriginalRepoPath != null ? $"{_target.OriginalRepoPath} → {_target.RepoPath}" : _target.RepoPath);
             _title.tooltip = _title.text;
             _revisions.text = DescribeRevisions(_target);
             _notice.text = GitText.Get("common.loading");

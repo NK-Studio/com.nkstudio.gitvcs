@@ -140,7 +140,7 @@ namespace GitVersionControl
         public static async Task<string> CommitMessageAsync(string hash)
         {
             GitResult result = await GitRepository.RunAsync("show", "-s", "--format=%B", hash);
-            return result.Success ? result.Output.TrimEnd() : result.Message;
+            return result.Success ? GitDisplay.Nfc(result.Output.TrimEnd()) : result.Message;
         }
 
         /// <summary>
@@ -218,11 +218,11 @@ namespace GitVersionControl
                     Hash = fields[0],
                     ShortHash = fields[1],
                     Parents = fields[2].Length == 0 ? Array.Empty<string>() : fields[2].Split(' '),
-                    AuthorName = fields[3],
+                    AuthorName = GitDisplay.Nfc(fields[3]),
                     AuthorEmail = fields[4],
                     Date = FromUnix(fields[5]),
                     Refs = fields[6],
-                    Subject = fields[7],
+                    Subject = GitDisplay.Nfc(fields[7]),
                 });
             }
             return commits;
@@ -287,8 +287,8 @@ namespace GitVersionControl
                     Upstream = string.Empty,
                     Track = string.Empty,
                     Date = FromUnix(fields[2]),
-                    AuthorName = fields[3],
-                    Subject = fields[4],
+                    AuthorName = GitDisplay.Nfc(fields[3]),
+                    Subject = GitDisplay.Nfc(fields[4]),
                     IsCurrent = fields[5].Trim() == "*",
                 });
             }

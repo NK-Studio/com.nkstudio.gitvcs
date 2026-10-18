@@ -297,7 +297,7 @@ namespace GitVersionControl
             GitGraphNode node = (GitGraphNode)_items[index];
             GitCommitInfo commit = node.Commit;
             string labels = string.Join("  ", RefNames(node));
-            refs.text = labels;
+            refs.text = GitDisplay.Nfc(labels);
             refs.EnableInClassList("commit-row__refs--hidden", labels.Length == 0);
             subject.text = commit.Subject;
             subject.tooltip = $"{commit.ShortHash}  {commit.Subject}";

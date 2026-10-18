@@ -550,7 +550,7 @@ namespace GitVersionControl
                 return;
             }
             GitCommitInfo commit = _hovered.Commit;
-            _tooltip.text = GitText.Format("explorer.tooltip", commit.Subject, commit.ShortHash, commit.AuthorName, GitDisplay.FormatDate(commit.Date), _hovered.Lane.Name);
+            _tooltip.text = GitText.Format("explorer.tooltip", commit.Subject, commit.ShortHash, commit.AuthorName, GitDisplay.FormatDate(commit.Date), GitDisplay.Nfc(_hovered.Lane.Name));
             _tooltip.style.left = _pointer.x + 14f;
             _tooltip.style.top = _pointer.y + 14f;
             _tooltip.SetVisible(true);
