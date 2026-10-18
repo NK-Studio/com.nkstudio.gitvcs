@@ -14,6 +14,11 @@ namespace GitVersionControl
 
         private static readonly GitHubDeviceLogin s_login = GitHubDeviceLogin.Shared;
         private static Texture2D s_avatar;
+
+        /// <summary>
+        /// "코드 복사" 를 누른 시각. 잠깐 "복사됨" 을 보인다.
+        /// </summary>
+        private static double s_copiedAt = -1;
         private static string s_avatarUrl;
 
         [SettingsProvider]
@@ -94,18 +99,22 @@ namespace GitVersionControl
             }
             else
             {
-                EditorGUILayout.LabelField(GitText.Get("github.enterCode"), EditorStyles.wordWrappedLabel);
+                EditorGUILayout.LabelField(GitText.Get(s_login.HasOpenedPage ? "github.enterCode" : "github.codeReady"), EditorStyles.wordWrappedLabel);
                 GUIStyle codeStyle = new(EditorStyles.boldLabel) { fontSize = 24 };
                 EditorGUILayout.SelectableLabel(s_login.UserCode, codeStyle, GUILayout.Height(34));
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button(GitText.Get("github.copyCode"), GUILayout.Width(120)))
+                    bool isCopied = EditorApplication.timeSinceStartup - s_copiedAt < 1.5;
+                    if (GUILayout.Button(GitText.Get(isCopied ? "github.copied" : "github.copyCode"), GUILayout.Width(120)))
                     {
-                        GUIUtility.systemCopyBuffer = s_login.UserCode;
+                        s_login.CopyCode();
+                        s_copiedAt = EditorApplication.timeSinceStartup;
+                        // "복사됨" 을 원래 글자로 되돌리려면 1.5초 뒤 다시 그려야 한다.
+                        RepaintAfterCopied();
                     }
-                    if (GUILayout.Button(GitText.Get("github.openPage"), GUILayout.Width(160)))
+                    if (GUILayout.Button(GitText.Get(s_login.HasOpenedPage ? "github.openPage" : "github.next"), GUILayout.Width(200)))
                     {
-                        Application.OpenURL(s_login.VerificationUri);
+                        s_login.OpenVerificationPage();
                     }
                 }
             }
@@ -113,6 +122,12 @@ namespace GitVersionControl
             {
                 s_login.Cancel();
             }
+        }
+
+        private static async void RepaintAfterCopied()
+        {
+            await System.Threading.Tasks.Task.Delay(1600);
+            SettingsService.RepaintAllSettingsWindow();
         }
 
         /// <summary>

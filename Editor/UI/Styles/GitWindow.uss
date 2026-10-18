@@ -87,6 +87,10 @@
     margin: 0 3px;
 }
 
+.github-connect__next {
+    margin-top: 12px;
+}
+
 .github-connect__error {
     white-space: normal;
     color: var(--git-warning);

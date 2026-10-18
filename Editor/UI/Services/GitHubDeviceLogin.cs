@@ -5,7 +5,8 @@ using UnityEngine.Networking;
 namespace GitVersionControl
 {
     /// <summary>
-    /// "GitHub 로 로그인" 한 번의 흐름(GitHub OAuth Device Flow). 코드를 받아 브라우저를 열고, 사용자가 승인할 때까지 정해진 간격으로 묻는다.
+    /// "GitHub 로 로그인" 한 번의 흐름(GitHub OAuth Device Flow). 코드를 받아 보여 주고, 사용자가 승인할 때까지 정해진 간격으로 묻는다.
+    /// 브라우저는 자동으로 열지 않는다 — 사용자가 코드를 확인·복사한 뒤 "다음" 을 눌러야 연다(<see cref="OpenVerificationPage"/>).
     /// 규칙(응답 읽기·다음에 할 일)은 <see cref="GitHubDeviceFlow"/>, 받은 토큰 저장은 <see cref="GitHubAccount"/>.
     /// </summary>
     public sealed class GitHubDeviceLogin
@@ -40,6 +41,11 @@ namespace GitVersionControl
         public bool IsRunning => Current == Step.RequestingCode || Current == Step.WaitingForApproval;
 
         /// <summary>
+        /// 이번 코드로 GitHub 입력 페이지를 열었는지. 화면이 안내 문구와 버튼 이름("다음" / "다시 열기")을 고른다.
+        /// </summary>
+        public bool HasOpenedPage { get; private set; }
+
+        /// <summary>
         /// 화면을 다시 그려야 할 때(단계가 바뀔 때).
         /// </summary>
         public event System.Action StateChanged;
@@ -47,6 +53,7 @@ namespace GitVersionControl
         public async void Start()
         {
             int attempt = ++_attempt;
+            HasOpenedPage = false;
             SetStep(Step.RequestingCode, null);
 
             WWWForm codeForm = new();
@@ -66,8 +73,7 @@ namespace GitVersionControl
 
             UserCode = code.user_code;
             VerificationUri = code.verification_uri;
-            GUIUtility.systemCopyBuffer = UserCode;
-            Application.OpenURL(VerificationUri);
+            // 승인 여부는 지금부터 묻는다. 사용자가 코드를 확인하고 페이지를 여는 동안에도 기한(약 15분) 안이면 된다.
             SetStep(Step.WaitingForApproval, null);
 
             int intervalSeconds = GitHubDeviceFlow.IntervalSeconds(code.interval);
@@ -113,6 +119,22 @@ namespace GitVersionControl
                 }
             }
             SetStep(Step.Failed, GitText.Get("github.expired"));
+        }
+
+        public void CopyCode()
+        {
+            GUIUtility.systemCopyBuffer = UserCode;
+        }
+
+        /// <summary>
+        /// GitHub 코드 입력 페이지를 연다. 붙여넣기만 하면 되도록 코드를 클립보드에도 넣는다.
+        /// </summary>
+        public void OpenVerificationPage()
+        {
+            CopyCode();
+            Application.OpenURL(VerificationUri);
+            HasOpenedPage = true;
+            StateChanged?.Invoke();
         }
 
         /// <summary>

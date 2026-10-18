@@ -17,9 +17,9 @@
                 <ui:Label name="user-code" class="github-connect__code" />
                 <ui:VisualElement class="github-connect__row">
                     <ui:Button name="copy-code-button" text="@github.copyCode" class="github-connect__secondary" />
-                    <ui:Button name="open-page-button" text="@github.openPage" class="github-connect__secondary" />
                     <ui:Button name="cancel-button" text="@common.cancel" class="github-connect__secondary" />
                 </ui:VisualElement>
+                <ui:Button name="open-page-button" class="github-connect__primary github-connect__next" />
             </ui:VisualElement>
 
             <ui:Label name="error-text" class="github-connect__error" />
