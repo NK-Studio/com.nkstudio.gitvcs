@@ -77,12 +77,6 @@ namespace GitVersionControl
             settings.ShowOverlays = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.overlays")), settings.ShowOverlays);
             settings.RefreshOnFocus = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.refreshOnFocus"), GitText.Get("settings.refreshOnFocusTooltip")), settings.RefreshOnFocus);
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
-            using (new EditorGUI.DisabledScope(settings.ShowAvatars == false))
-            using (new EditorGUI.IndentLevelScope())
-            {
-                settings.AvatarsUseGitCredentials = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatarsCredentials"), GitText.Get("settings.avatarsCredentialsTooltip")), settings.AvatarsUseGitCredentials);
-                settings.MyGitHubLogin = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.myGitHubLogin"), GitText.Get("settings.myGitHubLoginTooltip")), settings.MyGitHubLogin);
-            }
 
             EditorGUILayout.Space();
             DrawDiff(settings);

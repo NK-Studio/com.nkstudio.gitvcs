@@ -16,8 +16,6 @@ namespace GitVersionControl
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
         [SerializeField] private bool _showAvatars;
-        [SerializeField] private bool _avatarsUseGitCredentials;
-        [SerializeField] private string _myGitHubLogin = string.Empty;
         [SerializeField] private int _diffEngine;
         [SerializeField] private int _diffAlgorithm = (int)DiffAlgorithm.Histogram;
         [SerializeField] private int _diffWhitespace;
@@ -79,26 +77,6 @@ namespace GitVersionControl
         {
             get => _showAvatars;
             set => SetAndSave(ref _showAvatars, value);
-        }
-
-        /// <summary>
-        /// 아바타를 찾을 때 git 에 저장된 GitHub 자격 증명(Git Credential Manager 등)으로 GitHub API 에 로그인할지.
-        /// 비공개 저장소는 로그인하지 않으면 커밋의 작성자 계정을 알 수 없다. 저장된 비밀을 읽는 일이라 기본은 꺼 둔다.
-        /// </summary>
-        public bool AvatarsUseGitCredentials
-        {
-            get => _avatarsUseGitCredentials;
-            set => SetAndSave(ref _avatarsUseGitCredentials, value);
-        }
-
-        /// <summary>
-        /// 내 GitHub 아이디. 이 저장소의 git user.email 로 만든 커밋(내 커밋)에 이 계정의 프로필 사진을 쓴다.
-        /// 아직 푸시하지 않은 커밋은 GitHub 가 작성자를 모르므로, 이 값이 없으면 내 커밋은 머리글자로 남는다(GitKraken 은 로그인한 계정 사진을 쓴다).
-        /// </summary>
-        public string MyGitHubLogin
-        {
-            get => _myGitHubLogin ?? string.Empty;
-            set => SetAndSave(ref _myGitHubLogin, value?.Trim() ?? string.Empty);
         }
 
         /// <summary>

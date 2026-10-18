@@ -44,19 +44,15 @@ namespace GitVersionControl
         private (string owner, string repository)? _gitHubRemote;
 
         /// <summary>
-        /// git 에서 읽은 GitHub 토큰. 메모리에만 둔다. 한 번 물어 없으면 빈 문자열(다시 묻지 않는다).
+        /// 마지막으로 본 로그인 계정(Preferences > Git). 바뀌면 이번 세션의 "없음" 판단을 버리고 다시 찾는다.
         /// </summary>
-        private string _gitHubToken;
+        private string _signedInLogin;
 
-        /// <summary>
-        /// 마지막으로 본 아바타 설정("git 의 GitHub 로그인 사용" + "내 GitHub 아이디"). 바뀌면 이번 세션의 판단을 버리고 다시 찾는다.
-        /// </summary>
-        private string _settingsKey;
-
-        /// <summary>
-        /// 토큰 주인 계정의 사진 주소(내 GitHub 아이디를 비워 둔 경우). 한 번 물어 없으면 빈 문자열.
-        /// </summary>
-        private string _tokenOwnerAvatarUrl;
+        public GitHubAvatarProvider()
+        {
+            // 로그인·로그아웃하면 보이는 그래프가 바로 다시 그려지게 한다(다시 그릴 때 위의 판단이 새로 된다).
+            GitHubAccount.Changed += () => AvatarLoaded?.Invoke();
+        }
 
         public bool IsEnabled => GitVcsSettings.instance.ShowAvatars;
 
@@ -68,15 +64,13 @@ namespace GitVersionControl
             {
                 return null;
             }
-            string settingsKey = GitVcsSettings.instance.AvatarsUseGitCredentials + "|" + GitVcsSettings.instance.MyGitHubLogin;
-            if (_settingsKey != settingsKey)
+            string signedInLogin = GitHubAccount.Login;
+            if (_signedInLogin != signedInLogin)
             {
-                bool isFirstLook = _settingsKey == null;
-                _settingsKey = settingsKey;
+                bool isFirstLook = _signedInLogin == null;
+                _signedInLogin = signedInLogin;
                 _missing.Clear();
-                _gitHubToken = null;
-                _tokenOwnerAvatarUrl = null;
-                // 아이디를 바꾸면 예전 사진·"없음" 기록이 7일 동안 남지 않게 내 이메일 것만 지운다.
+                // 계정을 바꾸면 예전 계정 사진이 7일 동안 남지 않게 내 이메일 것만 지운다.
                 if (isFirstLook == false)
                 {
                     ForgetOwnAvatar();
@@ -97,7 +91,7 @@ namespace GitVersionControl
                 _textures[email] = texture;
                 return texture;
             }
-            // 내 커밋은 "없음" 기록을 믿지 않는다 — 설정(내 GitHub 아이디·로그인)으로 언제든 사진이 생길 수 있다.
+            // 내 커밋은 "없음" 기록을 믿지 않는다 — GitHub 에 로그인하면 언제든 사진이 생길 수 있다.
             if (knownMissing && IsOwnEmail(email) == false)
             {
                 _missing.Add(email);
@@ -169,14 +163,10 @@ namespace GitVersionControl
         private async Task<(List<string> urls, bool gitHubAnswered)> CandidateUrlsAsync(string email, string commitHash)
         {
             List<string> urls = new();
-            // 내 커밋: 아직 푸시하지 않았어도 내 계정 사진을 쓴다(GitKraken 과 같다).
-            if (IsOwnEmail(email))
+            // 내 커밋: 아직 푸시하지 않았어도 로그인한 계정 사진을 쓴다(GitKraken 과 같다).
+            if (IsOwnEmail(email) && string.IsNullOrEmpty(GitHubAccount.AvatarUrl) == false)
             {
-                string own = await OwnAvatarUrlAsync();
-                if (own != null)
-                {
-                    urls.Add(own);
-                }
+                urls.Add(WithSize(GitHubAccount.AvatarUrl));
             }
             string noReply = GitAvatarSources.NoReplyAvatarUrl(email);
             if (noReply != null)
@@ -188,11 +178,11 @@ namespace GitVersionControl
             (string owner, string repository)? remote = await GitHubRemoteAsync();
             if (remote.HasValue && string.IsNullOrEmpty(commitHash) == false)
             {
-                (string avatarUrl, bool answered) = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash, await GitHubTokenAsync());
+                (string avatarUrl, bool answered) = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash, GitHubAccount.Token);
                 gitHubAnswered = answered;
                 if (string.IsNullOrEmpty(avatarUrl) == false)
                 {
-                    urls.Add(avatarUrl + (avatarUrl.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size);
+                    urls.Add(WithSize(avatarUrl));
                 }
             }
 
@@ -200,35 +190,9 @@ namespace GitVersionControl
             return (urls, gitHubAnswered);
         }
 
-        /// <summary>
-        /// 내 계정 사진 주소: 설정의 "내 GitHub 아이디" → 없으면 토큰 주인 계정(<c>GET /user</c>). 둘 다 없으면 null.
-        /// </summary>
-        private async Task<string> OwnAvatarUrlAsync()
+        private static string WithSize(string avatarUrl)
         {
-            string fromLogin = GitAvatarSources.GitHubProfileAvatarUrl(GitVcsSettings.instance.MyGitHubLogin);
-            if (fromLogin != null)
-            {
-                return fromLogin;
-            }
-            if (_tokenOwnerAvatarUrl == null)
-            {
-                _tokenOwnerAvatarUrl = string.Empty;
-                string token = await GitHubTokenAsync();
-                if (token != null)
-                {
-                    using UnityWebRequest request = UnityWebRequest.Get("https://api.github.com/user");
-                    request.SetRequestHeader("User-Agent", UserAgent);
-                    request.SetRequestHeader("Accept", "application/vnd.github+json");
-                    request.SetRequestHeader("Authorization", "Bearer " + token);
-                    await SendAsync(request);
-                    if (request.result == UnityWebRequest.Result.Success)
-                    {
-                        string url = JsonUtility.FromJson<Author>(request.downloadHandler.text)?.avatar_url;
-                        _tokenOwnerAvatarUrl = string.IsNullOrEmpty(url) ? string.Empty : url + (url.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size;
-                    }
-                }
-            }
-            return _tokenOwnerAvatarUrl.Length == 0 ? null : _tokenOwnerAvatarUrl;
+            return avatarUrl + (avatarUrl.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size;
         }
 
         private static bool IsOwnEmail(string email)
@@ -253,25 +217,6 @@ namespace GitVersionControl
             catch (IOException)
             {
             }
-        }
-
-        /// <summary>
-        /// 설정에서 켰을 때만 git 의 자격 증명 도우미에게 GitHub 토큰을 묻는다. 로그인 창은 띄우지 않는다
-        /// (GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never) — 저장된 것이 없으면 그냥 없음.
-        /// </summary>
-        private async Task<string> GitHubTokenAsync()
-        {
-            if (GitVcsSettings.instance.AvatarsUseGitCredentials == false)
-            {
-                return null;
-            }
-            if (_gitHubToken == null)
-            {
-                GitResult result = await GitCommand.RunWithInputAsync(GitRepository.RepoRoot ?? GitRepository.ProjectRoot, new[] { "credential", "fill" },
-                    GitAvatarSources.GitHubCredentialQuery, new Dictionary<string, string> { ["GCM_INTERACTIVE"] = "never" });
-                _gitHubToken = result.Success ? GitAvatarSources.ParseCredentialPassword(result.Output) ?? string.Empty : string.Empty;
-            }
-            return _gitHubToken.Length == 0 ? null : _gitHubToken;
         }
 
         /// <summary>origin 이 GitHub 저장소면 (owner, repo). 저장소가 바뀌지 않는 한 한 번만 묻는다.</summary>
@@ -302,7 +247,7 @@ namespace GitVersionControl
             public string avatar_url;
         }
 
-        /// <param name="token">GitHub 토큰. null 이면 로그인하지 않고 묻는다(공개 저장소만 답한다).</param>
+        /// <param name="token">GitHub 토큰. 비어 있으면 로그인하지 않고 묻는다(공개 저장소만 답한다).</param>
         /// <returns>(아바타 주소 또는 null, 답을 받았는지). 커밋은 찾았는데 GitHub 계정과 이어지지 않은 이메일이면 (null, true).</returns>
         private static async Task<(string avatarUrl, bool answered)> GitHubCommitAvatarAsync(string owner, string repository, string commitHash, string token)
         {
@@ -313,7 +258,7 @@ namespace GitVersionControl
             {
                 request.SetRequestHeader("Authorization", "Bearer " + token);
             }
-            await SendAsync(request);
+            await GitHubAccount.SendAsync(request);
             if (request.result != UnityWebRequest.Result.Success)
             {
                 // 404(비공개 저장소에 로그인 없이)·403/429(요청 제한)·네트워크 오류: 작성자를 모른다.
@@ -328,7 +273,7 @@ namespace GitVersionControl
         {
             using UnityWebRequest request = UnityWebRequest.Get(url);
             request.SetRequestHeader("User-Agent", UserAgent);
-            await SendAsync(request);
+            await GitHubAccount.SendAsync(request);
             if (request.result == UnityWebRequest.Result.Success && request.downloadHandler.data is { Length: > 0 } data)
             {
                 return (data, false);
@@ -336,15 +281,6 @@ namespace GitVersionControl
             long code = request.responseCode;
             bool temporary = request.result == UnityWebRequest.Result.ConnectionError || code == 403 || code == 429 || code >= 500;
             return (null, temporary);
-        }
-
-        /// <summary>UnityWebRequest 의 완료 콜백은 메인 스레드에서 오므로, await 뒤도 메인 스레드다.</summary>
-        private static Task SendAsync(UnityWebRequest request)
-        {
-            TaskCompletionSource<bool> completion = new();
-            request.timeout = 15;
-            request.SendWebRequest().completed += _ => completion.TrySetResult(true);
-            return completion.Task;
         }
 
         private static bool TryLoadFromDisk(string key, out Texture2D texture, out bool knownMissing)

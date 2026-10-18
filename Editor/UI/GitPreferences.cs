@@ -1,0 +1,143 @@
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Networking;
+
+namespace GitVersionControl
+{
+    /// <summary>
+    /// Preferences > Git: 사람마다 다른 개인 설정. 지금은 GitHub 계정 로그인(<see cref="GitHubAccount"/>)만 있다.
+    /// 프로젝트 설정(Project Settings > Version Control)과 달리 이 PC 의 모든 프로젝트에 같이 적용된다.
+    /// </summary>
+    internal static class GitPreferences
+    {
+        private const float AvatarSize = 40f;
+
+        private static readonly GitHubDeviceLogin s_login = new();
+        private static Texture2D s_avatar;
+        private static string s_avatarUrl;
+
+        [SettingsProvider]
+        private static SettingsProvider Create()
+        {
+            s_login.StateChanged -= SettingsService.RepaintAllSettingsWindow;
+            s_login.StateChanged += SettingsService.RepaintAllSettingsWindow;
+            return new SettingsProvider("Preferences/Git", SettingsScope.User)
+            {
+                label = "Git",
+                guiHandler = _ => Draw(),
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login" },
+            };
+        }
+
+        private static void Draw()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(GitText.Get("github.title"), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(GitText.Get("github.description"), EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.Space();
+
+            if (GitHubAccount.IsConfigured == false)
+            {
+                EditorGUILayout.HelpBox(GitText.Get("github.notConfigured"), MessageType.Info);
+                return;
+            }
+            if (GitHubAccount.IsSignedIn)
+            {
+                DrawSignedIn();
+                return;
+            }
+            if (s_login.IsRunning)
+            {
+                DrawWaiting();
+                return;
+            }
+
+            if (GUILayout.Button(GitText.Get("github.signIn"), GUILayout.Width(200), GUILayout.Height(26)))
+            {
+                s_login.Start();
+            }
+            if (s_login.Current == GitHubDeviceLogin.Step.Failed)
+            {
+                EditorGUILayout.HelpBox(GitText.Format("github.failed", s_login.Error), MessageType.Warning);
+            }
+        }
+
+        private static void DrawSignedIn()
+        {
+            LoadAvatar(GitHubAccount.AvatarUrl);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                Rect avatarRect = GUILayoutUtility.GetRect(AvatarSize, AvatarSize, GUILayout.Width(AvatarSize), GUILayout.Height(AvatarSize));
+                if (s_avatar != null)
+                {
+                    GUI.DrawTexture(avatarRect, s_avatar, ScaleMode.ScaleToFit);
+                }
+                using (new EditorGUILayout.VerticalScope())
+                {
+                    EditorGUILayout.LabelField(GitText.Format("github.signedInAs", GitHubAccount.Login), EditorStyles.boldLabel);
+                    if (GUILayout.Button(GitText.Get("github.signOut"), GUILayout.Width(120)))
+                    {
+                        GitHubAccount.SignOut();
+                        s_login.Cancel();
+                    }
+                }
+            }
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(GitText.Get("github.orgHint"), EditorStyles.wordWrappedMiniLabel);
+        }
+
+        private static void DrawWaiting()
+        {
+            if (s_login.Current == GitHubDeviceLogin.Step.RequestingCode)
+            {
+                EditorGUILayout.LabelField(GitText.Get("github.requesting"));
+            }
+            else
+            {
+                EditorGUILayout.LabelField(GitText.Get("github.enterCode"), EditorStyles.wordWrappedLabel);
+                GUIStyle codeStyle = new(EditorStyles.boldLabel) { fontSize = 24 };
+                EditorGUILayout.SelectableLabel(s_login.UserCode, codeStyle, GUILayout.Height(34));
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button(GitText.Get("github.copyCode"), GUILayout.Width(120)))
+                    {
+                        GUIUtility.systemCopyBuffer = s_login.UserCode;
+                    }
+                    if (GUILayout.Button(GitText.Get("github.openPage"), GUILayout.Width(160)))
+                    {
+                        Application.OpenURL(s_login.VerificationUri);
+                    }
+                }
+            }
+            if (GUILayout.Button(GitText.Get("common.cancel"), GUILayout.Width(120)))
+            {
+                s_login.Cancel();
+            }
+        }
+
+        /// <summary>
+        /// 계정 사진은 Preferences 를 열 때 한 번 받는다(계정이 바뀌면 다시).
+        /// </summary>
+        private static async void LoadAvatar(string url)
+        {
+            if (string.IsNullOrEmpty(url) || url == s_avatarUrl)
+            {
+                return;
+            }
+            s_avatarUrl = url;
+            s_avatar = null;
+            using UnityWebRequest request = UnityWebRequest.Get(url);
+            await GitHubAccount.SendAsync(request);
+            if (request.result != UnityWebRequest.Result.Success || s_avatarUrl != url)
+            {
+                return;
+            }
+            Texture2D texture = new(2, 2) { hideFlags = HideFlags.HideAndDontSave };
+            if (texture.LoadImage(request.downloadHandler.data))
+            {
+                s_avatar = texture;
+                SettingsService.RepaintAllSettingsWindow();
+            }
+        }
+    }
+}

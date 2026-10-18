@@ -45,19 +45,6 @@ namespace GitVersionControl
             return $"https://api.github.com/repos/{owner}/{repository}/commits/{commitHash}";
         }
 
-        // GitHub 아이디: 영문·숫자·하이픈, 39자까지.
-        private static readonly Regex GitHubLogin = new(@"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$", RegexOptions.Compiled);
-
-        /// <summary>
-        /// GitHub 계정의 프로필 사진 주소(로그인 없이 받을 수 있다). 아이디가 비었거나 형식이 틀리면 null.
-        /// 앞의 '@' 는 떼어 준다("@kim" → kim).
-        /// </summary>
-        public static string GitHubProfileAvatarUrl(string login)
-        {
-            string trimmed = login?.Trim().TrimStart('@') ?? string.Empty;
-            return GitHubLogin.IsMatch(trimmed) ? $"https://github.com/{trimmed}.png?size={Size}" : null;
-        }
-
         /// <summary>
         /// 같은 이메일인지(앞뒤 공백·대소문자 무시). 둘 중 하나라도 비면 false.
         /// </summary>
@@ -68,27 +55,6 @@ namespace GitVersionControl
                 return false;
             }
             return string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// <c>git credential fill</c> 에 넘길 입력: GitHub 의 https 자격 증명을 묻는다.
-        /// </summary>
-        public const string GitHubCredentialQuery = "protocol=https\nhost=github.com\n\n";
-
-        /// <summary>
-        /// <c>git credential fill</c> 출력("key=value" 줄들)에서 password(=토큰). 없으면 null.
-        /// </summary>
-        public static string ParseCredentialPassword(string output)
-        {
-            foreach (string rawLine in (output ?? string.Empty).Split('\n'))
-            {
-                string line = rawLine.TrimEnd('\r');
-                if (line.StartsWith("password=", StringComparison.Ordinal) && line.Length > "password=".Length)
-                {
-                    return line.Substring("password=".Length);
-                }
-            }
-            return null;
         }
 
         /// <summary>d=404: 등록된 그림이 없으면 기본 그림 대신 404 를 받아 머리글자로 둔다.</summary>
