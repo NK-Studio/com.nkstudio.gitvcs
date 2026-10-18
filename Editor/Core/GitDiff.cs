@@ -306,7 +306,11 @@ namespace GitVersionControl
                     args = new List<string> { "diff", "-M" };
                     AppendOptions(args, options);
                     args.Add(target.From);
-                    args.Add(target.To);
+                    // To 가 없으면 작업 트리와 비교한다.
+                    if (target.To != null)
+                    {
+                        args.Add(target.To);
+                    }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(target), target.Source, null);

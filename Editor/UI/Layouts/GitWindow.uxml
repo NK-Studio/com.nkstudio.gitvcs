@@ -52,8 +52,12 @@
             <ui:Button name="open-settings-button" text="@common.openVcsSettings" class="notice__action" />
         </ui:VisualElement>
 
-        <ui:TwoPaneSplitView name="body" fixed-pane-index="0" fixed-pane-initial-dimension="170" orientation="Horizontal" class="git-window__body">
-            <ui:ScrollView name="sidebar" class="git-sidebar" />
+        <ui:TwoPaneSplitView name="body" fixed-pane-index="0" fixed-pane-initial-dimension="230" orientation="Horizontal" class="git-window__body">
+            <!-- 왼쪽: 위는 탭(뷰) 목록, 아래는 GitKraken·Fork 식 참조 트리(로컬·리모트·워크트리·스태시·서브모듈·태그). -->
+            <ui:VisualElement name="sidebar" class="git-sidebar">
+                <ui:VisualElement name="sidebar-views" class="git-sidebar__views" />
+                <ui:VisualElement name="sidebar-refs" class="git-sidebar__refs" />
+            </ui:VisualElement>
             <ui:VisualElement name="content" class="git-window__content" />
         </ui:TwoPaneSplitView>
     </ui:VisualElement>

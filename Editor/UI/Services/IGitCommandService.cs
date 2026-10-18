@@ -32,6 +32,33 @@ namespace GitVersionControl
         Task<GitResult> RenameBranchAsync(string oldName, string newName);
         Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream);
         Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch);
+        Task<GitResult> FastForwardBranchAsync(string branch, string upstream);
+        Task<GitResult> SetUpstreamAsync(string branch, string upstream);
+
+        /// <summary>
+        /// 브랜치가 추적하는 원격 브랜치("origin/main"). 없으면 null.
+        /// </summary>
+        Task<string> UpstreamOfAsync(string branch);
+
+        Task<GitResult> SavePatchAsync(string commit, string path);
+
+        /// <summary>
+        /// 사이드바 참조 트리의 태그·스태시·워크트리·서브모듈 작업. 인자는 <see cref="GitCommitCommands"/> 가 만든다.
+        /// </summary>
+        Task<GitResult> DeleteTagAsync(string name);
+        Task<GitResult> PushTagAsync(string remote, string name);
+        Task<GitResult> DeleteRemoteTagAsync(string remote, string name);
+        Task<GitResult> StashApplyAsync(string stash, bool drop);
+        Task<GitResult> StashDropAsync(string stash);
+        Task<GitResult> StashBranchAsync(string branch, string stash);
+        Task<GitResult> RemoveWorktreeAsync(string path);
+        Task<GitResult> UpdateSubmoduleAsync(string path);
+
+        /// <summary>
+        /// 현재 브랜치 히스토리의 커밋 하나를 고친다(<see cref="GitRewrite"/>). 실행 취소 목록에 기록된다.
+        /// </summary>
+        /// <param name="newMessage">메시지 바꾸기·squash 의 새 메시지. null 이면 규칙대로 만든다.</param>
+        Task<GitResult> RewriteAsync(GitRewriteKind kind, string commit, string newMessage, string undoTitle);
 
         /// <summary>
         /// 리비전(브랜치·태그·해시·HEAD~2)의 커밋 해시. 없으면 null.
@@ -92,6 +119,36 @@ namespace GitVersionControl
         public Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream) => GitOperations.RunNetworkAsync(GitCommitCommands.PushBranch(remote, branch, setUpstream));
 
         public Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch) => GitOperations.RunNetworkAsync(GitCommitCommands.DeleteRemoteBranch(remote, branch));
+
+        public Task<GitResult> FastForwardBranchAsync(string branch, string upstream) => GitRepository.RunAsync(GitCommitCommands.FastForwardBranch(branch, upstream));
+
+        public Task<GitResult> SetUpstreamAsync(string branch, string upstream) => GitRepository.RunAsync(GitCommitCommands.SetUpstream(branch, upstream));
+
+        public async Task<string> UpstreamOfAsync(string branch)
+        {
+            GitResult result = await GitRepository.RunAsync(GitCommitCommands.UpstreamOf(branch));
+            return result.Success && string.IsNullOrWhiteSpace(result.Output) == false ? result.Output.Trim() : null;
+        }
+
+        public Task<GitResult> SavePatchAsync(string commit, string path) => GitCommand.RunToFileAsync(GitRepository.RepoRoot, GitCommitCommands.FormatPatch(commit), path);
+
+        public Task<GitResult> DeleteTagAsync(string name) => GitRepository.RunAsync(GitCommitCommands.DeleteTag(name));
+
+        public Task<GitResult> PushTagAsync(string remote, string name) => GitOperations.RunNetworkAsync(GitCommitCommands.PushTag(remote, name));
+
+        public Task<GitResult> DeleteRemoteTagAsync(string remote, string name) => GitOperations.RunNetworkAsync(GitCommitCommands.DeleteRemoteTag(remote, name));
+
+        public Task<GitResult> StashApplyAsync(string stash, bool drop) => GitRepository.RunAsync(GitCommitCommands.StashApply(stash, drop));
+
+        public Task<GitResult> StashDropAsync(string stash) => GitRepository.RunAsync(GitCommitCommands.StashDrop(stash));
+
+        public Task<GitResult> StashBranchAsync(string branch, string stash) => GitRepository.RunAsync(GitCommitCommands.StashBranch(branch, stash));
+
+        public Task<GitResult> RemoveWorktreeAsync(string path) => GitRepository.RunAsync(GitCommitCommands.RemoveWorktree(path));
+
+        public Task<GitResult> UpdateSubmoduleAsync(string path) => GitOperations.RunNetworkAsync(GitCommitCommands.UpdateSubmodule(path));
+
+        public Task<GitResult> RewriteAsync(GitRewriteKind kind, string commit, string newMessage, string undoTitle) => GitRewrite.RunAsync(kind, commit, newMessage, undoTitle);
 
         public async Task<string> ResolveCommitAsync(string revision)
         {

@@ -5,6 +5,22 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
+    /// 커밋·브랜치 우클릭 메뉴를 어느 도구의 순서·이름으로 보일지.
+    /// </summary>
+    public enum GitMenuStyle
+    {
+        /// <summary>
+        /// Fork·GitKraken: git 용어(Checkout·Reset·Interactive Rebase)와 브랜치 이름이 들어간 항목.
+        /// </summary>
+        Fork,
+
+        /// <summary>
+        /// Unity Version Control(Plastic SCM)의 체인지 세트·브랜치 메뉴 순서.
+        /// </summary>
+        UnityVersionControl,
+    }
+
+    /// <summary>
     /// 사용자·머신별 설정. git 경로는 머신마다 다르므로 저장소에 올라가지 않는 UserSettings 에 둔다.
     /// </summary>
     [FilePath("UserSettings/GitVersionControl.asset", FilePathAttribute.Location.ProjectFolder)]
@@ -29,6 +45,7 @@ namespace GitVersionControl
         [SerializeField] private int _theme = (int)GitThemeStyle.JetBrains;
         [SerializeField] private int _layout;
         [SerializeField] private bool _showInMainToolbar = true;
+        [SerializeField] private int _menuStyle;
 
         /// <summary>
         /// 내장 diff 의 git 옵션(알고리즘·공백·문맥 줄 수)이 바뀌었을 때. 열려 있는 diff 가 다시 읽는다 — 설정 화면에서만 바꾼다.
@@ -249,6 +266,19 @@ namespace GitVersionControl
         {
             get => _showInMainToolbar;
             set => SetAndSave(ref _showInMainToolbar, value);
+        }
+
+        /// <summary>
+        /// 커밋·브랜치 우클릭 메뉴 구성. 기본은 git 클라이언트(Fork·GitKraken) 식.
+        /// </summary>
+        public GitMenuStyle MenuStyle
+        {
+            get => (GitMenuStyle)_menuStyle;
+            set
+            {
+                int index = (int)value;
+                SetAndSave(ref _menuStyle, index);
+            }
         }
 
         /// <returns>값이 실제로 바뀌었으면 true.</returns>

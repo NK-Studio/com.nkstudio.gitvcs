@@ -9,7 +9,7 @@ namespace GitVersionControl
     /// 가운데: 세로 커밋 그래프(<see cref="CommitGraphList"/>). 오른쪽 파일을 고르면 그 자리에 diff 가 열리고 × 로 그래프로 돌아온다.
     /// 오른쪽: 맨 위 "작업 중" 줄을 고르면 Unstaged·Staged·커밋(푸시) 패널, 커밋 줄을 고르면 그 커밋의 메시지·바뀐 파일.
     /// </summary>
-    public sealed class GraphWorkspaceView : GitView
+    public sealed class GraphWorkspaceView : GitView, ICommitRevealer
     {
         /// <summary>
         /// 한 번에 읽을 커밋 수. 세로 목록은 가상화라 그리기 부담은 적고, git log·그래프 배치(작업 스레드)가 커밋 수에 비례한다.
@@ -30,10 +30,16 @@ namespace GitVersionControl
         private readonly GitDiffPanel _diff;
         private readonly StagingLists _staging;
         private readonly CommitBox _commit;
-        private readonly CommitDetailPanel _detail;
+        private readonly GraphCommitDetail _detail;
+        private readonly CommitMenu _commitMenu;
 
         private string _loadedKey;
         private bool _isLoading;
+
+        /// <summary>
+        /// 그래프를 다 읽기 전에 보여 달라고 한 커밋. 읽은 뒤 고른다.
+        /// </summary>
+        private string _pendingReveal;
 
         public override string Title => GitText.Get("tab.graph");
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
@@ -61,8 +67,14 @@ namespace GitVersionControl
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);
-            _detail = new CommitDetailPanel(_detailHost, services, closable: false);
-            _detail.ShowPlaceholder();
+            _detail = new GraphCommitDetail(_detailHost, services);
+            _detail.FileSelected += target =>
+            {
+                _staging.ClearSelection();
+                ShowDiff(target);
+            };
+            _detail.ParentRequested += hash => _graph.SelectCommit(hash);
+            _commitMenu = new CommitMenu(services);
 
             _graph.WipSelected += ShowWip;
             _graph.CommitSelected += ShowCommit;
@@ -71,6 +83,7 @@ namespace GitVersionControl
             _diff.CloseRequested += () =>
             {
                 _staging.ClearSelection();
+                _detail.ClearFileSelection();
                 ShowDiff(null);
             };
 
@@ -114,6 +127,7 @@ namespace GitVersionControl
         public override void Dispose()
         {
             _staging.Dispose();
+            _detail.Dispose();
         }
 
         /// <summary>
@@ -161,8 +175,24 @@ namespace GitVersionControl
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count)
                             + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
 
+            if (_pendingReveal != null)
+            {
+                _graph.SelectCommit(_pendingReveal);
+                _pendingReveal = null;
+            }
+
             // 기다리는 동안 저장소가 또 바뀌었으면 한 번 더 읽는다.
             ReloadIfNeeded();
+        }
+
+        public bool RevealCommit(string hash)
+        {
+            if (_isLoading || _graph.Graph == null)
+            {
+                _pendingReveal = hash;
+                return true;
+            }
+            return _graph.SelectCommit(hash);
         }
 
         private void ShowWip()
@@ -179,7 +209,7 @@ namespace GitVersionControl
             ShowDiff(null);
             if (_detail.ShownHash != node.Commit.Hash)
             {
-                _detail.Show(node.Commit, node.Lane.IsAnonymous ? null : node.Lane.Name);
+                _detail.Show(node.Commit);
             }
         }
 
@@ -196,12 +226,19 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// Branch Explorer·Changesets 와 같은 커밋 메뉴(<see cref="CommitMenu"/>). 그래프가 읽어 둔 브랜치 목록을 넘겨 이 커밋의 브랜치 항목을 만든다.
+        /// </summary>
         private void PopulateCommitMenu(DropdownMenu menu, GitGraphNode node)
         {
-            menu.AppendAction(GitText.Get("common.copyHash"), _ => Services.Assets.CopyToClipboard(node.Commit.Hash));
-            menu.AppendAction(GitText.Get("common.copySubject"), _ => Services.Assets.CopyToClipboard(node.Commit.Subject));
-            menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("common.openBranchesTab"), _ => _navigator.SelectTab<BranchesView>());
+            GitCommitInfo commit = node.Commit;
+            string parent = commit.Parents.Length > 0 && _graph.Graph != null && _graph.Graph.NodeByHash.ContainsKey(commit.Parents[0]) ? commit.Parents[0] : null;
+            _commitMenu.Populate(menu, commit, new CommitMenu.Hooks
+            {
+                GoToParent = parent == null ? null : () => _graph.SelectCommit(parent),
+                ShowInExplorer = () => _navigator.SelectTab<BranchExplorerView>()?.Reveal(commit.Hash),
+                Branches = _graph.Graph?.Branches,
+            });
         }
     }
 }

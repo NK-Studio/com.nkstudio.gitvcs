@@ -116,7 +116,7 @@ namespace GitVersionControl
                     args.AddRange(new[] { "-M", $"{target.From}...{target.To}" });
                     break;
                 case GitDiffSource.Range:
-                    args.AddRange(new[] { "-M", target.From, target.To });
+                    args.AddRange(target.To == null ? new[] { "-M", target.From } : new[] { "-M", target.From, target.To });
                     break;
             }
             if (args.Contains("--no-index") == false)

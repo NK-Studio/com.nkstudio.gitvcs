@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <!-- Gluon(Unity VCS) 의 "워크스페이스 탐색": 왼쪽은 저장소 전체 파일 표(항목·상태·크기·수정한 날짜), 오른쪽은 고른 항목의 정보와 히스토리. -->
+    <ui:VisualElement class="view workspace">
+        <uie:Toolbar class="workspace__toolbar">
+            <uie:ToolbarSearchField name="filter" class="workspace__filter" />
+            <uie:ToolbarToggle name="show-ignored" text="@workspace.showIgnored" />
+            <uie:ToolbarToggle name="changed-only" text="@workspace.changedOnly" />
+            <ui:Label name="summary" class="view__toolbar-label" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="error-notice" class="notice notice--error">
+            <ui:Label name="error-text" class="notice__text" />
+        </ui:VisualElement>
+
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="340" orientation="Horizontal" class="view__split">
+            <ui:VisualElement name="table-host" class="view__pane workspace__table" />
+            <ui:VisualElement class="view__pane workspace__side">
+                <ui:Label name="info-placeholder" text="@workspace.selectHint" class="list__empty" />
+                <ui:VisualElement name="info" class="workspace__info">
+                    <ui:Label name="info-name" class="workspace__info-name ellipsis" />
+                    <ui:VisualElement name="info-rows" class="workspace__info-rows" />
+                </ui:VisualElement>
+                <ui:Label name="history-title" text="@workspace.history" class="workspace__history-title" />
+                <ui:Label name="history-empty" class="list__empty" />
+                <ui:ListView name="history" class="list workspace__history" />
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

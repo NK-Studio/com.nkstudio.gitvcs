@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -32,6 +33,7 @@ namespace GitVersionControl
         private UiScaleController _scale;
         private VisualElement _layout;
         private GitHubConnectPanel _connect;
+        private RefSidebar _refs;
 
         [MenuItem("Window/Version Control/Git")]
         public static void Open()
@@ -86,8 +88,15 @@ namespace GitVersionControl
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
             SplitPaneClamp.Attach(layout.Require<TwoPaneSplitView>("body"));
             _toolbar = new GitToolbar(layout, _services, this);
-            _toolbar.RefreshRequested += () => _views.Find(view => view.IsActive)?.Reload();
-            CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar"));
+            _toolbar.RefreshRequested += () =>
+            {
+                _views.Find(view => view.IsActive)?.Reload();
+                _refs?.Reload();
+            };
+            CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar-views"));
+            _refs = new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
+            _refs.RevealRequested += Reveal;
+            _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
 
             _services.Repository.Changed += OnRepositoryChanged;
             _services.Runner.StateChanged += OnRunnerStateChanged;
@@ -122,6 +131,8 @@ namespace GitVersionControl
         {
             _connect?.Dispose();
             _connect = null;
+            _refs?.Dispose();
+            _refs = null;
             if (_services == null)
             {
                 return;
@@ -160,13 +171,13 @@ namespace GitVersionControl
             foreach (GitLayoutStyle style in (GitLayoutStyle[])System.Enum.GetValues(typeof(GitLayoutStyle)))
             {
                 GitLayoutStyle captured = style;
-                menu.AddItem(new GUIContent($"{layoutMenu}/{GitLayout.DisplayName(style)}"), GitLayout.Style == style, () => GitLayout.Style = captured);
+                menu.AddItem(new GUIContent($"{layoutMenu}/{GitDisplay.MenuSafe(GitLayout.DisplayName(style))}"), GitLayout.Style == style, () => GitLayout.Style = captured);
             }
             string themeMenu = GitText.Get("window.theme");
             foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
             {
                 GitThemeStyle captured = style;
-                menu.AddItem(new GUIContent($"{themeMenu}/{GitTheme.DisplayName(style)}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(style))}"), GitTheme.Style == style, () => GitTheme.Style = captured);
             }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
@@ -221,10 +232,34 @@ namespace GitVersionControl
                     AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
                     break;
             }
+            AddView(new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
+            AddView(new WorkspaceView(_services, _state.Workspace), content, sidebar);
             AddView(new IncomingChangesView(_services), content, sidebar);
             AddView(new ChangesetsView(_services, _state.Changesets, this), content, sidebar);
-            AddView(new BranchesView(_services, _state.Branches, this), content, sidebar);
-            AddView(new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
+        }
+
+        public void FocusRefs()
+        {
+            _refs?.FocusFilter();
+        }
+
+        /// <summary>
+        /// 사이드바에서 고른 브랜치·태그·스태시의 커밋을 보인다. 보고 있는 탭이 보일 수 있으면 그 탭에서,
+        /// 아니면(작업 공간·수신 변경, 또는 목록에 없는 커밋) 그래프 탭(GitKraken 형태면 Graph, 아니면 Branch Explorer)으로 넘어가서 보인다.
+        /// </summary>
+        private void Reveal(string hash)
+        {
+            if (_views.Find(view => view.IsActive) is ICommitRevealer active && active.RevealCommit(hash))
+            {
+                return;
+            }
+            GitView target = (GitView)_views.OfType<GraphWorkspaceView>().FirstOrDefault() ?? _views.OfType<BranchExplorerView>().FirstOrDefault();
+            if (target == null)
+            {
+                return;
+            }
+            SelectTab(_views.IndexOf(target));
+            ((ICommitRevealer)target).RevealCommit(hash);
         }
 
         private void AddView(GitView view, VisualElement content, VisualElement sidebar)
@@ -285,6 +320,7 @@ namespace GitVersionControl
                 return;
             }
             _toolbar.RefreshStashCount();
+            _refs.OnRepositoryChanged();
             foreach (GitView view in _views)
             {
                 view.OnRepositoryChanged();

@@ -1,0 +1,35 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!-- GitKraken 의 커밋 상세: "commit: 해시" → 메시지 카드(제목·본문) → 작성자·날짜·부모 → 공동 작성자 → 바뀐 파일 수와 파일 목록. -->
+    <ui:VisualElement class="graph-detail">
+        <ui:VisualElement class="graph-detail__header">
+            <ui:Label text="commit:" class="graph-detail__header-label" />
+            <ui:Label name="hash" tooltip="@graphDetail.copyHash" class="graph-detail__hash" />
+        </ui:VisualElement>
+        <ui:Label name="placeholder" text="@detail.placeholder" class="list__empty" />
+        <ui:VisualElement name="body" class="graph-detail__body">
+            <ui:ScrollView name="message-card" class="graph-detail__card">
+                <ui:Label name="subject" class="graph-detail__subject" />
+                <ui:Label name="message-body" class="graph-detail__message" />
+            </ui:ScrollView>
+            <ui:VisualElement class="graph-detail__meta">
+                <ui:VisualElement name="avatar" class="graph-detail__avatar">
+                    <ui:Label name="initials" class="graph-detail__initials" />
+                </ui:VisualElement>
+                <ui:VisualElement class="graph-detail__author-block">
+                    <ui:Label name="author" class="graph-detail__author ellipsis" />
+                    <ui:Label name="authored" class="graph-detail__authored ellipsis" />
+                </ui:VisualElement>
+                <ui:VisualElement name="parents" class="graph-detail__parents" />
+            </ui:VisualElement>
+            <ui:VisualElement name="coauthors-row" class="graph-detail__coauthors">
+                <ui:Label text="@graphDetail.coAuthors" class="graph-detail__coauthors-label" />
+                <ui:VisualElement name="coauthors" class="graph-detail__coauthor-list" />
+            </ui:VisualElement>
+            <ui:VisualElement class="graph-detail__files-header">
+                <ui:VisualElement name="file-summary" class="graph-detail__summary" />
+                <ui:VisualElement name="view-mode-host" class="list-header__tools" />
+            </ui:VisualElement>
+            <ui:VisualElement name="files" class="list file-browser graph-detail__files" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

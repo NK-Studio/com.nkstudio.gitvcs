@@ -262,9 +262,59 @@ namespace GitVersionControl
             {
                 yield return directory;
             }
+            List<string> found = new();
             foreach ((string directory, string _) in SearchOrder())
             {
+                found.Add(directory);
                 yield return directory;
+            }
+            // Git for Windows 의 셸 스크립트 명령(git submodule 등)은 sh·sed·basename 을 PATH 에서 찾는다. 그 도구가 있는 usr/bin 을
+            // 맨 뒤에 붙인다 — 맨 뒤라 에디터 PATH 의 같은 이름 프로그램(find·sort 등)을 가리지 않는다.
+            foreach (string directory in Split(Environment.GetEnvironmentVariable("PATH")).Concat(found).ToList())
+            {
+                foreach (string tools in GitForWindowsTools(directory))
+                {
+                    yield return tools;
+                }
+            }
+        }
+
+        /// <summary>
+        /// git.exe 가 있는 Git for Windows 폴더(cmd, bin, mingw64/bin)라면 셸 스크립트 명령에 필요한 폴더들:
+        /// usr/bin(sh·sed·basename), mingw64/libexec/git-core(git-sh-setup), mingw64/bin. 아니면 없음.
+        /// </summary>
+        private static IEnumerable<string> GitForWindowsTools(string directory)
+        {
+            if (IsWindows == false || string.IsNullOrEmpty(directory))
+            {
+                return Array.Empty<string>();
+            }
+            try
+            {
+                string full = Path.GetFullPath(directory).TrimEnd('\\', '/');
+                if (File.Exists(Path.Combine(full, "git.exe")) == false)
+                {
+                    return Array.Empty<string>();
+                }
+                DirectoryInfo folder = new(full);
+                DirectoryInfo root = folder.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) && folder.Parent != null
+                                     && folder.Parent.Name.Equals("mingw64", StringComparison.OrdinalIgnoreCase)
+                    ? folder.Parent.Parent
+                    : folder.Parent;
+                if (root == null || File.Exists(Path.Combine(root.FullName, "usr", "bin", "sh.exe")) == false)
+                {
+                    return Array.Empty<string>();
+                }
+                return new[]
+                {
+                    Path.Combine(root.FullName, "usr", "bin"),
+                    Path.Combine(root.FullName, "mingw64", "libexec", "git-core"),
+                    Path.Combine(root.FullName, "mingw64", "bin"),
+                }.Where(Directory.Exists).ToArray();
+            }
+            catch (Exception e) when (e is ArgumentException || e is IOException || e is NotSupportedException || e is UnauthorizedAccessException)
+            {
+                return Array.Empty<string>();
             }
         }
 

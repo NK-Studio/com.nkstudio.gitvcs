@@ -87,10 +87,16 @@ namespace GitVersionControl
             await _services.Runner.RunAsync(GitText.Format("op.createBranch", name), () => _services.Commands.CreateBranchAtAsync(name, startPoint, switchTo), refreshAssets: switchTo);
         }
 
-        public async Task CreateTagAsync(GitCommitInfo commit)
+        public Task CreateTagAsync(GitCommitInfo commit)
+        {
+            return CreateTagAtAsync(commit.Hash, Describe(commit));
+        }
+
+        /// <param name="commit">태그가 가리킬 커밋 해시.</param>
+        public async Task CreateTagAtAsync(string commit, string description)
         {
             string title = GitText.Get("commit.tagTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.tagPrompt", Describe(commit)), string.Empty)?.Trim();
+            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.tagPrompt", description), string.Empty)?.Trim();
             if (string.IsNullOrEmpty(name))
             {
                 return;
@@ -101,7 +107,7 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(title, GitText.Format("commit.invalidTag", name));
                 return;
             }
-            await _services.Runner.RunAsync(GitText.Format("op.tag", name), () => _services.Commands.CreateTagAsync(name, commit.Hash), refreshAssets: false);
+            await _services.Runner.RunAsync(GitText.Format("op.tag", name), () => _services.Commands.CreateTagAsync(name, commit), refreshAssets: false);
         }
 
         public async Task SwitchToAsync(GitCommitInfo commit)
@@ -169,6 +175,116 @@ namespace GitVersionControl
             return MoveHeadAsync(GitText.Get("commit.resetTitle"), GitText.Format(key, CurrentBranchName(), Describe(commit)),
                 GitText.Format("op.reset", commit.ShortHash, mode.ToString().ToLowerInvariant()), GitCommitCommands.Reset(commit.Hash, mode),
                 GitCommitCommands.UndoResetMode(mode));
+        }
+
+        /// <summary>
+        /// 이 커밋 ↔ 지금 작업 트리(커밋하지 않은 변경 포함).
+        /// </summary>
+        public void CompareWithWorkingTree(GitCommitInfo commit)
+        {
+            GitCompareWindow.OpenWorkingTree(commit.Hash);
+        }
+
+        /// <summary>
+        /// Fork 의 Interactive Rebase 빠른 작업. 메시지가 필요한 것(reword·squash)은 여러 줄 입력 창에 지금 메시지를 채워 묻는다.
+        /// </summary>
+        public async Task RewriteAsync(GitCommitInfo commit, GitRewriteKind kind)
+        {
+            string unsupported = GitRewrite.Unsupported(kind, commit);
+            string title = GitText.Get(kind switch
+            {
+                GitRewriteKind.Reword => "rewrite.rewordTitle",
+                GitRewriteKind.Squash => "rewrite.squashTitle",
+                GitRewriteKind.Fixup => "rewrite.fixupTitle",
+                _ => "rewrite.dropTitle",
+            });
+            if (unsupported != null)
+            {
+                _services.Dialogs.Alert(title, GitText.Get(unsupported));
+                return;
+            }
+
+            string message = null;
+            switch (kind)
+            {
+                case GitRewriteKind.Reword:
+                {
+                    string current = await _services.History.CommitMessageAsync(commit.Hash) ?? commit.Subject;
+                    message = GitTextPromptWindow.AskMultiline(title, GitText.Format("rewrite.rewordPrompt", Describe(commit)), current.TrimEnd());
+                    if (message == null || message.Trim() == current.Trim())
+                    {
+                        return;
+                    }
+                    break;
+                }
+                case GitRewriteKind.Squash:
+                {
+                    string parentMessage = await _services.History.CommitMessageAsync(commit.Parents[0]) ?? string.Empty;
+                    string ownMessage = await _services.History.CommitMessageAsync(commit.Hash) ?? commit.Subject;
+                    string combined = GitRewrite.CombinedMessage(GitRewriteKind.Squash, parentMessage, ownMessage).TrimEnd();
+                    message = GitTextPromptWindow.AskMultiline(title, GitText.Format("rewrite.squashPrompt", Describe(commit)), combined);
+                    if (message == null)
+                    {
+                        return;
+                    }
+                    break;
+                }
+                case GitRewriteKind.Fixup:
+                    if (_services.Dialogs.Confirm(title, GitText.Format("rewrite.fixupConfirm", Describe(commit)), GitText.Get("common.continue")) == false)
+                    {
+                        return;
+                    }
+                    break;
+                case GitRewriteKind.Drop:
+                    if (_services.Dialogs.Confirm(title, GitText.Format("rewrite.dropConfirm", Describe(commit), CurrentBranchName()), GitText.Get("common.continue")) == false)
+                    {
+                        return;
+                    }
+                    // 빼기만 작업 트리 파일을 바꾼다.
+                    if (_services.Dialogs.SaveOpenWork() == false)
+                    {
+                        return;
+                    }
+                    break;
+            }
+            if (message != null && string.IsNullOrWhiteSpace(message))
+            {
+                _services.Dialogs.Alert(title, GitText.Get("rewrite.emptyMessage"));
+                return;
+            }
+
+            string operation = GitText.Format(kind switch
+            {
+                GitRewriteKind.Reword => "op.reword",
+                GitRewriteKind.Squash => "op.squash",
+                GitRewriteKind.Fixup => "op.fixup",
+                _ => "op.drop",
+            }, commit.ShortHash);
+            await _services.Runner.RunAsync(operation, () => _services.Commands.RewriteAsync(kind, commit.Hash, message, operation), refreshAssets: kind == GitRewriteKind.Drop);
+        }
+
+        /// <summary>
+        /// <c>git format-patch</c> 결과를 고른 파일에 쓴다.
+        /// </summary>
+        public async Task SavePatchAsync(GitCommitInfo commit)
+        {
+            string slug = GitDisplay.PatchFileSlug(commit.Subject);
+            string path = UnityEditor.EditorUtility.SaveFilePanel(GitText.Get("fork.patchTitle"), string.Empty, $"{commit.ShortHash}-{slug}.patch", "patch");
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.savePatch", commit.ShortHash), () => _services.Commands.SavePatchAsync(commit.Hash, path), refreshAssets: false);
+        }
+
+        /// <summary>
+        /// Fork 의 "Copy Commit Info": SHA·작성자·날짜와 메시지 전체.
+        /// </summary>
+        public async Task CopyInfoAsync(GitCommitInfo commit)
+        {
+            string message = await _services.History.CommitMessageAsync(commit.Hash) ?? commit.Subject;
+            string date = commit.Date.ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture);
+            _services.Assets.CopyToClipboard(GitText.Format("fork.copyInfoFormat", commit.Hash, commit.AuthorName, commit.AuthorEmail, date, message.TrimEnd()));
         }
 
         private async Task MoveHeadAsync(string title, string confirm, string operation, string[] args, string undoResetMode)

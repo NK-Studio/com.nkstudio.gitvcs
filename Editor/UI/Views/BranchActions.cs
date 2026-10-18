@@ -109,7 +109,7 @@ namespace GitVersionControl
         /// </summary>
         public async Task PushAsync(GitBranchRef branch)
         {
-            bool setUpstream = string.IsNullOrEmpty(branch.Upstream);
+            bool setUpstream = string.IsNullOrEmpty(branch.Upstream) && string.IsNullOrEmpty(await _services.Commands.UpstreamOfAsync(branch.Name));
             if (_services.Dialogs.Confirm(GitText.Get("branch.pushTitle"), GitText.Format(setUpstream ? "branch.pushNewConfirm" : "branch.pushConfirm", branch.Name), GitText.Get("op.push")) == false)
             {
                 return;
@@ -132,6 +132,44 @@ namespace GitVersionControl
                 return;
             }
             await _services.Runner.RunAsync(GitText.Format("op.deleteRemoteBranch", remoteBranch.Name), () => _services.Commands.DeleteRemoteBranchAsync(remote, name), refreshAssets: false);
+        }
+
+        /// <summary>
+        /// 현재 브랜치에 원격의 새 커밋을 받는다(fast-forward 만). 위쪽 작업 막대의 Pull 과 같다.
+        /// </summary>
+        public async Task PullAsync()
+        {
+            if (_services.Dialogs.SaveOpenWork() == false)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Get("op.pull"), _services.Commands.PullAsync, refreshAssets: true);
+        }
+
+        /// <summary>
+        /// 체크아웃하지 않은 로컬 브랜치를 추적하는 원격 브랜치까지 앞으로 감는다. 작업 트리는 그대로다.
+        /// </summary>
+        public async Task FastForwardAsync(GitBranchRef branch)
+        {
+            string upstream = string.IsNullOrEmpty(branch.Upstream) ? await _services.Commands.UpstreamOfAsync(branch.Name) : branch.Upstream;
+            if (string.IsNullOrEmpty(upstream))
+            {
+                _services.Dialogs.Alert(GitText.Get("fork.upstreamTitle"), GitText.Format("fork.noUpstream", branch.Name));
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.fastForward", branch.Name), () => _services.Commands.FastForwardBranchAsync(branch.Name, upstream), refreshAssets: false);
+        }
+
+        public async Task SetUpstreamAsync(GitBranchRef branch)
+        {
+            string current = string.IsNullOrEmpty(branch.Upstream) ? await _services.Commands.UpstreamOfAsync(branch.Name) : branch.Upstream;
+            string title = GitText.Get("fork.upstreamTitle");
+            string upstream = GitTextPromptWindow.Ask(title, GitText.Format("fork.upstreamPrompt", branch.Name), current ?? "origin/" + branch.Name)?.Trim();
+            if (string.IsNullOrEmpty(upstream) || upstream == current)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.setUpstream", branch.Name, upstream), () => _services.Commands.SetUpstreamAsync(branch.Name, upstream), refreshAssets: false);
         }
 
         /// <summary>작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 알린다. 취소하면 false.</summary>

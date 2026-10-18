@@ -15,6 +15,7 @@ namespace GitVersionControl
         [SerializeField] private string _from;
         [SerializeField] private string _to;
         [SerializeField] private bool _sinceMergeBase;
+        [SerializeField] private bool _workingTree;
 
         private GitServices _services;
         private FileBrowser _files;
@@ -45,12 +46,21 @@ namespace GitVersionControl
             Open(from, to, GitText.Format("compare.windowTitleMergeBase", GitDisplay.ShortRevision(from), GitDisplay.ShortRevision(to)), sinceMergeBase: true);
         }
 
-        private static void Open(string from, string to, string title, bool sinceMergeBase = false)
+        /// <summary>
+        /// <paramref name="commit"/> 의 내용 ↔ 지금 작업 트리(Fork 의 "Compare to Local Changes"). 새 파일(untracked)은 git diff 처럼 빠진다.
+        /// </summary>
+        public static void OpenWorkingTree(string commit)
+        {
+            Open(commit, null, GitText.Format("compare.windowTitleWorkingTree", GitDisplay.ShortRevision(commit)), workingTree: true);
+        }
+
+        private static void Open(string from, string to, string title, bool sinceMergeBase = false, bool workingTree = false)
         {
             GitCompareWindow window = CreateInstance<GitCompareWindow>();
             window._from = from;
             window._to = to;
             window._sinceMergeBase = sinceMergeBase;
+            window._workingTree = workingTree;
             window.titleContent = TitleWithIcon(title);
             window.Show();
             window.Load();
@@ -118,6 +128,10 @@ namespace GitVersionControl
         {
             string from = GitDisplay.ShortRevision(_from);
             string to = GitDisplay.ShortRevision(_to);
+            if (_workingTree)
+            {
+                return GitText.Format("compare.summaryWorkingTree", from, fileCount);
+            }
             if (string.IsNullOrEmpty(_from))
             {
                 return GitText.Format("compare.summaryCommit", to, fileCount);
@@ -127,7 +141,7 @@ namespace GitVersionControl
 
         private async void Load()
         {
-            if (_files == null || string.IsNullOrEmpty(_to))
+            if (_files == null || (string.IsNullOrEmpty(_to) && _workingTree == false))
             {
                 return;
             }
@@ -135,7 +149,11 @@ namespace GitVersionControl
 
             List<GitFileChange> files;
             string error = null;
-            if (string.IsNullOrEmpty(_from))
+            if (_workingTree)
+            {
+                (files, error) = await _services.History.ChangedBetweenAsync(_from, null);
+            }
+            else if (string.IsNullOrEmpty(_from))
             {
                 files = await _services.History.CommitFilesAsync(_to);
             }

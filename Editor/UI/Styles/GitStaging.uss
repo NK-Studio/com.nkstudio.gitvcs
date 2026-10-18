@@ -138,16 +138,219 @@
     flex-shrink: 0;
 }
 
-/* 좁은 오른쪽 칸에서는 커밋 상세의 메시지·파일을 가로 대신 위아래로 쌓는다. */
-.graph-workspace__detail .commit-detail__body {
-    flex-direction: column;
+/* ── graph-detail: GitKraken 형태 커밋 상세 ──────── */
+.graph-detail {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
 }
 
-.graph-workspace__detail .commit-detail__message {
-    width: auto;
-    height: 35%;
-    min-height: 60px;
-    margin: 0 0 4px 0;
+.graph-detail__header {
+    flex-shrink: 0;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height: 28px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.graph-detail__header-label {
+    color: var(--git-text-muted);
+    margin-right: 4px;
+}
+
+.graph-detail__hash {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+    cursor: link;
+}
+
+.graph-detail__hash:hover {
+    color: var(--git-accent);
+}
+
+.graph-detail__body {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+    padding: 8px 10px 4px 10px;
+}
+
+/* 메시지 카드: 테두리 있는 상자에 제목을 크게, 본문은 그 아래. 길면 카드 안에서 스크롤한다. */
+.graph-detail__card {
+    flex-shrink: 0;
+    max-height: 40%;
+    min-height: 56px;
+    padding: 8px 10px;
+    border-width: 1px;
+    border-color: var(--git-border);
+    border-radius: var(--git-radius);
+    background-color: var(--git-field-bg);
+}
+
+.graph-detail__subject {
+    font-size: 15px;
+    white-space: normal;
+    color: var(--git-text);
+    margin-bottom: 6px;
+}
+
+.graph-detail__message {
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.graph-detail__meta {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.graph-detail__avatar {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 18px;
+    justify-content: center;
+    align-items: center;
+    -unity-background-scale-mode: scale-and-crop;
+    margin-right: 8px;
+}
+
+.graph-detail__initials {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-text-align: middle-center;
+    color: #ffffff;
+    padding: 0;
+    margin: 0;
+}
+
+.graph-detail__author-block {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.graph-detail__author {
+    font-size: 13px;
+    color: var(--git-text);
+}
+
+.graph-detail__authored {
+    color: var(--git-text-muted);
+}
+
+.graph-detail__parents {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-left: 8px;
+}
+
+.graph-detail__parent-label {
+    color: var(--git-text-muted);
+    margin-right: 2px;
+}
+
+.graph-detail__parent-link {
+    color: var(--git-text);
+    cursor: link;
+}
+
+.graph-detail__parent-link:hover {
+    color: var(--git-accent);
+}
+
+.graph-detail__coauthors {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.graph-detail__coauthors-label {
+    color: var(--git-text-muted);
+    margin-right: 6px;
+}
+
+.graph-detail__coauthor-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.graph-detail__coauthor {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.graph-detail__coauthor-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    justify-content: center;
+    align-items: center;
+    -unity-background-scale-mode: scale-and-crop;
+    margin-right: 4px;
+}
+
+.graph-detail__coauthor-initials {
+    font-size: 9px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-text-align: middle-center;
+    color: #ffffff;
+    padding: 0;
+    margin: 0;
+}
+
+.graph-detail__coauthor-name {
+    color: var(--git-text);
+}
+
+.graph-detail__files-header {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.graph-detail__summary {
+    flex-grow: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.graph-detail__count {
+    margin-right: 10px;
+    color: var(--git-text);
+}
+
+.graph-detail__count--modified {
+    color: var(--git-state-modified);
+}
+
+.graph-detail__count--added {
+    color: var(--git-state-added);
+}
+
+.graph-detail__count--deleted {
+    color: var(--git-state-deleted);
+}
+
+.graph-detail__count--renamed {
+    color: var(--git-state-renamed);
+}
+
+.graph-detail__files {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
 }
 
 /* ── commit-graph ────────────────────────────────── */

@@ -274,11 +274,105 @@
 }
 
 .git-sidebar {
-    min-width: 120px;
+    min-width: 160px;
+    flex-direction: column;
     background-color: var(--git-sidebar-bg);
     border-right-width: 1px;
     border-right-color: var(--git-border);
-    padding-top: 4px;
+}
+
+.git-sidebar__views {
+    flex-shrink: 0;
+    padding: 4px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.git-sidebar__refs {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+/* ── ref-tree: 사이드바 참조 트리 ─────────────────── */
+.ref-tree {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.ref-tree__filter {
+    flex-shrink: 0;
+    width: auto;
+    margin: 6px 6px 4px 6px;
+}
+
+.ref-tree__error {
+    flex-shrink: 0;
+    white-space: normal;
+    font-size: 10px;
+    margin: 0 8px 4px 8px;
+    color: var(--git-danger);
+}
+
+.ref-tree__tree {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.ref-tree__row {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    height: 20px;
+    padding-right: 6px;
+}
+
+.ref-tree__icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    color: var(--git-text-muted);
+}
+
+.ref-tree__icon > .action-glyph {
+    width: 14px;
+    height: 14px;
+}
+
+.ref-tree__label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    color: var(--git-text);
+}
+
+.ref-tree__badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    margin-left: 4px;
+    color: var(--git-text-muted);
+}
+
+/* 구역 머리 줄(로컬·리모트…): GitKraken 처럼 굵은 대문자 느낌. */
+.ref-tree__row--section .ref-tree__label {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text-muted);
+}
+
+.ref-tree__row--section .ref-tree__badge {
+    color: var(--git-accent);
+}
+
+/* 현재 브랜치·워크트리: 굵게, 아이콘은 강조색. */
+.ref-tree__row--current .ref-tree__label {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.ref-tree__row--current .ref-tree__icon {
+    color: var(--git-accent);
 }
 
 .git-sidebar__tab {

@@ -84,9 +84,8 @@ namespace GitVersionControl
             header.Add(HeaderCell(GitText.Get("graph.columnRefs"), "commit-graph__header-refs"));
             _graphHeader = HeaderCell(GitText.Get("graph.columnGraph"), "commit-graph__header-graph");
             header.Add(_graphHeader);
+            // GitKraken 처럼 작성자·날짜 칸은 두지 않는다 — 오른쪽 커밋 상세와 줄 툴팁에서 본다.
             header.Add(HeaderCell(GitText.Get("column.message"), "column--grow-3"));
-            header.Add(HeaderCell(GitText.Get("column.author"), "column--author"));
-            header.Add(HeaderCell(GitText.Get("column.date"), "column--date"));
             Root.Add(header);
 
             VisualElement body = new();
@@ -226,6 +225,21 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// 커밋 줄을 골라 보이는 곳으로 옮긴다(커밋 상세의 "parent" 링크, 메뉴의 "부모 커밋으로 이동"). 그래프에 없으면 false.
+        /// </summary>
+        public bool SelectCommit(string hash)
+        {
+            int index = _items.FindIndex(item => item is GitGraphNode node && node.Commit.Hash == hash);
+            if (index < 0)
+            {
+                return false;
+            }
+            _list.SetSelection(index);
+            _list.ScrollToItem(index);
+            return true;
+        }
+
         private static Label HeaderCell(string text, string columnClass)
         {
             Label label = new(text);
@@ -279,17 +293,6 @@ namespace GitVersionControl
             message.Add(subject);
             row.Add(message);
 
-            Label author = new();
-            author.AddToClassList("commit-row__author");
-            author.AddToClassList("column--author");
-            author.AddToClassList("ellipsis");
-            row.Add(author);
-
-            Label date = new();
-            date.AddToClassList("commit-row__date");
-            date.AddToClassList("column--date");
-            row.Add(date);
-
             row.AddManipulator(new ContextualMenuManipulator(evt =>
             {
                 if (row.userData is int index && index < _items.Count && _items[index] is GitGraphNode node)
@@ -312,8 +315,6 @@ namespace GitVersionControl
             graph.style.minWidth = _layout.Width;
             VisualElement message = row[2];
             Label subject = message.Q<Label>(className: "commit-row__subject");
-            Label author = (Label)row[3];
-            Label date = (Label)row[4];
 
             bool isWip = _items[index] is WipItem;
             row.EnableInClassList("commit-graph-row--wip", isWip);
@@ -324,8 +325,6 @@ namespace GitVersionControl
                 message.style.borderLeftColor = StyleKeyword.Null;
                 subject.text = WipText();
                 subject.tooltip = null;
-                author.text = string.Empty;
-                date.text = string.Empty;
                 return;
             }
 
@@ -339,9 +338,7 @@ namespace GitVersionControl
             graph.style.backgroundColor = tint;
             message.style.borderLeftColor = laneColor;
             subject.text = commit.Subject;
-            subject.tooltip = $"{commit.ShortHash}  {commit.Subject}";
-            author.text = commit.AuthorName;
-            date.text = GitDisplay.FormatDate(commit.Date);
+            subject.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
         }
 
         /// <summary>

@@ -118,6 +118,31 @@ namespace GitVersionControl
             return (text ?? string.Empty).Replace('/', '∕');
         }
 
+        /// <summary>
+        /// 패치 파일 이름에 넣을 메시지 첫 줄(<c>git format-patch</c> 처럼 글자·숫자 외는 '-' 로 잇고 52자로 자른다).
+        /// </summary>
+        public static string PatchFileSlug(string subject)
+        {
+            System.Text.StringBuilder slug = new();
+            foreach (char c in FirstLine(subject))
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    slug.Append(c);
+                }
+                else if (slug.Length > 0 && slug[slug.Length - 1] != '-')
+                {
+                    slug.Append('-');
+                }
+                if (slug.Length >= 52)
+                {
+                    break;
+                }
+            }
+            string result = slug.ToString().Trim('-');
+            return result.Length == 0 ? "patch" : result;
+        }
+
         public static string FirstLine(string text)
         {
             string trimmed = (text ?? string.Empty).Trim();

@@ -1,8 +1,7 @@
-/* 목록 한 줄 블록들: file-row(파일), commit-row(커밋), branch-row(브랜치). */
+/* 목록 한 줄 블록들: file-row(파일), commit-row(커밋). */
 
 .file-row,
-.commit-row,
-.branch-row {
+.commit-row {
     flex-direction: row;
     align-items: center;
     height: 20px;
@@ -113,36 +112,4 @@
 
 .commit-row__author {
     color: var(--git-text);
-}
-
-/* ── branch-row ───────────────────────────────────── */
-.branch-row__name {
-    padding-left: 12px;
-    color: var(--git-text);
-}
-
-.branch-row__track,
-.branch-row__date {
-    font-size: 10px;
-    color: var(--git-text-muted);
-}
-
-.branch-row__commit {
-    color: var(--git-text);
-}
-
-.branch-row--current .branch-row__name {
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-}
-
-/* 구역 제목 줄("로컬", "원격"): 이름 칸만 굵게 보이고 나머지 칸은 숨긴다. */
-.branch-row--section .branch-row__name {
-    padding-left: 2px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-}
-
-.branch-row--section .branch-row__track,
-.branch-row--section .branch-row__commit,
-.branch-row--section .branch-row__date {
-    display: none;
 }

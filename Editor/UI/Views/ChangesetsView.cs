@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
     /// <summary>Changesets 탭: <c>git log</c> 목록과, 고른 커밋의 메시지·바뀐 파일.</summary>
-    public sealed class ChangesetsView : GitView
+    public sealed class ChangesetsView : GitView, ICommitRevealer
     {
         private const int PageSize = 200;
 
@@ -23,6 +24,11 @@ namespace GitVersionControl
         private readonly ITabNavigator _navigator;
 
         private List<GitCommitInfo> _loaded = new();
+
+        /// <summary>
+        /// 커밋 메뉴가 그 커밋을 가리키는 브랜치를 찾을 때 쓴다(<see cref="CommitMenu.Hooks.Branches"/>).
+        /// </summary>
+        private List<GitBranchRef> _branches = new();
         private string _loadedKey;
         private bool _isLoading;
         private bool _hasMore;
@@ -72,8 +78,22 @@ namespace GitVersionControl
             {
                 GoToParent = parent == null ? null : () => _commits.Select(parent),
                 ShowInExplorer = () => _navigator.SelectTab<BranchExplorerView>()?.Reveal(commit.Hash),
-                OpenBranchesTab = () => _navigator.SelectTab<BranchesView>(),
+                Branches = _branches,
             });
+        }
+
+        /// <summary>
+        /// 이미 읽은 목록에 있으면 고른다. 없으면 false — 창이 그래프 탭으로 넘긴다.
+        /// </summary>
+        public bool RevealCommit(string hash)
+        {
+            GitCommitInfo commit = _loaded.Find(c => c.Hash == hash);
+            if (commit == null)
+            {
+                return false;
+            }
+            _commits.Select(commit);
+            return true;
         }
 
         protected override void OnActivated()
@@ -123,7 +143,12 @@ namespace GitVersionControl
             _isLoading = true;
             Render();
             int skip = append ? _loaded.Count : 0;
+            Task<(List<GitBranchRef> branches, string error)> branchTask = append ? null : Services.History.BranchesAsync();
             (List<GitCommitInfo> commits, string error) = await Services.History.LogAsync(null, _state.AllBranches, skip, PageSize);
+            if (branchTask != null)
+            {
+                _branches = (await branchTask).branches;
+            }
             _isLoading = false;
 
             _error = error;

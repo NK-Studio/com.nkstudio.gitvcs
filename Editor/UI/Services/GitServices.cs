@@ -51,5 +51,19 @@ namespace GitVersionControl
         /// 탭을 열고 그 뷰를 돌려준다(없으면 null). 다른 탭에 할 일을 넘길 때 쓴다(예: Branch Explorer 에서 커밋 보이기).
         /// </summary>
         T SelectTab<T>() where T : GitView;
+
+        /// <summary>
+        /// 사이드바 참조 트리의 필터에 포커스하고 로컬 구역을 펼친다(도구 막대의 브랜치 버튼).
+        /// </summary>
+        void FocusRefs();
+    }
+
+    /// <summary>
+    /// 커밋 하나를 골라 보이는 탭(Graph·Branch Explorer·Changesets). 사이드바 참조 트리에서 브랜치·태그를 고르면 보고 있는 탭에 넘긴다.
+    /// </summary>
+    public interface ICommitRevealer
+    {
+        /// <returns>보일 수 있으면(또는 읽은 뒤 보일 예정이면) true. 이 탭에 없는 커밋이면 false.</returns>
+        bool RevealCommit(string hash);
     }
 }

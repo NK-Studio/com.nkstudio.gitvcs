@@ -49,6 +49,36 @@ namespace GitVersionControl
         /// 새 브랜치(세로 줄기 위아래 두 점과, 오른쪽 점에서 휘어 들어오는 가지).
         /// </summary>
         Branch,
+
+        /// <summary>
+        /// 태그(모서리가 잘린 꼬리표와 구멍). 사이드바 참조 트리.
+        /// </summary>
+        Tag,
+
+        /// <summary>
+        /// 폴더(왼쪽 위 손잡이가 있는 상자).
+        /// </summary>
+        Folder,
+
+        /// <summary>
+        /// 원격(구름).
+        /// </summary>
+        Cloud,
+
+        /// <summary>
+        /// 로컬(노트북: 화면과 받침).
+        /// </summary>
+        Laptop,
+
+        /// <summary>
+        /// 서브모듈(상자 안의 상자).
+        /// </summary>
+        Submodule,
+
+        /// <summary>
+        /// 워크트리(나무: 세모 잎과 줄기).
+        /// </summary>
+        Worktree,
     }
 
     /// <summary>
@@ -174,6 +204,28 @@ namespace GitVersionControl
                     painter.MoveTo(P(13.2f, 8.4f));
                     painter.BezierCurveTo(P(13.2f, 11f), P(7f, 10f), P(7f, 12.8f));
                     painter.Stroke();
+                    break;
+                case ActionGlyphKind.Tag:
+                    Polyline(painter, P(3.5f, 3.5f), P(10f, 3.5f), P(16.5f, 10f), P(10f, 16.5f), P(3.5f, 10f), P(3.5f, 3.5f));
+                    DrawRing(painter, P(7f, 7f), 1.2f * scale);
+                    break;
+                case ActionGlyphKind.Folder:
+                    Polyline(painter, P(3f, 5f), P(8f, 5f), P(9.5f, 7f), P(17f, 7f), P(17f, 15.5f), P(3f, 15.5f), P(3f, 5f));
+                    break;
+                case ActionGlyphKind.Cloud:
+                    Polyline(painter, P(5f, 14.5f), P(3.8f, 11.8f), P(6.3f, 8.6f), P(10f, 7.5f), P(13.7f, 8.6f), P(16.2f, 11.8f), P(15f, 14.5f), P(5f, 14.5f));
+                    break;
+                case ActionGlyphKind.Laptop:
+                    Polyline(painter, P(5f, 13f), P(5f, 5f), P(15f, 5f), P(15f, 13f), P(5f, 13f));
+                    Polyline(painter, P(3f, 15.5f), P(17f, 15.5f));
+                    break;
+                case ActionGlyphKind.Submodule:
+                    Polyline(painter, P(3.5f, 3.5f), P(16.5f, 3.5f), P(16.5f, 16.5f), P(3.5f, 16.5f), P(3.5f, 3.5f));
+                    DrawBox(painter, P, 7.5f, 7.5f);
+                    break;
+                case ActionGlyphKind.Worktree:
+                    Polyline(painter, P(10f, 3f), P(15.5f, 11f), P(4.5f, 11f), P(10f, 3f));
+                    Polyline(painter, P(10f, 11f), P(10f, 17f));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);

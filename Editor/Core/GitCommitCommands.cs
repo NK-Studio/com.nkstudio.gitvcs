@@ -114,6 +114,80 @@ namespace GitVersionControl
             return slash < 0 ? (remoteBranchName, string.Empty) : (remoteBranchName.Substring(0, slash), remoteBranchName.Substring(slash + 1));
         }
 
+        /// <summary>
+        /// 체크아웃하지 않은 로컬 브랜치를 <paramref name="upstream"/> 까지 앞으로 감는다. 작업 트리는 건드리지 않고, 앞으로 감기가 안 되면 git 이 거부한다.
+        /// 현재 브랜치에는 쓸 수 없다(git 이 거부한다) — 현재 브랜치는 Pull 을 쓴다.
+        /// </summary>
+        public static string[] FastForwardBranch(string branch, string upstream)
+        {
+            return new[] { "fetch", ".", upstream + ":refs/heads/" + branch };
+        }
+
+        public static string[] SetUpstream(string branch, string upstream)
+        {
+            return new[] { "branch", "--set-upstream-to=" + upstream, branch };
+        }
+
+        /// <summary>
+        /// 브랜치가 추적하는 원격 브랜치 이름("origin/main"). 없으면 git 이 실패한다.
+        /// </summary>
+        public static string[] UpstreamOf(string branch)
+        {
+            return new[] { "rev-parse", "--abbrev-ref", "--symbolic-full-name", branch + "@{upstream}" };
+        }
+
+        /// <summary>
+        /// 커밋 하나를 메일 형식 패치로 stdout 에 쓴다(<c>git am</c> 으로 다시 적용할 수 있다).
+        /// </summary>
+        public static string[] FormatPatch(string commit)
+        {
+            return new[] { "format-patch", "-1", "--stdout", commit };
+        }
+
+        public static string[] DeleteTag(string name)
+        {
+            return new[] { "tag", "-d", name };
+        }
+
+        public static string[] PushTag(string remote, string name)
+        {
+            return new[] { "push", remote, "refs/tags/" + name };
+        }
+
+        public static string[] DeleteRemoteTag(string remote, string name)
+        {
+            return new[] { "push", remote, "--delete", "refs/tags/" + name };
+        }
+
+        /// <param name="stash">"stash@{0}"</param>
+        public static string[] StashApply(string stash, bool drop)
+        {
+            return new[] { "stash", drop ? "pop" : "apply", stash };
+        }
+
+        public static string[] StashDrop(string stash)
+        {
+            return new[] { "stash", "drop", stash };
+        }
+
+        /// <summary>
+        /// stash 를 넣었던 커밋에서 새 브랜치를 만들어 전환하고, 그 위에 stash 를 적용한 뒤 지운다.
+        /// </summary>
+        public static string[] StashBranch(string branch, string stash)
+        {
+            return new[] { "stash", "branch", branch, stash };
+        }
+
+        public static string[] RemoveWorktree(string path)
+        {
+            return new[] { "worktree", "remove", path };
+        }
+
+        public static string[] UpdateSubmodule(string path)
+        {
+            return new[] { "submodule", "update", "--init", "--recursive", "--", path };
+        }
+
         public static string[] Tag(string name, string commit)
         {
             return new[] { "tag", name, commit };

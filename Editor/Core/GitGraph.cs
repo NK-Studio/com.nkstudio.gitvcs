@@ -59,6 +59,9 @@ namespace GitVersionControl
         public readonly List<GitGraphEdge> Edges = new();
         public readonly Dictionary<string, GitGraphNode> NodeByHash = new();
 
+        /// <summary>그래프를 만들 때 쓴 브랜치 목록. 커밋 우클릭 메뉴가 그 커밋을 가리키는 브랜치를 찾는다.</summary>
+        public readonly List<GitBranchRef> Branches = new();
+
         /// <summary>그래프에 없는(기간 밖) 첫 부모를 가진 노드. 왼쪽으로 이어지는 짧은 선을 그린다.</summary>
         public readonly HashSet<GitGraphNode> TruncatedNodes = new();
 
@@ -80,6 +83,7 @@ namespace GitVersionControl
         public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName)
         {
             GitGraph graph = new();
+            graph.Branches.AddRange(branches);
 
             for (int i = commitsNewestFirst.Count - 1; i >= 0; i--)
             {

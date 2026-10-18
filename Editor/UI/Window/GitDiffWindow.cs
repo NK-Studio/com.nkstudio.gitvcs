@@ -83,7 +83,7 @@ namespace GitVersionControl
             foreach (GitThemeStyle style in (GitThemeStyle[])Enum.GetValues(typeof(GitThemeStyle)))
             {
                 GitThemeStyle captured = style;
-                menu.AddItem(new GUIContent($"{themeMenu}/{GitTheme.DisplayName(style)}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(style))}"), GitTheme.Style == style, () => GitTheme.Style = captured);
             }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());

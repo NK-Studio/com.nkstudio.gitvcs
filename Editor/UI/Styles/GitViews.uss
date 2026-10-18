@@ -147,6 +147,116 @@
     min-width: 0;
 }
 
+/* ── workspace: Gluon 식 워크스페이스 탐색 ─────────── */
+.workspace__filter {
+    width: 200px;
+}
+
+.workspace__table {
+    flex-direction: column;
+}
+
+.workspace__list {
+    flex-grow: 1;
+}
+
+.workspace__item {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    height: 20px;
+}
+
+.workspace__arrow {
+    width: 14px;
+    flex-shrink: 0;
+    padding: 0;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+    cursor: link;
+}
+
+.workspace__icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.workspace__name,
+.workspace__cell {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    padding: 0 4px 0 0;
+    -unity-text-align: middle-left;
+    color: var(--git-text);
+}
+
+/* 상태별 글자색: 변경 = 수정 색, 비공개(새 파일) = 추가 색, 무시 = 흐리게. 제어됨은 기본색. */
+.workspace--changed {
+    color: var(--git-state-modified);
+}
+
+.workspace--untracked {
+    color: var(--git-state-added);
+}
+
+.workspace--ignored {
+    color: var(--git-text-muted);
+}
+
+.workspace__side {
+    flex-direction: column;
+    padding: 8px 10px;
+    background-color: var(--git-sidebar-bg);
+}
+
+.workspace__info {
+    flex-shrink: 0;
+}
+
+.workspace__info-name {
+    font-size: 14px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+    margin-bottom: 6px;
+}
+
+.workspace__info-row {
+    flex-direction: row;
+    margin-bottom: 2px;
+}
+
+.workspace__info-caption {
+    width: 80px;
+    flex-shrink: 0;
+    color: var(--git-text-muted);
+}
+
+.workspace__info-value {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.workspace__history-title {
+    flex-shrink: 0;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.workspace__history {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
 /* ── branch-explorer ──────────────────────────────── */
 .branch-explorer__range {
     width: 110px;

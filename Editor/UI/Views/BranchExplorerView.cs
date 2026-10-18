@@ -11,7 +11,7 @@ namespace GitVersionControl
     /// 그래프 배치는 <see cref="GitGraph"/>, 그리기·조작은 <see cref="BranchGraphElement"/>, 상세는 <see cref="CommitDetailPanel"/>.
     /// 이 클래스는 기간·검색 같은 도구 막대와 데이터 읽기만 맡는다.
     /// </summary>
-    public sealed class BranchExplorerView : GitView
+    public sealed class BranchExplorerView : GitView, ICommitRevealer
     {
         /// <summary>
         /// 한 번에 읽을 커밋 수. 커밋 ~4500·브랜치 3000 저장소에서 읽기~배치 ~0.3초, 그리기 한 장 ~7ms(2026-10-18 실측).
@@ -182,6 +182,12 @@ namespace GitVersionControl
             Root.schedule.Execute(TryReveal);
         }
 
+        public bool RevealCommit(string hash)
+        {
+            Reveal(hash);
+            return true;
+        }
+
         private void TryReveal()
         {
             if (_pendingReveal == null || _isLoading || _graph.Graph == null)
@@ -247,7 +253,7 @@ namespace GitVersionControl
                     Select(parent);
                     _graph.FocusNode(parent);
                 },
-                OpenBranchesTab = () => _navigator.SelectTab<BranchesView>(),
+                Branches = _graph.Graph?.Branches,
             });
         }
 

@@ -14,6 +14,11 @@ namespace GitVersionControl
         Task<List<GitFileChange>> ChangedSinceMergeBaseAsync(string from, string to);
         Task<(List<GitFileChange> files, string error)> ChangedBetweenAsync(string from, string to);
         Task<(List<GitBranchRef> branches, string error)> BranchesAsync();
+
+        /// <summary>
+        /// 사이드바 참조 트리: 브랜치·태그·스태시·워크트리·서브모듈.
+        /// </summary>
+        Task<GitRefSet> RefsAsync();
     }
 
     public sealed class GitHistoryService : IGitHistoryService
@@ -33,5 +38,7 @@ namespace GitVersionControl
         public Task<(List<GitFileChange> files, string error)> ChangedBetweenAsync(string from, string to) => GitHistory.ChangedBetweenAsync(from, to);
 
         public Task<(List<GitBranchRef> branches, string error)> BranchesAsync() => GitHistory.BranchesAsync();
+
+        public Task<GitRefSet> RefsAsync() => GitRefs.LoadAsync();
     }
 }

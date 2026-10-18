@@ -14,7 +14,8 @@ namespace GitVersionControl
         public int SelectedTab;
         public PendingChangesState Pending = new();
         public ChangesetsState Changesets = new();
-        public BranchesState Branches = new();
+        public RefSidebarState Refs = new();
+        public WorkspaceState Workspace = new();
         public BranchExplorerState Explorer = new();
         public StagingState Staging = new();
     }
@@ -43,11 +44,26 @@ namespace GitVersionControl
         public bool AllBranches;
     }
 
+    /// <summary>
+    /// 사이드바 참조 트리. 펼침은 "기본과 다르게 바꾼 키" 만 기억한다(새 폴더·구역은 기본 상태로 나온다).
+    /// </summary>
     [Serializable]
-    public sealed class BranchesState
+    public sealed class RefSidebarState
     {
-        public string NewBranchName = string.Empty;
-        public bool SwitchAfterCreate = true;
+        public List<string> Toggled = new();
+        public string Filter = string.Empty;
+    }
+
+    /// <summary>
+    /// 워크스페이스 탭(Gluon 식). 펼친 폴더는 저장소 기준 경로.
+    /// </summary>
+    [Serializable]
+    public sealed class WorkspaceState
+    {
+        public List<string> Expanded = new();
+        public bool ShowIgnored = true;
+        public bool ChangedOnly;
+        public string Filter = string.Empty;
     }
 
     [Serializable]

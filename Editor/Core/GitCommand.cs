@@ -46,7 +46,14 @@ namespace GitVersionControl
             return Task.Run(() => Run(gitPath, workingDirectory, args, timeoutMs));
         }
 
-        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
+        /// <param name="environment">더할 환경 변수(커밋을 다시 만들 때 원래 작성자·날짜를 지키는 <c>GIT_AUTHOR_*</c>).</param>
+        public static Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, IReadOnlyDictionary<string, string> environment)
+        {
+            string gitPath = GitVcsSettings.instance.GitExecutable;
+            return Task.Run(() => Run(gitPath, workingDirectory, args, DefaultTimeoutMs, environment));
+        }
+
+        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs, IReadOnlyDictionary<string, string> environment = null)
         {
             GitLocator.Location git = GitLocator.Resolve(gitPath);
             if (git.Found == false)
@@ -74,6 +81,13 @@ namespace GitVersionControl
             startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = "1";
             // 에디터 PATH 에 git 이 없어서 시스템 PATH 로 찾은 경우에도 git-lfs·credential manager 를 찾게 한다.
             startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+            if (environment != null)
+            {
+                foreach (KeyValuePair<string, string> pair in environment)
+                {
+                    startInfo.EnvironmentVariables[pair.Key] = pair.Value;
+                }
+            }
 
             try
             {
