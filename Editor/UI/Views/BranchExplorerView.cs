@@ -56,6 +56,9 @@ namespace GitVersionControl
             _range = Root.Require<DropdownField>("range");
             _summary = Root.Require<Label>("summary");
             _search = Root.Require<ToolbarSearchField>("search");
+            // 테마는 검색창 바깥 상자에 포커스 표시를 하므로 안쪽 입력칸의 포커스를 바깥에 알린다(FocusIn/Out 은 위로 전달된다).
+            _search.RegisterCallback<FocusInEvent>(_ => _search.AddToClassList("git-search--focused"));
+            _search.RegisterCallback<FocusOutEvent>(_ => _search.RemoveFromClassList("git-search--focused"));
             _nextMatchButton = Root.Require<ToolbarButton>("next-match-button");
             _errorNotice = Root.Require<VisualElement>("error-notice");
             _errorText = Root.Require<Label>("error-text");

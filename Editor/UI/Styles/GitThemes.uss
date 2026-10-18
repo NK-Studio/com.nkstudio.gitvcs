@@ -94,6 +94,17 @@
     border-color: var(--git-accent);
 }
 
+/* 검색창은 바깥 상자 하나만 테두리를 갖는다(안쪽 입력칸까지 칠하면 상자가 두 겹으로 보인다).
+   포커스 표시도 바깥 상자에 한다 — USS 는 "안쪽에 포커스가 있는 부모" 를 고를 수 없어서 코드가 클래스를 붙인다(BranchExplorerView). */
+.git-theme--jetbrains .unity-search-field-base .unity-base-text-field__input {
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-theme--jetbrains .unity-search-field-base.git-search--focused {
+    border-color: var(--git-accent);
+}
+
 /* 일반 버튼(작업 막대·목록 전환처럼 자기 모양이 있는 버튼은 제외하고 이름으로 고른다). */
 .git-theme--jetbrains .notice__action,
 .git-theme--jetbrains .commit-detail__close,
