@@ -29,6 +29,16 @@ namespace GitVersionControl
         private bool _isPanning;
         private GitGraphNode _hovered;
 
+        // 올려 둔 커밋의 장식(빛 번짐·굵어지는 테두리·퍼지는 고리). 0→1 로 차오르고, 떠난 커밋은 1→0 으로 사라진다.
+        private const float HoverFadeSeconds = 0.15f;
+        private const float HoverPulseSeconds = 1.4f;
+        private float _hoverIn;
+        private GitGraphNode _hoverFading;
+        private float _hoverOut;
+        private double _hoverStartTime;
+        private double _lastHoverTick;
+        private IVisualElementScheduledItem _hoverTicker;
+
         // Painter2D 로 그리는 색 중 배경에 따라 달라야 하는 것은 테마 토큰(--git-graph-*)에서 읽는다. 기본값은 어두운 테마 값.
         private static readonly CustomStyleProperty<Color> SelectionProperty = new("--git-graph-selection");
         private static readonly CustomStyleProperty<Color> SearchProperty = new("--git-graph-search");
@@ -307,11 +317,78 @@ namespace GitVersionControl
                 bool isLaneTip = node.Column == node.Lane.LastColumn;
                 Color ring = node.IsHead ? _headColor : GraphStyle.LaneColor(node.Lane);
                 ring.a = alpha;
-                FillCircle(painter, p, radius + (isLaneTip ? 4f : 2.5f), ring);
+                float hover = HoverAmount(node);
+                if (hover > 0f)
+                {
+                    DrawHoverGlow(painter, p, radius, ring, hover, node == _hovered);
+                }
+                FillCircle(painter, p, radius + (isLaneTip ? 4f : 2.5f) + 2f * hover, ring);
 
                 Color fill = GraphStyle.AuthorColor(node.Commit.AuthorName);
+                fill = Color.Lerp(fill, Color.white, 0.15f * hover);
                 fill.a = alpha;
                 FillCircle(painter, p, radius, fill);
+            }
+        }
+
+        /// <summary>
+        /// 0(장식 없음)~1(다 드러남). 차오름·사라짐에 ease-out 을 걸어 끝이 부드럽게 멈추게 한다.
+        /// </summary>
+        private float HoverAmount(GitGraphNode node)
+        {
+            float linear = node == _hovered ? _hoverIn : node == _hoverFading ? _hoverOut : 0f;
+            return 1f - (1f - linear) * (1f - linear);
+        }
+
+        /// <summary>
+        /// 테두리 아래에 깔리는 빛 번짐과, 올려 두는 동안 바깥으로 퍼지며 옅어지는 고리.
+        /// </summary>
+        private void DrawHoverGlow(Painter2D painter, Vector2 center, float radius, Color color, float amount, bool isPulsing)
+        {
+            // 많이 축소해도 장식이 커밋보다 커 보이지 않게, 확대만큼만 키운다(최소 0.6배).
+            float scale = Mathf.Max(Viewport.Zoom, 0.6f);
+            float[] offsets = { 16f, 11f, 7f };
+            float[] strengths = { 0.06f, 0.1f, 0.16f };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                Color glow = color;
+                glow.a = color.a * strengths[i] * amount;
+                FillCircle(painter, center, radius + offsets[i] * scale, glow);
+            }
+
+            if (isPulsing == false)
+            {
+                return;
+            }
+            float phase = (float)((Time.realtimeSinceStartupAsDouble - _hoverStartTime) % HoverPulseSeconds / HoverPulseSeconds);
+            Color pulse = color;
+            pulse.a = color.a * 0.7f * (1f - phase) * amount;
+            painter.strokeColor = pulse;
+            painter.lineWidth = 2f;
+            painter.BeginPath();
+            painter.Arc(center, radius + (5f + phase * 16f) * scale, Angle.Degrees(0f), Angle.Degrees(360f));
+            painter.ClosePath();
+            painter.Stroke();
+        }
+
+        /// <summary>
+        /// 장식이 움직이는 동안만 매 프레임 다시 그린다. 다 사라지면 멈춘다(가만히 있는 그래프는 다시 그리지 않는다).
+        /// </summary>
+        private void TickHover()
+        {
+            double now = Time.realtimeSinceStartupAsDouble;
+            float step = (float)(now - _lastHoverTick) / HoverFadeSeconds;
+            _lastHoverTick = now;
+            _hoverIn = _hovered == null ? 0f : Mathf.Min(1f, _hoverIn + step);
+            _hoverOut = Mathf.Max(0f, _hoverOut - step);
+            if (_hoverOut <= 0f)
+            {
+                _hoverFading = null;
+            }
+            MarkDirtyRepaint();
+            if (_hovered == null && _hoverFading == null)
+            {
+                _hoverTicker.Pause();
             }
         }
 
@@ -569,8 +646,31 @@ namespace GitVersionControl
             {
                 return;
             }
+            if (_hovered != node)
+            {
+                // 떠나는 커밋은 지금 드러난 만큼에서 사라지기 시작한다(빠르게 옮겨 다녀도 뚝 끊기지 않게).
+                if (_hovered != null)
+                {
+                    _hoverFading = _hovered;
+                    _hoverOut = _hoverIn;
+                }
+                _hoverIn = 0f;
+                _hoverStartTime = Time.realtimeSinceStartupAsDouble;
+                StartHoverTicker();
+            }
             _hovered = node;
             UpdateTooltip();
+        }
+
+        private void StartHoverTicker()
+        {
+            _lastHoverTick = Time.realtimeSinceStartupAsDouble;
+            if (_hoverTicker == null)
+            {
+                _hoverTicker = schedule.Execute(TickHover).Every(16);
+                return;
+            }
+            _hoverTicker.Resume();
         }
     }
 }
