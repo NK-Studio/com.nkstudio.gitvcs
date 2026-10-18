@@ -24,6 +24,7 @@ namespace GitVersionControl
         private VisualElement _window;
         private VisualElement _notReady;
         private Label _notReadyMessage;
+        private UiScaleController _scale;
 
         [MenuItem("Window/Version Control/Git")]
         public static void Open()
@@ -45,7 +46,11 @@ namespace GitVersionControl
             _services = GitServices.CreateDefault();
 
             TemplateContainer layout = GitUiAssets.CloneLayout("GitWindow");
-            rootVisualElement.Add(layout);
+            VisualElement scaleHost = new();
+            rootVisualElement.Add(scaleHost);
+            scaleHost.Add(layout);
+            GitVcsSettings settings = GitVcsSettings.instance;
+            _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
             _window = layout.Require<VisualElement>("git-window");
             _notReady = layout.Require<VisualElement>("not-ready");
             _notReadyMessage = layout.Require<Label>("not-ready-message");
@@ -103,6 +108,10 @@ namespace GitVersionControl
                 menu.AddItem(new GUIContent($"{GitText.Get("common.language")}/{GitText.NativeName(language)}"),
                     GitText.Language == language, () => GitText.SetLanguage(captured));
             }
+            string scaleMenu = GitText.Get("window.uiScale");
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.GitWindowScale * 100f))}"), false, () => _scale?.Reset());
         }
 
         private void OnFocus()

@@ -131,6 +131,12 @@ namespace GitVersionControl
             ["settings.diffArgumentsTooltip"] = new[] { "{LEFT} {RIGHT} = 비교할 두 파일, {LEFT_TITLE} {RIGHT_TITLE} = 창 제목.", "{LEFT} {RIGHT} = files to compare, {LEFT_TITLE} {RIGHT_TITLE} = window titles." },
             ["settings.diffPreview"] = new[] { "실행: {0} {1}", "Runs: {0} {1}" },
 
+            // ── UI 배율 ──
+            ["window.uiScale"] = new[] { "UI 크기", "UI Scale" },
+            ["window.uiScaleIn"] = new[] { "크게 (Ctrl+휠 위, Ctrl+=)", "Larger (Ctrl+Wheel Up, Ctrl+=)" },
+            ["window.uiScaleOut"] = new[] { "작게 (Ctrl+휠 아래, Ctrl+-)", "Smaller (Ctrl+Wheel Down, Ctrl+-)" },
+            ["window.uiScaleReset"] = new[] { "원래대로 — 지금 {0}% (Ctrl+0)", "Reset — now {0}% (Ctrl+0)" },
+
             // ── 파일 보기 방식 ──
             ["fileView.list"] = new[] { "목록", "List" },
             ["fileView.tree"] = new[] { "트리", "Tree" },

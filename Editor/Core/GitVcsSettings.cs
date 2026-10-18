@@ -24,6 +24,8 @@ namespace GitVersionControl
         [SerializeField] private string _difftoolName = string.Empty;
         [SerializeField] private string _customDiffArguments = ExternalDiffTool.DefaultCustomArguments;
         [SerializeField] private List<string> _diffToolPaths = new();
+        [SerializeField] private float _gitWindowScale = 1f;
+        [SerializeField] private float _diffWindowScale = 1f;
 
         /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
         public string GitExecutable
@@ -177,6 +179,24 @@ namespace GitVersionControl
             }
             _diffToolPaths[index] = trimmed;
             Save(true);
+        }
+
+        /// <summary>
+        /// Git 창 UI 배율(Ctrl+휠). 범위·단위는 <see cref="UiScaleController"/> 가 맞춘다.
+        /// </summary>
+        public float GitWindowScale
+        {
+            get => UiScaleController.Clamp(_gitWindowScale);
+            set => SetAndSave(ref _gitWindowScale, UiScaleController.Clamp(value));
+        }
+
+        /// <summary>
+        /// diff 뷰어 UI 배율. 코드는 Git 창과 따로 키워 보는 일이 많아 나눠 둔다.
+        /// </summary>
+        public float DiffWindowScale
+        {
+            get => UiScaleController.Clamp(_diffWindowScale);
+            set => SetAndSave(ref _diffWindowScale, UiScaleController.Clamp(value));
         }
 
         private void SetAndSave<T>(ref T field, T value)

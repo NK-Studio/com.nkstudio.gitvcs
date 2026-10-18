@@ -34,6 +34,24 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("-a Terminal /Users/me/repo", launch.Arguments);
         }
 
+        [TestCase(1f, -120f, 1.1f)]
+        [TestCase(1f, 3f, 0.9f)]
+        [TestCase(1f, 0f, 1f)]
+        [TestCase(2f, -1f, 2f)]
+        [TestCase(0.6f, 1f, 0.6f)]
+        public void Test_UiScale_NextScale_WheelUpEnlargesWithinRange(float current, float wheelDeltaY, float expected)
+        {
+            Assert.AreEqual(expected, UiScaleController.NextScale(current, wheelDeltaY), 0.0001f);
+        }
+
+        [TestCase(1.0999f, 1.1f)]
+        [TestCase(5f, 2f)]
+        [TestCase(0.1f, 0.6f)]
+        public void Test_UiScale_Clamp_SnapsToStepAndRange(float scale, float expected)
+        {
+            Assert.AreEqual(expected, UiScaleController.Clamp(scale), 0.0001f);
+        }
+
         [TestCase(260f, 600f, 260f)]
         [TestCase(260f, 300f, 180f)]
         [TestCase(260f, 150f, 80f)]

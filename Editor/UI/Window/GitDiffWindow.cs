@@ -14,7 +14,7 @@ namespace GitVersionControl
     /// 알고리즘·공백·문맥 줄 수·보기 방식은 도구 막대에서 바꾸며, 바꾼 값은 설정(<see cref="GitVcsSettings"/>)에 남는다.
     /// 창은 하나를 다시 쓴다 — 다른 파일을 열면 같은 창의 내용이 바뀐다.
     /// </summary>
-    public sealed class GitDiffWindow : EditorWindow
+    public sealed class GitDiffWindow : EditorWindow, IHasCustomMenu
     {
         private const string StylePath = "Packages/com.nkstudio.gitvcs/Editor/UI/Styles/GitDiff.uss";
         private const string CommonStylePath = "Packages/com.nkstudio.gitvcs/Editor/UI/Styles/GitCommon.uss";
@@ -42,6 +42,7 @@ namespace GitVersionControl
         private ToolbarToggle _unifiedToggle;
         private ToolbarToggle _splitToggle;
         private Font _monospace;
+        private UiScaleController _scale;
 
         public static void Open(GitDiffTarget target, IGitDiffService service)
         {
@@ -58,7 +59,13 @@ namespace GitVersionControl
             _service ??= new GitDiffService(new EditorDialogService());
             _monospace = EditorGUIUtility.Load(MonospaceFontPath) as Font;
 
-            VisualElement root = rootVisualElement;
+            VisualElement scaleHost = new();
+            VisualElement root = new();
+            rootVisualElement.Add(scaleHost);
+            scaleHost.Add(root);
+            GitVcsSettings settings = GitVcsSettings.instance;
+            _scale = new UiScaleController(scaleHost, root, () => settings.DiffWindowScale, value => settings.DiffWindowScale = value);
+
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(CommonStylePath));
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StylePath));
             root.AddToClassList("git-window");
@@ -83,6 +90,17 @@ namespace GitVersionControl
 
             ApplyLayout();
             Reload();
+        }
+
+        /// <summary>
+        /// 창 오른쪽 위 ⋮ 메뉴에 UI 크기 조절을 더한다(Ctrl+휠 을 모르는 사람을 위한 같은 기능).
+        /// </summary>
+        public void AddItemsToMenu(GenericMenu menu)
+        {
+            string scaleMenu = GitText.Get("window.uiScale");
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.DiffWindowScale * 100f))}"), false, () => _scale?.Reset());
         }
 
         private VisualElement BuildToolbar()
