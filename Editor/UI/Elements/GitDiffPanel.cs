@@ -16,7 +16,6 @@ namespace GitVersionControl
     /// </summary>
     public sealed class GitDiffPanel
     {
-        private const string MonospaceFontPath = "Fonts/RobotoMono/RobotoMono-Regular.ttf";
         private const float RowHeight = 18f;
 
         private readonly IGitDiffService _service;
@@ -62,7 +61,7 @@ namespace GitVersionControl
         public GitDiffPanel(IGitDiffService service)
         {
             _service = service;
-            _monospace = EditorGUIUtility.Load(MonospaceFontPath) as Font;
+            _monospace = GitFonts.Monospace;
 
             Root = new VisualElement();
             Root.AddToClassList("git-diff");

@@ -11,7 +11,6 @@ namespace GitVersionControl
     /// </summary>
     public sealed class GitBlameWindow : GitToolWindowBase
     {
-        private const string MonospaceFontPath = "Fonts/RobotoMono/RobotoMono-Regular.ttf";
         private const float RowHeight = 18f;
 
         [SerializeField] private string _repoPath;
@@ -35,7 +34,7 @@ namespace GitVersionControl
         private void CreateGUI()
         {
             CreateContent();
-            _monospace = EditorGUIUtility.Load(MonospaceFontPath) as Font;
+            _monospace = GitFonts.Monospace;
 
             _summary = new Label();
             _summary.AddToClassList("view__toolbar-label");
