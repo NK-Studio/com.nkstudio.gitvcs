@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace GitVersionControl
 {
@@ -84,6 +85,15 @@ namespace GitVersionControl
                 return (words[0].Substring(0, 1) + words[1].Substring(0, 1)).ToUpperInvariant();
             }
             return words[0].Length >= 2 ? words[0].Substring(0, 2).ToUpperInvariant() : words[0].ToUpperInvariant();
+        }
+
+        /// <summary>
+        /// 40자 해시는 앞 7자로 줄이고, 브랜치 이름·HEAD~2 같은 리비전은 그대로 둔다.
+        /// </summary>
+        public static string ShortRevision(string revision)
+        {
+            bool isFullHash = revision != null && revision.Length == 40 && revision.All(Uri.IsHexDigit);
+            return isFullHash ? revision.Substring(0, 7) : revision ?? string.Empty;
         }
 
         public static string FirstLine(string text)

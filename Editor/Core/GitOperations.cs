@@ -147,12 +147,17 @@ namespace GitVersionControl
             return GitRepository.RunAsync(args);
         }
 
-        public static Task<GitResult> CreateBranchAsync(string name, bool switchTo)
+        /// <param name="startPoint">새 브랜치가 가리킬 커밋. null 이면 HEAD.</param>
+        public static Task<GitResult> CreateBranchAsync(string name, bool switchTo, string startPoint = null)
         {
-            string[] args = switchTo
-                ? new[] { "switch", "-c", name }
-                : new[] { "branch", name };
-            return GitRepository.RunAsync(args);
+            List<string> args = switchTo
+                ? new List<string> { "switch", "-c", name }
+                : new List<string> { "branch", name };
+            if (string.IsNullOrEmpty(startPoint) == false)
+            {
+                args.Add(startPoint);
+            }
+            return GitRepository.RunAsync(args.ToArray());
         }
 
         /// <summary><paramref name="force"/> 가 아니면 병합되지 않은 브랜치는 git 이 거부한다(-d).</summary>

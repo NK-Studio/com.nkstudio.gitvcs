@@ -88,6 +88,11 @@ namespace GitVersionControl
         /// 아직 올리지 않은 변경(인덱스 ↔ 작업 트리). Fork·GitKraken 레이아웃의 Unstaged 목록.
         /// </summary>
         Unstaged,
+
+        /// <summary>
+        /// 두 커밋을 그대로 비교(<c>From ↔ To</c>). Branch Explorer 의 "다른 커밋과 비교".
+        /// </summary>
+        Range,
     }
 
     [Serializable]
@@ -113,7 +118,7 @@ namespace GitVersionControl
         public string Commit;
 
         /// <summary>
-        /// <see cref="GitDiffSource.MergeBaseRange"/> 의 양 끝(<c>From...To</c>).
+        /// <see cref="GitDiffSource.MergeBaseRange"/>(<c>From...To</c>)·<see cref="GitDiffSource.Range"/>(<c>From ↔ To</c>) 의 양 끝.
         /// </summary>
         public string From;
         public string To;
@@ -151,6 +156,19 @@ namespace GitVersionControl
                 OriginalRepoPath = change.OriginalRepoPath,
                 State = change.State,
                 Commit = commit,
+            };
+        }
+
+        public static GitDiffTarget ForRange(string from, string to, GitFileChange change)
+        {
+            return new GitDiffTarget
+            {
+                Source = GitDiffSource.Range,
+                RepoPath = change.RepoPath,
+                OriginalRepoPath = change.OriginalRepoPath,
+                State = change.State,
+                From = from,
+                To = to,
             };
         }
 
@@ -283,6 +301,12 @@ namespace GitVersionControl
                     args = new List<string> { "diff", "-M" };
                     AppendOptions(args, options);
                     args.Add($"{target.From}...{target.To}");
+                    break;
+                case GitDiffSource.Range:
+                    args = new List<string> { "diff", "-M" };
+                    AppendOptions(args, options);
+                    args.Add(target.From);
+                    args.Add(target.To);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(target), target.Source, null);

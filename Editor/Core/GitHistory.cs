@@ -153,6 +153,15 @@ namespace GitVersionControl
             return result.Success ? ParseNameStatus(result.Output) : new List<GitFileChange>();
         }
 
+        /// <summary>
+        /// 두 커밋 사이에서 바뀐 파일(two-dot: <paramref name="from"/> 의 내용 ↔ <paramref name="to"/> 의 내용).
+        /// </summary>
+        public static async Task<(List<GitFileChange> files, string error)> ChangedBetweenAsync(string from, string to)
+        {
+            GitResult result = await GitRepository.RunAsync("diff", "-z", "--name-status", "-M", from, to, "--");
+            return result.Success ? (ParseNameStatus(result.Output), null) : (new List<GitFileChange>(), result.Message);
+        }
+
         public static async Task<(List<GitBranchRef> branches, string error)> BranchesAsync()
         {
             Task<GitResult> refsTask = GitRepository.RunAsync("for-each-ref", BranchFormat, "--sort=-committerdate", "refs/heads", "refs/remotes");

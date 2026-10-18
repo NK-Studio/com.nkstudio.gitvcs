@@ -17,6 +17,11 @@ namespace GitVersionControl
         DeleteBranch,
         Stash,
         Pull,
+
+        /// <summary>
+        /// 현재 브랜치(또는 분리된 HEAD)를 다른 커밋으로 옮긴 작업: 병합·체리픽·revert·reset.
+        /// </summary>
+        MoveHead,
     }
 
     /// <summary>
@@ -60,6 +65,12 @@ namespace GitVersionControl
         /// 일부 파일만 stash 했을 때 그 경로. 비어 있으면 전체 stash.
         /// </summary>
         public List<string> Paths = new();
+
+        /// <summary>
+        /// <see cref="GitUndoKind.MoveHead"/> 를 되돌리고 다시 할 때 쓰는 reset 방식. 비어 있으면 <c>--keep</c>
+        /// (로컬 수정과 겹치면 git 이 거부한다). soft reset 은 stage 된 차이를 지키려고 <c>--soft</c> 로 기록한다.
+        /// </summary>
+        public string ResetMode;
     }
 
     public enum GitUndoCheckKind
@@ -143,6 +154,10 @@ namespace GitVersionControl
                     plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadAfter));
                     plan.Commands.Add(new[] { "reset", "--keep", entry.HeadBefore });
                     break;
+                case GitUndoKind.MoveHead:
+                    plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadAfter));
+                    plan.Commands.Add(new[] { "reset", ResetModeOf(entry), entry.HeadBefore });
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(entry), entry.Kind, null);
             }
@@ -160,7 +175,10 @@ namespace GitVersionControl
                     break;
                 case GitUndoKind.Switch:
                     plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadBefore));
-                    plan.Commands.Add(new[] { "switch", entry.BranchAfter });
+                    // 커밋으로 전환(분리된 HEAD)했던 기록은 브랜치 이름이 없다.
+                    plan.Commands.Add(string.IsNullOrEmpty(entry.BranchAfter)
+                        ? new[] { "switch", "--detach", entry.HeadAfter }
+                        : new[] { "switch", entry.BranchAfter });
                     break;
                 case GitUndoKind.CreateBranch:
                     plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.BranchMissing, entry.Name, null));
@@ -193,10 +211,19 @@ namespace GitVersionControl
                     plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadBefore));
                     plan.Commands.Add(new[] { "merge", "--ff-only", entry.HeadAfter });
                     break;
+                case GitUndoKind.MoveHead:
+                    plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadBefore));
+                    plan.Commands.Add(new[] { "reset", ResetModeOf(entry), entry.HeadAfter });
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(entry), entry.Kind, null);
             }
             return plan;
+        }
+
+        private static string ResetModeOf(GitUndoEntry entry)
+        {
+            return string.IsNullOrEmpty(entry.ResetMode) ? "--keep" : entry.ResetMode;
         }
 
         private static string[] SwitchBack(GitUndoEntry entry)
@@ -372,19 +399,34 @@ namespace GitVersionControl
             return result;
         }
 
-        public static async Task<GitResult> SwitchAsync(GitBranchRef branch)
+        public static Task<GitResult> SwitchAsync(GitBranchRef branch)
+        {
+            return RecordSwitchAsync(() => GitOperations.SwitchAsync(branch));
+        }
+
+        /// <summary>
+        /// 커밋으로 전환(분리된 HEAD).
+        /// </summary>
+        public static Task<GitResult> SwitchDetachedAsync(string commit)
+        {
+            return RecordSwitchAsync(() => GitRepository.RunAsync("switch", "--detach", commit));
+        }
+
+        private static async Task<GitResult> RecordSwitchAsync(Func<Task<GitResult>> operation)
         {
             string headBefore = await HeadAsync();
             string branchBefore = await CurrentBranchAsync();
-            GitResult result = await GitOperations.SwitchAsync(branch);
+            GitResult result = await operation();
             if (result.Success && string.IsNullOrEmpty(headBefore) == false)
             {
+                string headAfter = await HeadAsync();
                 string branchAfter = await CurrentBranchAsync();
                 Journal.Record(new GitUndoEntry
                 {
                     Kind = GitUndoKind.Switch,
-                    Title = GitText.Format("undo.switch", branchAfter, string.IsNullOrEmpty(branchBefore) ? headBefore.Substring(0, 7) : branchBefore),
+                    Title = GitText.Format("undo.switch", NameOrShortHash(branchAfter, headAfter), NameOrShortHash(branchBefore, headBefore)),
                     HeadBefore = headBefore,
+                    HeadAfter = headAfter,
                     BranchBefore = branchBefore,
                     BranchAfter = branchAfter,
                 });
@@ -392,11 +434,12 @@ namespace GitVersionControl
             return result;
         }
 
-        public static async Task<GitResult> CreateBranchAsync(string name, bool switchTo)
+        /// <param name="startPoint">새 브랜치가 가리킬 커밋(전체 해시). null 이면 HEAD.</param>
+        public static async Task<GitResult> CreateBranchAsync(string name, bool switchTo, string startPoint = null)
         {
             string headBefore = await HeadAsync();
             string branchBefore = await CurrentBranchAsync();
-            GitResult result = await GitOperations.CreateBranchAsync(name, switchTo);
+            GitResult result = await GitOperations.CreateBranchAsync(name, switchTo, startPoint);
             if (result.Success && string.IsNullOrEmpty(headBefore) == false)
             {
                 Journal.Record(new GitUndoEntry
@@ -406,11 +449,40 @@ namespace GitVersionControl
                     HeadBefore = headBefore,
                     BranchBefore = branchBefore,
                     Name = name,
-                    Hash = headBefore,
+                    Hash = startPoint ?? headBefore,
                     Switched = switchTo,
                 });
             }
             return result;
+        }
+
+        /// <summary>
+        /// HEAD 를 옮기는 작업(병합·체리픽·revert·reset)을 실행하고, HEAD 가 실제로 바뀌었으면 기록한다.
+        /// 충돌로 멈추면 git 이 실패를 돌려주고 HEAD 는 그대로라 기록하지 않는다.
+        /// </summary>
+        /// <param name="resetMode">되돌리기에 쓸 reset 방식. null 이면 <c>--keep</c>.</param>
+        public static async Task<GitResult> MoveHeadAsync(string title, string[] args, string resetMode = null)
+        {
+            string before = await HeadAsync();
+            GitResult result = await GitRepository.RunAsync(args);
+            string after = await HeadAsync();
+            if (result.Success && string.IsNullOrEmpty(before) == false && after != before)
+            {
+                Journal.Record(new GitUndoEntry
+                {
+                    Kind = GitUndoKind.MoveHead,
+                    Title = title,
+                    HeadBefore = before,
+                    HeadAfter = after,
+                    ResetMode = resetMode,
+                });
+            }
+            return result;
+        }
+
+        private static string NameOrShortHash(string branch, string head)
+        {
+            return string.IsNullOrEmpty(branch) ? head.Substring(0, Math.Min(7, head.Length)) : branch;
         }
 
         public static async Task<GitResult> DeleteBranchAsync(string name, bool force)

@@ -15,6 +15,24 @@ namespace GitVersionControl
         Task<GitResult> CreateBranchAsync(string name, bool switchTo);
         Task<GitResult> DeleteBranchAsync(string name, bool force);
         Task<GitResult> ValidateBranchNameAsync(string name);
+
+        /// <summary>
+        /// 커밋 하나를 대상으로 하는 작업(Branch Explorer 커밋 메뉴). 인자는 <see cref="GitCommitCommands"/> 가 만든다.
+        /// </summary>
+        Task<GitResult> CreateBranchAtAsync(string name, string commit, bool switchTo);
+        Task<GitResult> SwitchDetachedAsync(string commit);
+        Task<GitResult> CreateTagAsync(string name, string commit);
+        Task<GitResult> ValidateTagNameAsync(string name);
+
+        /// <summary>
+        /// HEAD 를 옮기는 작업(병합·체리픽·revert·reset). 실행 취소 목록에 기록된다.
+        /// </summary>
+        Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode);
+
+        /// <summary>
+        /// 리비전(브랜치·태그·해시·HEAD~2)의 커밋 해시. 없으면 null.
+        /// </summary>
+        Task<string> ResolveCommitAsync(string revision);
         Task<GitResult> StashAsync();
         Task<GitResult> StashPopAsync();
         Task<int> StashCountAsync();
@@ -54,6 +72,22 @@ namespace GitVersionControl
         public Task<GitResult> DeleteBranchAsync(string name, bool force) => GitUndo.DeleteBranchAsync(name, force);
 
         public Task<GitResult> ValidateBranchNameAsync(string name) => GitOperations.ValidateBranchNameAsync(name);
+
+        public Task<GitResult> CreateBranchAtAsync(string name, string commit, bool switchTo) => GitUndo.CreateBranchAsync(name, switchTo, commit);
+
+        public Task<GitResult> SwitchDetachedAsync(string commit) => GitUndo.SwitchDetachedAsync(commit);
+
+        public Task<GitResult> CreateTagAsync(string name, string commit) => GitRepository.RunAsync(GitCommitCommands.Tag(name, commit));
+
+        public Task<GitResult> ValidateTagNameAsync(string name) => GitRepository.RunAsync(GitCommitCommands.ValidateTagName(name));
+
+        public Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode) => GitUndo.MoveHeadAsync(title, args, undoResetMode);
+
+        public async Task<string> ResolveCommitAsync(string revision)
+        {
+            GitResult result = await GitRepository.RunAsync(GitCommitCommands.ResolveCommit(revision));
+            return result.Success ? result.Output.Trim() : null;
+        }
 
         public Task<GitResult> StashAsync() => GitUndo.StashAsync();
 

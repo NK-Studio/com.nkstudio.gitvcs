@@ -102,6 +102,35 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_Undo_MoveHead_ResetsKeepByDefault()
+        {
+            GitUndoEntry entry = new() { Kind = GitUndoKind.MoveHead, HeadBefore = "a", HeadAfter = "b" };
+
+            GitUndoPlan undo = GitUndoPlanner.Undo(entry);
+
+            Assert.AreEqual("b", undo.Checks.Single().Value);
+            Assert.AreEqual("reset --keep a", Joined(undo));
+            Assert.AreEqual("reset --keep b", Joined(GitUndoPlanner.Redo(entry)));
+        }
+
+        [Test]
+        public void Test_Undo_MoveHead_SoftResetKeepsStagedChanges()
+        {
+            GitUndoEntry entry = new() { Kind = GitUndoKind.MoveHead, HeadBefore = "a", HeadAfter = "b", ResetMode = "--soft" };
+
+            Assert.AreEqual("reset --soft a", Joined(GitUndoPlanner.Undo(entry)));
+        }
+
+        [Test]
+        public void Test_Redo_SwitchToCommit_SwitchesDetached()
+        {
+            GitUndoEntry entry = new() { Kind = GitUndoKind.Switch, HeadBefore = "a", HeadAfter = "c", BranchBefore = "main", BranchAfter = "" };
+
+            Assert.AreEqual("switch main", Joined(GitUndoPlanner.Undo(entry)));
+            Assert.AreEqual("switch --detach c", Joined(GitUndoPlanner.Redo(entry)));
+        }
+
+        [Test]
         public void Test_Undo_Stash_PopsOnlyTheRecordedStash()
         {
             GitUndoEntry entry = new() { Kind = GitUndoKind.Stash, Hash = "s" };

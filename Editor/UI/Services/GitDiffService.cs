@@ -115,6 +115,9 @@ namespace GitVersionControl
                 case GitDiffSource.MergeBaseRange:
                     args.AddRange(new[] { "-M", $"{target.From}...{target.To}" });
                     break;
+                case GitDiffSource.Range:
+                    args.AddRange(new[] { "-M", target.From, target.To });
+                    break;
             }
             if (args.Contains("--no-index") == false)
             {
@@ -218,6 +221,10 @@ namespace GitVersionControl
                         return (null, null, null, null, mergeBase.Message);
                     }
                     leftRevision = mergeBase.Output.Trim();
+                    rightRevision = target.To;
+                    break;
+                case GitDiffSource.Range:
+                    leftRevision = target.From;
                     rightRevision = target.To;
                     break;
                 default:

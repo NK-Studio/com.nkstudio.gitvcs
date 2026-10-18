@@ -12,6 +12,7 @@ namespace GitVersionControl
         Task<List<GitFileChange>> CommitFilesAsync(string hash);
         Task<string> CommitMessageAsync(string hash);
         Task<List<GitFileChange>> ChangedSinceMergeBaseAsync(string from, string to);
+        Task<(List<GitFileChange> files, string error)> ChangedBetweenAsync(string from, string to);
         Task<(List<GitBranchRef> branches, string error)> BranchesAsync();
     }
 
@@ -28,6 +29,8 @@ namespace GitVersionControl
         public Task<string> CommitMessageAsync(string hash) => GitHistory.CommitMessageAsync(hash);
 
         public Task<List<GitFileChange>> ChangedSinceMergeBaseAsync(string from, string to) => GitHistory.ChangedSinceMergeBaseAsync(from, to);
+
+        public Task<(List<GitFileChange> files, string error)> ChangedBetweenAsync(string from, string to) => GitHistory.ChangedBetweenAsync(from, to);
 
         public Task<(List<GitBranchRef> branches, string error)> BranchesAsync() => GitHistory.BranchesAsync();
     }

@@ -54,6 +54,14 @@ namespace GitVersionControl.Tests
             StringAssert.Contains("HEAD...@{u} -- A.cs", Args(target, DefaultOptions));
         }
 
+        [Test]
+        public void Test_BuildArguments_Range_PassesBothCommits()
+        {
+            GitDiffTarget target = GitDiffTarget.ForRange("aaa", "bbb", new GitFileChange { Status = 'M', RepoPath = "A.cs" });
+
+            StringAssert.EndsWith(" aaa bbb -- A.cs", Args(target, DefaultOptions));
+        }
+
         [TestCase(DiffWhitespace.IgnoreChange, "-b")]
         [TestCase(DiffWhitespace.IgnoreAll, "-w")]
         public void Test_BuildArguments_Whitespace_AddsFlag(DiffWhitespace whitespace, string flag)

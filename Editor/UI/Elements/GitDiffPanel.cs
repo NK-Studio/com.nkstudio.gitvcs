@@ -301,6 +301,8 @@ namespace GitVersionControl
                     return GitText.Format("diff.revisionsCommit", target.Commit.Substring(0, Math.Min(8, target.Commit.Length)));
                 case GitDiffSource.MergeBaseRange:
                     return GitText.Format("diff.revisionsRange", target.From, target.To);
+                case GitDiffSource.Range:
+                    return GitText.Format("diff.revisionsTwoCommits", GitDisplay.ShortRevision(target.From), GitDisplay.ShortRevision(target.To));
                 default:
                     throw new ArgumentOutOfRangeException(nameof(target), target.Source, null);
             }

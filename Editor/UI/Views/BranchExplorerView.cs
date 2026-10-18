@@ -32,7 +32,12 @@ namespace GitVersionControl
         private readonly TwoPaneSplitView _split;
         private readonly BranchGraphElement _graph;
         private readonly CommitDetailPanel _detail;
+        private readonly CommitActions _commitActions;
 
+        /// <summary>
+        /// "비교 기준으로 표시" 한 커밋. 다른 커밋의 메뉴에서 "표시한 커밋과 비교" 로 둘을 비교한다.
+        /// </summary>
+        private GitCommitInfo _compareBase;
         private string _loadedKey;
         private bool _isLoading;
         private int _searchCursor = -1;
@@ -45,6 +50,7 @@ namespace GitVersionControl
         {
             _state = state;
             _navigator = navigator;
+            _commitActions = new CommitActions(services);
 
             _reloadButton = Root.Require<ToolbarButton>("reload-button");
             _range = Root.Require<DropdownField>("range");
@@ -188,12 +194,67 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// Unity Version Control 의 체인지 세트 메뉴 순서를 따른다(비교 → 만들기·전환 → 병합 → 이동 → 고급). git 에 없는 항목은 뺐다(<see cref="CommitActions"/>).
+        /// 오른쪽 클릭이 곧 선택이라 "선택한 두 커밋 비교" 대신 "비교 기준으로 표시" 후 "표시한 커밋과 비교" 로 두 커밋을 고른다.
+        /// </summary>
         private void PopulateNodeMenu(DropdownMenu menu, GitGraphNode node)
         {
-            menu.AppendAction(GitText.Get("common.copyHash"), _ => Services.Assets.CopyToClipboard(node.Commit.Hash));
-            menu.AppendAction(GitText.Get("common.copySubject"), _ => Services.Assets.CopyToClipboard(node.Commit.Subject));
+            GitCommitInfo commit = node.Commit;
+            DropdownMenuAction.Status writable = Services.Runner.IsBusy ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal;
+            DropdownMenuAction.Status notHead = node.IsHead ? DropdownMenuAction.Status.Disabled : writable;
+            bool canCompareWithMarked = _compareBase != null && _compareBase.Hash != commit.Hash;
+
+            menu.AppendAction(GitText.Get("commit.compareWithParent"), _ => _commitActions.CompareWithParent(commit));
+            menu.AppendAction(GitText.Get("commit.compareWithRevision"), action => _ = _commitActions.CompareWithRevisionAsync(commit));
+            menu.AppendAction(canCompareWithMarked ? GitText.Format("commit.compareWithMarked", _compareBase.ShortHash) : GitText.Get("commit.compareWithMarkedNone"),
+                _ => GitCompareWindow.OpenRange(_compareBase.Hash, commit.Hash),
+                canCompareWithMarked ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            menu.AppendAction(GitText.Get("commit.markForCompare"), _ => _compareBase = commit,
+                _compareBase?.Hash == commit.Hash ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
             menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("common.openBranchesTab"), _ => _navigator.SelectTab<BranchesView>());
+
+            menu.AppendAction(GitText.Get("commit.createBranch"), action => _ = _commitActions.CreateBranchAsync(commit), writable);
+            menu.AppendAction(GitText.Get("commit.tag"), action => _ = _commitActions.CreateTagAsync(commit), writable);
+            menu.AppendAction(GitText.Get("commit.switchTo"), action => _ = _commitActions.SwitchToAsync(commit), notHead);
+            menu.AppendSeparator();
+
+            menu.AppendAction(GitText.Get("commit.merge"), action => _ = _commitActions.MergeAsync(commit, GitMergeMode.Default), notHead);
+            menu.AppendAction(GitText.Get("commit.cherryPick"), action => _ = _commitActions.CherryPickAsync(commit), notHead);
+            menu.AppendAction(GitText.Get("commit.advancedMerge") + "/" + GitText.Get("commit.mergeNoFf"), action => _ = _commitActions.MergeAsync(commit, GitMergeMode.NoFastForward), notHead);
+            menu.AppendAction(GitText.Get("commit.advancedMerge") + "/" + GitText.Get("commit.mergeSquash"), action => _ = _commitActions.MergeAsync(commit, GitMergeMode.Squash), notHead);
+            menu.AppendAction(GitText.Get("commit.advancedMerge") + "/" + GitText.Get("commit.revert"), action => _ = _commitActions.RevertAsync(commit), writable);
+            menu.AppendSeparator();
+
+            GitGraphNode parent = ParentNodeOf(node);
+            menu.AppendAction(GitText.Get("commit.goToParent"), _ =>
+            {
+                Select(parent);
+                _graph.FocusNode(parent);
+            }, parent == null ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+            menu.AppendSeparator();
+
+            string advanced = GitText.Get("commit.advanced") + "/";
+            string reset = advanced + GitText.Get("commit.resetHere") + "/";
+            menu.AppendAction(reset + GitText.Get("commit.resetSoft"), action => _ = _commitActions.ResetAsync(commit, GitResetMode.Soft), notHead);
+            menu.AppendAction(reset + GitText.Get("commit.resetMixed"), action => _ = _commitActions.ResetAsync(commit, GitResetMode.Mixed), notHead);
+            menu.AppendAction(reset + GitText.Get("commit.resetHard"), action => _ = _commitActions.ResetAsync(commit, GitResetMode.Hard), notHead);
+            menu.AppendAction(advanced + GitText.Get("common.copyHash"), _ => Services.Assets.CopyToClipboard(commit.Hash));
+            menu.AppendAction(advanced + GitText.Get("common.copySubject"), _ => Services.Assets.CopyToClipboard(commit.Subject));
+            menu.AppendAction(advanced + GitText.Get("common.openBranchesTab"), _ => _navigator.SelectTab<BranchesView>());
+        }
+
+        /// <summary>
+        /// 첫 부모의 노드. 기간 밖이라 그래프에 없으면 null.
+        /// </summary>
+        private GitGraphNode ParentNodeOf(GitGraphNode node)
+        {
+            string[] parents = node.Commit.Parents;
+            if (parents.Length == 0 || _graph.Graph == null)
+            {
+                return null;
+            }
+            return _graph.Graph.NodeByHash.TryGetValue(parents[0], out GitGraphNode parent) ? parent : null;
         }
 
         /// <summary>최신 커밋부터 거꾸로 돌며 다음 일치 항목으로 이동·선택한다.</summary>

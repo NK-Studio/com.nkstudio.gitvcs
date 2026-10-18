@@ -38,7 +38,7 @@ namespace GitVersionControl
         public async Task SwitchAsync(GitBranchRef branch, ICollection<string> localNames)
         {
             GitBranchRef target = ResolveSwitchTarget(branch, localNames);
-            if (PrepareWorkingTree(GitText.Format("branches.actionSwitch", target.Name)) == false)
+            if (PrepareWorkingTree(_services, GitText.Format("branches.actionSwitch", target.Name)) == false)
             {
                 return;
             }
@@ -54,7 +54,7 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(GitText.Get("branches.createTitle"), GitText.Format("branches.invalidName", name));
                 return false;
             }
-            if (switchTo && PrepareWorkingTree(GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (switchTo && PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return false;
             }
@@ -88,18 +88,18 @@ namespace GitVersionControl
         }
 
         /// <summary>작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 알린다. 취소하면 false.</summary>
-        private bool PrepareWorkingTree(string action)
+        public static bool PrepareWorkingTree(GitServices services, string action)
         {
-            if (_services.Dialogs.SaveOpenWork() == false)
+            if (services.Dialogs.SaveOpenWork() == false)
             {
                 return false;
             }
-            int pending = _services.Repository.Entries.Count;
+            int pending = services.Repository.Entries.Count;
             if (pending == 0)
             {
                 return true;
             }
-            return _services.Dialogs.Confirm(GitText.Get("branches.switchTitle"),
+            return services.Dialogs.Confirm(GitText.Get("branches.switchTitle"),
                 GitText.Format("branches.pendingWarning", pending, action), GitText.Get("common.continue"));
         }
     }
