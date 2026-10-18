@@ -64,8 +64,20 @@ namespace GitVersionControl
 
         public int RowCount { get; private set; }
 
+        /// <summary>
+        /// 메인 스레드에서 부른다(이름 없는 줄 이름을 <see cref="GitText"/> 에서 읽는다). 다른 스레드에서는 이름을 넘기는 오버로드를 쓴다.
+        /// </summary>
         /// <param name="commitsNewestFirst"><c>git log --date-order</c> 출력 순서(자식이 항상 부모보다 앞).</param>
         public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash)
+        {
+            return Build(commitsNewestFirst, branches, headHash, GitText.Get("graph.mergedBranch"));
+        }
+
+        /// <summary>
+        /// 어느 스레드에서나 부를 수 있다. 커밋·브랜치가 수천 개면 수십 ms 가 걸리므로 창은 작업 스레드에서 만든다.
+        /// </summary>
+        /// <param name="anonymousLaneName">병합 메시지에서 이름을 찾지 못한 줄의 이름.</param>
+        public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName)
         {
             GitGraph graph = new();
 
@@ -83,7 +95,7 @@ namespace GitVersionControl
             }
 
             graph.AssignNamedLanes(branches);
-            graph.AssignAnonymousLanes();
+            graph.AssignAnonymousLanes(anonymousLaneName);
             graph.CollectRefLabels();
             graph.BuildEdges();
             graph.PackRows();
@@ -127,7 +139,9 @@ namespace GitVersionControl
             return branch.Name.EndsWith("/main", StringComparison.Ordinal) || branch.Name.EndsWith("/master", StringComparison.Ordinal) ? 3 : 4;
         }
 
-        /// <summary>끝 커밋부터 첫 부모를 따라가며 줄이 없는 커밋을 <paramref name="lane"/> 에 넣는다. 하나라도 넣으면 줄을 등록한다.</summary>
+        /// <summary>
+        /// 끝 커밋부터 첫 부모를 따라가며 줄이 없는 커밋을 <paramref name="lane"/>(매번 새 줄)에 넣는다. 하나라도 넣으면 줄을 등록한다.
+        /// </summary>
         private void WalkFirstParents(string tipHash, GitGraphLane lane)
         {
             string hash = tipHash;
@@ -138,14 +152,14 @@ namespace GitVersionControl
                 lane.LastColumn = Math.Max(lane.LastColumn, node.Column);
                 hash = node.Commit.Parents.Length > 0 ? node.Commit.Parents[0] : null;
             }
-            if (lane.LastColumn >= 0 && Lanes.Contains(lane) == false)
+            if (lane.LastColumn >= 0)
             {
                 lane.ColorIndex = Lanes.Count;
                 Lanes.Add(lane);
             }
         }
 
-        private void AssignAnonymousLanes()
+        private void AssignAnonymousLanes(string anonymousLaneName)
         {
             // 병합 커밋의 두 번째 부모 → 그 병합 커밋. 이름 없는 줄의 이름을 병합 메시지에서 찾는다.
             Dictionary<string, GitGraphNode> mergedInto = new();
@@ -166,7 +180,7 @@ namespace GitVersionControl
                     continue;
                 }
 
-                string name = GitText.Get("graph.mergedBranch");
+                string name = anonymousLaneName;
                 if (mergedInto.TryGetValue(node.Commit.Hash, out GitGraphNode merge))
                 {
                     Match match = MergeBranchPattern.Match(merge.Commit.Subject);

@@ -12,9 +12,10 @@ namespace GitVersionControl
     public sealed class GraphWorkspaceView : GitView
     {
         /// <summary>
-        /// 한 번에 읽을 커밋 수. 세로 목록은 가상화라 그리기 부담은 적지만, git log·그래프 배치가 커밋 수에 비례한다.
+        /// 한 번에 읽을 커밋 수. 세로 목록은 가상화라 그리기 부담은 적고, git log·그래프 배치(작업 스레드)가 커밋 수에 비례한다.
+        /// 커밋 ~4500·브랜치 3000 저장소에서 읽기~배치 ~0.3초, 스크롤 한 장 ~4ms(2026-10-18 실측).
         /// </summary>
-        private const int MaxCommits = 1500;
+        private const int MaxCommits = 5000;
 
         private readonly ITabNavigator _navigator;
         private readonly ToolbarButton _reloadButton;
@@ -142,21 +143,14 @@ namespace GitVersionControl
             _summary.text = GitText.Get("common.loading");
             string key = CurrentKey;
 
-            List<GitCommitInfo> commits = new();
-            string error = null;
-            if (Services.Repository.HeadCommit != null)
-            {
-                (commits, error) = await Services.History.GraphLogAsync(null, MaxCommits);
-            }
-            (List<GitBranchRef> branches, string branchError) = await Services.History.BranchesAsync();
+            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits);
             _isLoading = false;
             _loadedKey = key;
             _reloadButton.SetEnabled(true);
 
-            _errorNotice.SetVisible(string.IsNullOrEmpty(error ?? branchError) == false);
-            _errorText.text = error ?? branchError ?? string.Empty;
+            _errorNotice.SetVisible(string.IsNullOrEmpty(error) == false);
+            _errorText.text = error ?? string.Empty;
 
-            GitGraph graph = GitGraph.Build(commits, branches, Services.Repository.HeadCommit);
             _graph.SetGraph(graph, Services.Repository.Entries.Count);
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count)
                             + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);

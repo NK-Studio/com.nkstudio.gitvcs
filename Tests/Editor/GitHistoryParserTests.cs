@@ -120,9 +120,9 @@ namespace GitVersionControl.Tests
         public void Test_ParseBranches_ReadsFieldsAndSkipsOriginHead()
         {
             string output =
-                BranchLine("refs/heads/main", "main", "abc1234", "origin/main", "[ahead 1]", "1700000000", "Kim", "first", "*", "abc1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") + "\n" +
-                BranchLine("refs/remotes/origin/HEAD", "origin", "abc1234", "", "", "1700000000", "Kim", "first", " ", "abc1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") + "\n" +
-                BranchLine("refs/remotes/origin/feature/x", "origin/feature/x", "def5678", "", "", "1690000000", "Lee", "feat", " ", "def5678bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb") + "\r\n";
+                BranchLine("refs/heads/main", "abc1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1700000000", "Kim", "first", "*") + "\n" +
+                BranchLine("refs/remotes/origin/HEAD", "abc1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1700000000", "Kim", "first", " ") + "\n" +
+                BranchLine("refs/remotes/origin/feature/x", "def5678bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "1690000000", "Lee", "feat", " ") + "\r\n";
 
             List<GitBranchRef> branches = GitHistory.ParseBranches(output);
 
@@ -135,8 +135,8 @@ namespace GitVersionControl.Tests
             Assert.IsTrue(main.IsCurrent);
             Assert.AreEqual("abc1234", main.ShortHash);
             Assert.AreEqual("abc1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", main.Hash);
-            Assert.AreEqual("origin/main", main.Upstream);
-            Assert.AreEqual("[ahead 1]", main.Track);
+            Assert.AreEqual(string.Empty, main.Upstream);
+            Assert.AreEqual(string.Empty, main.Track);
             Assert.AreEqual(DateTimeOffset.FromUnixTimeSeconds(1700000000).LocalDateTime, main.Date);
             Assert.AreEqual("Kim", main.AuthorName);
             Assert.AreEqual("first", main.Subject);
@@ -144,21 +144,9 @@ namespace GitVersionControl.Tests
             GitBranchRef remote = branches[1];
             Assert.AreEqual("origin/feature/x", remote.Name);
             Assert.IsTrue(remote.IsRemote);
+            // 줄 끝 \r 은 지우고 읽는다.
             Assert.IsFalse(remote.IsCurrent);
-            Assert.AreEqual(string.Empty, remote.Upstream);
-            // 줄 끝 \r 은 지우고 전체 해시만 남는다.
             Assert.AreEqual("def5678bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", remote.Hash);
-        }
-
-        [Test]
-        public void Test_ParseBranches_WithoutHashField_HashIsNull()
-        {
-            string line = string.Join(F, "refs/heads/dev", "dev", "1111111", "", "", "1700000000", "Kim", "s", " ");
-
-            List<GitBranchRef> branches = GitHistory.ParseBranches(line);
-
-            Assert.AreEqual(1, branches.Count);
-            Assert.IsNull(branches[0].Hash);
         }
 
         [Test]
@@ -167,6 +155,38 @@ namespace GitVersionControl.Tests
             List<GitBranchRef> branches = GitHistory.ParseBranches("\n" + "refs/heads/x" + F + "x" + "\n");
 
             Assert.AreEqual(0, branches.Count);
+        }
+
+        [TestCase("refs/heads/feature/x", "feature/x")]
+        [TestCase("refs/remotes/origin/main", "origin/main")]
+        [TestCase("refs/tags/v1", "refs/tags/v1")]
+        public void Test_ShortRefName_StripsBranchPrefix(string refName, string expected)
+        {
+            Assert.AreEqual(expected, GitHistory.ShortRefName(refName));
+        }
+
+        [Test]
+        public void Test_TrackedBranchRefs_KeepsDotsInBranchName()
+        {
+            string output = "branch.main.merge\nrefs/heads/main\0branch.release.1.0.merge\nrefs/heads/release.1.0\0";
+
+            List<string> refs = GitHistory.TrackedBranchRefs(output);
+
+            CollectionAssert.AreEqual(new[] { "refs/heads/main", "refs/heads/release.1.0" }, refs);
+        }
+
+        [Test]
+        public void Test_ApplyTracking_FillsOnlyListedBranches()
+        {
+            List<GitBranchRef> branches = GitHistory.ParseBranches(BranchLine("refs/heads/main", "abc1234aaaa", "1700000000", "Kim", "s", "*"));
+            string tracking =
+                BranchLine("refs/heads/main", "origin/main", "[ahead 1, behind 2]") + "\n" +
+                BranchLine("refs/heads/main/sub", "origin/main/sub", "") + "\n";
+
+            GitHistory.ApplyTracking(branches, tracking);
+
+            Assert.AreEqual("origin/main", branches[0].Upstream);
+            Assert.AreEqual("[ahead 1, behind 2]", branches[0].Track);
         }
 
         private static string BranchLine(params string[] fields)

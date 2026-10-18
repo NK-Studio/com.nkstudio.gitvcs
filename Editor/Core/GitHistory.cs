@@ -75,7 +75,23 @@ namespace GitVersionControl
         private const char RecordSeparator = '\x1e';
         private const char FieldSeparator = '\x1f';
         private const string LogFormat = "--format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%D%x1f%s%x1e";
-        private const string BranchFormat = "--format=%(refname)%1f%(refname:short)%1f%(objectname:short)%1f%(upstream:short)%1f%(upstream:track)%1f%(committerdate:unix)%1f%(authorname)%1f%(contents:subject)%1f%(HEAD)%1f%(objectname)";
+
+        /// <summary>
+        /// 브랜치 목록 형식. <c>%(refname:short)</c>·<c>%(upstream…)</c> 은 일부러 뺐다 — 브랜치 3000개 저장소에서
+        /// <c>:short</c> 는 ref 마다 "가장 짧은 모호하지 않은 이름"을 찾느라 전체 ~1.4초, <c>upstream</c> 은 설정이 없어도
+        /// ref 마다 찾느라 ~0.4초 걸린다(2026-10-18 실측, 이 형식만으로는 ~0.1초). 짧은 이름은 접두를 떼어 만들고,
+        /// 추적 정보는 upstream 이 설정된 브랜치만 따로 묻는다(<see cref="TrackingFormat"/>).
+        /// </summary>
+        private const string BranchFormat = "--format=%(refname)%1f%(objectname)%1f%(committerdate:unix)%1f%(authorname)%1f%(contents:subject)%1f%(HEAD)";
+        private const string TrackingFormat = "--format=%(refname)%1f%(upstream:short)%1f%(upstream:track)";
+        private const string LocalBranchPrefix = "refs/heads/";
+        private const string RemoteBranchPrefix = "refs/remotes/";
+
+        /// <summary>
+        /// 추적 정보를 물을 때 한 명령에 넣는 ref 수. Windows 명령줄 길이(32K) 안에 넉넉히 들어가는 값.
+        /// </summary>
+        private const int TrackingBatchSize = 100;
+        private const int ShortHashLength = 7;
 
         /// <summary>
         /// <paramref name="revisionRange"/> 예: null(HEAD), "HEAD..@{u}". <paramref name="allRefs"/> 면 모든 브랜치.
@@ -139,8 +155,29 @@ namespace GitVersionControl
 
         public static async Task<(List<GitBranchRef> branches, string error)> BranchesAsync()
         {
-            GitResult result = await GitRepository.RunAsync("for-each-ref", BranchFormat, "--sort=-committerdate", "refs/heads", "refs/remotes");
-            return result.Success ? (ParseBranches(result.Output), null) : (new List<GitBranchRef>(), result.Message);
+            Task<GitResult> refsTask = GitRepository.RunAsync("for-each-ref", BranchFormat, "--sort=-committerdate", "refs/heads", "refs/remotes");
+            Task<GitResult> configTask = GitRepository.RunAsync("config", "-z", "--get-regexp", @"^branch\..*\.merge$");
+            GitResult refs = await refsTask;
+            GitResult config = await configTask;
+            if (refs.Success == false)
+            {
+                return (new List<GitBranchRef>(), refs.Message);
+            }
+
+            List<GitBranchRef> branches = ParseBranches(refs.Output);
+            // 설정이 하나도 없으면 git config 는 종료 코드 1 로 끝난다 — 추적 브랜치가 없다는 뜻.
+            List<string> trackedRefs = config.Success ? TrackedBranchRefs(config.Output) : new List<string>();
+            for (int start = 0; start < trackedRefs.Count; start += TrackingBatchSize)
+            {
+                List<string> args = new() { "for-each-ref", TrackingFormat };
+                args.AddRange(trackedRefs.GetRange(start, Math.Min(TrackingBatchSize, trackedRefs.Count - start)));
+                GitResult tracking = await GitRepository.RunAsync(args.ToArray());
+                if (tracking.Success)
+                {
+                    ApplyTracking(branches, tracking.Output);
+                }
+            }
+            return (branches, null);
         }
 
         /// <summary>
@@ -210,38 +247,107 @@ namespace GitVersionControl
             return changes;
         }
 
+        /// <summary>
+        /// <see cref="BranchFormat"/> 출력. 추적 정보(<see cref="GitBranchRef.Upstream"/>·<see cref="GitBranchRef.Track"/>)는
+        /// 빈 문자열로 두고 <see cref="ApplyTracking"/> 이 채운다.
+        /// </summary>
         public static List<GitBranchRef> ParseBranches(string output)
         {
             List<GitBranchRef> branches = new();
             foreach (string rawLine in output.Split('\n'))
             {
-                string line = rawLine.TrimEnd('\r');
-                string[] fields = line.Split(FieldSeparator);
-                if (fields.Length < 9)
+                string[] fields = rawLine.TrimEnd('\r').Split(FieldSeparator);
+                if (fields.Length < 6)
                 {
                     continue;
                 }
+                string refName = fields[0];
                 // refs/remotes/origin/HEAD 는 기본 브랜치를 가리키는 별칭이라 목록에서 뺀다.
-                if (fields[0].EndsWith("/HEAD", StringComparison.Ordinal))
+                if (refName.EndsWith("/HEAD", StringComparison.Ordinal))
                 {
                     continue;
                 }
+                string hash = fields[1];
                 branches.Add(new GitBranchRef
                 {
-                    RefName = fields[0],
-                    Name = fields[1],
-                    IsRemote = fields[0].StartsWith("refs/remotes/", StringComparison.Ordinal),
-                    ShortHash = fields[2],
-                    Upstream = fields[3],
-                    Track = fields[4],
-                    Date = FromUnix(fields[5]),
-                    AuthorName = fields[6],
-                    Subject = fields[7],
-                    IsCurrent = fields[8].Trim() == "*",
-                    Hash = fields.Length > 9 ? fields[9].Trim() : null,
+                    RefName = refName,
+                    Name = ShortRefName(refName),
+                    IsRemote = refName.StartsWith(RemoteBranchPrefix, StringComparison.Ordinal),
+                    Hash = hash,
+                    ShortHash = hash.Length > ShortHashLength ? hash.Substring(0, ShortHashLength) : hash,
+                    Upstream = string.Empty,
+                    Track = string.Empty,
+                    Date = FromUnix(fields[2]),
+                    AuthorName = fields[3],
+                    Subject = fields[4],
+                    IsCurrent = fields[5].Trim() == "*",
                 });
             }
             return branches;
+        }
+
+        /// <summary>
+        /// refs/heads/main → main, refs/remotes/origin/main → origin/main. 그 밖의 ref 는 그대로.
+        /// </summary>
+        public static string ShortRefName(string refName)
+        {
+            if (refName.StartsWith(LocalBranchPrefix, StringComparison.Ordinal))
+            {
+                return refName.Substring(LocalBranchPrefix.Length);
+            }
+            if (refName.StartsWith(RemoteBranchPrefix, StringComparison.Ordinal))
+            {
+                return refName.Substring(RemoteBranchPrefix.Length);
+            }
+            return refName;
+        }
+
+        /// <summary>
+        /// <c>git config -z --get-regexp ^branch\..*\.merge$</c> 출력("branch.{이름}.merge\n{값}\0")에서 upstream 이 설정된 로컬 브랜치 ref.
+        /// 브랜치 이름에 점이 있어도 되도록 앞의 "branch." 과 뒤의 ".merge" 만 뗀다.
+        /// </summary>
+        public static List<string> TrackedBranchRefs(string configOutput)
+        {
+            const string KeyPrefix = "branch.";
+            const string KeySuffix = ".merge";
+            List<string> refs = new();
+            foreach (string entry in configOutput.Split('\0'))
+            {
+                int newline = entry.IndexOf('\n');
+                string key = newline < 0 ? entry : entry.Substring(0, newline);
+                bool isMergeKey = key.Length > KeyPrefix.Length + KeySuffix.Length
+                    && key.StartsWith(KeyPrefix, StringComparison.Ordinal)
+                    && key.EndsWith(KeySuffix, StringComparison.Ordinal);
+                if (isMergeKey == false)
+                {
+                    continue;
+                }
+                refs.Add(LocalBranchPrefix + key.Substring(KeyPrefix.Length, key.Length - KeyPrefix.Length - KeySuffix.Length));
+            }
+            return refs;
+        }
+
+        /// <summary>
+        /// <see cref="TrackingFormat"/> 출력으로 브랜치의 upstream·ahead/behind 를 채운다. 목록에 없는 ref 는 무시한다
+        /// (ref 패턴은 접두 일치라 refs/heads/a 를 물으면 refs/heads/a/b 도 함께 온다).
+        /// </summary>
+        public static void ApplyTracking(List<GitBranchRef> branches, string trackingOutput)
+        {
+            Dictionary<string, GitBranchRef> branchDict = new(StringComparer.Ordinal);
+            foreach (GitBranchRef branch in branches)
+            {
+                branchDict[branch.RefName] = branch;
+            }
+            foreach (string rawLine in trackingOutput.Split('\n'))
+            {
+                string[] fields = rawLine.TrimEnd('\r').Split(FieldSeparator);
+                if (fields.Length < 3 || branchDict.TryGetValue(fields[0], out GitBranchRef branch) == false)
+                {
+                    continue;
+                }
+                branch.Upstream = fields[1];
+                branch.Track = fields[2];
+            }
         }
 
         private static DateTime FromUnix(string seconds)
