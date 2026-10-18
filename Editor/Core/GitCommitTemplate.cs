@@ -41,20 +41,18 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 템플릿을 제목·설명 칸으로 나눈다. 첫 줄이 주석이 아닌 글이면 제목, 나머지(주석 포함)는 설명.
-        /// 예: "# 제목\n# -" → ("", "# 제목\n# -"), "Feat: \n\n# 안내" → ("Feat:", "# 안내").
+        /// 템플릿을 제목·설명 칸으로 나눈다(Fork 와 같다). 첫 줄은 주석이어도 제목 칸, 나머지는 설명 칸.
+        /// 예: "# 제목\n#\n# 안내" → ("# 제목", "#\n# 안내"), "Feat: \n\n# 안내" → ("Feat:", "# 안내").
         /// </summary>
         public static (string subject, string description) Split(string template)
         {
-            string normalized = Normalize(template).TrimEnd();
+            string normalized = Normalize(template).Trim('\n').TrimEnd();
             int newline = normalized.IndexOf('\n');
-            string firstLine = newline < 0 ? normalized : normalized.Substring(0, newline);
-            if (firstLine.Trim().Length == 0 || IsComment(firstLine))
+            if (newline < 0)
             {
-                return (string.Empty, normalized.TrimStart('\n'));
+                return (normalized.Trim(), string.Empty);
             }
-            string rest = newline < 0 ? string.Empty : normalized.Substring(newline + 1).TrimStart('\n');
-            return (firstLine.Trim(), rest);
+            return (normalized.Substring(0, newline).Trim(), normalized.Substring(newline + 1).TrimStart('\n'));
         }
 
         /// <summary>

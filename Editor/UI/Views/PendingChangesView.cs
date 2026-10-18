@@ -64,6 +64,14 @@ namespace GitVersionControl
                 _state.CommitMessage = evt.newValue;
                 UpdateCommitArea();
             });
+            // 칸을 다 지우고 다른 곳을 누르면 템플릿을 다시 채운다(Fork 와 같다).
+            _message.RegisterCallback<FocusOutEvent>(_ =>
+            {
+                if (_template != null && string.IsNullOrWhiteSpace(_message.value))
+                {
+                    _message.value = TemplateText();
+                }
+            });
             _commitButton.clicked += Commit;
             LoadTemplate();
         }
@@ -78,6 +86,7 @@ namespace GitVersionControl
             {
                 _message.value = TemplateText();
             }
+            UpdateCommitArea();
         }
 
         private string TemplateText()

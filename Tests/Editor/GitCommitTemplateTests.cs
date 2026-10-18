@@ -17,13 +17,19 @@ namespace GitVersionControl.Tests
             "# Fix       버그 수정\r\n";
 
         [Test]
-        public void Test_Split_CommentOnlyTemplate_GoesToDescription()
+        public void Test_Split_FirstLineIsSubject_EvenIfComment()
         {
             (string subject, string description) = GitCommitTemplate.Split(Template);
 
-            Assert.AreEqual(string.Empty, subject);
-            StringAssert.StartsWith("# <Prefix>: <간결한 한글 제목>\n#\n", description);
+            Assert.AreEqual("# <Prefix>: <간결한 한글 제목>", subject);
+            StringAssert.StartsWith("#\n# (필요할 때만)", description);
             StringAssert.EndsWith("# Fix       버그 수정", description);
+        }
+
+        [Test]
+        public void Test_StripComments_UntouchedSubject_IsEmpty()
+        {
+            Assert.AreEqual(string.Empty, GitCommitTemplate.StripComments(GitCommitTemplate.Split(Template).subject));
         }
 
         [Test]

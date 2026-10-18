@@ -47,6 +47,9 @@ namespace GitVersionControl
                 Render();
             });
             _description.RegisterValueChangedCallback(evt => _state.Description = evt.newValue);
+            // 칸을 다 지우고 다른 곳을 누르면 그 칸에 템플릿을 다시 채운다(Fork 와 같다).
+            _subject.RegisterCallback<FocusOutEvent>(_ => RefillIfEmpty(_subject, GitCommitTemplate.Split(_template).subject));
+            _description.RegisterCallback<FocusOutEvent>(_ => RefillIfEmpty(_description, GitCommitTemplate.Split(_template).description));
             _amend.RegisterValueChangedCallback(evt => OnAmendChanged(evt.newValue));
             _commitButton.clicked += () => Commit(push: false);
             _commitPushButton.clicked += () => Commit(push: true);
@@ -63,6 +66,25 @@ namespace GitVersionControl
             {
                 FillTemplate();
             }
+            Render();
+        }
+
+        private void RefillIfEmpty(TextField field, string templateText)
+        {
+            if (_template != null && string.IsNullOrWhiteSpace(field.value))
+            {
+                field.value = templateText;
+            }
+        }
+
+        /// <summary>
+        /// 실제로 커밋될 제목이 있는가. 템플릿을 쓰면 '#' 안내 줄은 빠지므로 안내 그대로인 제목은 없는 것으로 본다.
+        /// </summary>
+        private bool HasSubject()
+        {
+            return _template != null
+                ? GitCommitTemplate.StripComments(_subject.value).Length > 0
+                : string.IsNullOrWhiteSpace(_subject.value) == false;
         }
 
         private void FillTemplate()
@@ -113,7 +135,7 @@ namespace GitVersionControl
             _commitButton.text = isAmend ? GitText.Get("staging.amendButton") : GitText.Format("staging.commitButton", _stagedCount);
             // 고쳐 쓰기는 stage 한 것이 없어도(메시지만 고칠 때) 할 수 있다. 새 커밋은 제목과 stage 한 파일이 있어야 한다.
             bool canCommit = _services.Runner.IsBusy == false && hasAuthor
-                             && (isAmend || (_stagedCount > 0 && string.IsNullOrWhiteSpace(_subject.value) == false));
+                             && (isAmend || (_stagedCount > 0 && HasSubject()));
             _commitButton.SetEnabled(canCommit);
             _commitPushButton.SetEnabled(canCommit && repository.Branch != null && repository.Branch.Detached == false);
         }
