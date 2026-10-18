@@ -190,7 +190,6 @@ namespace GitVersionControl
             ["menu.externalDiff"] = new[] { "외부 diff 도구로 열기", "Open in External Diff Tool" },
             ["menu.externalEditor"] = new[] { "외부 편집기로 열기", "Open in External Editor" },
             ["menu.defaultProgram"] = new[] { "기본 프로그램으로 열기", "Open File in Default Program" },
-            ["menu.showInFolder"] = new[] { "폴더에서 보기", "Show in Folder" },
             ["menu.copyPath"] = new[] { "파일 경로 복사", "Copy File Path" },
             ["menu.createPatch"] = new[] { "파일 변경으로 패치 만들기", "Create Patch from File Changes" },
             ["menu.createFolderPatch"] = new[] { "폴더 변경으로 패치 만들기", "Create Patch from Changes in Directory" },
@@ -202,7 +201,6 @@ namespace GitVersionControl
             ["menu.stageFolder"] = new[] { "폴더 Stage", "Stage Folder" },
             ["menu.unstageFolder"] = new[] { "폴더 Unstage", "Unstage Folder" },
             ["menu.discardFolder"] = new[] { "폴더의 모든 변경 버리기", "Discard All Changes in Folder" },
-            ["menu.openFolder"] = new[] { "폴더 열기", "Open Folder" },
             ["menu.createFile"] = new[] { "이 폴더에 파일 만들기", "Create a File in This Folder" },
             ["menu.createFileMessage"] = new[] { "{0} 안에 만들 파일 이름", "Name of the new file in {0}" },
             ["menu.invalidFileName"] = new[] { "파일 이름에 쓸 수 없는 글자가 있습니다: {0}", "Invalid file name: {0}" },
@@ -212,6 +210,16 @@ namespace GitVersionControl
             ["blame.windowTitle"] = new[] { "Blame: {0}", "Blame: {0}" },
             ["blame.summary"] = new[] { "{0} — {1}줄", "{0} — {1} lines" },
             ["blame.uncommitted"] = new[] { "커밋 안 됨", "Not committed" },
+
+            // ── OS 파일 관리자 ──
+            ["os.openInExplorer"] = new[] { "파일 탐색기에서 열기", "Open in File Explorer" },
+            ["os.openInFinder"] = new[] { "Finder 에서 열기", "Open in Finder" },
+            ["os.openInFileManager"] = new[] { "파일 관리자에서 열기", "Open in File Manager" },
+            ["os.revealInExplorer"] = new[] { "파일 탐색기에서 보기", "Show in File Explorer" },
+            ["os.revealInFinder"] = new[] { "Finder 에서 보기", "Reveal in Finder" },
+            ["os.revealInFileManager"] = new[] { "파일 관리자에서 보기", "Show in File Manager" },
+            ["window.openRepoIn"] = new[] { "저장소 폴더 — {0}", "Repository Folder — {0}" },
+            ["window.openTerminal"] = new[] { "저장소 폴더에서 터미널 열기", "Open Terminal in Repository Folder" },
 
             // ── UI 배율 ──
             ["window.uiScale"] = new[] { "UI 크기", "UI Scale" },

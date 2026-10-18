@@ -6,6 +6,57 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
+    /// OS 파일 관리자(Windows 파일 탐색기, macOS Finder, Linux 파일 관리자). 메뉴 문구도 OS 이름을 따른다.
+    /// </summary>
+    public static class GitFileManager
+    {
+        /// <summary>
+        /// "폴더 열기" 문구 키. 예: Windows → "os.openInExplorer".
+        /// </summary>
+        public static string OpenLabelKey(RuntimePlatform platform)
+        {
+            return platform switch
+            {
+                RuntimePlatform.WindowsEditor => "os.openInExplorer",
+                RuntimePlatform.OSXEditor => "os.openInFinder",
+                _ => "os.openInFileManager",
+            };
+        }
+
+        /// <summary>
+        /// "파일을 골라 보여 주기" 문구 키. 예: macOS → "os.revealInFinder".
+        /// </summary>
+        public static string RevealLabelKey(RuntimePlatform platform)
+        {
+            return platform switch
+            {
+                RuntimePlatform.WindowsEditor => "os.revealInExplorer",
+                RuntimePlatform.OSXEditor => "os.revealInFinder",
+                _ => "os.revealInFileManager",
+            };
+        }
+
+        public static string OpenLabel => GitText.Get(OpenLabelKey(Application.platform));
+        public static string RevealLabel => GitText.Get(RevealLabelKey(Application.platform));
+
+        /// <summary>
+        /// 폴더 자체를 연다(그 폴더 안이 보인다).
+        /// </summary>
+        public static void OpenFolder(string fullPath)
+        {
+            UnityEditor.EditorUtility.OpenWithDefaultApp(fullPath);
+        }
+
+        /// <summary>
+        /// 파일·폴더가 든 곳을 열고 그것을 골라 둔다.
+        /// </summary>
+        public static void Reveal(string fullPath)
+        {
+            UnityEditor.EditorUtility.RevealInFinder(fullPath);
+        }
+    }
+
+    /// <summary>
     /// 저장소 폴더에서 OS 터미널을 연다. Windows 는 Windows Terminal 이 있으면 그것을, 없으면 PowerShell 을 쓴다.
     /// </summary>
     public static class GitTerminal

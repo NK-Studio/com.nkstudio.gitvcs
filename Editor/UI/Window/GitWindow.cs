@@ -63,6 +63,8 @@ namespace GitVersionControl
             _notReadyMessage = layout.Require<Label>("not-ready-message");
             layout.Require<Button>("open-settings-button").clicked += () => SettingsService.OpenProjectSettings("Project/Version Control");
 
+            // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
+            SplitPaneClamp.Attach(layout.Require<TwoPaneSplitView>("body"));
             _toolbar = new GitToolbar(layout, _services, this);
             CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar"));
 
@@ -133,6 +135,20 @@ namespace GitVersionControl
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.GitWindowScale * 100f))}"), false, () => _scale?.Reset());
+
+            // 저장소 폴더를 OS 도구로 연다. 문구는 OS 이름을 따른다(파일 탐색기 / Finder / 파일 관리자).
+            menu.AddSeparator(string.Empty);
+            string repoRoot = GitRepository.RepoRoot ?? GitRepository.ProjectRoot;
+            menu.AddItem(new GUIContent(GitText.Format("window.openRepoIn", GitFileManager.OpenLabel)), false, () => GitFileManager.OpenFolder(repoRoot));
+            menu.AddItem(new GUIContent(GitText.Get("window.openTerminal")), false, () =>
+            {
+                string error = GitTerminal.Open(repoRoot);
+                if (error != null)
+                {
+                    EditorUtility.DisplayDialog(GitText.Get("actionbar.terminalFailed"), error, GitText.Get("common.ok"));
+                }
+            });
+            menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings("Project/Version Control"));
         }
 
         /// <summary>

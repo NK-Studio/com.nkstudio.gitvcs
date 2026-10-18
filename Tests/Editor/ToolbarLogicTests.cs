@@ -74,6 +74,24 @@ namespace GitVersionControl.Tests
             }
         }
 
+        [TestCase(RuntimePlatform.WindowsEditor, "os.openInExplorer", "os.revealInExplorer")]
+        [TestCase(RuntimePlatform.OSXEditor, "os.openInFinder", "os.revealInFinder")]
+        [TestCase(RuntimePlatform.LinuxEditor, "os.openInFileManager", "os.revealInFileManager")]
+        public void Test_FileManager_LabelsFollowOs(RuntimePlatform platform, string openKey, string revealKey)
+        {
+            Assert.AreEqual(openKey, GitFileManager.OpenLabelKey(platform));
+            Assert.AreEqual(revealKey, GitFileManager.RevealLabelKey(platform));
+        }
+
+        [TestCase(380f, 50f, 0, 1000f, 430f)]
+        [TestCase(380f, 50f, 1, 1000f, 330f)]
+        [TestCase(380f, 900f, 0, 1000f, 880f)]
+        [TestCase(380f, 900f, 1, 1000f, 80f)]
+        public void Test_SplitPaneClamp_DraggedSize_FollowsPointerWithinLimits(float start, float delta, int fixedIndex, float available, float expected)
+        {
+            Assert.AreEqual(expected, SplitPaneClamp.DraggedSize(start, delta, fixedIndex, available));
+        }
+
         [TestCase(260f, 600f, 260f)]
         [TestCase(260f, 300f, 180f)]
         [TestCase(260f, 150f, 80f)]

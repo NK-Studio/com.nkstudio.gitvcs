@@ -85,7 +85,7 @@ namespace GitVersionControl
             menu.AppendAction(GitText.Get("menu.externalDiff"), _ => _services.Diff.OpenExternally(target, engine));
             menu.AppendAction(GitText.Get("menu.externalEditor"), _ => InternalEditorUtility.OpenFileAtLineExternal(FullPath(entry.RepoPath), 1), StatusOf(exists));
             menu.AppendAction(GitText.Get("menu.defaultProgram"), _ => EditorUtility.OpenWithDefaultApp(FullPath(entry.RepoPath)), StatusOf(exists));
-            menu.AppendAction(GitText.Get("menu.showInFolder"), _ => EditorUtility.RevealInFinder(FullPath(entry.RepoPath)), StatusOf(exists));
+            menu.AppendAction(GitFileManager.RevealLabel, _ => GitFileManager.Reveal(FullPath(entry.RepoPath)), StatusOf(exists));
             menu.AppendSeparator();
 
             menu.AppendAction(GitText.Get("menu.copyPath"), _ => _services.Assets.CopyToClipboard(entry.RepoPath));
@@ -110,7 +110,7 @@ namespace GitVersionControl
             }
             menu.AppendAction(GitText.Get("menu.createFolderPatch"), _ => CreatePatch(entries, Path.GetFileName(repoFolder.TrimEnd('/'))));
             menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("menu.openFolder"), _ => EditorUtility.OpenWithDefaultApp(FullPath(repoFolder)), StatusOf(Directory.Exists(FullPath(repoFolder))));
+            menu.AppendAction(GitFileManager.OpenLabel, _ => GitFileManager.OpenFolder(FullPath(repoFolder)), StatusOf(Directory.Exists(FullPath(repoFolder))));
             menu.AppendAction(GitText.Get("menu.createFile"), _ => CreateFileIn(repoFolder), StatusOf(Directory.Exists(FullPath(repoFolder))));
         }
 
