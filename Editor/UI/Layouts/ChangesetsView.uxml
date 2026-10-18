@@ -1,0 +1,31 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="view changesets">
+        <uie:Toolbar class="changesets__toolbar">
+            <uie:ToolbarToggle name="all-branches" text="@changesets.allBranches" />
+            <ui:Label name="summary" class="view__toolbar-label" />
+            <ui:VisualElement class="spacer" />
+            <uie:ToolbarButton name="more-button" />
+            <uie:ToolbarButton name="reload-button" text="@common.reload" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="error-notice" class="notice notice--error">
+            <ui:Label name="error-text" class="notice__text" />
+        </ui:VisualElement>
+        <ui:VisualElement name="empty-notice" class="notice">
+            <ui:Label text="@common.noCommits" class="notice__text" />
+        </ui:VisualElement>
+
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="230" orientation="Vertical" class="view__split">
+            <ui:VisualElement class="view__pane">
+                <ui:VisualElement class="list-header">
+                    <ui:Label text="@column.hash" class="list-header__cell column--hash" />
+                    <ui:Label text="@column.message" class="list-header__cell column--grow-3" />
+                    <ui:Label text="@column.author" class="list-header__cell column--author" />
+                    <ui:Label text="@column.date" class="list-header__cell column--date" />
+                </ui:VisualElement>
+                <ui:ListView name="commit-list" class="list" />
+            </ui:VisualElement>
+            <ui:VisualElement name="detail-host" class="view__pane" />
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="file-row">
+        <ui:VisualElement class="column--toggle">
+            <ui:Toggle name="toggle" class="file-row__toggle" />
+        </ui:VisualElement>
+        <ui:Label name="badge" class="file-row__badge state-badge" />
+        <ui:Image name="icon" class="file-row__icon" />
+        <ui:Label name="path" class="file-row__path ellipsis" />
+        <ui:Label name="original" class="file-row__original ellipsis" />
+        <ui:Label name="note" class="file-row__note" />
+    </ui:VisualElement>
+</ui:UXML>

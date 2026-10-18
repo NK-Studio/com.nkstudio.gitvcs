@@ -1,0 +1,19 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="commit-detail commit-detail--hidden">
+        <ui:VisualElement class="commit-detail__header">
+            <ui:Label name="title" class="commit-detail__title ellipsis" />
+            <ui:Button name="close-button" text="×" tooltip="@common.close" class="commit-detail__close" />
+        </ui:VisualElement>
+        <ui:Label name="placeholder" text="@detail.placeholder" class="list__empty" />
+        <ui:VisualElement name="body" class="commit-detail__body">
+            <ui:TextField name="message" multiline="true" readonly="true" class="commit-detail__message" />
+            <ui:VisualElement class="commit-detail__files">
+                <ui:VisualElement class="list-header">
+                    <ui:Label text="@column.changedFiles" class="list-header__cell list-header__cell--grow" />
+                    <ui:VisualElement name="view-mode-host" class="list-header__tools" />
+                </ui:VisualElement>
+                <ui:VisualElement name="files" class="list file-browser" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

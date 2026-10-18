@@ -1,0 +1,81 @@
+/* git-window: 창 전체 배치. git-toolbar: 위쪽 막대. git-sidebar: 왼쪽 탭. */
+
+.git-window {
+    flex-grow: 1;
+    background-color: var(--git-panel);
+}
+
+.git-window__body {
+    flex-grow: 1;
+}
+
+.git-window__content {
+    flex-grow: 1;
+    min-width: 200px;
+}
+
+.git-window__notice {
+    margin: 8px;
+}
+
+.git-window--not-ready .git-window__body {
+    display: none;
+}
+
+.git-toolbar__branch {
+    -unity-font-style: bold;
+    max-width: 50%;
+}
+
+.git-toolbar__status {
+    -unity-text-align: middle-right;
+    color: var(--git-text-muted);
+    font-size: 10px;
+    margin-right: 6px;
+}
+
+.git-toolbar__icon {
+    width: 16px;
+    height: 16px;
+}
+
+.git-sidebar {
+    min-width: 120px;
+    background-color: var(--git-panel-dark);
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+    padding-top: 4px;
+}
+
+.git-sidebar__tab {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+    padding: 0 10px;
+}
+
+.git-sidebar__tab:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.git-sidebar__tab--selected,
+.git-sidebar__tab--selected:hover {
+    background-color: var(--git-selected);
+}
+
+.git-sidebar__tab-title {
+    flex-grow: 1;
+    color: var(--git-text);
+}
+
+.git-sidebar__tab-badge {
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: var(--git-text);
+}
+
+.git-sidebar__tab-badge--hidden {
+    display: none;
+}

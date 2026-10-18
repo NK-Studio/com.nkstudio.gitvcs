@@ -1,0 +1,188 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine.UIElements;
+
+namespace GitVersionControl
+{
+    /// <summary>
+    /// 파일 목록의 트리 보기(UI Toolkit TreeView). 폴더 줄은 아래 파일 수와 세 가지 상태 체크박스(전체·일부·없음)를 가진다.
+    /// 목록이 새로 들어와도(파일 저장마다) 접어 둔 폴더는 접힌 채로 둔다 — 폴더 경로로 펼침 상태를 기억한다.
+    /// </summary>
+    public sealed class FileTree
+    {
+        private const float RowHeight = 20f;
+
+        private readonly TreeView _tree;
+        private readonly IAssetNavigator _assets;
+        private readonly FileRowBinder _binder;
+        private readonly VisualTreeAsset _template;
+        private readonly Dictionary<string, int> _idByFolderPath = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _collapsedFolders = new(StringComparer.OrdinalIgnoreCase);
+        private int _nextId;
+
+        /// <summary>체크박스를 쓸 때 파일의 체크 상태를 묻는다. null 이면 체크박스를 숨긴다.</summary>
+        public Func<FileListItem, bool> IsChecked;
+
+        /// <summary>파일 하나(1개) 또는 폴더 아래 전부를 체크·해제했을 때.</summary>
+        public event Action<IReadOnlyList<FileListItem>, bool> ToggleChanged;
+
+        public event Action<DropdownMenu, FileListItem> ContextMenuRequested;
+        public event Action<DropdownMenu, IReadOnlyList<FileListItem>> FolderContextMenuRequested;
+
+        public VisualElement Root => _tree;
+
+        public FileTree(IAssetNavigator assets, FileRowBinder binder)
+        {
+            _assets = assets;
+            _binder = binder;
+            _template = GitUiAssets.Load("FileRow");
+
+            _tree = new TreeView
+            {
+                fixedItemHeight = RowHeight,
+                virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
+                selectionType = SelectionType.Single,
+                showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
+                makeItem = MakeRow,
+                bindItem = BindRow,
+            };
+            _tree.AddToClassList("list");
+            _tree.itemsChosen += chosen =>
+            {
+                if (chosen.FirstOrDefault() is FileTreeNode node && node.Item != null)
+                {
+                    _assets.Ping(node.Item.ProjectPath);
+                }
+            };
+        }
+
+        public void SetItems(IEnumerable<FileListItem> items)
+        {
+            RememberExpansion();
+            List<FileTreeNode> roots = FileTreeBuilder.Build(items);
+            _tree.SetRootItems(roots.Select(ToItemData).ToList());
+            _tree.Rebuild();
+
+            _tree.ExpandAll();
+            foreach (string folder in _collapsedFolders)
+            {
+                if (_idByFolderPath.TryGetValue(folder, out int id))
+                {
+                    _tree.CollapseItem(id);
+                }
+            }
+        }
+
+        public void Refresh()
+        {
+            _tree.RefreshItems();
+        }
+
+        /// <summary>지금 화면의 펼침 상태를 폴더 경로로 기록한다. 다음 SetItems 뒤에 되살린다.</summary>
+        private void RememberExpansion()
+        {
+            foreach (KeyValuePair<string, int> pair in _idByFolderPath)
+            {
+                try
+                {
+                    if (_tree.IsExpanded(pair.Value))
+                    {
+                        _collapsedFolders.Remove(pair.Key);
+                    }
+                    else
+                    {
+                        _collapsedFolders.Add(pair.Key);
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // 지난 목록에서 사라진 폴더.
+                }
+            }
+        }
+
+        private TreeViewItemData<FileTreeNode> ToItemData(FileTreeNode node)
+        {
+            int id;
+            if (node.IsFolder)
+            {
+                if (_idByFolderPath.TryGetValue(node.Path, out id) == false)
+                {
+                    id = ++_nextId;
+                    _idByFolderPath[node.Path] = id;
+                }
+            }
+            else
+            {
+                id = ++_nextId;
+            }
+            List<TreeViewItemData<FileTreeNode>> children = node.IsFolder ? node.Children.Select(ToItemData).ToList() : null;
+            return new TreeViewItemData<FileTreeNode>(id, node, children);
+        }
+
+        private VisualElement MakeRow()
+        {
+            VisualElement row = GitUiAssets.CloneBlock(_template);
+            row.Require<Toggle>("toggle").RegisterValueChangedCallback(evt =>
+            {
+                FileTreeNode node = NodeOf(row);
+                if (node == null)
+                {
+                    return;
+                }
+                IReadOnlyList<FileListItem> files = node.IsFolder ? node.Files() : new[] { node.Item };
+                ToggleChanged?.Invoke(files, evt.newValue);
+            });
+            row.AddManipulator(new ContextualMenuManipulator(evt =>
+            {
+                FileTreeNode node = NodeOf(row);
+                if (node == null)
+                {
+                    return;
+                }
+                _tree.SetSelection((int)row.userData);
+                if (node.IsFolder)
+                {
+                    PopulateFolderMenu(evt.menu, node);
+                }
+                else
+                {
+                    FileRowBinder.AppendFileMenu(evt.menu, node.Item, _assets);
+                    evt.menu.AppendSeparator();
+                    ContextMenuRequested?.Invoke(evt.menu, node.Item);
+                }
+            }));
+            return row;
+        }
+
+        private void BindRow(VisualElement row, int index)
+        {
+            row.userData = index;
+            FileTreeNode node = _tree.GetItemDataForIndex<FileTreeNode>(index);
+            if (node.IsFolder)
+            {
+                int checkedFiles = IsChecked == null ? 0 : node.Files().Count(IsChecked);
+                _binder.BindFolder(row, node, IsChecked != null, checkedFiles);
+            }
+            else
+            {
+                _binder.BindFile(row, node.Item, IsChecked != null ? IsChecked(node.Item) : null, nameOnly: true);
+            }
+        }
+
+        private void PopulateFolderMenu(DropdownMenu menu, FileTreeNode folder)
+        {
+            menu.AppendAction(GitText.Get("fileView.expandAll"), _ => _tree.ExpandAll());
+            menu.AppendAction(GitText.Get("fileView.collapseAll"), _ => _tree.CollapseAll());
+            menu.AppendAction(GitText.Get("common.copyPath"), _ => _assets.CopyToClipboard(folder.Path));
+            menu.AppendSeparator();
+            FolderContextMenuRequested?.Invoke(menu, folder.Files());
+        }
+
+        private FileTreeNode NodeOf(VisualElement row)
+        {
+            return row.userData is int index ? _tree.GetItemDataForIndex<FileTreeNode>(index) : null;
+        }
+    }
+}

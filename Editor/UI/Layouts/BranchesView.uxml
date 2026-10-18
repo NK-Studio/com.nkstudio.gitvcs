@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="view branches">
+        <uie:Toolbar class="branches__toolbar">
+            <ui:Label text="@branches.newBranch" class="view__toolbar-label" />
+            <ui:TextField name="new-name" class="branches__new-name" />
+            <uie:ToolbarToggle name="switch-after-create" text="@branches.switchAfterCreate" value="true" />
+            <uie:ToolbarButton name="create-button" text="@common.create" />
+            <ui:VisualElement class="spacer" />
+            <uie:ToolbarButton name="reload-button" text="@common.reload" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="error-notice" class="notice notice--error">
+            <ui:Label name="error-text" class="notice__text" />
+        </ui:VisualElement>
+        <ui:VisualElement name="empty-notice" class="notice">
+            <ui:Label text="@branches.emptyNotice" class="notice__text" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="list-pane" class="view__pane">
+            <ui:VisualElement class="list-header">
+                <ui:Label text="@column.name" class="list-header__cell column--grow-2" />
+                <ui:Label text="@column.track" class="list-header__cell column--track" />
+                <ui:Label text="@column.lastCommit" class="list-header__cell column--grow-3" />
+                <ui:Label text="@column.date" class="list-header__cell column--date" />
+            </ui:VisualElement>
+            <ui:ListView name="branch-list" class="list" />
+            <ui:Label text="@branches.hint" class="branches__hint" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,108 @@
+/*
+ * branch-graph: Branch Explorer 캔버스. 선·원은 C# 의 Painter2D 로 그리고,
+ * 글자(머리글자·메시지·이름표·날짜)는 아래 클래스를 단 Label 을 절대 위치로 올린다.
+ */
+
+.branch-graph {
+    flex-grow: 1;
+    overflow: hidden;
+    background-color: #2b2b2b;
+}
+
+.branch-graph__label {
+    position: absolute;
+    padding: 0;
+    margin: 0;
+}
+
+.branch-graph__initials {
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: #ffffff;
+}
+
+/* 작성자 아바타(둥근 모서리 반지름은 크기에 맞춰 코드가 정한다). */
+.branch-graph__avatar {
+    position: absolute;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+.branch-graph__subject {
+    -unity-text-align: upper-center;
+    color: #c8c8c8;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.branch-graph__pill {
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+    -unity-font-style: bold;
+    color: #ffffff;
+    background-color: #4d5b73;
+}
+
+.branch-graph__pill--head {
+    background-color: #33bf59;
+}
+
+.branch-graph__pill--tag {
+    background-color: #d9a633;
+}
+
+.branch-graph__lane {
+    padding: 3px 8px 4px 8px;
+    border-radius: 4px;
+    border-bottom-width: 2px;
+    background-color: #424242;
+    color: #ebebeb;
+    -unity-text-align: middle-center;
+}
+
+.branch-graph__lane--anonymous {
+    opacity: 0.6;
+    -unity-font-style: italic;
+}
+
+.branch-graph__header {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 24px;
+    background-color: #333333;
+    border-bottom-width: 1px;
+    border-bottom-color: #1f1f1f;
+}
+
+.branch-graph__date {
+    height: 24px;
+    font-size: 10px;
+    color: #d9d9d9;
+    -unity-text-align: middle-center;
+}
+
+.branch-graph__tooltip {
+    padding: 6px 8px;
+    background-color: rgba(20, 20, 20, 0.95);
+    color: #ffffff;
+    border-radius: 3px;
+    white-space: normal;
+}
+
+.branch-graph__empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40%;
+    -unity-text-align: middle-center;
+    color: #8c8c8c;
+}
+
+.branch-graph--hidden-text .branch-graph__initials,
+.branch-graph--hidden-text .branch-graph__subject,
+.branch-graph--hidden-text .branch-graph__pill {
+    display: none;
+}

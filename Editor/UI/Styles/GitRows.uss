@@ -1,0 +1,133 @@
+/* 목록 한 줄 블록들: file-row(파일), commit-row(커밋), branch-row(브랜치). */
+
+.file-row,
+.commit-row,
+.branch-row {
+    flex-direction: row;
+    align-items: center;
+    height: 20px;
+    padding: 0 4px;
+}
+
+/* ── file-row ─────────────────────────────────────── */
+.file-row__toggle {
+    margin: 0;
+}
+
+.file-row__toggle--hidden {
+    display: none;
+}
+
+.file-row__badge {
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.file-row__badge--hidden {
+    display: none;
+}
+
+.file-row--folder .file-row__path {
+    -unity-font-style: bold;
+}
+
+.file-row__icon {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.file-row__path {
+    flex-grow: 1;
+    flex-shrink: 1;
+    color: var(--git-text);
+}
+
+.file-row__original {
+    flex-shrink: 2;
+    margin-left: 8px;
+    color: var(--git-text-muted);
+    font-size: 10px;
+}
+
+.file-row__note {
+    padding-left: 8px;
+    color: var(--git-warning);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+
+/* 폴더 이름 옆 파일 수. */
+.file-row__note--count {
+    color: var(--git-text-muted);
+    -unity-font-style: normal;
+}
+
+/* ── commit-row ───────────────────────────────────── */
+.commit-row__hash,
+.commit-row__date {
+    font-size: 10px;
+    color: var(--git-text-muted);
+}
+
+.commit-row__message {
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+}
+
+.commit-row__refs {
+    flex-shrink: 0;
+    max-width: 60%;
+    margin-right: 6px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: #74bfff;
+}
+
+.commit-row__refs--hidden {
+    display: none;
+}
+
+.commit-row__subject {
+    flex-shrink: 1;
+    color: var(--git-text);
+}
+
+.commit-row__author {
+    color: var(--git-text);
+}
+
+/* ── branch-row ───────────────────────────────────── */
+.branch-row__name {
+    padding-left: 12px;
+    color: var(--git-text);
+}
+
+.branch-row__track,
+.branch-row__date {
+    font-size: 10px;
+    color: var(--git-text-muted);
+}
+
+.branch-row__commit {
+    color: var(--git-text);
+}
+
+.branch-row--current .branch-row__name {
+    -unity-font-style: bold;
+}
+
+/* 구역 제목 줄("로컬", "원격"): 이름 칸만 굵게 보이고 나머지 칸은 숨긴다. */
+.branch-row--section .branch-row__name {
+    padding-left: 2px;
+    -unity-font-style: bold;
+}
+
+.branch-row--section .branch-row__track,
+.branch-row--section .branch-row__commit,
+.branch-row--section .branch-row__date {
+    display: none;
+}

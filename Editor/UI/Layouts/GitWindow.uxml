@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <!-- 스타일은 창 루트에 한 번만 붙인다. 아래에 끼워 넣는 탭·목록 줄은 모두 이 루트의 자손이라 같이 적용된다. -->
+    <ui:Style src="../Styles/GitCommon.uss" />
+    <ui:Style src="../Styles/GitWindow.uss" />
+    <ui:Style src="../Styles/GitRows.uss" />
+    <ui:Style src="../Styles/GitViews.uss" />
+    <ui:Style src="../Styles/BranchGraph.uss" />
+
+    <ui:VisualElement name="git-window" class="git-window">
+        <uie:Toolbar class="git-toolbar">
+            <uie:ToolbarButton name="branch-button" tooltip="@common.openBranchesTab" class="git-toolbar__branch" />
+            <ui:VisualElement class="spacer" />
+            <ui:Label name="status-label" class="git-toolbar__status" />
+            <uie:ToolbarButton name="fetch-button" text="Fetch" class="git-toolbar__action" />
+            <uie:ToolbarButton name="pull-button" text="Pull" tooltip="@common.ffOnly" class="git-toolbar__action" />
+            <uie:ToolbarButton name="push-button" text="Push" class="git-toolbar__action" />
+            <uie:ToolbarButton name="refresh-button" tooltip="@common.refresh" class="git-toolbar__action git-toolbar__action--icon" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="not-ready" class="git-window__notice notice">
+            <ui:Label name="not-ready-message" class="notice__text" />
+            <ui:Button name="open-settings-button" text="@common.openVcsSettings" class="notice__action" />
+        </ui:VisualElement>
+
+        <ui:TwoPaneSplitView name="body" fixed-pane-index="0" fixed-pane-initial-dimension="170" orientation="Horizontal" class="git-window__body">
+            <ui:ScrollView name="sidebar" class="git-sidebar" />
+            <ui:VisualElement name="content" class="git-window__content" />
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

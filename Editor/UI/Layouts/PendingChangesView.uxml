@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="view pending-changes">
+        <ui:VisualElement class="pending-changes__header">
+            <ui:Toggle name="select-all" class="pending-changes__select-all" />
+            <ui:Label name="summary" class="pending-changes__summary" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="list-header">
+            <ui:Label class="list-header__cell column--toggle" />
+            <ui:Label text="@column.item" class="list-header__cell list-header__cell--grow" />
+            <ui:VisualElement name="view-mode-host" class="list-header__tools" />
+        </ui:VisualElement>
+        <ui:VisualElement name="file-list" class="list file-browser pending-changes__list" />
+
+        <ui:VisualElement class="pending-changes__commit">
+            <ui:Label text="@pending.commitTitle" class="pending-changes__commit-title" />
+            <ui:TextField name="commit-message" multiline="true" class="pending-changes__message" />
+            <ui:VisualElement name="author-notice" class="notice notice--warning">
+                <ui:Label text="@pending.noAuthor" class="notice__text" />
+            </ui:VisualElement>
+            <ui:VisualElement name="behind-notice" class="notice">
+                <ui:Label name="behind-text" class="notice__text" />
+            </ui:VisualElement>
+            <ui:VisualElement class="pending-changes__commit-footer">
+                <ui:Button name="commit-button" class="pending-changes__commit-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

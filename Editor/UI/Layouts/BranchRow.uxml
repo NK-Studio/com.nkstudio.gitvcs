@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="branch-row">
+        <ui:Label name="name" class="branch-row__name column--grow-2 ellipsis" />
+        <ui:Label name="track" class="branch-row__track column--track ellipsis" />
+        <ui:Label name="commit" class="branch-row__commit column--grow-3 ellipsis" />
+        <ui:Label name="date" class="branch-row__date column--date" />
+    </ui:VisualElement>
+</ui:UXML>

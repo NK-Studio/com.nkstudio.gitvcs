@@ -1,0 +1,41 @@
+using UnityEditor;
+using UnityEditor.SceneManagement;
+
+namespace GitVersionControl
+{
+    /// <summary>
+    /// 사용자에게 묻고 알리는 창. 뷰·흐름 클래스가 EditorUtility 를 직접 부르지 않게 해서, 대화상자 없이 흐름을 시험할 수 있게 한다.
+    /// </summary>
+    public interface IDialogService
+    {
+        /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
+        bool Confirm(string title, string message, string ok, string cancel = null);
+        void Alert(string title, string message);
+
+        /// <summary>열린 씬·에셋의 저장 안 된 수정을 디스크에 쓴다. 사용자가 취소하면 false.</summary>
+        bool SaveOpenWork();
+    }
+
+    public sealed class EditorDialogService : IDialogService
+    {
+        public bool Confirm(string title, string message, string ok, string cancel = null)
+        {
+            return EditorUtility.DisplayDialog(title, message, ok, cancel ?? GitText.Get("common.cancel"));
+        }
+
+        public void Alert(string title, string message)
+        {
+            EditorUtility.DisplayDialog(title, message, GitText.Get("common.ok"));
+        }
+
+        public bool SaveOpenWork()
+        {
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo() == false)
+            {
+                return false;
+            }
+            AssetDatabase.SaveAssets();
+            return true;
+        }
+    }
+}

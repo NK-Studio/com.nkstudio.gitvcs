@@ -1,0 +1,195 @@
+/*
+ * Git 창 공용 스타일. 클래스 이름은 BEM(block__element--modifier)을 따른다.
+ * 색은 Unity 에디터 테마 변수를 쓰고, 없을 때를 대비해 어두운 테마 값을 기본값으로 둔다.
+ */
+
+.git-window {
+    --git-text: var(--unity-colors-default-text, #d2d2d2);
+    --git-text-muted: var(--unity-colors-label-text, #9a9a9a);
+    --git-border: var(--unity-colors-default-border, #232323);
+    --git-panel: var(--unity-colors-window-background, #383838);
+    --git-panel-dark: rgba(0, 0, 0, 0.12);
+    --git-row-stripe: rgba(0, 0, 0, 0.06);
+    --git-selected: var(--unity-colors-highlight-background, #2c5d87);
+    --git-accent: #3b82c4;
+    --git-success: #3fb85c;
+    --git-warning: #e0a030;
+    --git-danger: #e05050;
+
+    --git-state-modified: #ff9e1a;
+    --git-state-added: #4dd14d;
+    --git-state-deleted: #eb4d4d;
+    --git-state-renamed: #59a6ff;
+    --git-state-untracked: #73c991;
+    --git-state-conflicted: #ff33cc;
+}
+
+/* 남는 공간을 채우는 빈 요소(도구 막대에서 버튼을 오른쪽으로 민다). */
+.spacer {
+    flex-grow: 1;
+}
+
+/* ── notice: 안내·경고 상자 ───────────────────────── */
+.notice {
+    flex-direction: row;
+    align-items: center;
+    margin: 4px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    border-left-width: 3px;
+    background-color: var(--git-panel-dark);
+    border-left-color: var(--git-accent);
+}
+
+.notice--warning {
+    border-left-color: var(--git-warning);
+}
+
+.notice--error {
+    border-left-color: var(--git-danger);
+}
+
+.notice__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.notice__action {
+    margin-left: 8px;
+}
+
+/* ── state-badge: 파일 상태 글자 상자(M, A, D, R, ?, !) ─ */
+.state-badge {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 3px;
+    font-size: 9px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: #000000;
+    padding: 0;
+    margin: 0;
+}
+
+/* UVCS 패키지의 상태 아이콘을 배경 그림으로 쓸 때. 그림 둘레가 투명해서 글자 배지보다 조금 크게 잡는다. */
+.state-badge--icon {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.state-badge--modified { background-color: var(--git-state-modified); }
+.state-badge--added { background-color: var(--git-state-added); }
+.state-badge--deleted { background-color: var(--git-state-deleted); }
+.state-badge--renamed { background-color: var(--git-state-renamed); }
+.state-badge--untracked { background-color: var(--git-state-untracked); }
+.state-badge--conflicted { background-color: var(--git-state-conflicted); }
+
+/* ── list-header: 목록 위 열 이름 줄 ─────────────────── */
+.list-header {
+    flex-direction: row;
+    height: 20px;
+    min-height: 20px;
+    align-items: center;
+    padding: 0 4px;
+    background-color: var(--git-panel-dark);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.list-header__cell {
+    font-size: 10px;
+    color: var(--git-text-muted);
+    padding: 0 4px;
+    -unity-text-align: middle-left;
+}
+
+.list-header__cell--grow {
+    flex-grow: 1;
+}
+
+/* 머리 줄 오른쪽 끝의 도구(목록/트리 전환 등). */
+.list-header__tools {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+/* ── view-mode-switch: 목록/트리 전환 버튼 한 쌍 ─────── */
+.view-mode-switch {
+    flex-direction: row;
+}
+
+.view-mode-switch__button {
+    height: 16px;
+    margin: 0 0 0 2px;
+    padding: 0 6px;
+    font-size: 10px;
+    border-radius: 2px;
+}
+
+.view-mode-switch__button--selected {
+    background-color: var(--git-selected);
+    color: #ffffff;
+}
+
+/* ── file-browser: 목록·트리를 겹쳐 두고 하나만 보인다 ── */
+.file-browser > .list {
+    flex-grow: 1;
+}
+
+/* ── list: ListView 공용 ───────────────────────────── */
+.list {
+    flex-grow: 1;
+    background-color: var(--git-panel-dark);
+}
+
+/*
+ * 세로 배치의 공통 규칙: 목록(ListView)·분할 영역만 늘고 줄어든다.
+ * ListView 의 기본 flex-basis 는 매우 커서(4000px) 그대로 두면 목록이 공간을 다 차지하고, 대신 위아래 고정 영역(머리 줄·커밋 칸)이
+ * 찌그러져 보이지 않게 된다. 그래서 늘어나는 쪽은 basis 0 에서 남는 공간만 받고, 고정 영역은 줄어들지 않게 한다.
+ */
+.list,
+.view,
+.view__split,
+.view__pane {
+    flex-basis: 0;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+.list-header,
+.notice,
+.unity-toolbar {
+    flex-shrink: 0;
+}
+
+.list__empty {
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+    margin-top: 12px;
+}
+
+/* 고정 폭 열. 목록 줄과 머리 줄이 같은 클래스를 써서 열이 맞는다. */
+.column--toggle { width: 22px; min-width: 22px; }
+.column--hash { width: 70px; min-width: 70px; }
+.column--author { width: 130px; min-width: 130px; }
+.column--date { width: 112px; min-width: 112px; }
+.column--track { width: 170px; min-width: 170px; }
+.column--local { width: 130px; min-width: 130px; }
+.column--grow { flex-grow: 1; flex-shrink: 1; min-width: 60px; }
+.column--grow-2 { flex-grow: 2; flex-shrink: 1; min-width: 60px; }
+.column--grow-3 { flex-grow: 3; flex-shrink: 1; min-width: 80px; }
+
+/* 한 줄 글자는 넘치면 …으로 줄인다. */
+.ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

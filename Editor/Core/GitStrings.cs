@@ -1,0 +1,211 @@
+using System.Collections.Generic;
+
+namespace GitVersionControl
+{
+    /// <summary>
+    /// 번역 표. 키 → { 한국어, 영어 } (<see cref="GitLanguage"/> 순서). 형식 문자열은 string.Format 의 {0}, {1} 을 쓴다.
+    /// 키 이름은 "화면.의미" 로 짓는다(같은 문구라도 화면이 다르면 나중에 따로 바뀔 수 있어서).
+    /// </summary>
+    internal static class GitStrings
+    {
+        public static readonly Dictionary<string, string[]> Table = new()
+        {
+            // ── 공용 ──
+            ["common.ok"] = new[] { "확인", "OK" },
+            ["common.cancel"] = new[] { "취소", "Cancel" },
+            ["common.continue"] = new[] { "계속", "Continue" },
+            ["common.create"] = new[] { "만들기", "Create" },
+            ["common.delete"] = new[] { "삭제", "Delete" },
+            ["common.reload"] = new[] { "다시 읽기", "Reload" },
+            ["common.refresh"] = new[] { "새로고침", "Refresh" },
+            ["common.loading"] = new[] { "읽는 중…", "Loading…" },
+            ["common.close"] = new[] { "닫기", "Close" },
+            ["common.copyHash"] = new[] { "해시 복사", "Copy Hash" },
+            ["common.copySubject"] = new[] { "메시지 첫 줄 복사", "Copy Subject" },
+            ["common.copyPath"] = new[] { "경로 복사", "Copy Path" },
+            ["common.copyName"] = new[] { "이름 복사", "Copy Name" },
+            ["common.pingAsset"] = new[] { "Project 창에서 선택", "Select in Project Window" },
+            ["common.reveal"] = new[] { "탐색기에서 보기", "Reveal in File Browser" },
+            ["common.noCommits"] = new[] { "아직 커밋이 없습니다.", "No commits yet." },
+            ["common.openGitWindow"] = new[] { "Git 창 열기", "Open Git Window" },
+            ["common.openVcsSettings"] = new[] { "Version Control 설정 열기", "Open Version Control Settings" },
+            ["common.vcsSettings"] = new[] { "Version Control 설정", "Version Control Settings" },
+            ["common.ffOnly"] = new[] { "fast-forward 만 합니다.", "Fast-forward only." },
+            ["common.openBranchesTab"] = new[] { "브랜치 탭 열기", "Open Branches Tab" },
+            ["common.language"] = new[] { "언어", "Language" },
+
+            // ── 파일 보기 방식 ──
+            ["fileView.list"] = new[] { "목록", "List" },
+            ["fileView.tree"] = new[] { "트리", "Tree" },
+            ["fileView.listTooltip"] = new[] { "전체 경로를 한 줄씩 봅니다.", "Show each file with its full path." },
+            ["fileView.treeTooltip"] = new[] { "폴더 구조로 봅니다.", "Show files in a folder tree." },
+            ["fileView.expandAll"] = new[] { "모두 펼치기", "Expand All" },
+            ["fileView.collapseAll"] = new[] { "모두 접기", "Collapse All" },
+
+            // ── 목록 열 이름 ──
+            ["column.item"] = new[] { "항목", "Item" },
+            ["column.hash"] = new[] { "해시", "Hash" },
+            ["column.message"] = new[] { "메시지", "Message" },
+            ["column.author"] = new[] { "작성자", "Author" },
+            ["column.date"] = new[] { "날짜", "Date" },
+            ["column.name"] = new[] { "이름", "Name" },
+            ["column.track"] = new[] { "추적", "Tracking" },
+            ["column.lastCommit"] = new[] { "마지막 커밋", "Last Commit" },
+            ["column.incomingFiles"] = new[] { "받을 파일", "Incoming Files" },
+            ["column.local"] = new[] { "로컬", "Local" },
+            ["column.changedFiles"] = new[] { "바뀐 파일", "Changed Files" },
+
+            // ── 파일 상태(배지 툴팁) ──
+            ["state.Modified"] = new[] { "수정됨", "Modified" },
+            ["state.Added"] = new[] { "추가됨", "Added" },
+            ["state.Deleted"] = new[] { "삭제됨", "Deleted" },
+            ["state.Renamed"] = new[] { "이름 바뀜", "Renamed" },
+            ["state.Untracked"] = new[] { "추적 안 됨(새 파일)", "Untracked (new file)" },
+            ["state.Conflicted"] = new[] { "충돌", "Conflicted" },
+
+            // ── 작업 실행기 ──
+            ["runner.running"] = new[] { "{0} 중…", "{0}…" },
+            ["runner.done"] = new[] { "{0} 완료", "{0} done" },
+            ["runner.failed"] = new[] { "{0} 실패", "{0} failed" },
+            ["op.fetch"] = new[] { "Fetch", "Fetch" },
+            ["op.pull"] = new[] { "Pull", "Pull" },
+            ["op.push"] = new[] { "Push", "Push" },
+            ["op.commit"] = new[] { "커밋", "Commit" },
+            ["op.discard"] = new[] { "되돌리기", "Discard" },
+            ["op.switch"] = new[] { "'{0}' 전환", "Switch to '{0}'" },
+            ["op.createBranch"] = new[] { "'{0}' 만들기", "Create '{0}'" },
+            ["op.deleteBranch"] = new[] { "'{0}' 삭제", "Delete '{0}'" },
+            ["op.forceDeleteBranch"] = new[] { "'{0}' 강제 삭제", "Force Delete '{0}'" },
+
+            // ── 창·탭 ──
+            ["window.notGitMode"] = new[] { "Version Control 모드가 Git 이 아닙니다.", "Version Control mode is not Git." },
+            ["window.notRepository"] = new[] { "git 저장소가 아닙니다. Version Control 설정에서 git init 할 수 있습니다.", "This is not a git repository. You can run git init from the Version Control settings." },
+            ["tab.pending"] = new[] { "대기 중인 변경사항", "Pending Changes" },
+            ["tab.incoming"] = new[] { "수신 변경사항", "Incoming Changes" },
+            ["tab.changesets"] = new[] { "체인지 세트", "Changesets" },
+            ["tab.branches"] = new[] { "브랜치", "Branches" },
+            ["tab.explorer"] = new[] { "브랜치 탐색기", "Branch Explorer" },
+
+            // ── 대기 중인 변경사항 ──
+            ["pending.summary"] = new[] { "변경 {0}개 (선택 {1})", "{0} changes ({1} selected)" },
+            ["pending.commitTitle"] = new[] { "커밋 메시지", "Commit Message" },
+            ["pending.noAuthor"] = new[] { "user.name / user.email 이 설정되지 않아 커밋할 수 없습니다.", "Cannot commit: user.name / user.email is not set." },
+            ["pending.behind"] = new[] { "원격에 받지 않은 커밋이 {0}개 있습니다. 씬·프리팹 충돌을 피하려면 먼저 수신 변경사항을 확인하세요.", "There are {0} commits on the remote you haven't pulled. Check Incoming Changes first to avoid scene/prefab conflicts." },
+            ["pending.commitButton"] = new[] { "커밋 ({0})", "Commit ({0})" },
+            ["pending.discard"] = new[] { "변경 되돌리기", "Discard Changes" },
+            ["pending.discardWithMeta"] = new[] { "변경 되돌리기 (.meta 포함)", "Discard Changes (with .meta)" },
+            ["pending.discardChecked"] = new[] { "선택한 {0}개 되돌리기", "Discard {0} Checked" },
+            ["pending.discardMessage"] = new[] { "다음 변경을 버립니다. 되돌릴 수 없습니다.\n\n{0}", "The following changes will be discarded. This cannot be undone.\n\n{0}" },
+            ["pending.discardFolder"] = new[] { "이 폴더의 변경 {0}개 되돌리기", "Discard {0} Changes in This Folder" },
+            ["pending.discardMore"] = new[] { "\n… 외 {0}개", "\n… and {0} more" },
+
+            // ── 수신 변경사항 ──
+            ["incoming.localChange"] = new[] { "⚠ 로컬 변경 있음", "⚠ Local changes" },
+            ["incoming.lastFetch"] = new[] { "  ·  마지막 fetch {0}", "  ·  last fetch {0}" },
+            ["incoming.noFetch"] = new[] { "  ·  fetch 기록 없음", "  ·  never fetched" },
+            ["incoming.summary"] = new[] { "{0}: 커밋 {1}개, 파일 {2}개{3}", "{0}: {1} commits, {2} files{3}" },
+            ["incoming.noUpstream"] = new[] { "현재 브랜치에 upstream 이 없습니다. Push 하면 origin 에 같은 이름의 추적 브랜치가 생깁니다.", "The current branch has no upstream. Pushing creates a tracking branch with the same name on origin." },
+            ["incoming.nothing"] = new[] { "받을 변경이 없습니다. 최신 상태를 보려면 Fetch 하세요.", "Nothing to receive. Fetch to check for new changes." },
+            ["incoming.diverged"] = new[] { "로컬과 원격이 갈라졌습니다(↑{0} ↓{1}). fast-forward Pull 이 불가능하니 터미널에서 merge 또는 rebase 하세요.", "Local and remote have diverged (↑{0} ↓{1}). A fast-forward pull is not possible; merge or rebase in a terminal." },
+            ["incoming.overlap"] = new[] { "받을 파일 중 {0}개가 커밋하지 않은 로컬 변경과 겹칩니다. Pull 이 거부되거나 충돌할 수 있습니다.", "{0} incoming files overlap uncommitted local changes. The pull may be refused or conflict." },
+            ["incoming.pullConfirm"] = new[] { "받을 파일 중 {0}개가 로컬 변경과 겹칩니다. git 이 덮어쓰지 않고 거부하면 아무것도 바뀌지 않습니다.\n계속할까요?", "{0} incoming files overlap local changes. If git refuses instead of overwriting, nothing changes.\nContinue?" },
+
+            // ── 체인지 세트 ──
+            ["changesets.allBranches"] = new[] { "모든 브랜치", "All Branches" },
+            ["changesets.more"] = new[] { "{0}개 더", "{0} More" },
+            ["changesets.summary"] = new[] { "커밋 {0}개{1}", "{0} commits{1}" },
+            ["commit.merge"] = new[] { "(병합) {0}", "(merge) {0}" },
+            ["detail.placeholder"] = new[] { "커밋을 고르면 메시지와 바뀐 파일이 여기에 나옵니다.", "Select a commit to see its message and changed files." },
+
+            // ── 브랜치 ──
+            ["branches.newBranch"] = new[] { "새 브랜치", "New Branch" },
+            ["branches.switchAfterCreate"] = new[] { "만들고 전환", "Switch After Create" },
+            ["branches.emptyNotice"] = new[] { "첫 커밋을 만든 뒤에 브랜치를 만들거나 전환할 수 있습니다.", "Create the first commit before creating or switching branches." },
+            ["branches.hint"] = new[] { "더블클릭으로 전환, 우클릭으로 삭제·복사", "Double-click to switch, right-click to delete or copy" },
+            ["branches.local"] = new[] { "로컬", "Local" },
+            ["branches.remote"] = new[] { "원격", "Remote" },
+            ["branches.current"] = new[] { "현재 브랜치", "Current branch" },
+            ["branches.switchTo"] = new[] { "이 브랜치로 전환", "Switch to This Branch" },
+            ["branches.createLocalAndSwitch"] = new[] { "'{0}' 로컬 브랜치를 만들어 전환", "Create Local Branch '{0}' and Switch" },
+            ["branches.createTitle"] = new[] { "브랜치 만들기", "Create Branch" },
+            ["branches.invalidName"] = new[] { "'{0}' 은(는) 브랜치 이름으로 쓸 수 없습니다.", "'{0}' is not a valid branch name." },
+            ["branches.deleteTitle"] = new[] { "브랜치 삭제", "Delete Branch" },
+            ["branches.deleteConfirm"] = new[] { "로컬 브랜치 '{0}' 을(를) 삭제합니다. 원격 브랜치는 그대로 둡니다.", "Delete local branch '{0}'? The remote branch is kept." },
+            ["branches.notMerged"] = new[] { "'{0}' 에는 병합되지 않은 커밋이 있습니다. 강제로 삭제하면 그 커밋에 다시 가기 어렵습니다.\n\n강제로 삭제할까요?", "'{0}' has unmerged commits. Force deleting makes them hard to get back.\n\nForce delete?" },
+            ["branches.forceDelete"] = new[] { "강제 삭제", "Force Delete" },
+            ["branches.deleteFailed"] = new[] { "브랜치 삭제 실패", "Failed to Delete Branch" },
+            ["branches.switchTitle"] = new[] { "브랜치 전환", "Switch Branch" },
+            ["branches.pendingWarning"] = new[] { "커밋하지 않은 변경이 {0}개 있습니다.\n\n충돌하지 않는 변경은 그대로 따라가고, 충돌하면 git 이 전환을 거부합니다(아무것도 바뀌지 않음).\n\n{1}할까요?", "You have {0} uncommitted changes.\n\nChanges that don't conflict are carried over; if they conflict, git refuses to switch (nothing changes).\n\n{1}?" },
+            ["branches.actionSwitch"] = new[] { "'{0}' 로 전환", "Switch to '{0}'" },
+            ["branches.actionCreateSwitch"] = new[] { "'{0}' 을(를) 만들고 전환", "Create and switch to '{0}'" },
+
+            // ── 브랜치 탐색기 ──
+            ["explorer.rangeWeek"] = new[] { "지난 1주", "Last Week" },
+            ["explorer.rangeMonth"] = new[] { "지난 1개월", "Last Month" },
+            ["explorer.rangeQuarter"] = new[] { "지난 3개월", "Last 3 Months" },
+            ["explorer.rangeAll"] = new[] { "전체", "All" },
+            ["explorer.avatars"] = new[] { "아바타", "Avatars" },
+            ["explorer.next"] = new[] { "다음", "Next" },
+            ["explorer.nextTooltip"] = new[] { "검색에 맞는 다음 커밋으로 이동", "Go to the next matching commit" },
+            ["explorer.head"] = new[] { "HEAD 로 이동", "Go to HEAD" },
+            ["explorer.zoomIn"] = new[] { "확대", "Zoom In" },
+            ["explorer.zoomOut"] = new[] { "축소", "Zoom Out" },
+            ["explorer.emptyRange"] = new[] { "이 기간에 커밋이 없습니다. 기간을 늘려 보세요.", "No commits in this period. Try a longer range." },
+            ["explorer.summary"] = new[] { "커밋 {0}개 · 줄 {1}개", "{0} commits · {1} lanes" },
+            ["explorer.capped"] = new[] { " (최근 {0}개까지)", " (latest {0} only)" },
+            ["explorer.noMatch"] = new[] { "'{0}' 에 맞는 커밋이 없습니다.", "No commits match '{0}'." },
+            ["explorer.tooltip"] = new[] { "{0}\n{1} · {2} · {3}\n줄: {4}", "{0}\n{1} · {2} · {3}\nLane: {4}" },
+            ["graph.mergedBranch"] = new[] { "(병합된 브랜치)", "(merged branch)" },
+
+            // ── 표기 ──
+            ["display.noCommits"] = new[] { "{0} (커밋 없음)", "{0} (no commits)" },
+            ["display.noUpstream"] = new[] { "(upstream 없음)", "(no upstream)" },
+            ["display.gone"] = new[] { "원격에서 삭제됨", "gone" },
+
+            // ── git 실행 ──
+            ["command.startFailed"] = new[] { "git 을 실행하지 못했습니다: {0}", "Failed to start git: {0}" },
+            ["command.timeout"] = new[] { "git {0} 이(가) {1}초 안에 끝나지 않았습니다.", "git {0} did not finish within {1} seconds." },
+            ["command.notFound"] = new[] { "git 을 찾을 수 없습니다({0}). Project Settings > Version Control 에서 경로를 지정하세요.\n{1}", "git was not found ({0}). Set its path in Project Settings > Version Control.\n{1}" },
+
+            // ── git 찾기 ──
+            ["locator.missingFile"] = new[] { "설정한 경로에 파일이 없습니다: {0}", "No file at the configured path: {0}" },
+            ["locator.notFoundWindows"] = new[] { "git 을 찾지 못했습니다. Git for Windows 를 설치하거나 '찾기' 로 git.exe 를 지정하세요.", "git was not found. Install Git for Windows or pick git.exe with 'Browse'." },
+            ["locator.notFoundMac"] = new[] { "git 을 찾지 못했습니다. 터미널에서 'brew install git' 또는 'xcode-select --install' 로 설치하세요.", "git was not found. Install it from a terminal with 'brew install git' or 'xcode-select --install'." },
+            ["locator.notFoundLinux"] = new[] { "git 을 찾지 못했습니다. 패키지 관리자로 git 을 설치하세요.", "git was not found. Install git with your package manager." },
+            ["locator.xcodeMissing"] = new[] { "/usr/bin/git 은 있지만 Xcode Command Line Tools 가 설치되지 않았습니다. 터미널에서 'xcode-select --install' 을 실행하거나 'brew install git' 으로 설치하세요.", "/usr/bin/git exists but the Xcode Command Line Tools are not installed. Run 'xcode-select --install' in a terminal, or install git with 'brew install git'." },
+            ["locator.sourceSettings"] = new[] { "설정", "settings" },
+            ["locator.sourceEditorPath"] = new[] { "에디터 PATH", "editor PATH" },
+            ["locator.sourceSystemPath"] = new[] { "시스템 환경변수 PATH", "system PATH" },
+            ["locator.sourceLoginShell"] = new[] { "로그인 셸 PATH", "login shell PATH" },
+            ["locator.sourceDefault"] = new[] { "기본 설치 위치", "default install location" },
+
+            // ── Project Settings > Version Control ──
+            ["settings.gitExecutable"] = new[] { "Git 실행 파일", "Git Executable" },
+            ["settings.gitExecutableTooltip"] = new[] { "비워 두거나 \"git\" 이면 에디터 PATH → 시스템 환경변수 PATH → 기본 설치 위치 순서로 찾습니다.", "Leave empty or \"git\" to search the editor PATH, then the system PATH, then default install locations." },
+            ["settings.browse"] = new[] { "찾기", "Browse" },
+            ["settings.browseTitle"] = new[] { "git 실행 파일", "git executable" },
+            ["settings.check"] = new[] { "확인", "Check" },
+            ["settings.searching"] = new[] { "git 찾는 중…", "Looking for git…" },
+            ["settings.using"] = new[] { "사용 중: {0}  ({1})", "Using: {0}  ({1})" },
+            ["settings.overlays"] = new[] { "Project 창 상태 아이콘", "Status Icons in Project Window" },
+            ["settings.refreshOnFocus"] = new[] { "포커스 복귀 시 새로고침", "Refresh on Focus" },
+            ["settings.refreshOnFocusTooltip"] = new[] { "다른 프로그램(터미널·IDE)에서 git 작업을 한 뒤 Unity 로 돌아오면 상태를 다시 읽습니다.", "Re-read the status when you come back to Unity after using git in a terminal or IDE." },
+            ["settings.avatars"] = new[] { "작성자 아바타 표시", "Show Author Avatars" },
+            ["settings.avatarsTooltip"] = new[] { "브랜치 탐색기에 GitHub·Gravatar 의 작성자 그림을 보여 줍니다. 켜면 작성자 이메일(Gravatar 는 해시)과 커밋 해시가 GitHub·Gravatar 로 전송됩니다.", "Show author pictures from GitHub and Gravatar in the Branch Explorer. When on, author emails (hashed for Gravatar) and commit hashes are sent to GitHub and Gravatar." },
+            ["settings.repository"] = new[] { "저장소", "Repository" },
+            ["settings.checking"] = new[] { "확인 중…", "Checking…" },
+            ["settings.notRepository"] = new[] { "이 프로젝트는 git 저장소가 아닙니다.", "This project is not a git repository." },
+            ["settings.root"] = new[] { "루트", "Root" },
+            ["settings.projectLocation"] = new[] { "프로젝트 위치", "Project Location" },
+            ["settings.branch"] = new[] { "브랜치", "Branch" },
+            ["settings.changes"] = new[] { "변경", "Changes" },
+            ["settings.changesCount"] = new[] { "{0}개", "{0}" },
+            ["settings.unset"] = new[] { "(미설정)", "(not set)" },
+            ["settings.author"] = new[] { "작성자", "Author" },
+            ["settings.noAuthor"] = new[] { "user.name / user.email 이 설정되지 않아 커밋할 수 없습니다.\ngit config --global user.name \"이름\" 으로 설정하세요.", "Cannot commit: user.name / user.email is not set.\nSet them with git config --global user.name \"Your Name\"." },
+            ["settings.initMessage"] = new[] { "{0} 에 git 저장소를 만듭니다.", "Create a git repository in {0}." },
+            ["settings.initNoGitignore"] = new[] { "\n\n.gitignore 가 없습니다. Library/Temp 등이 변경 목록에 잡히므로 먼저 추가하는 것을 권장합니다.", "\n\nThere is no .gitignore. Library, Temp and others will show up as changes, so adding one first is recommended." },
+            ["settings.initFailed"] = new[] { "git init 실패", "git init Failed" },
+        };
+    }
+}

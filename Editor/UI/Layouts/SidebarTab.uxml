@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="git-sidebar__tab">
+        <ui:Label name="title" class="git-sidebar__tab-title ellipsis" />
+        <ui:Label name="badge" class="git-sidebar__tab-badge git-sidebar__tab-badge--hidden" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement class="commit-row">
+        <ui:Label name="hash" class="commit-row__hash column--hash" />
+        <ui:VisualElement class="commit-row__message column--grow-3">
+            <ui:Label name="refs" class="commit-row__refs ellipsis" />
+            <ui:Label name="subject" class="commit-row__subject ellipsis" />
+        </ui:VisualElement>
+        <ui:Label name="author" class="commit-row__author column--author ellipsis" />
+        <ui:Label name="date" class="commit-row__date column--date" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,176 @@
+/* 탭 블록들: pending-changes, incoming-changes, changesets, branches, branch-explorer, commit-detail. */
+
+.view {
+    flex-grow: 1;
+}
+
+.view__toolbar-label {
+    -unity-text-align: middle-left;
+    font-size: 10px;
+    color: var(--git-text-muted);
+    margin: 0 6px;
+}
+
+.view__split {
+    flex-grow: 1;
+}
+
+.view__pane {
+    flex-grow: 1;
+    min-height: 60px;
+}
+
+/* ── pending-changes ──────────────────────────────── */
+.pending-changes__header {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 6px;
+}
+
+.pending-changes__summary {
+    margin-left: 4px;
+    color: var(--git-text);
+}
+
+.pending-changes__commit {
+    flex-shrink: 0;
+    padding: 4px 6px 6px 6px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.pending-changes__commit-title {
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: var(--git-text-muted);
+    margin-bottom: 2px;
+}
+
+.pending-changes__message {
+    margin: 0;
+}
+
+.pending-changes__message > .unity-text-field__input {
+    min-height: 54px;
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.pending-changes__commit-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.pending-changes__commit-button {
+    width: 120px;
+    height: 24px;
+}
+
+/* ── branches ─────────────────────────────────────── */
+.branches__new-name {
+    width: 180px;
+    margin: 1px 2px;
+}
+
+.branches__hint {
+    flex-shrink: 0;
+    -unity-text-align: middle-center;
+    font-size: 10px;
+    color: var(--git-text-muted);
+    padding: 2px;
+}
+
+/* ── commit-detail: 고른 커밋의 메시지와 바뀐 파일 ─── */
+.commit-detail {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.commit-detail--hidden {
+    display: none;
+}
+
+.commit-detail__header {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 6px;
+}
+
+.commit-detail__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: var(--git-text);
+}
+
+.commit-detail__close {
+    width: 20px;
+    height: 18px;
+    padding: 0;
+}
+
+.commit-detail__close--hidden {
+    display: none;
+}
+
+.commit-detail__body {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+    flex-direction: row;
+    padding: 0 4px 4px 4px;
+}
+
+.commit-detail__message {
+    width: 40%;
+    margin: 0 4px 0 0;
+}
+
+.commit-detail__message > .unity-text-field__input {
+    flex-grow: 1;
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.commit-detail__files {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+/* ── branch-explorer ──────────────────────────────── */
+.branch-explorer__range {
+    width: 110px;
+    margin: 0 2px;
+}
+
+.branch-explorer__search {
+    width: 220px;
+}
+
+.branch-explorer__graph-pane {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.branch-explorer__overlay {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+}
+
+.branch-explorer__overlay-button {
+    width: 30px;
+    height: 30px;
+    margin: 2px 0;
+    font-size: 14px;
+    -unity-font-style: bold;
+}

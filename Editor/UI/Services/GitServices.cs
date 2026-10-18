@@ -1,0 +1,50 @@
+namespace GitVersionControl
+{
+    /// <summary>
+    /// 뷰가 생성자로 받는 의존성 묶음. 창(합성 루트)이 한 번 만들어 모든 탭에 같은 인스턴스를 나눠 준다.
+    /// </summary>
+    public sealed class GitServices
+    {
+        public readonly IGitRepositoryState Repository;
+        public readonly IGitHistoryService History;
+        public readonly IGitCommandService Commands;
+        public readonly IGitOperationRunner Runner;
+        public readonly IDialogService Dialogs;
+        public readonly IAssetNavigator Assets;
+        public readonly IFileIconProvider Icons;
+        public readonly FileViewPreference FileView;
+        public readonly IAvatarProvider Avatars;
+
+        public GitServices(IGitRepositoryState repository, IGitHistoryService history, IGitCommandService commands,
+            IGitOperationRunner runner, IDialogService dialogs, IAssetNavigator assets, IFileIconProvider icons, FileViewPreference fileView, IAvatarProvider avatars)
+        {
+            Repository = repository;
+            History = history;
+            Commands = commands;
+            Runner = runner;
+            Dialogs = dialogs;
+            Assets = assets;
+            Icons = icons;
+            FileView = fileView;
+            Avatars = avatars;
+        }
+
+        /// <summary>아바타는 받은 그림을 창을 다시 만들어도(언어 전환 등) 버리지 않도록 에디터 세션 동안 하나를 같이 쓴다.</summary>
+        private static readonly GitHubAvatarProvider AvatarProvider = new();
+
+        /// <summary>에디터에서 쓰는 실제 구현으로 묶는다.</summary>
+        public static GitServices CreateDefault()
+        {
+            GitRepositoryState repository = new();
+            EditorDialogService dialogs = new();
+            return new GitServices(repository, new GitHistoryService(), new GitCommandService(),
+                new GitOperationRunner(repository, dialogs), dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider);
+        }
+    }
+
+    /// <summary>다른 탭으로 이동시키는 능력만 뷰에 넘긴다(창 전체를 넘기지 않는다, ISP).</summary>
+    public interface ITabNavigator
+    {
+        void SelectTab<T>() where T : GitView;
+    }
+}
