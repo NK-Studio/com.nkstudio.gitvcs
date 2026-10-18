@@ -29,6 +29,23 @@ namespace GitVersionControl.Tests
             StringAssert.StartsWith("https://avatars.githubusercontent.com/u/123", GitAvatarSources.NoReplyAvatarUrl("123+kim@users.noreply.github.com"));
         }
 
+        [TestCase("NK-Studio", "https://github.com/NK-Studio.png?size=64")]
+        [TestCase(" @kim ", "https://github.com/kim.png?size=64")]
+        [TestCase("", null)]
+        [TestCase("bad name", null)]
+        public void Test_GitHubProfileAvatarUrl_ValidatesLogin(string login, string expected)
+        {
+            Assert.AreEqual(expected, GitAvatarSources.GitHubProfileAvatarUrl(login));
+        }
+
+        [TestCase("Kim@Example.com ", "kim@example.com", true)]
+        [TestCase("a@b.com", "c@d.com", false)]
+        [TestCase("", "", false)]
+        public void Test_IsSameEmail_IgnoresCaseAndSpaces(string a, string b, bool expected)
+        {
+            Assert.AreEqual(expected, GitAvatarSources.IsSameEmail(a, b));
+        }
+
         [Test]
         public void Test_ParseCredentialPassword_ReadsPasswordLine()
         {

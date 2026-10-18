@@ -476,6 +476,8 @@ namespace GitVersionControl
             ["settings.avatars"] = new[] { "작성자 아바타 표시", "Show Author Avatars" },
             ["settings.avatarsCredentials"] = new[] { "비공개 저장소: git 의 GitHub 로그인 사용", "Private repos: use git's GitHub login" },
             ["settings.avatarsCredentialsTooltip"] = new[] { "비공개 GitHub 저장소는 로그인해야 커밋 작성자의 계정(아바타)을 알 수 있습니다. 켜면 git 에 저장된 GitHub 자격 증명(Git Credential Manager 등)을 로그인 창 없이 읽어 GitHub API 요청에만 쓰고, 메모리에만 둡니다.", "Private GitHub repositories only reveal commit authors' accounts (avatars) to signed-in requests. When on, the GitHub credential stored by git (e.g. Git Credential Manager) is read without prompting, used only for GitHub API requests, and kept in memory only." },
+            ["settings.myGitHubLogin"] = new[] { "내 GitHub 아이디", "My GitHub Username" },
+            ["settings.myGitHubLoginTooltip"] = new[] { "이 저장소의 git user.email 로 만든 내 커밋에 이 계정의 프로필 사진을 씁니다. 아직 푸시하지 않은 커밋은 GitHub 도 작성자를 몰라서, 비워 두면 머리글자로 남습니다(로그인 설정이 켜져 있으면 그 계정 사진을 씁니다).", "Your commits (made with this repository's git user.email) use this account's profile picture. GitHub doesn't know the author of commits that aren't pushed yet, so leaving this empty shows initials (or the signed-in account's picture when the login setting is on)." },
             ["settings.avatarsTooltip"] = new[] { "브랜치 탐색기에 GitHub·Gravatar 의 작성자 그림을 보여 줍니다. 켜면 작성자 이메일(Gravatar 는 해시)과 커밋 해시가 GitHub·Gravatar 로 전송됩니다.", "Show author pictures from GitHub and Gravatar in the Branch Explorer. When on, author emails (hashed for Gravatar) and commit hashes are sent to GitHub and Gravatar." },
             ["settings.repository"] = new[] { "저장소", "Repository" },
             ["settings.checking"] = new[] { "확인 중…", "Checking…" },

@@ -45,6 +45,31 @@ namespace GitVersionControl
             return $"https://api.github.com/repos/{owner}/{repository}/commits/{commitHash}";
         }
 
+        // GitHub 아이디: 영문·숫자·하이픈, 39자까지.
+        private static readonly Regex GitHubLogin = new(@"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// GitHub 계정의 프로필 사진 주소(로그인 없이 받을 수 있다). 아이디가 비었거나 형식이 틀리면 null.
+        /// 앞의 '@' 는 떼어 준다("@kim" → kim).
+        /// </summary>
+        public static string GitHubProfileAvatarUrl(string login)
+        {
+            string trimmed = login?.Trim().TrimStart('@') ?? string.Empty;
+            return GitHubLogin.IsMatch(trimmed) ? $"https://github.com/{trimmed}.png?size={Size}" : null;
+        }
+
+        /// <summary>
+        /// 같은 이메일인지(앞뒤 공백·대소문자 무시). 둘 중 하나라도 비면 false.
+        /// </summary>
+        public static bool IsSameEmail(string a, string b)
+        {
+            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+            {
+                return false;
+            }
+            return string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>
         /// <c>git credential fill</c> 에 넘길 입력: GitHub 의 https 자격 증명을 묻는다.
         /// </summary>

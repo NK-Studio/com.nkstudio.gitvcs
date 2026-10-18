@@ -17,6 +17,7 @@ namespace GitVersionControl
         [SerializeField] private int _fileViewMode;
         [SerializeField] private bool _showAvatars;
         [SerializeField] private bool _avatarsUseGitCredentials;
+        [SerializeField] private string _myGitHubLogin = string.Empty;
         [SerializeField] private int _diffEngine;
         [SerializeField] private int _diffAlgorithm = (int)DiffAlgorithm.Histogram;
         [SerializeField] private int _diffWhitespace;
@@ -88,6 +89,16 @@ namespace GitVersionControl
         {
             get => _avatarsUseGitCredentials;
             set => SetAndSave(ref _avatarsUseGitCredentials, value);
+        }
+
+        /// <summary>
+        /// 내 GitHub 아이디. 이 저장소의 git user.email 로 만든 커밋(내 커밋)에 이 계정의 프로필 사진을 쓴다.
+        /// 아직 푸시하지 않은 커밋은 GitHub 가 작성자를 모르므로, 이 값이 없으면 내 커밋은 머리글자로 남는다(GitKraken 은 로그인한 계정 사진을 쓴다).
+        /// </summary>
+        public string MyGitHubLogin
+        {
+            get => _myGitHubLogin ?? string.Empty;
+            set => SetAndSave(ref _myGitHubLogin, value?.Trim() ?? string.Empty);
         }
 
         /// <summary>

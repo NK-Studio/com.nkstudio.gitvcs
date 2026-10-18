@@ -81,6 +81,7 @@ namespace GitVersionControl
             using (new EditorGUI.IndentLevelScope())
             {
                 settings.AvatarsUseGitCredentials = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatarsCredentials"), GitText.Get("settings.avatarsCredentialsTooltip")), settings.AvatarsUseGitCredentials);
+                settings.MyGitHubLogin = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.myGitHubLogin"), GitText.Get("settings.myGitHubLoginTooltip")), settings.MyGitHubLogin);
             }
 
             EditorGUILayout.Space();

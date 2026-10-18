@@ -49,9 +49,14 @@ namespace GitVersionControl
         private string _gitHubToken;
 
         /// <summary>
-        /// 마지막으로 본 "git 의 GitHub 로그인 사용" 설정. 바뀌면 이번 세션의 "없음" 판단과 토큰을 버리고 다시 찾는다.
+        /// 마지막으로 본 아바타 설정("git 의 GitHub 로그인 사용" + "내 GitHub 아이디"). 바뀌면 이번 세션의 판단을 버리고 다시 찾는다.
         /// </summary>
-        private bool _usedGitCredentials;
+        private string _settingsKey;
+
+        /// <summary>
+        /// 토큰 주인 계정의 사진 주소(내 GitHub 아이디를 비워 둔 경우). 한 번 물어 없으면 빈 문자열.
+        /// </summary>
+        private string _tokenOwnerAvatarUrl;
 
         public bool IsEnabled => GitVcsSettings.instance.ShowAvatars;
 
@@ -63,11 +68,19 @@ namespace GitVersionControl
             {
                 return null;
             }
-            if (_usedGitCredentials != GitVcsSettings.instance.AvatarsUseGitCredentials)
+            string settingsKey = GitVcsSettings.instance.AvatarsUseGitCredentials + "|" + GitVcsSettings.instance.MyGitHubLogin;
+            if (_settingsKey != settingsKey)
             {
-                _usedGitCredentials = GitVcsSettings.instance.AvatarsUseGitCredentials;
+                bool isFirstLook = _settingsKey == null;
+                _settingsKey = settingsKey;
                 _missing.Clear();
                 _gitHubToken = null;
+                _tokenOwnerAvatarUrl = null;
+                // 아이디를 바꾸면 예전 사진·"없음" 기록이 7일 동안 남지 않게 내 이메일 것만 지운다.
+                if (isFirstLook == false)
+                {
+                    ForgetOwnAvatar();
+                }
             }
             if (_textures.TryGetValue(email, out Texture2D texture) && texture != null)
             {
@@ -84,7 +97,8 @@ namespace GitVersionControl
                 _textures[email] = texture;
                 return texture;
             }
-            if (knownMissing)
+            // 내 커밋은 "없음" 기록을 믿지 않는다 — 설정(내 GitHub 아이디·로그인)으로 언제든 사진이 생길 수 있다.
+            if (knownMissing && IsOwnEmail(email) == false)
             {
                 _missing.Add(email);
                 return null;
@@ -144,7 +158,7 @@ namespace GitVersionControl
             {
                 // 제한(403·429)이나 네트워크 오류는 이번 세션에만 접어 둔다. 정말 없는 경우만 디스크에 기억한다.
                 _missing.Add(email);
-                if (temporaryFailure == false)
+                if (temporaryFailure == false && IsOwnEmail(email) == false)
                 {
                     SaveMissingToDisk(key);
                 }
@@ -155,6 +169,15 @@ namespace GitVersionControl
         private async Task<(List<string> urls, bool gitHubAnswered)> CandidateUrlsAsync(string email, string commitHash)
         {
             List<string> urls = new();
+            // 내 커밋: 아직 푸시하지 않았어도 내 계정 사진을 쓴다(GitKraken 과 같다).
+            if (IsOwnEmail(email))
+            {
+                string own = await OwnAvatarUrlAsync();
+                if (own != null)
+                {
+                    urls.Add(own);
+                }
+            }
             string noReply = GitAvatarSources.NoReplyAvatarUrl(email);
             if (noReply != null)
             {
@@ -175,6 +198,61 @@ namespace GitVersionControl
 
             urls.Add(GitAvatarSources.GravatarUrl(email));
             return (urls, gitHubAnswered);
+        }
+
+        /// <summary>
+        /// 내 계정 사진 주소: 설정의 "내 GitHub 아이디" → 없으면 토큰 주인 계정(<c>GET /user</c>). 둘 다 없으면 null.
+        /// </summary>
+        private async Task<string> OwnAvatarUrlAsync()
+        {
+            string fromLogin = GitAvatarSources.GitHubProfileAvatarUrl(GitVcsSettings.instance.MyGitHubLogin);
+            if (fromLogin != null)
+            {
+                return fromLogin;
+            }
+            if (_tokenOwnerAvatarUrl == null)
+            {
+                _tokenOwnerAvatarUrl = string.Empty;
+                string token = await GitHubTokenAsync();
+                if (token != null)
+                {
+                    using UnityWebRequest request = UnityWebRequest.Get("https://api.github.com/user");
+                    request.SetRequestHeader("User-Agent", UserAgent);
+                    request.SetRequestHeader("Accept", "application/vnd.github+json");
+                    request.SetRequestHeader("Authorization", "Bearer " + token);
+                    await SendAsync(request);
+                    if (request.result == UnityWebRequest.Result.Success)
+                    {
+                        string url = JsonUtility.FromJson<Author>(request.downloadHandler.text)?.avatar_url;
+                        _tokenOwnerAvatarUrl = string.IsNullOrEmpty(url) ? string.Empty : url + (url.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size;
+                    }
+                }
+            }
+            return _tokenOwnerAvatarUrl.Length == 0 ? null : _tokenOwnerAvatarUrl;
+        }
+
+        private static bool IsOwnEmail(string email)
+        {
+            return GitAvatarSources.IsSameEmail(email, GitRepository.UserEmail);
+        }
+
+        private void ForgetOwnAvatar()
+        {
+            string email = GitRepository.UserEmail;
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return;
+            }
+            _textures.Remove(email);
+            string key = GitAvatarSources.CacheKey(email);
+            try
+            {
+                File.Delete(Path.Combine(CacheFolder, key + ".img"));
+                File.Delete(Path.Combine(CacheFolder, key + MissingExtension));
+            }
+            catch (IOException)
+            {
+            }
         }
 
         /// <summary>
