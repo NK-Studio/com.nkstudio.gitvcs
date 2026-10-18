@@ -65,7 +65,11 @@ namespace GitVersionControl
             _split = Root.Require<VisualElement>("split");
 
             _commits = new CommitList(Root.Require<ListView>("commit-list"), services.Assets);
-            _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services);
+            _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services)
+            {
+                // 목록과 같은 범위(HEAD...@{u}): 공통 조상 이후 원격이 바꾼 내용.
+                DiffTargetOf = item => GitDiffTarget.ForMergeBase("HEAD", "@{u}", (GitFileChange)item.Source),
+            };
 
             _fetchButton.clicked += () => _ = Services.Runner.RunAsync("Fetch", Services.Commands.FetchAsync, refreshAssets: false);
             _pullButton.clicked += Pull;

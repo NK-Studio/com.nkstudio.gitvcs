@@ -29,6 +29,7 @@ namespace GitVersionControl
             Services = services;
             Root = GitUiAssets.CloneLayout(layoutName);
             Root.SetVisible(false);
+            SplitPaneClamp.AttachAll(Root);
         }
 
         public void Activate()

@@ -14,6 +14,8 @@ namespace GitVersionControl
         private const string Block = "file-browser";
 
         private readonly FileViewPreference _preference;
+        private readonly IAssetNavigator _assets;
+        private readonly IGitDiffService _diff;
         private readonly FileList _list;
         private readonly FileTree _tree;
         private readonly VisualElement _listRoot;
@@ -44,11 +46,19 @@ namespace GitVersionControl
 
         public IReadOnlyList<FileListItem> Items => _items;
 
+        /// <summary>
+        /// 파일 줄의 diff 대상을 만든다. 정하면 더블클릭이 diff 를 열고 우클릭 메뉴 맨 위에 "변경 내용 보기"가 생긴다.
+        /// null 이면 더블클릭은 Project 창에서 선택한다.
+        /// </summary>
+        public Func<FileListItem, GitDiffTarget> DiffTargetOf { get; set; }
+
         /// <param name="host">UXML 의 자리(<c>.file-browser</c>). 목록·트리가 이 안에 들어간다.</param>
         /// <param name="switchHost">목록/트리 전환 버튼을 둘 자리(목록 머리 줄 오른쪽 등). null 이면 버튼 없이 설정만 따른다.</param>
         public FileBrowser(VisualElement host, VisualElement switchHost, GitServices services)
         {
             _preference = services.FileView;
+            _assets = services.Assets;
+            _diff = services.Diff;
             host.AddToClassList(Block);
 
             FileRowBinder binder = new(services.Icons);
@@ -59,12 +69,16 @@ namespace GitVersionControl
             _list = new FileList(listView, services.Assets, binder);
             _list.ToggleChanged += (item, value) => ToggleChanged?.Invoke(new[] { item }, value);
             _list.ContextMenuRequested += (menu, item) => ContextMenuRequested?.Invoke(menu, item);
+            _list.ItemChosen += OnFileChosen;
+            _list.PopulateMenuHead = PopulateMenuHead;
 
             _tree = new FileTree(services.Assets, binder);
             host.Add(_tree.Root);
             _tree.ToggleChanged += (files, value) => ToggleChanged?.Invoke(files, value);
             _tree.ContextMenuRequested += (menu, item) => ContextMenuRequested?.Invoke(menu, item);
             _tree.FolderContextMenuRequested += (menu, files) => FolderContextMenuRequested?.Invoke(menu, files);
+            _tree.FileChosen += OnFileChosen;
+            _tree.PopulateMenuHead = PopulateMenuHead;
 
             if (switchHost != null)
             {
@@ -98,6 +112,26 @@ namespace GitVersionControl
         public void Dispose()
         {
             _preference.Changed -= OnModeChanged;
+        }
+
+        private void OnFileChosen(FileListItem item)
+        {
+            if (DiffTargetOf == null)
+            {
+                _assets.Ping(item.ProjectPath);
+                return;
+            }
+            _diff.Open(DiffTargetOf(item));
+        }
+
+        private void PopulateMenuHead(DropdownMenu menu, FileListItem item)
+        {
+            if (DiffTargetOf == null)
+            {
+                return;
+            }
+            menu.AppendAction(GitText.Get("diff.show"), _ => _diff.Open(DiffTargetOf(item)));
+            menu.AppendSeparator();
         }
 
         private void OnModeChanged()

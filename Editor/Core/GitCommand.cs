@@ -113,6 +113,70 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// stdout 을 글자로 바꾸지 않고 그대로 파일에 쓴다(<c>git show 리비전:경로</c> 로 그림·바이너리 원본을 꺼낼 때).
+        /// <see cref="GitResult.Output"/> 은 비어 있다.
+        /// </summary>
+        public static Task<GitResult> RunToFileAsync(string workingDirectory, IReadOnlyList<string> args, string outputPath, int timeoutMs = DefaultTimeoutMs)
+        {
+            string gitPath = GitVcsSettings.instance.GitExecutable;
+            return Task.Run(() =>
+            {
+                GitLocator.Location git = GitLocator.Resolve(gitPath);
+                if (git.Found == false)
+                {
+                    return new GitResult(-1, string.Empty, git.Hint);
+                }
+                ProcessStartInfo startInfo = new(git.Path)
+                {
+                    Arguments = BuildArguments(args),
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    StandardErrorEncoding = Encoding.UTF8,
+                };
+                startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
+                startInfo.EnvironmentVariables["GIT_OPTIONAL_LOCKS"] = "0";
+                startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+                try
+                {
+                    using Process process = Process.Start(startInfo);
+                    if (process == null)
+                    {
+                        return new GitResult(-1, string.Empty, GitText.Format("command.startFailed", gitPath));
+                    }
+                    process.StandardInput.Close();
+                    // stdout 을 비우는 동안 stderr 파이프가 차서 멈추지 않도록 따로 읽는다(Run 과 같은 이유로 전용 스레드).
+                    Task<string> errorTask = Task.Factory.StartNew(() => process.StandardError.ReadToEnd(), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                    using (System.IO.FileStream file = System.IO.File.Create(outputPath))
+                    {
+                        process.StandardOutput.BaseStream.CopyTo(file);
+                    }
+                    if (process.WaitForExit(timeoutMs) == false)
+                    {
+                        try
+                        {
+                            process.Kill();
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // 그 사이에 끝났다.
+                        }
+                        return new GitResult(-1, string.Empty, GitText.Format("command.timeout", FirstArg(args), timeoutMs / 1000));
+                    }
+                    errorTask.Wait();
+                    return new GitResult(process.ExitCode, string.Empty, errorTask.Result);
+                }
+                catch (System.ComponentModel.Win32Exception e)
+                {
+                    return new GitResult(-1, string.Empty, GitText.Format("command.notFound", git.Path, e.Message));
+                }
+            });
+        }
+
+        /// <summary>
         /// 인자 목록을 Windows CommandLineToArgvW 규칙으로 이어 붙인다(.NET Standard 2.1 에는 ArgumentList 가 없다).
         /// macOS/Linux 의 Mono 도 같은 규칙으로 다시 쪼갠다.
         /// </summary>

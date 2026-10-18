@@ -6,7 +6,7 @@
         </ui:VisualElement>
         <ui:Label name="placeholder" text="@detail.placeholder" class="list__empty" />
         <ui:VisualElement name="body" class="commit-detail__body">
-            <ui:TextField name="message" multiline="true" readonly="true" class="commit-detail__message" />
+            <ui:TextField name="message" multiline="true" readonly="true" vertical-scroller-visibility="Auto" class="commit-detail__message" />
             <ui:VisualElement class="commit-detail__files">
                 <ui:VisualElement class="list-header">
                     <ui:Label text="@column.changedFiles" class="list-header__cell list-header__cell--grow" />

@@ -14,9 +14,10 @@ namespace GitVersionControl
         public readonly IFileIconProvider Icons;
         public readonly FileViewPreference FileView;
         public readonly IAvatarProvider Avatars;
+        public readonly IGitDiffService Diff;
 
         public GitServices(IGitRepositoryState repository, IGitHistoryService history, IGitCommandService commands,
-            IGitOperationRunner runner, IDialogService dialogs, IAssetNavigator assets, IFileIconProvider icons, FileViewPreference fileView, IAvatarProvider avatars)
+            IGitOperationRunner runner, IDialogService dialogs, IAssetNavigator assets, IFileIconProvider icons, FileViewPreference fileView, IAvatarProvider avatars, IGitDiffService diff)
         {
             Repository = repository;
             History = history;
@@ -27,6 +28,7 @@ namespace GitVersionControl
             Icons = icons;
             FileView = fileView;
             Avatars = avatars;
+            Diff = diff;
         }
 
         /// <summary>아바타는 받은 그림을 창을 다시 만들어도(언어 전환 등) 버리지 않도록 에디터 세션 동안 하나를 같이 쓴다.</summary>
@@ -38,7 +40,7 @@ namespace GitVersionControl
             GitRepositoryState repository = new();
             EditorDialogService dialogs = new();
             return new GitServices(repository, new GitHistoryService(), new GitCommandService(),
-                new GitOperationRunner(repository, dialogs), dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider);
+                new GitOperationRunner(repository, dialogs), dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
         }
     }
 

@@ -61,11 +61,15 @@ namespace GitVersionControl
 
         public event Action<FileListItem, bool> ToggleChanged;
 
+        /// <summary>
+        /// 우클릭 메뉴의 맨 위 항목(diff 등)을 채운다. null 이면 없다.
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> PopulateMenuHead;
+
         public FileList(ListView listView, IAssetNavigator assets, FileRowBinder binder) : base(listView, "FileRow")
         {
             _assets = assets;
             _binder = binder;
-            ItemChosen += item => _assets.Ping(item.ProjectPath);
         }
 
         protected override void OnRowCreated(VisualElement row)
@@ -87,6 +91,7 @@ namespace GitVersionControl
 
         protected override void PopulateContextMenu(DropdownMenu menu, FileListItem item)
         {
+            PopulateMenuHead?.Invoke(menu, item);
             FileRowBinder.AppendFileMenu(menu, item, _assets);
             menu.AppendSeparator();
             base.PopulateContextMenu(menu, item);

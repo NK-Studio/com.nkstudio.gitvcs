@@ -17,7 +17,7 @@
             <ui:Label text="@common.noCommits" class="notice__text" />
         </ui:VisualElement>
 
-        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="190" orientation="Vertical" class="view__split">
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="260" orientation="Vertical" class="view__split">
             <ui:VisualElement name="graph-pane" class="branch-explorer__graph-pane">
                 <ui:VisualElement name="graph-host" class="branch-explorer__graph-pane" />
                 <ui:VisualElement class="branch-explorer__overlay">

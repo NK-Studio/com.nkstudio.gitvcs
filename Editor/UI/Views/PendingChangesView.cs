@@ -40,6 +40,7 @@ namespace GitVersionControl
             _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services)
             {
                 IsChecked = item => _selection.IsChecked((GitStatusEntry)item.Source),
+                DiffTargetOf = item => GitDiffTarget.ForWorkingTree((GitStatusEntry)item.Source),
             };
             _files.ToggleChanged += OnToggleChanged;
             _files.ContextMenuRequested += PopulateContextMenu;

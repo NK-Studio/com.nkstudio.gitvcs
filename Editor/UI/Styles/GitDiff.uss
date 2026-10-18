@@ -1,0 +1,199 @@
+/*
+ * git-diff: 내장 diff 뷰어. 통합 보기(diff-row) 와 나란히 보기(diff-row--split, 양쪽 diff-side) 두 줄 모양을 쓴다.
+ * 색은 GitHub·VS Code 의 어두운 테마 diff 색에 맞췄다(초록=더함, 빨강=지움, 진한 칸=줄 안에서 실제로 바뀐 부분).
+ */
+
+.git-diff {
+    flex-grow: 1;
+    background-color: var(--unity-colors-window-background, #383838);
+    --diff-added-line: rgba(46, 160, 67, 0.18);
+    --diff-added-change: rgba(46, 160, 67, 0.45);
+    --diff-removed-line: rgba(248, 81, 73, 0.18);
+    --diff-removed-change: rgba(248, 81, 73, 0.45);
+    --diff-hunk: rgba(56, 139, 253, 0.14);
+    --diff-gutter: rgba(0, 0, 0, 0.18);
+    --diff-number: #7d8590;
+    --diff-text: #d6d6d6;
+}
+
+.git-diff__toolbar {
+    flex-shrink: 0;
+}
+
+.git-diff__title {
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    margin: 0 6px;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-diff__dropdown {
+    width: 140px;
+    margin: 0 2px;
+    flex-shrink: 1;
+    min-width: 60px;
+}
+
+.git-diff__info {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    height: 22px;
+    padding: 0 6px;
+    background-color: rgba(0, 0, 0, 0.12);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--unity-colors-default-border, #232323);
+}
+
+.git-diff__stat {
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-right: 6px;
+    padding: 0;
+}
+
+.git-diff__stat--added {
+    color: #3fb950;
+}
+
+.git-diff__stat--removed {
+    color: #f85149;
+}
+
+.git-diff__revisions {
+    flex-shrink: 1;
+    font-size: 10px;
+    color: var(--unity-colors-label-text, #9a9a9a);
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-diff__nav {
+    width: 22px;
+    height: 18px;
+    padding: 0;
+    margin: 0 0 0 2px;
+}
+
+.git-diff__notice {
+    margin: 16px;
+    -unity-text-align: middle-center;
+    color: var(--unity-colors-label-text, #9a9a9a);
+    white-space: normal;
+}
+
+.git-diff__list {
+    flex-grow: 1;
+    flex-basis: 0;
+    background-color: #1e1e1e;
+}
+
+/* ── 줄 하나 ───────────────────────────────── */
+.diff-row {
+    flex-direction: row;
+    height: 18px;
+    align-items: stretch;
+}
+
+.diff-side {
+    flex-direction: row;
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.diff-side--left {
+    border-right-width: 1px;
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.diff-row__number {
+    width: 48px;
+    min-width: 48px;
+    padding: 0 6px 0 0;
+    margin: 0;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--diff-number);
+    background-color: var(--diff-gutter);
+}
+
+.diff-row__sign {
+    width: 16px;
+    min-width: 16px;
+    padding: 0;
+    margin: 0;
+    -unity-text-align: middle-center;
+    color: var(--diff-number);
+}
+
+.diff-row__code {
+    flex-direction: row;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* 앞·바뀐 부분·뒤 세 조각. 공백을 그대로 보이게 줄바꿈 없이 붙인다. */
+.diff-row__part {
+    padding: 0;
+    margin: 0;
+    flex-shrink: 0;
+    white-space: pre;
+    -unity-text-align: middle-left;
+    color: var(--diff-text);
+}
+
+.diff-row--added,
+.diff-side--added {
+    background-color: var(--diff-added-line);
+}
+
+.diff-row--added .diff-row__change,
+.diff-side--added .diff-row__change {
+    background-color: var(--diff-added-change);
+}
+
+.diff-row--removed,
+.diff-side--removed {
+    background-color: var(--diff-removed-line);
+}
+
+.diff-row--removed .diff-row__change,
+.diff-side--removed .diff-row__change {
+    background-color: var(--diff-removed-change);
+}
+
+.diff-row--added .diff-row__sign,
+.diff-side--added .diff-row__sign {
+    color: #3fb950;
+}
+
+.diff-row--removed .diff-row__sign,
+.diff-side--removed .diff-row__sign {
+    color: #f85149;
+}
+
+/* 반대편에 짝이 없는 칸(나란히 보기). 빗금 대신 더 어두운 칸으로 비어 있음을 보인다. */
+.diff-side--empty {
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.diff-row--hunk,
+.diff-side--hunk {
+    background-color: var(--diff-hunk);
+}
+
+.diff-row--hunk .diff-row__part,
+.diff-side--hunk .diff-row__part,
+.diff-row--meta .diff-row__part,
+.diff-side--meta .diff-row__part {
+    color: #8ab4f8;
+}

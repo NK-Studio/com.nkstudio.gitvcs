@@ -77,7 +77,139 @@ namespace GitVersionControl
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
 
             EditorGUILayout.Space();
+            DrawDiff(settings);
+
+            EditorGUILayout.Space();
             DrawRepositoryStatus();
+        }
+
+        /// <summary>
+        /// Diff 엔진과 엔진별 옵션. 내장 뷰어는 git diff 옵션을, 외부 도구는 프로그램 경로·인자를 보인다.
+        /// </summary>
+        private static void DrawDiff(GitVcsSettings settings)
+        {
+            EditorGUILayout.LabelField(GitText.Get("settings.diffHeader"), EditorStyles.boldLabel);
+
+            DiffEngine engine = EnumPopup(GitText.Get("settings.diffEngine"), GitText.Get("settings.diffEngineTooltip"), settings.DiffEngine, "diffEngine.");
+            settings.DiffEngine = engine;
+
+            using (new EditorGUI.IndentLevelScope())
+            {
+                switch (engine)
+                {
+                    case DiffEngine.BuiltIn:
+                        settings.DiffAlgorithm = EnumPopup(GitText.Get("settings.diffAlgorithm"), GitText.Get("settings.diffAlgorithmTooltip"), settings.DiffAlgorithm, null);
+                        settings.DiffWhitespace = EnumPopup(GitText.Get("settings.diffWhitespace"), null, settings.DiffWhitespace, "diffWhitespace.");
+                        settings.DiffContextLines = EditorGUILayout.DelayedIntField(new GUIContent(GitText.Get("settings.diffContext"), GitText.Get("settings.diffContextTooltip")), settings.DiffContextLines);
+                        settings.DiffLayout = EnumPopup(GitText.Get("settings.diffLayout"), null, settings.DiffLayout, "diffLayout.");
+                        break;
+                    case DiffEngine.GitDifftool:
+                        settings.DifftoolName = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.difftoolName"), GitText.Get("settings.difftoolNameTooltip")), settings.DifftoolName);
+                        DrawDifftoolConfig();
+                        break;
+                    default:
+                        DrawExternalTool(settings, engine);
+                        break;
+                }
+            }
+        }
+
+        private static T EnumPopup<T>(string label, string tooltip, T current, string textKeyPrefix) where T : System.Enum
+        {
+            T[] values = (T[])System.Enum.GetValues(typeof(T));
+            GUIContent[] names = values.Select(value => new GUIContent(textKeyPrefix == null ? value.ToString().ToLowerInvariant() : GitText.Get(textKeyPrefix + value))).ToArray();
+            int index = System.Array.IndexOf(values, current);
+            int picked = EditorGUILayout.Popup(new GUIContent(label, tooltip), index, names);
+            return picked >= 0 ? values[picked] : current;
+        }
+
+        private static string s_difftoolConfig;
+        private static bool s_isReadingDifftoolConfig;
+
+        /// <summary>
+        /// git config 의 diff.tool 을 보여 준다. IMGUI 는 매 프레임 그리므로 한 번만 읽어 둔다.
+        /// </summary>
+        private static void DrawDifftoolConfig()
+        {
+            if (s_difftoolConfig == null)
+            {
+                ReadDifftoolConfigAsync();
+                return;
+            }
+            if (s_difftoolConfig.Length > 0)
+            {
+                EditorGUILayout.LabelField(" ", GitText.Format("settings.difftoolConfigured", s_difftoolConfig), EditorStyles.miniLabel);
+            }
+            else if (string.IsNullOrEmpty(GitVcsSettings.instance.DifftoolName))
+            {
+                EditorGUILayout.HelpBox(GitText.Get("settings.difftoolNotConfigured"), MessageType.Warning);
+            }
+        }
+
+        private static async void ReadDifftoolConfigAsync()
+        {
+            if (s_isReadingDifftoolConfig)
+            {
+                return;
+            }
+            s_isReadingDifftoolConfig = true;
+            GitResult result = await GitRepository.RunAsync("config", "--get", "diff.tool");
+            s_difftoolConfig = result.Success ? result.Output.Trim() : string.Empty;
+            s_isReadingDifftoolConfig = false;
+            SettingsService.RepaintAllSettingsWindow();
+        }
+
+        private static void DrawExternalTool(GitVcsSettings settings, DiffEngine engine)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                string path = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.diffToolPath"), GitText.Get("settings.diffToolPathTooltip")), settings.GetDiffToolPath(engine));
+                settings.SetDiffToolPath(engine, path);
+                if (GUILayout.Button(GitText.Get("settings.browse"), GUILayout.Width(60)))
+                {
+                    string picked = EditorUtility.OpenFilePanel(GitText.Get("settings.browseTitle"), string.Empty, Application.platform == RuntimePlatform.WindowsEditor ? "exe" : string.Empty);
+                    if (string.IsNullOrEmpty(picked) == false)
+                    {
+                        settings.SetDiffToolPath(engine, picked);
+                    }
+                }
+            }
+
+            string executable = settings.GetDiffToolPath(engine);
+            if (engine == DiffEngine.Custom)
+            {
+                settings.CustomDiffArguments = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.diffArguments"), GitText.Get("settings.diffArgumentsTooltip")), settings.CustomDiffArguments);
+            }
+            else if (string.IsNullOrEmpty(executable))
+            {
+                executable = FindToolCached(engine);
+                if (executable != null)
+                {
+                    EditorGUILayout.LabelField(" ", GitText.Format("settings.diffToolFound", executable), EditorStyles.miniLabel);
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox(GitText.Get("settings.diffToolMissing"), MessageType.Warning);
+                }
+            }
+
+            string template = engine == DiffEngine.Custom ? settings.CustomDiffArguments : ExternalDiffTool.ArgumentTemplate(engine, Application.platform);
+            EditorGUILayout.LabelField(" ", GitText.Format("settings.diffPreview", System.IO.Path.GetFileName(executable ?? "?"), template), EditorStyles.miniLabel);
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<DiffEngine, string> s_foundTools = new();
+
+        /// <summary>
+        /// 설치 위치 찾기는 디스크를 훑으므로 엔진마다 한 번만 한다(IMGUI 는 매 프레임 그린다).
+        /// </summary>
+        private static string FindToolCached(DiffEngine engine)
+        {
+            if (s_foundTools.TryGetValue(engine, out string path) == false)
+            {
+                path = ExternalDiffTool.FindExecutable(engine);
+                s_foundTools[engine] = path;
+            }
+            return path;
         }
 
         /// <summary>언어 선택. 이름은 각 언어 자기 말로 보여서 어떤 언어로 보고 있든 고를 수 있게 한다.</summary>

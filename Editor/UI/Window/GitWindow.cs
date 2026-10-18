@@ -175,6 +175,7 @@ namespace GitVersionControl
             {
                 return;
             }
+            _toolbar.RefreshStashCount();
             foreach (GitView view in _views)
             {
                 view.OnRepositoryChanged();

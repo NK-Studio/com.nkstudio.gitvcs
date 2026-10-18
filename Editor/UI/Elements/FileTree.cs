@@ -30,6 +30,16 @@ namespace GitVersionControl
         public event Action<DropdownMenu, FileListItem> ContextMenuRequested;
         public event Action<DropdownMenu, IReadOnlyList<FileListItem>> FolderContextMenuRequested;
 
+        /// <summary>
+        /// 파일 줄을 더블클릭·Enter 했을 때.
+        /// </summary>
+        public event Action<FileListItem> FileChosen;
+
+        /// <summary>
+        /// 파일 줄 우클릭 메뉴의 맨 위 항목(diff 등)을 채운다. null 이면 없다.
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> PopulateMenuHead;
+
         public VisualElement Root => _tree;
 
         public FileTree(IAssetNavigator assets, FileRowBinder binder)
@@ -52,7 +62,7 @@ namespace GitVersionControl
             {
                 if (chosen.FirstOrDefault() is FileTreeNode node && node.Item != null)
                 {
-                    _assets.Ping(node.Item.ProjectPath);
+                    FileChosen?.Invoke(node.Item);
                 }
             };
         }
@@ -148,6 +158,7 @@ namespace GitVersionControl
                 }
                 else
                 {
+                    PopulateMenuHead?.Invoke(evt.menu, node.Item);
                     FileRowBinder.AppendFileMenu(evt.menu, node.Item, _assets);
                     evt.menu.AppendSeparator();
                     ContextMenuRequested?.Invoke(evt.menu, node.Item);

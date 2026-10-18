@@ -1,53 +1,206 @@
-using UnityEditor.UIElements;
+using System.IO;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
     /// <summary>
-    /// 창 위쪽 막대(<c>.git-toolbar</c>): 현재 브랜치(누르면 Branches 탭), 진행 상태, Fetch·Pull·Push·새로고침.
+    /// 창 위쪽 작업 막대(<c>.git-actionbar</c>). GitKraken·Fork 처럼 아이콘+글자 버튼을 묶어 둔다:
+    /// 저장소·브랜치(누르면 브랜치 탭) | 실행 취소·다시 실행 | Fetch·Pull·Push | Stash·Pop | 터미널 | 진행 상태·새로고침.
+    /// Pull·Push·Pop 버튼에는 받을/올릴 커밋 수와 stash 수를 숫자로 겹쳐 보인다.
     /// </summary>
     public sealed class GitToolbar
     {
+        private const string CompactModifier = "git-actionbar--compact";
+
+        /// <summary>
+        /// 이 폭보다 좁으면 버튼 글자를 숨긴다. 저장소·브랜치 칸(약 300) + 버튼 8개(각 54) + 새로고침이 한 줄에 들어가는 폭.
+        /// </summary>
+        private const float CompactWidth = 780f;
+
         private readonly GitServices _services;
-        private readonly ToolbarButton _branchButton;
+        private readonly VisualElement _bar;
+        private readonly Label _repoName;
+        private readonly Button _branchButton;
         private readonly Label _status;
-        private readonly ToolbarButton _fetchButton;
-        private readonly ToolbarButton _pullButton;
-        private readonly ToolbarButton _pushButton;
-        private readonly ToolbarButton _refreshButton;
+        private readonly ActionButton _undo;
+        private readonly ActionButton _redo;
+        private readonly ActionButton _fetch;
+        private readonly ActionButton _pull;
+        private readonly ActionButton _push;
+        private readonly ActionButton _stash;
+        private readonly ActionButton _pop;
+        private readonly ActionButton _terminal;
+        private readonly Button _refreshButton;
+
+        private int _stashCount;
+        private bool _isCountingStash;
 
         public GitToolbar(VisualElement root, GitServices services, ITabNavigator navigator)
         {
             _services = services;
-            _branchButton = root.Require<ToolbarButton>("branch-button");
+            _bar = root.Require<VisualElement>("action-bar");
+            _repoName = root.Require<Label>("repo-name");
+            _branchButton = root.Require<Button>("branch-button");
             _status = root.Require<Label>("status-label");
-            _fetchButton = root.Require<ToolbarButton>("fetch-button");
-            _pullButton = root.Require<ToolbarButton>("pull-button");
-            _pushButton = root.Require<ToolbarButton>("push-button");
-            _refreshButton = root.Require<ToolbarButton>("refresh-button");
+            _undo = new ActionButton(root.Require<Button>("undo-button"), ActionGlyphKind.Undo);
+            _redo = new ActionButton(root.Require<Button>("redo-button"), ActionGlyphKind.Redo);
+            _fetch = new ActionButton(root.Require<Button>("fetch-button"), ActionGlyphKind.Fetch);
+            _pull = new ActionButton(root.Require<Button>("pull-button"), ActionGlyphKind.Pull);
+            _push = new ActionButton(root.Require<Button>("push-button"), ActionGlyphKind.Push);
+            _stash = new ActionButton(root.Require<Button>("stash-button"), ActionGlyphKind.Stash);
+            _pop = new ActionButton(root.Require<Button>("pop-button"), ActionGlyphKind.Pop);
+            _terminal = new ActionButton(root.Require<Button>("terminal-button"), ActionGlyphKind.Terminal);
+            _refreshButton = root.Require<Button>("refresh-button");
             ToolbarIcons.SetRefreshIcon(_refreshButton);
 
+            IGitOperationRunner runner = services.Runner;
+            IGitCommandService commands = services.Commands;
             _branchButton.clicked += navigator.SelectTab<BranchesView>;
-            _fetchButton.clicked += () => _ = services.Runner.RunAsync("Fetch", services.Commands.FetchAsync, refreshAssets: false);
-            _pullButton.clicked += () => _ = services.Runner.RunAsync("Pull", services.Commands.PullAsync, refreshAssets: true);
-            _pushButton.clicked += () =>
+            _undo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.undo"), commands.UndoAsync, refreshAssets: true);
+            _redo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.redo"), commands.RedoAsync, refreshAssets: true);
+            _fetch.Clicked += () => _ = runner.RunAsync(GitText.Get("op.fetch"), commands.FetchAsync, refreshAssets: false);
+            _pull.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pull"), commands.PullAsync, refreshAssets: true);
+            _push.Clicked += () =>
             {
                 GitBranchInfo branch = services.Repository.Branch;
-                _ = services.Runner.RunAsync("Push", () => services.Commands.PushAsync(branch), refreshAssets: false);
+                _ = runner.RunAsync(GitText.Get("op.push"), () => commands.PushAsync(branch), refreshAssets: false);
             };
+            _stash.Clicked += Stash;
+            _pop.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pop"), commands.StashPopAsync, refreshAssets: true);
+            _terminal.Clicked += OpenTerminal;
             _refreshButton.clicked += () => services.Repository.RequestRefresh(immediate: true);
+
+            commands.UndoJournal.Changed += Render;
+            _bar.RegisterCallback<GeometryChangedEvent>(evt => _bar.EnableInClassList(CompactModifier, evt.newRect.width < CompactWidth));
+            _bar.RegisterCallback<DetachFromPanelEvent>(_ => commands.UndoJournal.Changed -= Render);
         }
 
         public void Render()
         {
-            _branchButton.text = GitDisplay.FormatBranch(_services.Repository.Branch);
+            IGitRepositoryState repository = _services.Repository;
+            GitBranchInfo branch = repository.Branch;
+            _repoName.text = string.IsNullOrEmpty(GitRepository.RepoRoot) ? "-" : Path.GetFileName(GitRepository.RepoRoot.TrimEnd('/'));
+            _repoName.tooltip = GitRepository.RepoRoot;
+            _branchButton.text = branch == null ? "-" : branch.Detached ? "HEAD (detached)" : branch.Name;
+            _branchButton.tooltip = GitDisplay.FormatBranch(branch);
             _status.text = _services.Runner.StatusText;
+            _status.tooltip = _services.Runner.StatusText;
 
             bool idle = _services.Runner.IsBusy == false;
-            _fetchButton.SetEnabled(idle);
-            _pullButton.SetEnabled(idle);
-            _pushButton.SetEnabled(idle);
-            _refreshButton.SetEnabled(_services.Repository.IsRefreshing == false);
+            bool ready = repository.IsRunning && repository.IsRepository;
+            bool hasUpstream = string.IsNullOrEmpty(branch?.Upstream) == false;
+            int behind = branch?.Behind ?? 0;
+            int ahead = branch?.Ahead ?? 0;
+
+            GitUndoJournal journal = _services.Commands.UndoJournal;
+            _undo.SetEnabled(idle && ready && journal.NextUndo != null);
+            _undo.Tooltip = journal.NextUndo != null ? GitText.Format("actionbar.undoTooltip", journal.NextUndo.Title) : GitText.Get("actionbar.nothingToUndo");
+            _redo.SetEnabled(idle && ready && journal.NextRedo != null);
+            _redo.Tooltip = journal.NextRedo != null ? GitText.Format("actionbar.redoTooltip", journal.NextRedo.Title) : GitText.Get("actionbar.nothingToRedo");
+
+            _fetch.SetEnabled(idle && ready);
+            _pull.SetEnabled(idle && ready && hasUpstream);
+            _pull.SetBadge(behind);
+            _pull.Tooltip = GitText.Format("actionbar.pullTooltip", behind);
+            _push.SetEnabled(idle && ready && branch != null && branch.Detached == false && branch.HasCommits);
+            _push.SetBadge(ahead);
+            _push.Tooltip = GitText.Format("actionbar.pushTooltip", ahead);
+            _stash.SetEnabled(idle && ready && repository.Entries.Count > 0);
+            _pop.SetEnabled(idle && ready && _stashCount > 0);
+            _pop.SetBadge(_stashCount);
+            _pop.Tooltip = GitText.Format("actionbar.popTooltip", _stashCount);
+            _terminal.SetEnabled(ready);
+            _refreshButton.SetEnabled(repository.IsRefreshing == false);
+        }
+
+        /// <summary>
+        /// 저장소가 바뀌었을 때(Stash·Pop·터미널에서의 작업 뒤 등) stash 수를 다시 센다.
+        /// </summary>
+        public async void RefreshStashCount()
+        {
+            if (_isCountingStash || _services.Repository.IsRepository == false)
+            {
+                return;
+            }
+            _isCountingStash = true;
+            _stashCount = await _services.Commands.StashCountAsync();
+            _isCountingStash = false;
+            Render();
+        }
+
+        private void Stash()
+        {
+            // 열린 씬·프리팹의 저장 안 된 수정은 stash 에 들어가지 않는다. 저장을 거부하면 멈춘다.
+            if (_services.Dialogs.SaveOpenWork() == false)
+            {
+                return;
+            }
+            _ = _services.Runner.RunAsync(GitText.Get("op.stash"), _services.Commands.StashAsync, refreshAssets: true);
+        }
+
+        private void OpenTerminal()
+        {
+            string error = GitTerminal.Open(GitRepository.RepoRoot ?? GitRepository.ProjectRoot);
+            if (error != null)
+            {
+                _services.Dialogs.Alert(GitText.Get("actionbar.terminalFailed"), error);
+            }
+        }
+
+        /// <summary>
+        /// UXML 의 버튼 하나를 아이콘(위)·글자(아래)·숫자 배지로 꾸민다. 글자는 UXML 의 text 를 옮겨 쓴다.
+        /// </summary>
+        private sealed class ActionButton
+        {
+            private const string BadgeHiddenModifier = "git-action__badge--hidden";
+
+            private readonly Button _button;
+            private readonly Label _badge;
+
+            public event System.Action Clicked
+            {
+                add => _button.clicked += value;
+                remove => _button.clicked -= value;
+            }
+
+            public string Tooltip
+            {
+                set => _button.tooltip = value;
+            }
+
+            public ActionButton(Button button, ActionGlyphKind kind)
+            {
+                _button = button;
+                string caption = button.text;
+                button.text = string.Empty;
+
+                ActionGlyph icon = new(kind);
+                icon.AddToClassList("git-action__icon");
+                button.Add(icon);
+
+                Label label = new(caption);
+                label.AddToClassList("git-action__caption");
+                button.Add(label);
+
+                _badge = new Label();
+                _badge.AddToClassList("git-action__badge");
+                _badge.AddToClassList(BadgeHiddenModifier);
+                button.Add(_badge);
+            }
+
+            public void SetEnabled(bool enabled)
+            {
+                _button.SetEnabled(enabled);
+            }
+
+            /// <summary>
+            /// 0 이면 숨긴다. 세 자리 넘는 수는 "99+" 로 줄인다(배지 폭을 넘지 않게).
+            /// </summary>
+            public void SetBadge(int count)
+            {
+                _badge.EnableInClassList(BadgeHiddenModifier, count <= 0);
+                _badge.text = count > 99 ? "99+" : count.ToString();
+            }
         }
     }
 }

@@ -166,6 +166,36 @@ namespace GitVersionControl
             return GitRepository.RunAsync("check-ref-format", "--branch", name);
         }
 
+        /// <summary>
+        /// 작업 트리 변경을 stash 에 넣고 작업 트리를 HEAD 로 되돌린다. Unity 프로젝트는 새 에셋(untracked)도 함께 생기므로
+        /// <c>--include-untracked</c> 로 같이 넣는다 — 빼면 .meta 짝만 남아 Unity 가 고아 meta 를 지우거나 다시 만든다.
+        /// </summary>
+        public static Task<GitResult> StashAsync()
+        {
+            return GitRepository.RunAsync("stash", "push", "--include-untracked");
+        }
+
+        /// <summary>
+        /// 가장 최근 stash 를 작업 트리에 되돌리고 목록에서 뺀다. 충돌하면 git 이 stash 를 남겨 둔다.
+        /// </summary>
+        public static Task<GitResult> StashPopAsync()
+        {
+            return GitRepository.RunAsync("stash", "pop");
+        }
+
+        /// <summary>
+        /// stash 개수. 실패하면 0 으로 본다(stash 가 없는 새 저장소도 실패가 아니라 빈 출력이다).
+        /// </summary>
+        public static async Task<int> StashCountAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("stash", "list", "--format=%gd");
+            if (result.Success == false)
+            {
+                return 0;
+            }
+            return result.Output.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+
         private static async Task<GitResult> RunWithPaths(string[] args, List<string> paths)
         {
             string pathsFile = WritePathspecFile(paths);

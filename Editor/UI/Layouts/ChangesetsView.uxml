@@ -15,7 +15,7 @@
             <ui:Label text="@common.noCommits" class="notice__text" />
         </ui:VisualElement>
 
-        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="230" orientation="Vertical" class="view__split">
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="260" orientation="Vertical" class="view__split">
             <ui:VisualElement class="view__pane">
                 <ui:VisualElement class="list-header">
                     <ui:Label text="@column.hash" class="list-header__cell column--hash" />

@@ -71,6 +71,8 @@
 /* ── branches ─────────────────────────────────────── */
 .branches__new-name {
     width: 180px;
+    min-width: 60px;
+    flex-shrink: 1;
     margin: 1px 2px;
 }
 
@@ -151,14 +153,24 @@
     margin: 0 2px;
 }
 
-.branch-explorer__search {
+.branch-explorer__toolbar .branch-explorer__search {
     width: 220px;
+    min-width: 80px;
+    flex-shrink: 1;
+}
+
+.branch-explorer__toolbar .view__toolbar-label {
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .branch-explorer__graph-pane {
     flex-grow: 1;
     flex-basis: 0;
     min-height: 0;
+    overflow: hidden;
 }
 
 .branch-explorer__overlay {

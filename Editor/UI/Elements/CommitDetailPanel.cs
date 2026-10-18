@@ -38,7 +38,10 @@ namespace GitVersionControl
             _placeholder = Root.Require<Label>("placeholder");
             _body = Root.Require<VisualElement>("body");
             _message = Root.Require<TextField>("message");
-            _files = new FileBrowser(Root.Require<VisualElement>("files"), Root.Require<VisualElement>("view-mode-host"), services);
+            _files = new FileBrowser(Root.Require<VisualElement>("files"), Root.Require<VisualElement>("view-mode-host"), services)
+            {
+                DiffTargetOf = item => GitDiffTarget.ForCommit(_shownHash, (GitFileChange)item.Source),
+            };
 
             Button close = Root.Require<Button>("close-button");
             close.EnableInClassList(CloseHiddenModifier, closable == false);

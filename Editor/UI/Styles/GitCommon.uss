@@ -164,6 +164,15 @@
     min-height: 0;
 }
 
+/*
+ * 단, 분할(TwoPaneSplitView) 안의 칸은 예외다. 분할은 고정 칸 크기를 height(가로 분할이면 width)로 주는데,
+ * basis 가 0 이면 height 를 무시해 고정 칸이 min-height 로 찌그러진다(커밋 상세가 바닥에 붙어 잘리던 원인).
+ * 늘어나는 칸은 분할이 인라인으로 basis 0 을 직접 넣으므로 auto 로 되돌려도 그대로다.
+ */
+.view__split .view__pane {
+    flex-basis: auto;
+}
+
 .list-header,
 .notice,
 .unity-toolbar {
@@ -183,9 +192,10 @@
 .column--date { width: 112px; min-width: 112px; }
 .column--track { width: 170px; min-width: 170px; }
 .column--local { width: 130px; min-width: 130px; }
-.column--grow { flex-grow: 1; flex-shrink: 1; min-width: 60px; }
-.column--grow-2 { flex-grow: 2; flex-shrink: 1; min-width: 60px; }
-.column--grow-3 { flex-grow: 3; flex-shrink: 1; min-width: 80px; }
+/* 늘어나는 열은 basis 0 에서 나눈다. auto 면 글자 길이만큼 먼저 차지해 머리 줄과 목록 줄의 열 경계가 어긋난다. */
+.column--grow { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 60px; }
+.column--grow-2 { flex-grow: 2; flex-shrink: 1; flex-basis: 0; min-width: 60px; }
+.column--grow-3 { flex-grow: 3; flex-shrink: 1; flex-basis: 0; min-width: 80px; }
 
 /* 한 줄 글자는 넘치면 …으로 줄인다. */
 .ellipsis {
