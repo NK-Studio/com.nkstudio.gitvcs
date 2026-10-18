@@ -8,7 +8,7 @@ namespace GitVersionControl
 {
     /// <summary>
     /// Branch Explorer 탭: Unity Version Control 의 Branch Explorer 처럼 브랜치 흐름을 그래프로 보여 준다.
-    /// 그래프 배치는 <see cref="GitGraph"/>, 그리기·조작은 <see cref="BranchGraphElement"/>, 상세는 <see cref="CommitDetailPanel"/>.
+    /// 그래프 배치는 <see cref="GitGraph"/>, 그리기·조작은 <see cref="BranchGraphElement"/>, 상세는 오른쪽 인스펙터 <see cref="GraphCommitDetail"/>.
     /// 이 클래스는 기간·검색 같은 도구 막대와 데이터 읽기만 맡는다.
     /// </summary>
     public sealed class BranchExplorerView : GitView, ICommitRevealer
@@ -30,7 +30,10 @@ namespace GitVersionControl
         private readonly VisualElement _emptyNotice;
         private readonly TwoPaneSplitView _split;
         private readonly BranchGraphElement _graph;
-        private readonly CommitDetailPanel _detail;
+        /// <summary>
+        /// 오른쪽 인스펙터(그래프 탭 오른쪽과 같은 세로형 커밋 상세). 늘 보이고, 고른 게 없으면 안내 문구.
+        /// </summary>
+        private readonly GraphCommitDetail _detail;
         private readonly CommitMenu _commitMenu;
 
         /// <summary>
@@ -65,9 +68,16 @@ namespace GitVersionControl
 
             _graph = new BranchGraphElement(state.Zoom, state.Pan, services.Avatars);
             Root.Require<VisualElement>("graph-host").Add(_graph);
-            _detail = new CommitDetailPanel(Root.Require<VisualElement>("detail-host"), services, closable: true);
-            _detail.Hide();
-            _split.CollapseChild(1);
+            _detail = new GraphCommitDetail(Root.Require<VisualElement>("detail-host"), services);
+            // "parent: 해시" 를 누르면 그래프에서 그 커밋으로 가서 고른다.
+            _detail.ParentRequested += hash =>
+            {
+                if (_graph.Graph != null && _graph.Graph.NodeByHash.TryGetValue(hash, out GitGraphNode parent))
+                {
+                    _graph.FocusNode(parent);
+                    Select(parent);
+                }
+            };
 
             _range.choices = RangeKeys.Select(GitText.Get).ToList();
             _range.index = Math.Max(0, Math.Min(state.RangeIndex, RangeKeys.Length - 1));
@@ -100,17 +110,17 @@ namespace GitVersionControl
                 _state.Zoom = _graph.Viewport.Zoom;
                 _state.Pan = _graph.Viewport.Pan;
             };
-            _detail.Closed += () =>
-            {
-                _graph.SetSelected(null);
-                _split.CollapseChild(1);
-            };
         }
 
         protected override void OnActivated()
         {
             ReloadIfNeeded();
             Render();
+        }
+
+        public override void Dispose()
+        {
+            _detail.Dispose();
         }
 
         public override void OnRepositoryChanged()
@@ -161,9 +171,8 @@ namespace GitVersionControl
             _graph.SetGraph(graph, GitText.Get("explorer.emptyRange"));
             if (_detail.ShownHash != null && graph.NodeByHash.ContainsKey(_detail.ShownHash) == false)
             {
-                _detail.Hide();
+                _detail.ShowPlaceholder();
                 _graph.SetSelected(null);
-                _split.CollapseChild(1);
             }
 
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count) + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
@@ -236,10 +245,9 @@ namespace GitVersionControl
         private void Select(GitGraphNode node)
         {
             _graph.SetSelected(node.Commit.Hash);
-            _split.UnCollapse();
             if (_detail.ShownHash != node.Commit.Hash)
             {
-                _detail.Show(node.Commit, node.Lane.Name);
+                _detail.Show(node.Commit);
             }
         }
 

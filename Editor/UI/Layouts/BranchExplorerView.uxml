@@ -15,7 +15,8 @@
             <ui:Label text="@common.noCommits" class="notice__text" />
         </ui:VisualElement>
 
-        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="260" orientation="Vertical" class="view__split">
+        <!-- Unity VCS 처럼 오른쪽이 인스펙터: 커밋을 누를 때마다 그 커밋의 작성자·날짜·부모·메시지·바뀐 파일을 보인다. -->
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="380" orientation="Horizontal" class="view__split">
             <ui:VisualElement name="graph-pane" class="branch-explorer__graph-pane">
                 <ui:VisualElement name="graph-host" class="branch-explorer__graph-pane" />
                 <ui:VisualElement class="branch-explorer__overlay">
@@ -24,7 +25,7 @@
                     <ui:Button name="zoom-out-button" tooltip="@explorer.zoomOut" class="branch-explorer__overlay-button" />
                 </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement name="detail-host" class="view__pane" />
+            <ui:VisualElement name="detail-host" class="view__pane graph-workspace__side branch-explorer__detail" />
         </ui:TwoPaneSplitView>
     </ui:VisualElement>
 </ui:UXML>

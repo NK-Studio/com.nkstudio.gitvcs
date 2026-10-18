@@ -29,6 +29,8 @@ namespace GitVersionControl
         [SerializeField] private string _gitExecutable = "git";
         [SerializeField] private bool _showOverlays = true;
         [SerializeField] private bool _refreshOnFocus = true;
+        [SerializeField] private bool _stageMetaPairs;
+        [SerializeField] private bool _checkoutNewBranch;
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
         [SerializeField] private bool _showAvatars;
@@ -37,6 +39,7 @@ namespace GitVersionControl
         [SerializeField] private int _diffWhitespace;
         [SerializeField] private int _diffContextLines = 3;
         [SerializeField] private int _diffLayout = (int)DiffLayout.SideBySide;
+        [SerializeField] private int _imageDiffMode = (int)ImageDiffMode.TwoUp;
         [SerializeField] private string _difftoolName = string.Empty;
         [SerializeField] private string _customDiffArguments = ExternalDiffTool.DefaultCustomArguments;
         [SerializeField] private List<string> _diffToolPaths = new();
@@ -46,6 +49,10 @@ namespace GitVersionControl
         [SerializeField] private int _layout;
         [SerializeField] private bool _showInMainToolbar = true;
         [SerializeField] private int _menuStyle;
+        [SerializeField] private float _graphRefsColumnWidth;
+        [SerializeField] private float _graphColumnWidth;
+        [SerializeField] private float _graphMessageColumnWidth;
+        [SerializeField] private string _graphColumnOrder = string.Empty;
 
         /// <summary>
         /// 내장 diff 의 git 옵션(알고리즘·공백·문맥 줄 수)이 바뀌었을 때. 열려 있는 diff 가 다시 읽는다 — 설정 화면에서만 바꾼다.
@@ -69,6 +76,25 @@ namespace GitVersionControl
         {
             get => _refreshOnFocus;
             set => SetAndSave(ref _refreshOnFocus, value);
+        }
+
+        /// <summary>
+        /// Stage·Unstage·변경 버리기 때 같은 목록의 .meta 짝(A.cs ↔ A.cs.meta)을 같이 옮길지. 기본은 끔 —
+        /// Fork·GitKraken 처럼 고른 파일만 옮긴다. 켜면 한쪽만 커밋돼 GUID 가 어긋나는 일을 막는다(<see cref="GitStaging.WithMetaPairs"/>).
+        /// </summary>
+        public bool StageMetaPairs
+        {
+            get => _stageMetaPairs;
+            set => SetAndSave(ref _stageMetaPairs, value);
+        }
+
+        /// <summary>
+        /// 브랜치 만들기 창의 "만든 뒤 체크아웃" 을 마지막으로 고른 값(<see cref="GitBranchDialog"/>). 기본은 끔(Fork 와 같다).
+        /// </summary>
+        public bool CheckoutNewBranch
+        {
+            get => _checkoutNewBranch;
+            set => SetAndSave(ref _checkoutNewBranch, value);
         }
 
         /// <summary>화면 언어. 고른 적이 없으면(-1) 시스템 언어를 따른다. 읽기·바꾸기는 <see cref="GitText"/> 를 통한다.</summary>
@@ -167,6 +193,19 @@ namespace GitVersionControl
             {
                 int index = (int)value;
                 SetAndSave(ref _diffLayout, index);
+            }
+        }
+
+        /// <summary>
+        /// 이미지 diff 보기 방식(나란히·스와이프·어니언 스킨·차이). 마지막으로 고른 방식을 다음 이미지에도 쓴다.
+        /// </summary>
+        public ImageDiffMode ImageDiffMode
+        {
+            get => (ImageDiffMode)_imageDiffMode;
+            set
+            {
+                int index = (int)value;
+                SetAndSave(ref _imageDiffMode, index);
             }
         }
 
@@ -279,6 +318,42 @@ namespace GitVersionControl
                 int index = (int)value;
                 SetAndSave(ref _menuStyle, index);
             }
+        }
+
+        /// <summary>
+        /// 세로 커밋 그래프의 브랜치/태그 칸 폭(머리 줄 경계를 끌어 바꾼다). 0 이면 기본 폭.
+        /// </summary>
+        public float GraphRefsColumnWidth
+        {
+            get => _graphRefsColumnWidth;
+            set => SetAndSave(ref _graphRefsColumnWidth, value);
+        }
+
+        /// <summary>
+        /// 세로 커밋 그래프의 그래프 칸 폭. 0 이면 가지 수에 맞춘다.
+        /// </summary>
+        public float GraphColumnWidth
+        {
+            get => _graphColumnWidth;
+            set => SetAndSave(ref _graphColumnWidth, value);
+        }
+
+        /// <summary>
+        /// 세로 커밋 그래프의 메시지 칸 폭. 메시지 칸이 맨 오른쪽이 아닐 때만 쓴다(맨 오른쪽 칸은 남은 폭을 갖는다). 0 이면 기본 폭.
+        /// </summary>
+        public float GraphMessageColumnWidth
+        {
+            get => _graphMessageColumnWidth;
+            set => SetAndSave(ref _graphMessageColumnWidth, value);
+        }
+
+        /// <summary>
+        /// 세로 커밋 그래프의 칸 순서(머리 줄 칸을 끌어 바꾼다). <see cref="CommitGraphColumn"/> 번호를 쉼표로 이은 것, 비우면 기본 순서.
+        /// </summary>
+        public string GraphColumnOrder
+        {
+            get => _graphColumnOrder ?? string.Empty;
+            set => SetAndSave(ref _graphColumnOrder, value ?? string.Empty);
         }
 
         /// <returns>값이 실제로 바뀌었으면 true.</returns>

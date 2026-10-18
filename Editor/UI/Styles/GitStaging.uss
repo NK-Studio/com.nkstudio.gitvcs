@@ -22,23 +22,90 @@
     border-bottom-color: var(--git-border);
 }
 
-.staging__header {
-    height: 26px;
-    min-height: 26px;
+/* Unstaged·Staged 구역 머리 줄: 버튼 위아래에 여유를 둔다(GitKraken 처럼 구역 제목이 한 단계 크다).
+   테마의 .git-theme--jetbrains .list-header(24px)가 덮지 않게 클래스를 셋 겹쳐 적는다. */
+.staging .list-header.staging__header {
+    height: 34px;
+    min-height: 34px;
+    padding: 0 8px 0 8px;
 }
 
 .staging__title {
-    font-size: 11px;
+    font-size: 12px;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
 }
 
 .staging__button {
-    height: 20px;
+    height: 24px;
     margin: 0 0 0 6px;
-    padding: 0 10px;
-    font-size: 11px;
+    padding: 0 12px;
+    font-size: 12px;
     border-radius: var(--git-radius);
+}
+
+/* Stage(초록)·Unstage(빨강): GitKraken 처럼 테두리는 테마의 성공·위험 색, 바탕은 같은 색을 옅게 깐다.
+   바탕 rgba 는 테마마다 비슷한 초록·빨강이라 하나로 둔다. 기본 버튼의 :hover:enabled 보다 세게 하려고 같은 꼴로 적는다. */
+.staging__button--stage,
+.staging__button--unstage {
+    border-width: 1px;
+    color: var(--git-text);
+}
+
+.staging__button--stage {
+    border-color: var(--git-success);
+    background-color: rgba(95, 184, 101, 0.18);
+}
+
+.staging__button--stage:hover:enabled {
+    background-color: rgba(95, 184, 101, 0.32);
+}
+
+.staging__button--stage:active:enabled {
+    background-color: rgba(95, 184, 101, 0.45);
+}
+
+.staging__button--unstage {
+    border-color: var(--git-danger);
+    background-color: rgba(219, 92, 92, 0.18);
+}
+
+.staging__button--unstage:hover:enabled {
+    background-color: rgba(219, 92, 92, 0.32);
+}
+
+.staging__button--unstage:active:enabled {
+    background-color: rgba(219, 92, 92, 0.45);
+}
+
+/* Fork 모드(--fork, StagingLists.ShiftForAll): 초록·빨강 없이 무채색. 위 규칙보다 세게 하려고 같은 꼴에 클래스를 하나 더 얹는다.
+   켜짐·꺼짐이 한눈에 갈리게: 켜지면 한 단계 진한 바탕(--git-pressed — 어느 테마에서나 사이드바보다 한 단계 짙다)·또렷한 테두리·굵은 글자,
+   꺼지면 바탕 없이 흐린 테두리·흐린 글자. 마우스를 올리면 테두리가 밝아지고, 누르면 바탕이 한 단계 옅어진다. */
+.staging--fork .staging__button--stage,
+.staging--fork .staging__button--unstage {
+    border-color: var(--git-button-border);
+    background-color: var(--git-pressed);
+    color: var(--git-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.staging--fork .staging__button--stage:hover:enabled,
+.staging--fork .staging__button--unstage:hover:enabled {
+    border-color: var(--git-text-muted);
+}
+
+.staging--fork .staging__button--stage:active:enabled,
+.staging--fork .staging__button--unstage:active:enabled {
+    background-color: var(--git-hover);
+}
+
+.staging--fork .staging__button--stage:disabled,
+.staging--fork .staging__button--unstage:disabled {
+    border-color: var(--git-divider);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
+    opacity: 0.7;
 }
 
 /* ── commit-box ──────────────────────────────────── */
@@ -123,15 +190,66 @@
     background-color: var(--git-sidebar-bg);
 }
 
-.graph-workspace__panel-title {
+/* 작업 패널 머리 줄: 왼쪽 휴지통(모든 변경 버리기) + 제목. */
+.graph-workspace__panel-header {
     flex-shrink: 0;
-    height: 28px;
-    padding: 0 10px;
-    -unity-text-align: middle-left;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    color: var(--git-text);
+    flex-direction: row;
+    align-items: center;
+    height: 32px;
+    padding: 0 6px;
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
+}
+
+/* 제목은 머리 줄 전체의 가운데에 둔다(GitKraken 과 같다). 왼쪽 휴지통(24px)만큼 오른쪽도 비워서 남은 칸이 아니라 줄 가운데에 맞춘다. */
+.graph-workspace__panel-title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 24px 0 0;
+    padding: 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -unity-text-align: middle-center;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+}
+
+/* 휴지통: 되돌릴 수 없는 작업이라 위험 색 테두리로 구분한다(GitKraken 과 같다). 그림은 흰 Material "delete" 를 글자색으로 물들인다. */
+.graph-workspace__discard-all {
+    flex-shrink: 0;
+    width: 24px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-danger);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.graph-workspace__discard-all:hover {
+    background-color: rgba(219, 92, 92, 0.25);
+}
+
+.graph-workspace__discard-all:active {
+    background-color: rgba(219, 92, 92, 0.4);
+}
+
+.graph-workspace__discard-all:disabled {
+    border-color: var(--git-border);
+    opacity: 0.5;
+}
+
+.graph-workspace__discard-all-icon {
+    width: 16px;
+    height: 16px;
+    background-image: url("../Icons/Delete.png");
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-text);
 }
 
 .graph-workspace__commit {
@@ -167,7 +285,7 @@
 }
 
 .graph-detail__hash:hover {
-    color: var(--git-accent);
+    color: var(--git-accent-fg);
 }
 
 .graph-detail__body {
@@ -260,7 +378,7 @@
 }
 
 .graph-detail__parent-link:hover {
-    color: var(--git-accent);
+    color: var(--git-accent-fg);
 }
 
 .graph-detail__coauthors {
@@ -360,20 +478,90 @@
     min-height: 0;
 }
 
-.commit-graph__header-graph {
-    flex-shrink: 0;
+/* 머리 줄 열 경계를 줄의 칸 경계에 맞춘다(목록 줄은 왼쪽 여백이 없다). */
+.commit-graph__header {
+    padding-left: 0;
 }
 
-.commit-graph__header-refs {
-    width: 170px;
-    min-width: 170px;
+/* 칸 폭·순서는 코드가 넣는다(경계를 끌어 폭, 머리를 끌어 순서를 바꾼다). */
+.commit-graph__header-cell {
+    align-self: stretch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── column-reorder: 머리 칸을 끌어 순서 바꾸기 ─────────── */
+.column-reorder__cell {
+    cursor: pan;
+}
+
+.column-reorder__cell--source {
+    opacity: 0.35;
+}
+
+/* 끄는 동안에는 어디 위에 있든 손 모양 커서. */
+.column-reorder--dragging,
+.column-reorder--dragging * {
+    cursor: pan;
+}
+
+/* 포인터를 따라다니는 칸 이름. left·top·width·height 는 ColumnReorderer 가 넣는다. */
+.column-reorder__ghost {
+    position: absolute;
+    background-color: var(--git-header-bg);
+    border-width: 1px;
+    border-color: var(--git-border);
+    opacity: 0.85;
+}
+
+/* 놓일 자리 세로선. left·top 은 ColumnReorderer 가 넣는다. */
+.column-reorder__indicator {
+    position: absolute;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--git-accent);
+}
+
+/* 열 경계 손잡이: 왼쪽 칸 끝 8px 를 덮고, 경계에 세로선을 둔다. 자리를 차지하지 않게 왼쪽 여백을 당긴다. */
+.column-resizer {
     flex-shrink: 0;
+    align-self: stretch;
+    align-items: flex-end;
+    width: 8px;
+    margin-left: -8px;
+    cursor: resize-horizontal;
+}
+
+.column-resizer__line {
+    flex-grow: 1;
+    width: 1px;
+    background-color: var(--git-border);
+}
+
+.column-resizer:hover > .column-resizer__line,
+.column-resizer--dragging > .column-resizer__line {
+    width: 2px;
+    background-color: var(--git-accent);
 }
 
 .commit-graph__body {
     flex-grow: 1;
     flex-basis: 0;
     min-height: 0;
+    overflow: hidden;
+}
+
+/* GitKraken 의 브랜치 만들기: 그 커밋 줄 브랜치/태그 칸에 띄우는 이름 입력란. top·height·width 는 CommitGraphList 가 넣는다. */
+.commit-graph__branch-input {
+    position: absolute;
+    left: 6px;
+    margin: 0;
+}
+
+.commit-graph .commit-graph__branch-input > .unity-base-text-field__input {
+    font-size: 12px;
+    border-color: var(--git-accent);
 }
 
 .commit-graph__list {
@@ -411,26 +599,37 @@
     padding: 0 4px 0 0;
 }
 
-/* 왼쪽 브랜치/태그 칸: 이름표 하나 + "+n". 폭은 CommitGraphList.RefsColumnWidth 와 같아야 그래프 열 위치가 맞는다. */
+/* 왼쪽 브랜치/태그 칸: 이름표 하나 + "+n". 폭은 CommitGraphList 가 넣는다(선·원 층의 그래프 열 위치와 같아야 한다). */
 .commit-graph-row__refs {
-    width: 170px;
-    min-width: 170px;
     flex-shrink: 0;
     flex-direction: row;
     align-items: center;
     padding: 0 6px 0 8px;
+    overflow: hidden;
 }
 
+/* 이름표: [체크 표시][이름]. 글자 속성은 안쪽 이름 Label 이 물려받는다. */
 .commit-graph-ref {
     flex-shrink: 1;
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
     height: 22px;
     margin: 0;
     padding: 0 8px;
     border-width: 1px;
     border-radius: 4px;
+    overflow: hidden;
     font-size: 12px;
     -unity-text-align: middle-left;
     color: var(--git-text);
+}
+
+.commit-graph-ref__name {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
 }
 
 /* 현재 브랜치: 강조색 바탕(GitKraken 의 체크 표시 이름표). */
@@ -439,6 +638,55 @@
     border-color: var(--git-accent);
     color: var(--git-accent-text);
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    padding-left: 3px;
+}
+
+/* 현재 브랜치 이름 앞의 체크 표시(Painter2D). 색은 이름표 글자색을 따른다. */
+.commit-graph-ref__check {
+    display: none;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.commit-graph-ref--current > .commit-graph-ref__check {
+    display: flex;
+}
+
+/* 로컬 브랜치 이름 뒤의 노트북 표시. 흰 그림(Material Symbols "laptop_mac")을 이름표 글자색으로 물들인다. */
+.commit-graph-ref__local {
+    display: none;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-left: 5px;
+    background-image: url("../Icons/LaptopMac.png");
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-text);
+}
+
+.commit-graph-ref--current > .commit-graph-ref__local,
+.commit-graph-ref--local > .commit-graph-ref__local {
+    display: flex;
+}
+
+.commit-graph-ref--current > .commit-graph-ref__local {
+    -unity-background-image-tint-color: var(--git-accent-text);
+}
+
+/* 원격·태그 이름 뒤의 종류 아이콘(구름·태그). 노트북과 같은 자리·크기이고 색은 이름표 글자색을 따른다. */
+.commit-graph-ref__remote-icon,
+.commit-graph-ref__tag-icon {
+    display: none;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-left: 5px;
+}
+
+.commit-graph-ref--remote > .commit-graph-ref__remote-icon,
+.commit-graph-ref--tag > .commit-graph-ref__tag-icon {
+    display: flex;
 }
 
 /* 원격: 바탕 없이 테두리만(로컬과 구분). */
@@ -459,20 +707,128 @@
     color: var(--git-text-muted);
 }
 
+.commit-graph-ref__more--hidden {
+    display: none;
+}
+
+/* ── 좁은 브랜치/태그 칸(GitKraken 과 같다) ──────────
+   이름이 말줄임으로 줄다가 첫 글자와 "…" 만 남으면 이름을 빼고 아이콘만 남긴다(CommitGraphList.FitRefs 가 줄마다 고른다).
+   더 좁으면 이름표 모양은 그대로이고 칸 경계(.commit-graph-row__refs 의 overflow: hidden)가 오른쪽부터 가린다.
+   여백·아이콘 폭을 바꾸면 CommitGraphList 의 폭 상수도 같이 맞춘다. */
+.commit-graph-ref--no-name {
+    flex-shrink: 0;
+}
+
+.commit-graph-ref--no-name > .commit-graph-ref__name {
+    display: none;
+}
+
+/* 이름이 없으면 맨 앞 아이콘이 되므로 이름과의 간격을 뺀다(현재 브랜치는 체크 뒤라 그대로 둔다). */
+.commit-graph-ref--no-name > .commit-graph-ref__local,
+.commit-graph-ref--no-name > .commit-graph-ref__remote-icon,
+.commit-graph-ref--no-name > .commit-graph-ref__tag-icon {
+    margin-left: 0;
+}
+
+.commit-graph-ref--current.commit-graph-ref--no-name > .commit-graph-ref__local {
+    margin-left: 5px;
+}
+
+/* 맨 왼쪽 칸의 내용 들여쓰기(GitKraken 과 같다): 이름표는 12px, 메시지는 머리 글자와 같은 20px. 그래프는 가지 배치가 이미 띄운다.
+   이름표 칸 여백을 바꾸면 CommitGraphList.RefsCellPadding 도 같이 맞춘다. 아래 --refs-centered 가 더 뒤라 좁을 때는 그쪽이 이긴다. */
+.commit-graph--refs-first .commit-graph-row__refs {
+    padding-left: 12px;
+}
+
+.commit-graph--message-first .commit-graph-row__message {
+    padding-left: 20px;
+}
+
+/* ── 맨 왼쪽 브랜치/태그 칸이 머리가 아이콘이 될 만큼 좁을 때(CommitGraphList 가 --refs-centered 를 붙인다) ──
+   이름표를 상태 아이콘 하나(현재 = 체크, 로컬 = 노트북, 원격 = 구름, 태그 = 태그)로 줄인다. "+n" 은 숨기고 툴팁으로 본다.
+   머리 아이콘·이름표는 왼쪽 들여쓰기 자리(20px·12px)에서 움직이지 않는다. 대신 칸을 끝까지 줄인 폭이
+   들여쓰기 + 아이콘 + 같은 여백(20+14+20 = 12+30+12 = 54, CommitGraphList.MinRefsFirstWidth)이라 그때 가운데 맞춘 것처럼 보인다.
+   위 --no-name 규칙보다 뒤에 둬서 이긴다. */
+.commit-graph--refs-centered .commit-graph-row__refs {
+    padding-right: 0;
+}
+
+.commit-graph--refs-centered .commit-graph-ref {
+    flex-shrink: 0;
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+}
+
+.commit-graph--refs-centered .commit-graph-ref__name,
+.commit-graph--refs-centered .commit-graph-ref__more,
+.commit-graph--refs-centered .commit-graph-ref--current > .commit-graph-ref__local {
+    display: none;
+}
+
+.commit-graph--refs-centered .commit-graph-ref > .commit-graph-ref__local,
+.commit-graph--refs-centered .commit-graph-ref > .commit-graph-ref__remote-icon,
+.commit-graph--refs-centered .commit-graph-ref > .commit-graph-ref__tag-icon {
+    margin-left: 0;
+}
+
+/* 좁은 머리 칸: 글자 대신 아이콘(브랜치/태그 = 브랜치, 그래프 = 계층도). 원래 이름은 툴팁. */
+/* 아이콘은 글자가 시작하던 자리(칸 왼쪽 여백)에 그대로 놓는다 — 글자가 그 자리에서 아이콘으로 바뀌어 보이게.
+   가운데에 두면 바뀌는 순간 자리가 달라지고, 칸을 더 줄일 때 따라 움직여 밀려 들어오는 것처럼 보인다(GitKraken 도 글자 자리). */
+.commit-graph__header-glyph {
+    display: none;
+    width: 14px;
+    height: 14px;
+    align-self: flex-start;
+}
+
+/* 머리 글자 여백: 칸마다 6px, 맨 왼쪽 칸은 목록 왼쪽 끝에 붙지 않게 20px(GitKraken 과 같다). 아이콘도 같은 자리.
+   공용 .list-header__cell(4px)보다 세게 하려고 클래스 둘로 적는다. */
+.commit-graph__header .commit-graph__header-cell {
+    padding: 0 6px;
+}
+
+.commit-graph__header .commit-graph__header-cell--first {
+    padding-left: 20px;
+}
+
+/* 아이콘으로 바뀐 머리 칸: 위아래 가운데(칸 방향이 세로라 justify 가 세로). 가로 자리는 글자와 같은 왼쪽 여백. */
+.commit-graph__header-cell--icon {
+    justify-content: center;
+}
+
+.commit-graph__header-cell--icon > .commit-graph__header-glyph {
+    display: flex;
+}
+
 .commit-graph-row__graph {
     flex-shrink: 0;
     height: 100%;
 }
 
-/* 메시지 앞의 가지 색 막대(색은 코드가 줄마다 칠한다). */
+/* 가지 색 띠와 오른쪽 끝 막대(색·시작점은 코드가 줄마다 넣는다). 커밋 원 가운데에서 칸 오른쪽 끝까지 깔고,
+   위아래를 조금 띄워 줄마다 떨어져 보이게 한다. 칸 순서를 바꿔도 그래프 칸에 붙는다(GitKraken 과 같다).
+   막대 폭을 바꾸면 CommitGraphList.LaneBarWidth 도 같이 맞춘다. */
+.commit-graph-row__band {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    right: 0;
+    border-right-width: 3px;
+    border-right-color: rgba(0, 0, 0, 0);
+}
+
+/* 그래프가 맨 오른쪽 칸이면 가를 다음 칸이 없어 막대를 빼고 띠만 칸 끝까지 깐다(GitKraken 과 같다). */
+.commit-graph--graph-last .commit-graph-row__band {
+    border-right-width: 0;
+}
+
 .commit-graph-row__message {
     flex-direction: row;
     align-items: center;
     overflow: hidden;
     height: 100%;
     padding-left: 10px;
-    border-left-width: 3px;
-    border-left-color: rgba(0, 0, 0, 0);
 }
 
 .commit-graph-row .commit-row__subject {
@@ -480,8 +836,92 @@
 }
 
 
+/* 작업 중 줄의 변경 개수("~28 +25 −170"): 칸이 좁아져도 줄이거나 말줄임하지 않고 칸 경계가 가린다(GitKraken 과 같다). */
 .commit-graph-row--wip .commit-row__subject {
+    flex-shrink: 0;
+    overflow: visible;
+    text-overflow: clip;
     color: var(--git-text-muted);
+}
+
+/* 작업 중 줄의 제목 입력란(GitKraken 과 같다). 커밋 입력란의 제목과 같은 글이고, 비어 있으면 "// 작업 중" 자리표시.
+   글 길이만큼 늘어나되 max-width 까지만이고, 칸이 좁아져도 줄어들지 않는다 — 뒤의 개수와 함께 칸 경계(.commit-graph-row__message 의
+   overflow: hidden)가 오른쪽부터 가린다. 쓰는 중이면(--editing, 코드가 붙인다) 테두리를 강조하고 연필을 보인다. */
+.commit-graph-wip {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 10px;
+}
+
+.commit-graph-wip__input {
+    flex-shrink: 0;
+    min-width: 80px;
+    max-width: 260px;
+    margin: 0;
+}
+
+/* 쓰는 중(--wip-editing, 코드가 줄에 붙인다): 입력란을 칸 안에 맞춰 줄여 글이 입력란 안에서 스크롤되게 한다 —
+   방금 쓴 글자가 칸 오른쪽 끝에 보인다(GitKraken 과 같다). 줄일 때는 뒤의 개수가 먼저 0 까지 줄어든다(flex-shrink 를 크게). */
+.commit-graph-row--wip-editing .commit-graph-wip,
+.commit-graph-row--wip-editing .commit-graph-wip__input {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.commit-graph-row--wip-editing .commit-graph-wip {
+    margin-right: 0;
+}
+
+.commit-graph-row--wip-editing.commit-graph-row--wip .commit-row__subject {
+    flex-shrink: 1000;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* 칸이 아주 좁으면 연필도 개수처럼 먼저 비켜서 글 쓸 자리를 입력란에 넘긴다. */
+.commit-graph-row--wip-editing .commit-graph-wip__pencil {
+    flex-shrink: 1000;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* 쓰는 중에는 입력란 안쪽 여백을 줄여 좁은 칸에서도 글이 몇 자 보이게 한다. */
+.commit-graph .commit-graph-row--wip-editing .commit-graph-wip__input > .unity-base-text-field__input {
+    padding: 0 4px;
+}
+
+.commit-graph .commit-graph-wip__input > .unity-base-text-field__input {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 13px;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-border);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.commit-graph .commit-graph-wip__input > .unity-base-text-field__input:hover {
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+}
+
+.commit-graph .commit-graph-wip--editing > .commit-graph-wip__input > .unity-base-text-field__input {
+    border-color: var(--git-accent);
+    background-color: var(--git-field-bg);
+}
+
+.commit-graph-wip__pencil {
+    display: none;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
+    color: var(--git-text-muted);
+}
+
+.commit-graph-wip--editing > .commit-graph-wip__pencil {
+    display: flex;
 }
 
 /* ── blame-row: 파일 Blame 창의 한 줄 ─────────────────── */

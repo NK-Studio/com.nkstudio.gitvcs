@@ -81,9 +81,10 @@
     border-bottom-color: var(--git-graph-header-border);
 }
 
+/* 날짜 띠 머리의 날짜(Unity VCS Branch Explorer 처럼 또렷하게). */
 .branch-graph__date {
     height: 24px;
-    font-size: 10px;
+    font-size: 12px;
     color: var(--git-graph-date);
     -unity-text-align: middle-center;
 }

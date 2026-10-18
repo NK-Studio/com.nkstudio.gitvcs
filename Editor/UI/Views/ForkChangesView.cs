@@ -17,7 +17,8 @@ namespace GitVersionControl
 
         public ForkChangesView(GitServices services, StagingState state) : base(services, "ForkChangesView")
         {
-            _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
+            // Fork 처럼 머리 줄 버튼은 고른 파일만 옮기고, Shift 를 누르는 동안만 "Stage All"·"Unstage All" 이 된다.
+            _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services) { ShiftForAll = true };
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
             _diff.ShowReloadButton(false);
@@ -25,9 +26,27 @@ namespace GitVersionControl
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: false);
 
             _staging.FileSelected += _diff.SetTarget;
+            // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
+            _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
         }
 
         public override void OnRepositoryChanged()
+        {
+            // 보이지 않으면 Unstaged·Staged 목록을 다시 만들지 않는다 — 탭을 열 때 만든다. 탭 옆 개수는 바로 바꾼다.
+            if (IsActive == false)
+            {
+                NotifyBadgeChanged();
+                return;
+            }
+            RefreshWorkingTree();
+        }
+
+        protected override void OnActivated()
+        {
+            RefreshWorkingTree();
+        }
+
+        private void RefreshWorkingTree()
         {
             _staging.SetEntries(Services.Repository.Entries);
             _commit.SetStagedCount(_staging.StagedCount);

@@ -21,6 +21,16 @@ namespace GitVersionControl
         Task<(GitDiffDocument document, string error)> LoadAsync(GitDiffTarget target, GitDiffOptions options);
 
         /// <summary>
+        /// 이미지 diff 용으로 양쪽 판의 이미지를 텍스처로 읽는다. 받은 쪽이 <see cref="GitImagePair.Dispose"/> 로 텍스처를 지운다.
+        /// </summary>
+        Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target);
+
+        /// <summary>
+        /// 바이너리 파일 카드(Fork 처럼 "created · 242 KB")에 쓸 양쪽 판의 크기(바이트). 없는 쪽(추가·삭제)은 null.
+        /// </summary>
+        Task<(long? left, long? right, string error)> LoadSizesAsync(GitDiffTarget target);
+
+        /// <summary>
         /// 엔진과 상관없이 외부 프로그램(설정의 외부 엔진, 없으면 git difftool)으로 연다 — 내장 뷰어의 "외부 도구로 열기".
         /// </summary>
         void OpenExternally(GitDiffTarget target, DiffEngine engine);
@@ -79,6 +89,92 @@ namespace GitVersionControl
                 return (null, result.Message);
             }
             return (GitDiff.Parse(result.Output), null);
+        }
+
+        public async Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target)
+        {
+            string directory = CreateTempDirectory();
+            try
+            {
+                (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, directory);
+                if (error != null)
+                {
+                    return (null, error);
+                }
+
+                GitImagePair pair = new()
+                {
+                    Left = new GitImageSide { Label = leftLabel },
+                    Right = new GitImageSide { Label = rightLabel },
+                };
+                string loadError = LoadSide(pair.Left, left) ?? LoadSide(pair.Right, right);
+                if (loadError != null)
+                {
+                    pair.Dispose();
+                    return (null, loadError);
+                }
+                return (pair, null);
+            }
+            finally
+            {
+                // 작업 사본 쪽은 실제 파일(이 폴더 밖)이라 지워지지 않는다.
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        public async Task<(long? left, long? right, string error)> LoadSizesAsync(GitDiffTarget target)
+        {
+            // 이미지와 같은 길(MaterializeAsync)로 양쪽 판을 꺼내 크기만 잰다 — 어느 출처(작업 사본·Staged·커밋·범위)든 리비전 계산이 같다.
+            string directory = CreateTempDirectory();
+            try
+            {
+                (string left, string right, _, _, string error) = await MaterializeAsync(target, directory);
+                if (error != null)
+                {
+                    return (null, null, error);
+                }
+                (bool hasLeft, bool hasRight) = SidesOf(target);
+                return (hasLeft ? LengthOf(left) : null, hasRight ? LengthOf(right) : null, null);
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        /// <summary>
+        /// 양쪽 판이 있는지(추가·Untracked 면 왼쪽 없음, 삭제면 오른쪽 없음). <see cref="MaterializeAsync"/> 와 같은 규칙.
+        /// </summary>
+        private static (bool hasLeft, bool hasRight) SidesOf(GitDiffTarget target)
+        {
+            bool hasLeft = target.State != GitFileState.Added && target.State != GitFileState.Untracked;
+            bool hasRight = target.State != GitFileState.Deleted;
+            return (hasLeft, hasRight);
+        }
+
+        private static long? LengthOf(string path)
+        {
+            return string.IsNullOrEmpty(path) == false && File.Exists(path) ? new FileInfo(path).Length : null;
+        }
+
+        private static string LoadSide(GitImageSide side, string path)
+        {
+            (Texture2D texture, string error) = GitImageLoader.Load(path);
+            side.Texture = texture;
+            side.ByteSize = texture != null ? new FileInfo(path).Length : 0;
+            return error;
+        }
+
+        private static void TryDeleteDirectory(string directory)
+        {
+            try
+            {
+                Directory.Delete(directory, true);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                // 다른 프로그램이 잡고 있으면 남겨 둔다. 프로젝트 Temp 아래라 에디터를 끄면 Unity 가 정리한다.
+            }
         }
 
         private async Task RunDifftoolAsync(GitDiffTarget target)
@@ -154,12 +250,14 @@ namespace GitVersionControl
                 return;
             }
 
-            (string left, string right, string leftTitle, string rightTitle, string error) = await MaterializeAsync(target);
+            (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, CreateTempDirectory());
             if (error != null)
             {
                 _dialogs.Alert(GitText.Get("diff.prepareFailed"), error);
                 return;
             }
+            string leftTitle = $"{target.LeftPath} ({leftLabel})";
+            string rightTitle = $"{target.RepoPath} ({rightLabel})";
 
             string template = engine == DiffEngine.Custom ? settings.CustomDiffArguments : ExternalDiffTool.ArgumentTemplate(engine, Application.platform);
             string arguments = ExternalDiffTool.Expand(template, left, right, leftTitle, rightTitle);
@@ -181,11 +279,11 @@ namespace GitVersionControl
         /// <summary>
         /// 외부 프로그램에 넘길 두 파일을 만든다. 작업 트리 쪽은 실제 파일을 그대로 넘겨(도구에서 고치면 바로 반영된다),
         /// 리비전 쪽은 <c>git cat-file --filters</c> 로 꺼낸다(LFS·줄 끝 변환까지 거친 실제 내용). 없는 쪽(추가·삭제)은 빈 파일이다.
-        /// 임시 파일은 프로젝트 Temp 아래에 두어 에디터를 끄면 Unity 가 정리한다.
+        /// 임시 파일은 <paramref name="directory"/>(프로젝트 Temp 아래)에 두어 에디터를 끄면 Unity 가 정리한다.
         /// </summary>
-        private async Task<(string left, string right, string leftTitle, string rightTitle, string error)> MaterializeAsync(GitDiffTarget target)
+        /// <returns>두 파일 경로와 각 판 이름(커밋 앞 8자리·Staged·작업 사본·없음).</returns>
+        private async Task<(string left, string right, string leftLabel, string rightLabel, string error)> MaterializeAsync(GitDiffTarget target, string directory)
         {
-            string directory = CreateTempDirectory();
             string fileName = Path.GetFileNameWithoutExtension(target.RepoPath);
             string extension = Path.GetExtension(target.RepoPath);
             bool hasLeft = target.State != GitFileState.Added && target.State != GitFileState.Untracked;
@@ -261,7 +359,7 @@ namespace GitVersionControl
                     return (null, null, null, null, error);
                 }
             }
-            return (left, right, $"{target.LeftPath} ({leftLabel})", $"{target.RepoPath} ({rightLabel})", null);
+            return (left, right, leftLabel, rightLabel, null);
         }
 
         /// <param name="revision">null 이면 빈 파일을 만든다.</param>

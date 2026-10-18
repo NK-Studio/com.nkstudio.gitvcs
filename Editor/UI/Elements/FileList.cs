@@ -62,6 +62,11 @@ namespace GitVersionControl
         public event Action<FileListItem, bool> ToggleChanged;
 
         /// <summary>
+        /// 줄에 마우스를 올리면 나오는 버튼(<see cref="FileRowBinder.ActionText"/>)을 눌렀을 때. 그 줄 항목 하나.
+        /// </summary>
+        public event Action<FileListItem> ActionClicked;
+
+        /// <summary>
         /// 우클릭 메뉴의 맨 위 항목(diff 등)을 채운다. null 이면 없다.
         /// </summary>
         public Action<DropdownMenu, FileListItem> PopulateMenuHead;
@@ -85,6 +90,14 @@ namespace GitVersionControl
                 if (item != null)
                 {
                     ToggleChanged?.Invoke(item, evt.newValue);
+                }
+            });
+            FileRowBinder.HookAction(row, () =>
+            {
+                FileListItem item = ItemOf(row);
+                if (item != null)
+                {
+                    ActionClicked?.Invoke(item);
                 }
             });
         }

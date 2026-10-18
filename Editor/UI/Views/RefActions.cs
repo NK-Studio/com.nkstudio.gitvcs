@@ -23,7 +23,7 @@ namespace GitVersionControl
         public Task NewBranchAtHeadAsync()
         {
             string head = _services.Repository.HeadCommit;
-            return head == null ? Task.CompletedTask : _commitActions.CreateBranchFromAsync(head, "HEAD");
+            return head == null ? Task.CompletedTask : _commitActions.CreateBranchFromAsync(head, "HEAD", revealGraph: true);
         }
 
         public Task NewTagAtHeadAsync()

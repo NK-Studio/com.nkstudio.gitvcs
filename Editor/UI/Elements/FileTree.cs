@@ -50,6 +50,11 @@ namespace GitVersionControl
         public event Action<FileListItem> FileChosen;
 
         /// <summary>
+        /// 파일 줄에 마우스를 올리면 나오는 버튼을 눌렀을 때. 그 줄 파일 하나.
+        /// </summary>
+        public event Action<FileListItem> ActionClicked;
+
+        /// <summary>
         /// 고른 줄이 바뀌었을 때. 폴더 줄이나 선택 해제면 null.
         /// </summary>
         public event Action<FileListItem> SelectionChanged;
@@ -71,6 +76,42 @@ namespace GitVersionControl
 
         public VisualElement Root => _root;
 
+        public SelectionType SelectionType
+        {
+            get => _tree.selectionType;
+            set => _tree.selectionType = value;
+        }
+
+        /// <summary>
+        /// 고른 파일 전부(트리에 보이는 순서). 폴더 줄을 골랐으면 그 아래 파일 전부로 센다(Fork 처럼 폴더째 Stage 할 수 있게).
+        /// 폴더와 그 안의 파일을 같이 골라도 한 번만 넣는다.
+        /// </summary>
+        public IReadOnlyList<FileListItem> SelectedFiles
+        {
+            get
+            {
+                List<FileListItem> files = new();
+                HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+                foreach (int index in _tree.selectedIndices.OrderBy(i => i))
+                {
+                    FileTreeNode node = _tree.GetItemDataForIndex<FileTreeNode>(index);
+                    if (node == null)
+                    {
+                        continue;
+                    }
+                    IEnumerable<FileListItem> nodeFiles = node.IsFolder ? node.Files() : new[] { node.Item };
+                    foreach (FileListItem file in nodeFiles)
+                    {
+                        if (seen.Add(file.RepoPath))
+                        {
+                            files.Add(file);
+                        }
+                    }
+                }
+                return files;
+            }
+        }
+
         public FileTree(IAssetNavigator assets, FileRowBinder binder)
         {
             _assets = assets;
@@ -87,7 +128,8 @@ namespace GitVersionControl
                 bindItem = BindRow,
             };
             _tree.AddToClassList("list");
-            _tree.selectionChanged += selected => SelectionChanged?.Invoke((selected.FirstOrDefault() as FileTreeNode)?.Item);
+            // 여러 줄을 골랐으면 그중 첫 파일 줄을 알린다(폴더만 골랐으면 null).
+            _tree.selectionChanged += selected => SelectionChanged?.Invoke(selected.OfType<FileTreeNode>().FirstOrDefault(node => node.IsFolder == false)?.Item);
             _tree.itemsChosen += chosen =>
             {
                 if (chosen.FirstOrDefault() is FileTreeNode node && node.Item != null)
@@ -180,17 +222,41 @@ namespace GitVersionControl
             });
         }
 
+        /// <summary>
+        /// 트리 위 "모두 펼치기 / 모두 접기" 버튼을 보일지(기본 보임). Fork 모드처럼 버튼 없이 쓰는 곳은 끈다 — 폴더 우클릭 메뉴에는 남는다.
+        /// </summary>
+        public bool ShowExpandToggle
+        {
+            get => _showExpandToggle;
+            set
+            {
+                _showExpandToggle = value;
+                RefreshExpandToggle();
+            }
+        }
+
+        private bool _showExpandToggle = true;
+
         private void RefreshExpandToggle()
         {
-            _toolbar.SetVisible(_shownFolderIds.Count > 0);
+            _toolbar.SetVisible(_showExpandToggle && _shownFolderIds.Count > 0);
             _expandToggle.text = GitText.Get(AllFoldersExpanded() ? "fileView.collapseAll" : "fileView.expandAll");
         }
 
-        /// <summary>지금 화면의 펼침 상태를 폴더 경로로 기록한다. 다음 SetItems 뒤에 되살린다.</summary>
+        /// <summary>
+        /// 지금 화면의 펼침 상태를 폴더 경로로 기록한다. 다음 SetItems 뒤에 되살린다.
+        /// 지금 트리에 없는 폴더(예전 목록에만 있던 폴더)는 건드리지 않는다 — 그런 폴더를 "접힘"으로 적으면
+        /// Stage 로 새로 생기거나 다시 나타난 폴더가 접힌 채 들어온다. 처음 보는 폴더는 펼쳐서 보인다.
+        /// </summary>
         private void RememberExpansion()
         {
+            HashSet<int> shown = new(_shownFolderIds);
             foreach (KeyValuePair<string, int> pair in _idByFolderPath)
             {
+                if (shown.Contains(pair.Value) == false)
+                {
+                    continue;
+                }
                 try
                 {
                     if (_tree.IsExpanded(pair.Value))
@@ -243,6 +309,14 @@ namespace GitVersionControl
                 IReadOnlyList<FileListItem> files = node.IsFolder ? node.Files() : new[] { node.Item };
                 ToggleChanged?.Invoke(files, evt.newValue);
             });
+            FileRowBinder.HookAction(row, () =>
+            {
+                FileTreeNode node = NodeOf(row);
+                if (node is { IsFolder: false })
+                {
+                    ActionClicked?.Invoke(node.Item);
+                }
+            });
             row.AddManipulator(new ContextualMenuManipulator(evt =>
             {
                 FileTreeNode node = NodeOf(row);
@@ -250,7 +324,12 @@ namespace GitVersionControl
                 {
                     return;
                 }
-                _tree.SetSelection((int)row.userData);
+                // 이미 고른 여러 줄 중 하나를 우클릭하면 선택을 그대로 둔다(메뉴가 고른 것 전부에 쓰이게).
+                int index = (int)row.userData;
+                if (_tree.selectedIndices.Contains(index) == false)
+                {
+                    _tree.SetSelection(index);
+                }
                 if (node.IsFolder)
                 {
                     PopulateFolderMenu(evt.menu, node);

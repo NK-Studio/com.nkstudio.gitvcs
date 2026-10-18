@@ -179,6 +179,11 @@ namespace GitVersionControl
                         break;
                 }
                 root.Badge = root.LeafCount.ToString();
+                // 검색 중에는 걸린 것이 있는 구역만 남긴다(Fork 처럼 일치하는 요소만 보인다). 검색하지 않을 때는 빈 구역도 둔다.
+                if (needle != null && root.Children.Count == 0)
+                {
+                    continue;
+                }
                 roots.Add(root);
             }
             return roots;

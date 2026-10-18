@@ -41,10 +41,19 @@ namespace GitVersionControl
         private float _dragStartSize;
         private VisualElement _panelRoot;
 
+        /// <summary>
+        /// 경계선을 끌기 전까지 두 칸을 반씩 나눈다(<c>.view__split--half</c>). Fork·GitKraken 의 Unstaged·Staged 처럼
+        /// 창 크기와 상관없이 반반으로 열리고, 창 크기가 바뀌어도 반을 지킨다. 한 번 끌면 그 크기를 따른다.
+        /// </summary>
+        private const string HalfModifier = "view__split--half";
+
+        private bool _halfUntilDragged;
+
         private SplitPaneClamp(TwoPaneSplitView split)
         {
             _split = split;
             _preferred = split.fixedPaneInitialDimension;
+            _halfUntilDragged = split.ClassListContains(HalfModifier);
             // 안쪽 칸에 든 다른 분할의 경계선을 집지 않도록 이 분할의 직접 자식에서 찾는다.
             _dragLineAnchor = split.hierarchy.Children().FirstOrDefault(child => child.ClassListContains(DragLineAnchorClass));
 
@@ -178,6 +187,7 @@ namespace GitVersionControl
             if (IsSplitShown && float.IsNaN(CurrentFixedSize) == false)
             {
                 _preferred = CurrentFixedSize;
+                _halfUntilDragged = false;
             }
             _split.schedule.Execute(Apply);
         }
@@ -192,6 +202,10 @@ namespace GitVersionControl
             if (float.IsNaN(available) || available <= 0f)
             {
                 return;
+            }
+            if (_halfUntilDragged)
+            {
+                _preferred = available * 0.5f;
             }
             float target = Fit(_preferred, available, MinFlexedPane, MinFixedPane);
             if (Mathf.Abs(CurrentFixedSize - target) < 0.5f)

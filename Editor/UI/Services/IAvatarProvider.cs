@@ -80,9 +80,13 @@ namespace GitVersionControl
             {
                 return texture;
             }
-            if (_missing.Contains(email) || _pending.Contains(email))
+            if (_pending.Contains(email))
             {
                 return null;
+            }
+            if (_missing.Contains(email))
+            {
+                return AiFallback(email);
             }
 
             string key = GitAvatarSources.CacheKey(email);
@@ -95,7 +99,7 @@ namespace GitVersionControl
             if (knownMissing && IsOwnEmail(email) == false)
             {
                 _missing.Add(email);
-                return null;
+                return AiFallback(email);
             }
 
             _pending.Add(email);
@@ -156,7 +160,35 @@ namespace GitVersionControl
                 {
                     SaveMissingToDisk(key);
                 }
+                // AI 작성자는 못 받았어도 로고로 바꿔 보이므로 다시 그리게 알린다(사람은 머리글자 그대로라 알릴 것이 없다).
+                if (GitAvatarSources.AiAuthorOf(email) != AiAuthor.None)
+                {
+                    AvatarLoaded?.Invoke();
+                }
             }
+        }
+
+        private const string IconFolder = "Packages/com.nkstudio.gitvcs/Editor/UI/Icons/";
+        private static readonly Dictionary<AiAuthor, Texture2D> AiLogos = new();
+
+        /// <summary>
+        /// 아바타를 못 받았을 때의 대신 그림. AI 도구(Claude·OpenAI·Gemini)의 이메일이면 그 로고(96px), 사람이면 null(머리글자).
+        /// 먼저 GitHub 등에서 받아 보고(그 도구 계정 사진이 있으면 그것을 쓴다), 아직 푸시하지 않은 로컬 커밋처럼 못 받는 경우에만 쓴다.
+        /// </summary>
+        private static Texture2D AiFallback(string email)
+        {
+            AiAuthor author = GitAvatarSources.AiAuthorOf(email);
+            if (author == AiAuthor.None)
+            {
+                return null;
+            }
+            if (AiLogos.TryGetValue(author, out Texture2D logo) && logo != null)
+            {
+                return logo;
+            }
+            logo = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(IconFolder + "Ai" + author + ".png");
+            AiLogos[author] = logo;
+            return logo;
         }
 
         /// <returns>시도할 주소들, GitHub 커밋 API 가 답을 줬는지(실패했으면 false — 그때는 "없음" 을 디스크에 기억하지 않는다).</returns>

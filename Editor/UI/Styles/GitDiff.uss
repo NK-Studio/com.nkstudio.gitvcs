@@ -73,6 +73,16 @@
     white-space: normal;
 }
 
+/* "불러오는 중": 내용 위에 겹쳐 띄운다(자리를 차지하지 않아 내용이 밀리지 않는다). */
+.git-diff__loading {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40%;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+}
+
 /* 비어 있을 때는 위의 안내 문구가 대신 말하므로 ListView 기본 "List is empty" 는 숨긴다. */
 .git-diff__list .unity-list-view__empty-label {
     display: none;
@@ -177,14 +187,220 @@
     background-color: var(--git-diff-empty);
 }
 
+/* 바뀐 덩어리 머리(@@ -a,b +c,d @@)·"\ No newline at end of file": Fork 처럼 바탕을 칠하지 않고 흐린 글자로만 보인다
+   (파랗게 칠하면 코드보다 눈에 띈다). */
 .diff-row--hunk,
 .diff-side--hunk {
-    background-color: var(--git-diff-hunk);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .diff-row--hunk .diff-row__part,
 .diff-side--hunk .diff-row__part,
 .diff-row--meta .diff-row__part,
 .diff-side--meta .diff-row__part {
+    color: var(--git-text-muted);
+}
+
+/* ── 이미지 diff (GitImageDiffView) ─────────────────── */
+.git-image-diff {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.git-image-diff__toolbar {
+    flex-shrink: 0;
+}
+
+.git-image-diff__slider {
+    width: 220px;
+    margin: 0 6px;
+    align-items: center;
+}
+
+.git-image-diff__slider > .unity-base-field__label {
+    min-width: 0;
+    padding-right: 6px;
+}
+
+.git-image-diff__slider .unity-base-slider__input {
+    min-width: 60px;
+}
+
+.git-image-diff__slider .unity-base-field__input {
+    min-width: 30px;
+}
+
+.git-image-diff__zoom {
+    min-width: 44px;
+    margin-right: 4px;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--git-text-muted);
+}
+
+.git-image-diff__info {
+    font-size: 11px;
+    margin-right: 12px;
+    padding: 0;
+    white-space: nowrap;
+    color: var(--git-text);
+}
+
+.git-image-diff__size-changed {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-diff-removed-sign);
+}
+
+.git-image-diff__info--changed {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-diff-hunk-text);
+}
+
+.git-image-diff__stage {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-direction: row;
+    background-color: var(--git-diff-bg);
+}
+
+.git-image-diff__viewport {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.git-image-diff__viewport--left {
+    border-right-width: 1px;
+    border-right-color: var(--git-diff-split-border);
+}
+
+/* 위치·크기는 코드가 배율에 맞춰 정한다. */
+.git-image-diff__layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* 투명 픽셀이 보이도록 깔아 두는 체커보드. 2×2 텍스처를 16px 칸으로 반복한다(칸 하나 8px). */
+.git-image-diff__checker {
+    background-repeat: repeat repeat;
+    background-size: 16px 16px;
+}
+
+.git-image-diff__clip {
+    overflow: hidden;
+}
+
+.git-image-diff__caption {
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    border-radius: 3px;
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+.git-image-diff__placeholder {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-center;
+    font-size: 14px;
+    color: var(--git-text-muted);
+}
+
+.git-image-diff__swipe-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    cursor: resize-horizontal;
+}
+
+.git-image-diff__swipe-line {
+    width: 2px;
+    flex-grow: 1;
+    background-color: var(--git-accent);
+}
+
+/* ── 바이너리 파일 카드(이미지 밖, 또는 새로 만든·지운 이미지): Fork 처럼 상태·아이콘·확장자·크기 ─────────── */
+.git-diff-binary {
+    flex-grow: 1;
+    align-items: center;
+    padding-top: 24px;
+}
+
+.git-diff-binary__status {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+}
+
+.git-diff-binary__status--created {
+    color: var(--git-success);
+}
+
+.git-diff-binary__status--deleted {
+    color: var(--git-danger);
+}
+
+.git-diff-binary__status--modified {
+    color: var(--git-warning);
+}
+
+.git-diff-binary__cards {
+    flex-direction: row;
+    align-items: center;
+}
+
+.git-diff-binary__column {
+    align-items: center;
+    margin: 0 10px;
+}
+
+/* 회색 카드 안 가운데에 파일 아이콘과 확장자. */
+.git-diff-binary__card {
+    width: 164px;
+    height: 194px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background-color: var(--git-pressed);
+}
+
+.git-diff-binary__icon {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 8px;
+}
+
+.git-diff-binary__extension {
+    margin: 0;
+    font-size: 13px;
+    color: var(--git-text);
+    -unity-text-align: middle-center;
+}
+
+.git-diff-binary__size {
+    margin: 10px 0 0 0;
+    font-size: 12px;
+    color: var(--git-text);
+    -unity-text-align: middle-center;
+}
+
+.git-diff-binary__arrow {
+    margin: 0 6px 30px 6px;
+    font-size: 20px;
+    color: var(--git-text-muted);
+}
+
+.git-diff-binary__error {
+    margin: 16px;
+    color: var(--git-danger);
+    white-space: normal;
 }

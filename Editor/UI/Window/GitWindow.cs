@@ -12,7 +12,7 @@ namespace GitVersionControl
     /// 이 클래스는 합성 루트다: 서비스를 만들고(<see cref="GitServices.CreateDefault"/>), 탭을 만들어 끼우고,
     /// 저장소·작업 상태 이벤트를 탭에 전달한다. 탭 내용은 각 <see cref="GitView"/> 가, 도구 막대는 <see cref="GitToolbar"/> 가 맡는다.
     /// </summary>
-    public sealed class GitWindow : EditorWindow, ITabNavigator, IHasCustomMenu
+    public sealed class GitWindow : EditorWindow, ITabNavigator, IInlineBranchCreator, IHasCustomMenu
     {
         private const string NotReadyModifier = "git-window--not-ready";
 
@@ -94,7 +94,9 @@ namespace GitVersionControl
                 _refs?.Reload();
             };
             CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar-views"));
-            _refs = new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
+            _services.InlineBranches = this;
+            _services.PopupHost = _window;
+            _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
 
@@ -244,6 +246,20 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// GitKraken 레이아웃(Graph 탭이 있을 때)만 받는다. Unity VCS·Fork 레이아웃은 false 라 부른 쪽이 대화상자로 묻는다.
+        /// </summary>
+        public bool TryBeginCreateBranch(string startPoint, bool revealGraph)
+        {
+            GraphWorkspaceView graph = _views.OfType<GraphWorkspaceView>().FirstOrDefault();
+            if (graph == null || (graph.IsActive == false && revealGraph == false))
+            {
+                return false;
+            }
+            SelectTab(_views.IndexOf(graph));
+            return graph.BeginCreateBranch(startPoint);
+        }
+
+        /// <summary>
         /// 사이드바에서 고른 브랜치·태그·스태시의 커밋을 보인다. 보고 있는 탭이 보일 수 있으면 그 탭에서,
         /// 아니면(작업 공간·수신 변경, 또는 목록에 없는 커밋) 그래프 탭(GitKraken 형태면 Graph, 아니면 Branch Explorer)으로 넘어가서 보인다.
         /// </summary>
@@ -319,7 +335,11 @@ namespace GitVersionControl
             {
                 return;
             }
-            _toolbar.RefreshStashCount();
+            // stash 개수는 stash·pop·전환 같은 전체 새로고침 작업에서만 바뀐다. Stage·파일 저장 뒤에는 git 을 또 부르지 않는다.
+            if (repository.LastRefreshWasWorkingTreeOnly == false)
+            {
+                _toolbar.RefreshStashCount();
+            }
             _refs.OnRepositoryChanged();
             foreach (GitView view in _views)
             {

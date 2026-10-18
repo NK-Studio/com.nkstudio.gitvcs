@@ -36,5 +36,19 @@ namespace GitVersionControl.Tests
         {
             Assert.AreEqual(expected, GitAvatarSources.IsSameEmail(a, b));
         }
+
+        [TestCase("noreply@anthropic.com", AiAuthor.Claude)]
+        [TestCase("NOREPLY@Anthropic.com", AiAuthor.Claude)]
+        [TestCase("209825114+claude[bot]@users.noreply.github.com", AiAuthor.Claude)]
+        [TestCase("codex@openai.com", AiAuthor.OpenAI)]
+        [TestCase("chatgpt-bot@example.com", AiAuthor.OpenAI)]
+        [TestCase("gemini-code-assist@google.com", AiAuthor.Gemini)]
+        [TestCase("kim@x.com", AiAuthor.None)]
+        [TestCase("notanemail", AiAuthor.None)]
+        [TestCase(null, AiAuthor.None)]
+        public void Test_AiAuthorOf(string email, AiAuthor expected)
+        {
+            Assert.AreEqual(expected, GitAvatarSources.AiAuthorOf(email));
+        }
     }
 }

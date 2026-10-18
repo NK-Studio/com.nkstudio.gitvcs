@@ -16,7 +16,13 @@
             </ui:VisualElement>
             <ui:VisualElement class="view__pane graph-workspace__side">
                 <ui:VisualElement name="wip-panel" class="graph-workspace__fill">
-                    <ui:Label name="wip-title" class="graph-workspace__panel-title" />
+                    <!-- GitKraken 처럼 머리 줄 왼쪽에 "모든 변경 버리기"(휴지통), 가운데에 제목. -->
+                    <ui:VisualElement class="graph-workspace__panel-header">
+                        <ui:Button name="discard-all" class="graph-workspace__discard-all">
+                            <ui:VisualElement class="graph-workspace__discard-all-icon" />
+                        </ui:Button>
+                        <ui:Label name="wip-title" class="graph-workspace__panel-title" />
+                    </ui:VisualElement>
                     <ui:VisualElement name="staging-host" class="graph-workspace__fill" />
                     <ui:VisualElement name="commit-host" class="graph-workspace__commit" />
                 </ui:VisualElement>

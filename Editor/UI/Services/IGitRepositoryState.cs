@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace GitVersionControl
 {
@@ -24,7 +25,14 @@ namespace GitVersionControl
         /// <summary>새 상태가 반영된 뒤 메인 스레드에서 온다.</summary>
         event Action Changed;
 
-        void RequestRefresh(bool immediate = false);
+        /// <summary>마지막 새로고침이 작업 트리만 읽었는지(<see cref="GitRepository.LastRefreshWasWorkingTreeOnly"/>).</summary>
+        bool LastRefreshWasWorkingTreeOnly { get; }
+
+        /// <param name="workingTreeOnly">HEAD·브랜치가 바뀌지 않는 작업 뒤면 true — git status 하나만 돌린다.</param>
+        void RequestRefresh(bool immediate = false, bool workingTreeOnly = false);
+
+        /// <summary>지금까지 요청된 새로고침이 반영되면 끝난다(<see cref="GitRepository.WaitForRefreshAsync"/>).</summary>
+        Task WaitForRefreshAsync();
     }
 
     /// <summary><see cref="GitRepository"/> 를 <see cref="IGitRepositoryState"/> 로 감싼 어댑터.</summary>
@@ -41,6 +49,7 @@ namespace GitVersionControl
         public DateTime? LastFetchTime => GitRepository.LastFetchTime;
         public string UserName => GitRepository.UserName;
         public string UserEmail => GitRepository.UserEmail;
+        public bool LastRefreshWasWorkingTreeOnly => GitRepository.LastRefreshWasWorkingTreeOnly;
 
         public event Action Changed
         {
@@ -48,9 +57,14 @@ namespace GitVersionControl
             remove => GitRepository.Changed -= value;
         }
 
-        public void RequestRefresh(bool immediate = false)
+        public void RequestRefresh(bool immediate = false, bool workingTreeOnly = false)
         {
-            GitRepository.RequestRefresh(immediate);
+            GitRepository.RequestRefresh(immediate, workingTreeOnly);
+        }
+
+        public Task WaitForRefreshAsync()
+        {
+            return GitRepository.WaitForRefreshAsync();
         }
     }
 }

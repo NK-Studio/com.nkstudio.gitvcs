@@ -19,6 +19,34 @@ namespace GitVersionControl
         private readonly IFileIconProvider _icons;
         private Texture _folderIcon;
 
+        /// <summary>
+        /// 파일 줄에 마우스를 올리면 보일 버튼의 글자와 모양 클래스(<c>file-row__action--stage</c> 등). null 이면 버튼이 없다.
+        /// 보이고 숨기는 것은 USS(<c>.file-row:hover</c>)가 한다 — 모양 클래스가 붙은 버튼만 나온다.
+        /// </summary>
+        public string ActionText { get; set; }
+
+        public string ActionModifier
+        {
+            get => _actionModifier;
+            set
+            {
+                // 바꾸거나 끄면(null) 이미 그린 줄에 남은 옛 모양 클래스를 다음 묶을 때 뗀다.
+                if (_actionModifier != null && _actionModifier != value)
+                {
+                    _staleModifier = _actionModifier;
+                }
+                _actionModifier = value;
+            }
+        }
+
+        private string _actionModifier;
+        private string _staleModifier;
+
+        /// <summary>
+        /// 줄 버튼을 누를 수 있는지. git 작업 중(그 결과가 보이기 전)에는 끈다.
+        /// </summary>
+        public bool ActionEnabled { get; set; } = true;
+
         public FileRowBinder(IFileIconProvider icons)
         {
             _icons = icons;
@@ -48,6 +76,30 @@ namespace GitVersionControl
             note.RemoveFromClassList(CountModifier);
             note.text = item.Note ?? string.Empty;
             note.SetVisible(string.IsNullOrEmpty(item.Note) == false);
+            BindAction(row, isFile: true);
+        }
+
+        /// <summary>
+        /// 줄 버튼: 파일 줄이고 쓰는 쪽이 정했으면 글자·모양 클래스를 붙인다(폴더 줄에는 없다).
+        /// </summary>
+        private void BindAction(VisualElement row, bool isFile)
+        {
+            Button action = row.Q<Button>("action");
+            if (action == null)
+            {
+                return;
+            }
+            if (_staleModifier != null)
+            {
+                action.RemoveFromClassList(_staleModifier);
+            }
+            if (ActionModifier == null)
+            {
+                return;
+            }
+            action.text = ActionText;
+            action.EnableInClassList(ActionModifier, isFile);
+            action.SetEnabled(ActionEnabled);
         }
 
         /// <param name="checkedFiles">아래 파일 중 체크된 수. 체크박스가 없으면 무시한다.</param>
@@ -71,6 +123,23 @@ namespace GitVersionControl
             note.AddToClassList(CountModifier);
             note.text = folder.FileCount.ToString();
             note.SetVisible(true);
+            BindAction(row, isFile: false);
+        }
+
+        /// <summary>
+        /// 줄 버튼을 눌렀을 때 그 줄만 처리하도록 누름을 목록에 넘기지 않는다(목록 선택·더블클릭이 바뀌지 않게).
+        /// </summary>
+        public static void HookAction(VisualElement row, System.Action onClicked)
+        {
+            Button action = row.Q<Button>("action");
+            if (action == null)
+            {
+                return;
+            }
+            action.clicked += onClicked;
+            action.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            action.RegisterCallback<PointerUpEvent>(evt => evt.StopPropagation());
+            action.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
         }
 
         public static void AppendFileMenu(DropdownMenu menu, FileListItem item, IAssetNavigator assets)

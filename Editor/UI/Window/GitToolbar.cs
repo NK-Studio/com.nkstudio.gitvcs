@@ -46,8 +46,9 @@ namespace GitVersionControl
             _repoName = root.Require<Label>("repo-name");
             _branchButton = root.Require<Button>("branch-button");
             _status = root.Require<Label>("status-label");
-            _undo = new ActionButton(root.Require<Button>("undo-button"), ActionGlyphKind.Undo);
-            _redo = new ActionButton(root.Require<Button>("redo-button"), ActionGlyphKind.Redo);
+            // 실행 취소·다시 실행은 Material Symbols 그림(Icons/Undo.png·Redo.png)을 쓴다. 색은 USS 가 글자색으로 물들인다.
+            _undo = new ActionButton(root.Require<Button>("undo-button"), "git-action__icon--undo");
+            _redo = new ActionButton(root.Require<Button>("redo-button"), "git-action__icon--redo");
             _fetch = new ActionButton(root.Require<Button>("fetch-button"), ActionGlyphKind.Fetch);
             _pull = new ActionButton(root.Require<Button>("pull-button"), ActionGlyphKind.Pull);
             _push = new ActionButton(root.Require<Button>("push-button"), ActionGlyphKind.Push);
@@ -150,20 +151,25 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 지금 HEAD 에서 새 브랜치를 만든다. 이름을 묻고, 만든 뒤 바로 전환할지 한 번 더 묻는다(창을 닫으면 만들기만).
+        /// 지금 HEAD 에서 새 브랜치를 만든다. GitKraken 레이아웃은 Graph 탭의 HEAD 줄에서 이름을 받아 바로 만들고 전환한다.
+        /// 그 밖의 레이아웃(Unity VCS·Fork)은 이름을 묻고, 만든 뒤 바로 전환할지 한 번 더 묻는다(창을 닫으면 만들기만).
         /// </summary>
         private async System.Threading.Tasks.Task CreateBranchAsync(BranchActions branchActions)
         {
-            GitBranchInfo branch = _services.Repository.Branch;
-            string from = branch == null || branch.Detached ? "HEAD" : GitDisplay.Nfc(branch.Name);
-            string title = GitText.Get("branches.createTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("actionbar.newBranchPrompt", from), string.Empty)?.Trim();
-            if (string.IsNullOrEmpty(name))
+            string head = _services.Repository.HeadCommit;
+            if (head != null && _services.InlineBranches?.TryBeginCreateBranch(head, revealGraph: true) == true)
             {
                 return;
             }
-            bool switchTo = _services.Dialogs.Confirm(title, GitText.Format("commit.createBranchSwitch", name), GitText.Get("commit.createAndSwitch"), GitText.Get("commit.createOnly"));
-            await branchActions.CreateAsync(name, switchTo);
+            GitBranchInfo branch = _services.Repository.Branch;
+            string from = branch == null || branch.Detached ? "HEAD" : GitDisplay.Nfc(branch.Name);
+            // Fork 처럼 이름·"만든 뒤 체크아웃" 을 한 창에서 받는다(따로 전환을 묻지 않는다).
+            GitBranchDialogResult result = await GitBranchDialog.ShowAsync(_services, from);
+            if (result == null)
+            {
+                return;
+            }
+            await branchActions.CreateAsync(result.Name, result.Checkout);
         }
 
         private void OpenTerminal()
@@ -196,13 +202,28 @@ namespace GitVersionControl
                 set => _button.tooltip = value;
             }
 
-            public ActionButton(Button button, ActionGlyphKind kind)
+            public ActionButton(Button button, ActionGlyphKind kind) : this(button, new ActionGlyph(kind))
+            {
+            }
+
+            /// <param name="imageModifier">그림 아이콘의 USS 클래스(background-image 를 정한다).</param>
+            public ActionButton(Button button, string imageModifier) : this(button, ImageIcon(imageModifier))
+            {
+            }
+
+            private static VisualElement ImageIcon(string imageModifier)
+            {
+                VisualElement icon = new() { pickingMode = PickingMode.Ignore };
+                icon.AddToClassList(imageModifier);
+                return icon;
+            }
+
+            private ActionButton(Button button, VisualElement icon)
             {
                 _button = button;
                 string caption = button.text;
                 button.text = string.Empty;
 
-                ActionGlyph icon = new(kind);
                 icon.AddToClassList("git-action__icon");
                 button.Add(icon);
 

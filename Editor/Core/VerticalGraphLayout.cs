@@ -43,6 +43,11 @@ namespace GitVersionControl
         public readonly float Width;
 
         /// <summary>
+        /// 가지 열 수(적어도 1).
+        /// </summary>
+        public readonly int LaneCount;
+
+        /// <summary>
         /// 커밋 줄이 시작하는 번호(WIP 줄이 있으면 1).
         /// </summary>
         public int RowOffset => HasWip ? 1 : 0;
@@ -58,9 +63,20 @@ namespace GitVersionControl
             {
                 RowOf[NodesNewestFirst[i]] = i + RowOffset;
             }
-            int laneCount = graph == null || graph.Lanes.Count == 0 ? 1 : graph.Lanes.Max(lane => lane.Row) + 1;
-            Width = Mathf.Clamp(Padding * 2f + (laneCount - 1) * Spacing, MinWidth, MaxWidth);
+            LaneCount = graph == null || graph.Lanes.Count == 0 ? 1 : graph.Lanes.Max(lane => lane.Row) + 1;
+            // 기본 폭은 가지 묶음 양옆에 넉넉한 여백(MaxFirstLaneX)을 둔 폭이라 가지가 하나면 가운데에 온다.
+            Width = Mathf.Clamp(MaxFirstLaneX * 2f + (LaneCount - 1) * Spacing, MinWidth, MaxWidth);
         }
+
+        /// <summary>
+        /// 첫 열의 커밋 원(HEAD 고리까지)이 잘리지 않는 가장 좁은 폭. 첫 열이 왼쪽 여백 자리에 있으므로 여백의 두 배.
+        /// </summary>
+        public float OneLaneWidth => Padding * 2f;
+
+        /// <summary>
+        /// 두 번째 열까지 커밋 원이 다 보이는 폭. 그래프 칸이 이보다 좁으면 가지를 그릴 수 없어 한 줄로 접는다.
+        /// </summary>
+        public float TwoLaneWidth => Padding * 2f + Spacing;
 
         private float Spacing => HasAvatars ? AvatarLaneSpacing : LaneSpacing;
 
@@ -72,9 +88,37 @@ namespace GitVersionControl
             return new VerticalGraphLayout(graph, hasWip, hasAvatars);
         }
 
-        public float LaneX(int laneRow)
+        /// <summary>
+        /// 칸이 넉넉할 때 첫 열을 칸 왼쪽에서 띄우는 최대 거리(가지 간격 두 칸, GitKraken 과 같다).
+        /// </summary>
+        public float MaxFirstLaneX => Mathf.Max(Padding, Spacing * 2f);
+
+        /// <summary>
+        /// 커밋 원의 가장 바깥(HEAD 고리) 반지름. <c>CommitGraphList.DrawNodes</c> 의 고리 크기와 맞춘다.
+        /// </summary>
+        public float NodeOuterRadius => HasAvatars ? AvatarRadius + 4f : 8f;
+
+        /// <summary>
+        /// 그래프 칸 폭에 맞춘 첫 열의 x. 가지 묶음을 칸 가운데에 두되 왼쪽 여백은 <see cref="MaxFirstLaneX"/> 를 넘지 않고,
+        /// 칸이 좁아지면 여백부터 줄여 <see cref="Padding"/> 까지 내려간다(그보다 좁으면 오른쪽 가지가 잘린다).
+        /// 가지가 하나뿐이면 여백을 줄이지 않고 그 자리에 둔다 — 칸은 원 오른쪽까지만 줄어든다(GitKraken 과 같다).
+        /// 폭에 따라 이어서 바뀌므로 칸을 끌어도 원이 튀지 않는다.
+        /// </summary>
+        /// <param name="contentWidth">그래프 칸에서 오른쪽 가지 색 막대를 뺀 폭.</param>
+        /// <param name="laneCount">그릴 열 수.</param>
+        public float FirstLaneX(float contentWidth, int laneCount)
         {
-            return Padding + laneRow * Spacing;
+            if (laneCount <= 1)
+            {
+                return MaxFirstLaneX;
+            }
+            float centered = (contentWidth - (laneCount - 1) * Spacing) * 0.5f;
+            return Mathf.Clamp(centered, Padding, MaxFirstLaneX);
+        }
+
+        public float LaneX(int laneRow, float firstLaneX)
+        {
+            return firstLaneX + laneRow * Spacing;
         }
 
         /// <summary>

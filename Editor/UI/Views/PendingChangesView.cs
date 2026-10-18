@@ -105,9 +105,19 @@ namespace GitVersionControl
         public override void OnRepositoryChanged()
         {
             _selection.SetRows(Services.Repository.Entries);
+            // 보이지 않으면 파일 목록(수백 줄 트리)을 다시 만들지 않는다 — 탭을 열 때 만든다. 탭 옆 개수는 바로 바꾼다.
+            if (IsActive)
+            {
+                _files.SetItems(_selection.Rows.Select(FileListItem.From));
+                UpdateCommitArea();
+            }
+            NotifyBadgeChanged();
+        }
+
+        protected override void OnActivated()
+        {
             _files.SetItems(_selection.Rows.Select(FileListItem.From));
             UpdateCommitArea();
-            NotifyBadgeChanged();
         }
 
         public override void OnBusyChanged(bool isBusy)

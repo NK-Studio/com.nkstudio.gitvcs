@@ -63,23 +63,59 @@ namespace GitVersionControl
             return CreateBranchFromAsync(commit.Hash, Describe(commit));
         }
 
+        /// <summary>
+        /// GitKraken 레이아웃이면 그래프 줄에서 이름을 받고(<see cref="IInlineBranchCreator"/>), 아니면 대화상자로 묻는다.
+        /// </summary>
         /// <param name="startPoint">새 브랜치가 가리킬 커밋 해시.</param>
-        public async Task CreateBranchFromAsync(string startPoint, string description)
+        /// <param name="revealGraph">Graph 탭을 보고 있지 않아도 열어서 그래프에서 받는다(사이드바의 "HEAD 에서 새 브랜치").</param>
+        public Task CreateBranchFromAsync(string startPoint, string description, bool revealGraph = false)
+        {
+            if (_services.InlineBranches?.TryBeginCreateBranch(startPoint, revealGraph) == true)
+            {
+                return Task.CompletedTask;
+            }
+            return CreateBranchWithDialogAsync(startPoint, description);
+        }
+
+        /// <summary>
+        /// GitKraken 의 그래프 안 입력: 이름을 받은 뒤 더 묻지 않고 만들고 바로 전환한다.
+        /// HEAD 에서 만들면 작업 트리가 그대로라(커밋하지 않은 변경을 그대로 들고 간다) 저장·확인 없이 실행한다.
+        /// </summary>
+        public async Task CreateAndSwitchAsync(string name, string startPoint)
         {
             string title = GitText.Get("commit.createBranchTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.createBranchPrompt", description), string.Empty)?.Trim();
-            if (string.IsNullOrEmpty(name))
-            {
-                return;
-            }
             GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
             if (valid.Success == false)
             {
                 _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
                 return;
             }
-            // 대화상자를 닫아도 "만들기만" 이 되도록 전환을 확인 쪽에 둔다.
-            bool switchTo = _services.Dialogs.Confirm(title, GitText.Format("commit.createBranchSwitch", name), GitText.Get("commit.createAndSwitch"), GitText.Get("commit.createOnly"));
+            bool atHead = startPoint == _services.Repository.HeadCommit;
+            if (atHead == false && BranchActions.PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.createBranch", name), () => _services.Commands.CreateBranchAtAsync(name, startPoint, true), refreshAssets: atHead == false);
+        }
+
+        /// <param name="startPoint">새 브랜치가 가리킬 커밋 해시.</param>
+        public async Task CreateBranchWithDialogAsync(string startPoint, string description)
+        {
+            string title = GitText.Get("commit.createBranchTitle");
+            // Fork 처럼 이름·"만든 뒤 체크아웃" 을 한 창에서 받는다. 창이 쓰는 동안 이름을 검사하고, 여기서 git 으로 한 번 더 확인한다.
+            GitBranchDialogResult picked = await GitBranchDialog.ShowAsync(_services, description);
+            if (picked == null)
+            {
+                return;
+            }
+            string name = picked.Name;
+            bool switchTo = picked.Checkout;
+            GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
+            if (valid.Success == false)
+            {
+                _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
+                return;
+            }
             if (switchTo && BranchActions.PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return;

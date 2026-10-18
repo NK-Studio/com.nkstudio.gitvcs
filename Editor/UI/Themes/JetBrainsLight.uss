@@ -17,6 +17,8 @@
     --git-accent: #3574f0;
     --git-accent-hover: #3369d6;
     --git-accent-text: #ffffff;
+    /* 강조색을 글자·선 아이콘에 쓸 때(개수·현재 브랜치 아이콘·링크). 바탕용 --git-accent 는 작은 글자로 읽기 어려워 따로 둔다(대비 5:1 이상). */
+    --git-accent-fg: #1d55b8;
     --git-success: #208a3c;
     --git-warning: #a46704;
     --git-danger: #db3b4b;
@@ -52,7 +54,7 @@
     --git-graph-selection: #3574f0;
     --git-graph-search: #e5a823;
     --git-graph-head: #208a3c;
-    --git-graph-date-band: rgba(0,0,0,0.025);
+    --git-graph-date-band: rgba(0,0,0,0.05);
     --git-graph-truncated: rgba(108,112,126,0.5);
     --git-diff-bg: #ffffff;
     --git-diff-added-line: #eaf5ea;

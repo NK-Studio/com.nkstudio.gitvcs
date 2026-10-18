@@ -131,11 +131,20 @@ namespace GitVersionControl.Tests
         public void Test_Build_FilterKeepsMatchesAndAncestors()
         {
             List<RefNode> roots = RefTreeBuilder.Build(SampleRefs(), "VAT", section => section.ToString());
-            RefNode local = roots[0];
+            // 걸린 것이 없는 구역(원격·stash 등)은 검색 중에 빠진다.
+            RefNode local = roots.Single();
+            Assert.AreEqual(RefSection.Local, local.Section);
             Assert.AreEqual("1", local.Badge);
             Assert.AreEqual("spine-vat", local.Children.Single().Children.Single().Label);
-            Assert.AreEqual("0", roots[1].Badge);
-            Assert.AreEqual(0, roots.Single(r => r.Section == RefSection.Stashes).Children.Count);
+        }
+
+        [Test]
+        public void Test_Build_NoFilter_KeepsEmptySections()
+        {
+            List<RefNode> roots = RefTreeBuilder.Build(new GitRefSet(), null, section => section.ToString());
+
+            Assert.AreEqual(RefTreeBuilder.Sections.Length, roots.Count);
+            Assert.IsTrue(roots.All(r => r.Children.Count == 0));
         }
 
         [TestCase("section:Local", true)]
@@ -160,6 +169,28 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("stash branch fix stash@{0}", Joined(GitCommitCommands.StashBranch("fix", "stash@{0}")));
             Assert.AreEqual("worktree remove E:/wt", Joined(GitCommitCommands.RemoveWorktree("E:/wt")));
             Assert.AreEqual("submodule update --init --recursive -- Libs/Core", Joined(GitCommitCommands.UpdateSubmodule("Libs/Core")));
+        }
+
+        [TestCase("feature/login", BranchNameProblem.None)]
+        [TestCase("", BranchNameProblem.Empty)]
+        [TestCase("my branch", BranchNameProblem.Whitespace)]
+        [TestCase("fix:crash", BranchNameProblem.InvalidCharacter)]
+        [TestCase("-oops", BranchNameProblem.BadStart)]
+        [TestCase("feature/", BranchNameProblem.BadEnd)]
+        [TestCase("topic.lock", BranchNameProblem.BadEnd)]
+        [TestCase("a..b", BranchNameProblem.BadSequence)]
+        [TestCase("a//b", BranchNameProblem.BadSequence)]
+        [TestCase("feature/.hidden", BranchNameProblem.DotComponent)]
+        public void Test_BranchName_Check(string name, BranchNameProblem expected)
+        {
+            Assert.AreEqual(expected, GitBranchNames.Check(name, new[] { "master" }));
+        }
+
+        [Test]
+        public void Test_BranchName_ExistingIgnoresCase()
+        {
+            Assert.AreEqual(BranchNameProblem.Exists, GitBranchNames.Check("Master", new[] { "master" }));
+            Assert.AreEqual(BranchNameProblem.None, GitBranchNames.Check("master-2", new[] { "master" }));
         }
     }
 }

@@ -226,6 +226,21 @@
     color: var(--git-text);
 }
 
+/* 그림 아이콘(실행 취소·다시 실행): 흰 Material Symbols 그림을 글자색으로 물들인다. 꺼지면 .git-action:disabled 가 흐리게 한다. */
+.git-action__icon--undo,
+.git-action__icon--redo {
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-text);
+}
+
+.git-action__icon--undo {
+    background-image: url("../Icons/Undo.png");
+}
+
+.git-action__icon--redo {
+    background-image: url("../Icons/Redo.png");
+}
+
 .git-action__caption {
     font-size: 10px;
     color: var(--git-text-muted);
@@ -301,10 +316,30 @@
     min-height: 0;
 }
 
-.ref-tree__filter {
+/* 사이드바 필터(Fork 처럼 한 줄 높이의 넉넉한 상자, 비어 있으면 "Filter"). 툴바 검색창 기본(18px)은 너무 작다.
+   클래스를 겹쳐 적어 테마의 .unity-search-field-base 규칙보다 이긴다. */
+.ref-tree .ref-tree__filter {
     flex-shrink: 0;
     width: auto;
-    margin: 6px 6px 4px 6px;
+    height: 26px;
+    min-height: 26px;
+    margin: 8px 8px 6px 8px;
+    padding: 0 4px;
+    border-radius: 5px;
+    align-items: center;
+}
+
+.ref-tree .ref-tree__filter .unity-base-text-field__input {
+    font-size: 13px;
+    -unity-text-align: middle-left;
+}
+
+/* 돋보기도 글자에 맞춰 키운다. */
+.ref-tree .ref-tree__filter .unity-search-field-base__search-button {
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+    -unity-background-scale-mode: scale-to-fit;
 }
 
 .ref-tree__error {
@@ -363,8 +398,10 @@
     color: var(--git-text-muted);
 }
 
+/* 구역 개수: 10px 는 파란 숫자가 흐려 보여 한 단계 키운다. 색은 글자용 강조색(--git-accent-fg). */
 .ref-tree__row--section .ref-tree__badge {
-    color: var(--git-accent);
+    font-size: 11px;
+    color: var(--git-accent-fg);
 }
 
 /* 현재 브랜치·워크트리: 굵게, 아이콘은 강조색. */
@@ -373,7 +410,7 @@
 }
 
 .ref-tree__row--current .ref-tree__icon {
-    color: var(--git-accent);
+    color: var(--git-accent-fg);
 }
 
 .git-sidebar__tab {

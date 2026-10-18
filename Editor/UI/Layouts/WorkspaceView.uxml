@@ -3,8 +3,8 @@
     <ui:VisualElement class="view workspace">
         <uie:Toolbar class="workspace__toolbar">
             <uie:ToolbarSearchField name="filter" class="workspace__filter" />
-            <uie:ToolbarToggle name="show-ignored" text="@workspace.showIgnored" />
-            <uie:ToolbarToggle name="changed-only" text="@workspace.changedOnly" />
+            <uie:ToolbarToggle name="show-ignored" text="@workspace.showIgnored" class="workspace__toggle" />
+            <uie:ToolbarToggle name="changed-only" text="@workspace.changedOnly" class="workspace__toggle" />
             <ui:Label name="summary" class="view__toolbar-label" />
         </uie:Toolbar>
 

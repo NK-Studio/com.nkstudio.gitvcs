@@ -32,6 +32,14 @@
     cursor: link;
 }
 
+/* 글 입력란(한 줄·여러 줄, 검색창 포함)에는 I자 커서. 위와 같은 까닭으로 안쪽 글자 요소(*)에도 준다.
+   브랜치 만들기 창은 아이콘이 든 바깥 상자까지 입력란처럼 보이므로 그 상자에도 준다. */
+.git-window .unity-base-text-field__input,
+.git-window .unity-base-text-field__input *,
+.git-window .branch-dialog__field {
+    cursor: text;
+}
+
 /* 남는 공간을 채우는 빈 요소(도구 막대에서 버튼을 오른쪽으로 민다). */
 .spacer {
     flex-grow: 1;

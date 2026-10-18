@@ -19,6 +19,8 @@ namespace GitVersionControl
         private readonly FileList _list;
         private readonly FileTree _tree;
         private readonly VisualElement _listRoot;
+        private readonly FileRowBinder _binder;
+        private Action<FileListItem> _rowAction;
         private List<FileListItem> _items = new();
         private Func<FileListItem, bool> _isChecked;
         private FileViewMode _shownMode;
@@ -45,6 +47,24 @@ namespace GitVersionControl
         }
 
         public IReadOnlyList<FileListItem> Items => _items;
+
+        /// <summary>
+        /// 여러 파일 고르기(Shift = 범위, Ctrl = 하나씩 더하기·빼기). 기본은 하나만.
+        /// </summary>
+        public bool MultiSelect
+        {
+            set
+            {
+                SelectionType type = value ? SelectionType.Multiple : SelectionType.Single;
+                _list.SelectionType = type;
+                _tree.SelectionType = type;
+            }
+        }
+
+        /// <summary>
+        /// 고른 파일 전부(보이는 순서). 트리 보기의 폴더 줄은 뺀다.
+        /// </summary>
+        public IReadOnlyList<FileListItem> SelectedItems => _shownMode == FileViewMode.Tree ? _tree.SelectedFiles : _list.SelectedItems;
 
         /// <summary>
         /// 파일 줄의 diff 대상을 만든다. 정하면 더블클릭이 diff 를 열고 우클릭 메뉴 맨 위에 "변경 내용 보기"가 생긴다.
@@ -94,6 +114,7 @@ namespace GitVersionControl
             host.AddToClassList(Block);
 
             FileRowBinder binder = new(services.Icons);
+            _binder = binder;
             ListView listView = new();
             listView.AddToClassList("list");
             host.Add(listView);
@@ -103,6 +124,7 @@ namespace GitVersionControl
             _list.ContextMenuRequested += (menu, item) => ContextMenuRequested?.Invoke(menu, item);
             _list.ItemChosen += OnFileChosen;
             _list.SelectionChanged += item => SelectionChanged?.Invoke(item);
+            _list.ActionClicked += item => _rowAction?.Invoke(item);
             _list.PopulateMenuHead = PopulateMenuHead;
 
             _tree = new FileTree(services.Assets, binder);
@@ -113,6 +135,7 @@ namespace GitVersionControl
             _tree.FileChosen += OnFileChosen;
             _tree.FolderPathContextMenuRequested += (menu, path, files) => FolderPathContextMenuRequested?.Invoke(menu, path, files);
             _tree.SelectionChanged += item => SelectionChanged?.Invoke(item);
+            _tree.ActionClicked += item => _rowAction?.Invoke(item);
             _tree.PopulateMenuHead = PopulateMenuHead;
 
             if (switchHost != null)
@@ -123,6 +146,39 @@ namespace GitVersionControl
             _shownMode = _preference.Mode;
             _preference.Changed += OnModeChanged;
             ApplyVisibility();
+        }
+
+        /// <summary>
+        /// 파일 줄에 마우스를 올리면 오른쪽에 나올 버튼(GitKraken 의 "Stage File"). 누르면 그 줄 파일 하나만 넘긴다 —
+        /// 여러 파일을 골라 둔 채 눌러도 고른 것과 상관없다. <paramref name="modifier"/> 는 버튼 모양 클래스(USS).
+        /// </summary>
+        public void SetRowAction(string text, string modifier, Action<FileListItem> action)
+        {
+            _binder.ActionText = text;
+            _binder.ActionModifier = modifier;
+            _rowAction = action;
+            Refresh();
+        }
+
+        /// <summary>
+        /// 트리 보기 위의 "모두 펼치기 / 모두 접기" 버튼을 보일지(기본 보임).
+        /// </summary>
+        public bool ShowExpandToggle
+        {
+            set => _tree.ShowExpandToggle = value;
+        }
+
+        /// <summary>
+        /// 줄 버튼(<see cref="SetRowAction"/>)을 켜고 끈다. 바뀔 때만 보이는 줄을 다시 묶는다.
+        /// </summary>
+        public void SetRowActionEnabled(bool enabled)
+        {
+            if (_binder.ActionEnabled == enabled)
+            {
+                return;
+            }
+            _binder.ActionEnabled = enabled;
+            Refresh();
         }
 
         public void SetItems(IEnumerable<FileListItem> items)

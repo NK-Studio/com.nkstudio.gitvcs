@@ -16,6 +16,17 @@ namespace GitVersionControl
         public readonly IAvatarProvider Avatars;
         public readonly IGitDiffService Diff;
 
+        /// <summary>
+        /// GitKraken 레이아웃에서 브랜치 이름을 대화상자 대신 그래프 줄에서 받는 곳. 창이 탭을 만든 뒤 넣는다. null 이면 늘 대화상자로 묻는다.
+        /// </summary>
+        public IInlineBranchCreator InlineBranches { get; set; }
+
+        /// <summary>
+        /// 창 안에 덮어 띄우는 팝업(브랜치 만들기 등)을 얹을 요소. Git 창이 자기 본체를 넣는다 — 테마·UI 배율이 같이 적용된다.
+        /// null 이면(Git 창 밖) 따로 뜨는 입력 창으로 묻는다.
+        /// </summary>
+        public UnityEngine.UIElements.VisualElement PopupHost { get; set; }
+
         public GitServices(IGitRepositoryState repository, IGitHistoryService history, IGitCommandService commands,
             IGitOperationRunner runner, IDialogService dialogs, IAssetNavigator assets, IFileIconProvider icons, FileViewPreference fileView, IAvatarProvider avatars, IGitDiffService diff)
         {
@@ -56,6 +67,18 @@ namespace GitVersionControl
         /// 사이드바 참조 트리의 필터에 포커스하고 로컬 구역을 펼친다(도구 막대의 브랜치 버튼).
         /// </summary>
         void FocusRefs();
+    }
+
+    /// <summary>
+    /// GitKraken 처럼 브랜치 이름을 그 커밋 줄의 브랜치/태그 칸에서 바로 받고, Enter 면 만들고 전환한다(묻는 창 없음).
+    /// Graph 탭이 없는 레이아웃(Unity VCS·Fork)은 받지 않아서 기존 대화상자로 묻는다.
+    /// </summary>
+    public interface IInlineBranchCreator
+    {
+        /// <param name="startPoint">새 브랜치가 가리킬 커밋 해시.</param>
+        /// <param name="revealGraph">true 면 Graph 탭을 열어서 받는다(도구 막대·사이드바). false 면 Graph 탭을 보고 있을 때만 받는다(탭 안 우클릭 메뉴).</param>
+        /// <returns>그래프에서 이름을 받기 시작했으면 true. false 면 부른 쪽이 대화상자로 묻는다.</returns>
+        bool TryBeginCreateBranch(string startPoint, bool revealGraph);
     }
 
     /// <summary>

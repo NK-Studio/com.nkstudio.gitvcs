@@ -79,6 +79,59 @@
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
 }
 
+/* 줄에 마우스를 올리면 오른쪽에 나오는 버튼(GitKraken 의 Stage File·Unstage File). 쓰는 쪽이 모양 클래스(--stage·--unstage)를
+   붙인 파일 줄에서만, 그 줄 위에 마우스가 있을 때만 보인다. 버튼 위에 올리면 색을 채워 강조한다. */
+.file-row__action {
+    display: none;
+    flex-shrink: 0;
+    height: 18px;
+    margin: 0 2px 0 6px;
+    padding: 0 8px;
+    font-size: 11px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    border-width: 1px;
+    border-radius: 3px;
+    color: var(--git-text);
+}
+
+.file-row:hover .file-row__action--stage,
+.file-row:hover .file-row__action--unstage {
+    display: flex;
+}
+
+.file-row .file-row__action--stage {
+    border-color: var(--git-success);
+    background-color: rgba(95, 184, 101, 0.18);
+}
+
+.file-row .file-row__action--stage:hover:enabled {
+    background-color: rgba(95, 184, 101, 0.6);
+    color: #ffffff;
+}
+
+.file-row .file-row__action--stage:active:enabled {
+    background-color: rgba(95, 184, 101, 0.8);
+}
+
+.file-row .file-row__action--unstage {
+    border-color: var(--git-danger);
+    background-color: rgba(219, 92, 92, 0.18);
+}
+
+.file-row .file-row__action--unstage:hover:enabled {
+    background-color: rgba(219, 92, 92, 0.6);
+    color: #ffffff;
+}
+
+.file-row .file-row__action--unstage:active:enabled {
+    background-color: rgba(219, 92, 92, 0.8);
+}
+
+/* git 작업 결과가 보이기 전에는 줄 버튼을 끈다(StagingLists 가 SetRowActionEnabled). 꺼진 게 보이게 흐리게. */
+.file-row .file-row__action:disabled {
+    opacity: 0.4;
+}
+
 /* ── commit-row ───────────────────────────────────── */
 .commit-row__hash,
 .commit-row__date {

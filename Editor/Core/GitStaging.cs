@@ -83,6 +83,108 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// <c>git add</c> 뒤의 status 를 미리 짐작한다(누르자마자 목록을 옮겨 보이려고). 진짜 status 가 오면 그것으로 바뀐다.
+        /// 작업 트리 쪽 변경을 인덱스로 올린다: "??"→"A ", " M"→"M ", " D"→"D ", "AM"→"A ", "MD"→"D ". 새로 만든 뒤 지운 파일("AD")은 사라진다.
+        /// 충돌은 stage 대상이 아니라 그대로 둔다.
+        /// </summary>
+        /// <param name="paths">올릴 저장소 경로. null 이면 전부(Stage All).</param>
+        public static List<GitStatusEntry> PredictStage(IEnumerable<GitStatusEntry> entries, ICollection<string> paths)
+        {
+            List<GitStatusEntry> result = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                if ((paths != null && paths.Contains(entry.RepoPath) == false) || entry.State == GitFileState.Conflicted || entry.WorkTreeCode == ' ')
+                {
+                    result.Add(entry);
+                    continue;
+                }
+                char index;
+                if (entry.IndexCode == '?')
+                {
+                    index = 'A';
+                }
+                else if (entry.WorkTreeCode == 'D')
+                {
+                    if (entry.IndexCode == 'A')
+                    {
+                        continue;
+                    }
+                    index = 'D';
+                }
+                else
+                {
+                    index = entry.IndexCode == ' ' ? 'M' : entry.IndexCode;
+                }
+                result.Add(Raw(entry, index, ' ', entry.OriginalRepoPath));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// <c>git restore --staged</c> 뒤의 status 를 미리 짐작한다. 인덱스를 HEAD 로 되돌린다:
+        /// "A "·"AM"→"??", "M "·"MM"→" M", "D "→" D", "MD"→" D". 새로 올린 뒤 지운 파일("AD")은 사라진다.
+        /// 이름 변경·복사(R·C)는 새 경로·원래 경로 두 줄로 갈라져 맞히기 어려우므로 그대로 두고 진짜 status 를 기다린다.
+        /// </summary>
+        /// <param name="paths">내릴 저장소 경로. null 이면 전부(Unstage All).</param>
+        public static List<GitStatusEntry> PredictUnstage(IEnumerable<GitStatusEntry> entries, ICollection<string> paths)
+        {
+            List<GitStatusEntry> result = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                char x = entry.IndexCode;
+                if ((paths != null && paths.Contains(entry.RepoPath) == false) || entry.State == GitFileState.Conflicted
+                    || x == ' ' || x == '?' || x == '!' || x == 'R' || x == 'C')
+                {
+                    result.Add(entry);
+                    continue;
+                }
+                if (x == 'A')
+                {
+                    if (entry.WorkTreeCode == 'D')
+                    {
+                        continue;
+                    }
+                    result.Add(Raw(entry, '?', '?', null));
+                    continue;
+                }
+                char workTree = x == 'D' || entry.WorkTreeCode == 'D' ? 'D' : 'M';
+                result.Add(Raw(entry, ' ', workTree, null));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// status 원본 항목(양쪽 글자)을 새 글자로 만든다. 상태는 파서와 같은 규칙으로 다시 매긴다.
+        /// </summary>
+        private static GitStatusEntry Raw(GitStatusEntry entry, char index, char workTree, string original)
+        {
+            return new GitStatusEntry
+            {
+                RepoPath = entry.RepoPath,
+                OriginalRepoPath = original,
+                ProjectPath = entry.ProjectPath,
+                IndexCode = index,
+                WorkTreeCode = workTree,
+                State = GitStatusParser.ToState(index, workTree),
+            };
+        }
+
+        /// <summary>
+        /// 별도 git 저장소가 든 폴더인지(패키지 폴더를 따로 clone 해 둔 경우 등). git status 는 그런 폴더를 들어가 보지 않고
+        /// "?? 경로/" 한 줄로만 보이고, 그대로 git add 하면 파일이 아니라 그 저장소 커밋을 가리키는 링크(gitlink)가 올라간다.
+        /// </summary>
+        public static bool IsEmbeddedRepository(GitStatusEntry entry, string repoRoot)
+        {
+            if (entry.State != GitFileState.Untracked || entry.RepoPath.EndsWith("/", System.StringComparison.Ordinal) == false || string.IsNullOrEmpty(repoRoot))
+            {
+                return false;
+            }
+            // .git 은 폴더(일반 clone)이거나 파일(worktree·submodule) 이다.
+            string gitPath = System.IO.Path.Combine(repoRoot, entry.RepoPath, ".git");
+            return System.IO.Directory.Exists(gitPath) || System.IO.File.Exists(gitPath);
+        }
+
+        /// <summary>
         /// 한쪽 상태 글자(M·A·D·R·C·T)의 뜻.
         /// </summary>
         public static GitFileState StateOf(char code)

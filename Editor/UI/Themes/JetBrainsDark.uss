@@ -17,6 +17,8 @@
     --git-accent: #3871e1;
     --git-accent-hover: #3366cc;
     --git-accent-text: #ffffff;
+    /* 강조색을 글자·선 아이콘에 쓸 때(개수·현재 브랜치 아이콘·링크). 바탕용 --git-accent 는 작은 글자로 읽기 어려워 따로 둔다(대비 5:1 이상). */
+    --git-accent-fg: #7aa7ff;
     --git-success: #5fb865;
     --git-warning: #d6ae58;
     --git-danger: #db5c5c;
@@ -39,7 +41,7 @@
     --git-graph-header-bg: #191a1c;
     --git-graph-header-border: #26282c;
     --git-graph-subject: #b0b3ba;
-    --git-graph-date: #80838a;
+    --git-graph-date: #b4b7bd;
     --git-graph-lane-bg: #26282c;
     --git-graph-lane-text: #d1d3d9;
     --git-graph-pill-bg: #233558;
@@ -52,7 +54,7 @@
     --git-graph-selection: #d1d3d9;
     --git-graph-search: #d6ae58;
     --git-graph-head: #5fb865;
-    --git-graph-date-band: rgba(255,255,255,0.02);
+    --git-graph-date-band: rgba(255,255,255,0.06);
     --git-graph-truncated: rgba(128,131,138,0.5);
     --git-diff-bg: #191a1c;
     --git-diff-added-line: #22352a;
@@ -68,4 +70,19 @@
     --git-diff-added-sign: #73bd79;
     --git-diff-removed-sign: #f75464;
     --git-diff-split-border: #26282c;
+}
+
+/* 양쪽 사이드 패널(왼쪽 사이드바, 오른쪽 작업 패널)은 가운데보다 한 단계 밝은 바탕. 안쪽 목록·머리 줄·입력 칸도 같은 바탕을 쓰고, 호버·눌림은 한 단계씩 올린다. */
+.git-sidebar,
+.graph-workspace__side,
+.workspace__side {
+    --git-sidebar-bg: #26282c;
+    --git-header-bg: #26282c;
+    --git-list-bg: #26282c;
+    --git-field-bg: #26282c;
+    --git-button-bg: #26282c;
+    --git-hover: #33353b;
+    --git-button-hover: #33353b;
+    --git-pressed: #3c3f45;
+    --git-divider: #33353b;
 }

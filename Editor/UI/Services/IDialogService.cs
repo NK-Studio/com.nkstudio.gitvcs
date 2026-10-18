@@ -10,6 +10,12 @@ namespace GitVersionControl
     {
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
         bool Confirm(string title, string message, string ok, string cancel = null);
+
+        /// <summary>
+        /// 세 갈래로 묻는다. 0 = <paramref name="ok"/>(기본), 1 = 취소, 2 = <paramref name="alt"/>.
+        /// </summary>
+        int Choose(string title, string message, string ok, string alt, string cancel = null);
+
         void Alert(string title, string message);
 
         /// <summary>열린 씬·에셋의 저장 안 된 수정을 디스크에 쓴다. 사용자가 취소하면 false.</summary>
@@ -21,6 +27,12 @@ namespace GitVersionControl
         public bool Confirm(string title, string message, string ok, string cancel = null)
         {
             return EditorUtility.DisplayDialog(title, message, ok, cancel ?? GitText.Get("common.cancel"));
+        }
+
+        public int Choose(string title, string message, string ok, string alt, string cancel = null)
+        {
+            // DisplayDialogComplex: 0 = ok, 1 = cancel, 2 = alt.
+            return EditorUtility.DisplayDialogComplex(title, message, ok, cancel ?? GitText.Get("common.cancel"), alt);
         }
 
         public void Alert(string title, string message)

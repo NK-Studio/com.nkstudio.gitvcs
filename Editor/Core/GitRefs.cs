@@ -163,12 +163,20 @@ namespace GitVersionControl
                 errors.Add(branchError);
             }
             // 서브모듈이 없는 저장소에서도 submodule status 는 성공한다. 실패만 모은다.
+            // 단, .gitmodules 없이 인덱스에 올라간 하위 저장소(gitlink — 폴더째 Stage 하다 들어간 패키지 저장소 등)가 있으면
+            // submodule status 가 "no submodule mapping found" 로 통째로 실패한다. 이건 참조 목록을 못 읽을 일이 아니므로
+            // 사이드바에 오류로 띄우지 않고 서브모듈 구역만 비운다.
             foreach (GitResult result in new[] { tags, stashes, worktrees, submodules })
             {
-                if (result.Success == false && string.IsNullOrWhiteSpace(result.Message) == false)
+                if (result.Success || string.IsNullOrWhiteSpace(result.Message))
                 {
-                    errors.Add(result.Message);
+                    continue;
                 }
+                if (ReferenceEquals(result, submodules) && IsUnmappedGitlinkError(result.Message))
+                {
+                    continue;
+                }
+                errors.Add(result.Message);
             }
 
             return new GitRefSet
@@ -271,6 +279,15 @@ namespace GitVersionControl
         /// <summary>
         /// <c>submodule status</c>: 줄마다 상태 글자(' ', '-', '+', 'U'), 해시, 경로, 그리고 있으면 " (describe)".
         /// </summary>
+        /// <summary>
+        /// <c>git submodule status</c> 가 .gitmodules 에 없는 gitlink 때문에 실패했는지
+        /// ("fatal: no submodule mapping found in .gitmodules for path '…'").
+        /// </summary>
+        public static bool IsUnmappedGitlinkError(string message)
+        {
+            return message != null && message.IndexOf("no submodule mapping found", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         public static List<GitSubmoduleRef> ParseSubmodules(string output)
         {
             List<GitSubmoduleRef> submodules = new();

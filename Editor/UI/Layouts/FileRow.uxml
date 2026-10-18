@@ -8,5 +8,7 @@
         <ui:Label name="path" class="file-row__path ellipsis" />
         <ui:Label name="original" class="file-row__original ellipsis" />
         <ui:Label name="note" class="file-row__note" />
+        <!-- 줄에 마우스를 올리면 오른쪽에 나오는 버튼(Stage File 등). 쓰는 쪽이 정하지 않으면 늘 숨는다(FileBrowser.SetRowAction). -->
+        <ui:Button name="action" class="file-row__action" />
     </ui:VisualElement>
 </ui:UXML>

@@ -131,5 +131,75 @@ namespace GitVersionControl.Tests
             CollectionAssert.DoesNotContain(args, "HEAD");
             Assert.AreEqual("a.cs", args.Last());
         }
+
+        private static string Codes(GitStatusEntry entry)
+        {
+            return $"{entry.IndexCode}{entry.WorkTreeCode}";
+        }
+
+        [Test]
+        public void Test_PredictStage_MovesWorkTreeChangesToIndex()
+        {
+            List<GitStatusEntry> entries = new()
+            {
+                Entry("new.cs", '?', '?'),
+                Entry("mod.cs", ' ', 'M'),
+                Entry("gone.cs", ' ', 'D'),
+                Entry("added.cs", 'A', 'M'),
+            };
+
+            List<GitStatusEntry> predicted = GitStaging.PredictStage(entries, null);
+
+            CollectionAssert.AreEqual(new[] { "A ", "M ", "D ", "A " }, predicted.Select(Codes));
+            Assert.AreEqual(GitFileState.Added, predicted[0].State);
+            Assert.AreEqual(0, GitStaging.Unstaged(predicted).Count);
+        }
+
+        [Test]
+        public void Test_PredictStage_OnlyGivenPaths_LeavesOthersAndConflicts()
+        {
+            List<GitStatusEntry> entries = new() { Entry("a.cs", ' ', 'M'), Entry("b.cs", ' ', 'M'), Entry("both.cs", 'U', 'U') };
+
+            List<GitStatusEntry> predicted = GitStaging.PredictStage(entries, new HashSet<string> { "a.cs", "both.cs" });
+
+            CollectionAssert.AreEqual(new[] { "M ", " M", "UU" }, predicted.Select(Codes));
+        }
+
+        [Test]
+        public void Test_PredictStage_AddedThenDeleted_Disappears()
+        {
+            List<GitStatusEntry> entries = new() { Entry("tmp.cs", 'A', 'D') };
+
+            Assert.AreEqual(0, GitStaging.PredictStage(entries, null).Count);
+        }
+
+        [Test]
+        public void Test_PredictUnstage_ResetsIndexToHead()
+        {
+            List<GitStatusEntry> entries = new()
+            {
+                Entry("new.cs", 'A', ' '),
+                Entry("mod.cs", 'M', 'M'),
+                Entry("gone.cs", 'D', ' '),
+                Entry("both.cs", 'M', 'D'),
+            };
+
+            List<GitStatusEntry> predicted = GitStaging.PredictUnstage(entries, null);
+
+            CollectionAssert.AreEqual(new[] { "??", " M", " D", " D" }, predicted.Select(Codes));
+            Assert.AreEqual(GitFileState.Untracked, predicted[0].State);
+            Assert.AreEqual(0, GitStaging.Staged(predicted).Count);
+        }
+
+        [Test]
+        public void Test_PredictUnstage_RenameIsLeftForRealStatus()
+        {
+            List<GitStatusEntry> entries = new() { Entry("b.cs", 'R', ' ', original: "a.cs") };
+
+            GitStatusEntry predicted = GitStaging.PredictUnstage(entries, null).Single();
+
+            Assert.AreEqual("R ", Codes(predicted));
+            Assert.AreEqual("a.cs", predicted.OriginalRepoPath);
+        }
     }
 }

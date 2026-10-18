@@ -33,8 +33,8 @@
     color: var(--git-text);
 }
 
+/* 아래 커밋 칸. 높이는 분할이 정하고(경계선 끌기), 남는 높이는 메시지 칸이 갖는다. */
 .pending-changes__commit {
-    flex-shrink: 0;
     padding: 4px 6px 6px 6px;
     border-top-width: 1px;
     border-top-color: var(--git-border);
@@ -47,14 +47,25 @@
     margin-bottom: 2px;
 }
 
+/* 메시지가 길어도 칸을 밀어내지 않고 안에서 스크롤한다. */
 .pending-changes__message {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
     margin: 0;
 }
 
 .pending-changes__message > .unity-text-field__input {
+    flex-grow: 1;
     min-height: 54px;
     -unity-text-align: upper-left;
     white-space: normal;
+}
+
+.pending-changes__commit-title,
+.pending-changes__commit .notice,
+.pending-changes__commit-footer {
+    flex-shrink: 0;
 }
 
 .pending-changes__commit-footer {
@@ -148,8 +159,94 @@
 }
 
 /* ── workspace: Gluon 식 워크스페이스 탐색 ─────────── */
-.workspace__filter {
-    width: 200px;
+/* 위 줄: 넉넉한 높이에 필터·토글·요약을 가운데 맞춤. 클래스를 겹쳐 테마의 .unity-toolbar(26px)보다 세게 한다. */
+.workspace .workspace__toolbar {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 10px;
+    align-items: center;
+}
+
+/* 필터: 사이드바 필터와 같은 상자(26px·13px 글자·16px 돋보기·"Filter" 자리표시). */
+.workspace .workspace__filter {
+    width: 260px;
+    height: 26px;
+    min-height: 26px;
+    margin: 0 8px 0 0;
+    padding: 0 4px;
+    border-radius: 5px;
+    align-items: center;
+}
+
+.workspace .workspace__filter .unity-base-text-field__input {
+    font-size: 13px;
+    -unity-text-align: middle-left;
+}
+
+.workspace .workspace__filter .unity-search-field-base__search-button {
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* Show Ignored·Changes Only: 켜짐·꺼짐이 한눈에 보이는 둥근 토글. 꺼지면 테두리만·흐린 글자, 켜지면 선택색 바탕·강조 테두리. */
+.workspace .workspace__toolbar .workspace__toggle {
+    height: 26px;
+    margin: 0 4px 0 0;
+    padding: 0 12px;
+    border-width: 1px;
+    border-radius: 13px;
+    border-color: var(--git-button-border);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    font-size: 12px;
+}
+
+.workspace .workspace__toolbar .workspace__toggle:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.workspace .workspace__toolbar .workspace__toggle:checked {
+    background-color: var(--git-selected);
+    border-color: var(--git-accent);
+    color: var(--git-selected-text);
+}
+
+.workspace .workspace__toolbar .view__toolbar-label {
+    margin-left: 8px;
+    font-size: 11px;
+}
+
+/* 표 머리(Item·Status·Size·Modified): Unity 기본(밝은 회색·큰 글자) 대신 다른 목록 머리와 같은 바탕·구분선·작은 흐린 글자. */
+.workspace .workspace__list .unity-multi-column-header,
+.workspace .workspace__list .unity-multi-column-header__column-container {
+    background-color: var(--git-header-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.workspace .workspace__list .unity-multi-column-header__column {
+    height: 26px;
+    min-height: 26px;
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-right-width: 1px;
+    border-right-color: var(--git-divider);
+}
+
+.workspace .workspace__list .unity-multi-column-header__column:hover {
+    background-color: var(--git-hover);
+}
+
+.workspace .workspace__list .unity-multi-column-header .unity-label {
+    padding: 0 8px;
+    font-size: 11px;
+    color: var(--git-text-muted);
+    -unity-text-align: middle-left;
 }
 
 .workspace__table {
@@ -302,4 +399,220 @@
 .branch-explorer__overlay-icon {
     width: 18px;
     height: 18px;
+}
+
+/* ── branch-dialog: 브랜치 만들기 팝업(Fork 의 Create Branch 와 같은 모양) ─────────── */
+/* Git 창 전체를 덮는 막. 뒤를 흐리게 하고 카드를 가운데에 둔다. 포인터를 받아 밑의 목록·버튼이 눌리지 않게 한다. */
+.branch-popup {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.branch-dialog {
+    width: 560px;
+    max-width: 92%;
+    padding: 16px 22px 14px 22px;
+    border-width: 1px;
+    border-radius: 8px;
+    border-color: var(--git-border);
+    background-color: var(--git-bg);
+}
+
+/* 오른쪽 위 닫기(×). */
+.branch-dialog .branch-dialog__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    border-width: 0;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+}
+
+.branch-dialog .branch-dialog__close:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.branch-dialog__header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+/* 강조색 원 안의 흰 브랜치 아이콘(Fork 는 앱 아이콘 자리). */
+.branch-dialog__badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    margin-right: 14px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.branch-dialog__badge-glyph {
+    width: 26px;
+    height: 26px;
+}
+
+.branch-dialog__titles {
+    flex-grow: 1;
+}
+
+.branch-dialog__title {
+    margin: 0;
+    padding: 0;
+    font-size: 15px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+}
+
+.branch-dialog__hint {
+    margin: 2px 0 0 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--git-text-muted);
+}
+
+/* 왼쪽 이름표(오른쪽 맞춤) + 오른쪽 내용. 이름표 폭을 맞춰 입력란들이 한 줄로 선다. */
+.branch-dialog__row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 26px;
+    margin-bottom: 6px;
+}
+
+.branch-dialog__label {
+    width: 130px;
+    flex-shrink: 0;
+    margin: 0 10px 0 0;
+    padding: 0;
+    -unity-text-align: middle-right;
+    font-size: 12px;
+    color: var(--git-text);
+}
+
+.branch-dialog__start {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.branch-dialog__start-label {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.branch-dialog__glyph {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    color: var(--git-text-muted);
+}
+
+/* 이름 입력란: 바깥 상자 하나만 테두리(안쪽 TextField 는 투명), 포커스면 강조색. */
+.branch-dialog__field {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    height: 28px;
+    padding: 0 6px 0 8px;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+}
+
+.branch-dialog__field--focused {
+    border-color: var(--git-accent);
+}
+
+.branch-dialog .branch-dialog__input {
+    flex-grow: 1;
+    margin: 0;
+}
+
+.branch-dialog .branch-dialog__input > .unity-base-text-field__input {
+    margin: 0;
+    padding: 0 2px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 13px;
+}
+
+.branch-dialog__problem {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-danger);
+    white-space: normal;
+}
+
+.branch-dialog__checkout {
+    margin: 0;
+}
+
+.branch-dialog__buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.branch-dialog .branch-dialog__create,
+.branch-dialog .branch-dialog__cancel {
+    height: 28px;
+    min-width: 88px;
+    margin: 0 0 0 8px;
+    padding: 0 14px;
+    font-size: 12px;
+    border-width: 1px;
+    border-radius: 5px;
+}
+
+/* 만들기: 강조색 채움(이름이 맞을 때만 켜진다). */
+.branch-dialog .branch-dialog__create {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    color: var(--git-accent-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.branch-dialog .branch-dialog__create:hover:enabled {
+    background-color: var(--git-accent-hover);
+}
+
+.branch-dialog .branch-dialog__create:disabled {
+    opacity: 0.4;
+}
+
+.branch-dialog .branch-dialog__cancel {
+    background-color: var(--git-button-bg);
+    border-color: var(--git-button-border);
+    color: var(--git-text);
+}
+
+.branch-dialog .branch-dialog__cancel:hover:enabled {
+    background-color: var(--git-button-hover);
 }

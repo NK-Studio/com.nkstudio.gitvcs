@@ -6,6 +6,17 @@ using System.Text.RegularExpressions;
 namespace GitVersionControl
 {
     /// <summary>
+    /// AI 도구가 커밋 작성자·공동 작성자로 남긴 이메일의 출처(Co-Authored-By: Claude &lt;noreply@anthropic.com&gt; 등).
+    /// </summary>
+    public enum AiAuthor
+    {
+        None,
+        Claude,
+        OpenAI,
+        Gemini,
+    }
+
+    /// <summary>
     /// 작성자 아바타를 어디서 받을지 정하는 규칙(네트워크 없는 순수 로직).
     /// 1) GitHub noreply 이메일이면 그 계정 아바타. 2) 원격이 GitHub 이면 커밋 API 의 author.avatar_url. 3) Gravatar.
     /// </summary>
@@ -18,6 +29,37 @@ namespace GitVersionControl
 
         // git@github.com:owner/repo.git, ssh://git@github.com/owner/repo, https://github.com/owner/repo(.git)
         private static readonly Regex GitHubRemote = new(@"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// AI 도구의 이메일이면 그 도구. 아바타를 못 받았을 때(아직 푸시하지 않은 로컬 커밋 등) 머리글자 대신 그 로고를 보이는 데 쓴다.
+        /// 예: noreply@anthropic.com → Claude, codex@openai.com → OpenAI, gemini-code-assist@… → Gemini.
+        /// </summary>
+        public static AiAuthor AiAuthorOf(string email)
+        {
+            string value = email?.Trim().ToLowerInvariant() ?? string.Empty;
+            int at = value.IndexOf('@');
+            if (at <= 0)
+            {
+                return AiAuthor.None;
+            }
+            string local = value.Substring(0, at);
+            string domain = value.Substring(at + 1);
+            if (IsDomain(domain, "anthropic.com") || local.Contains("claude"))
+            {
+                return AiAuthor.Claude;
+            }
+            if (IsDomain(domain, "openai.com") || local.Contains("codex") || local.Contains("chatgpt"))
+            {
+                return AiAuthor.OpenAI;
+            }
+            if (local.Contains("gemini"))
+            {
+                return AiAuthor.Gemini;
+            }
+            return AiAuthor.None;
+
+            static bool IsDomain(string domain, string expected) => domain == expected || domain.EndsWith("." + expected, StringComparison.Ordinal);
+        }
 
         /// <summary>noreply 이메일이면 그 계정의 아바타 주소. 아니면 null.</summary>
         public static string NoReplyAvatarUrl(string email)

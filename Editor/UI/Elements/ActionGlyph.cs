@@ -79,6 +79,26 @@ namespace GitVersionControl
         /// 워크트리(나무: 세모 잎과 줄기).
         /// </summary>
         Worktree,
+
+        /// <summary>
+        /// 체크 표시(채운 도형). 커밋 그래프의 현재 브랜치 이름표. Material Symbols "check_small".
+        /// </summary>
+        Check,
+
+        /// <summary>
+        /// 계층도(위 칸 하나에서 갈라져 아래 칸 셋). 좁아진 커밋 그래프 머리 칸.
+        /// </summary>
+        Hierarchy,
+
+        /// <summary>
+        /// 말풍선(왼쪽 아래 꼬리가 달린 네모). 좁아진 커밋 메시지 머리 칸. Material Symbols "chat_bubble" 외곽선.
+        /// </summary>
+        Comment,
+
+        /// <summary>
+        /// 연필(비스듬한 몸통과 뾰족한 끝). 커밋 그래프 작업 중 줄의 제목 입력란.
+        /// </summary>
+        Pencil,
     }
 
     /// <summary>
@@ -226,6 +246,38 @@ namespace GitVersionControl
                 case ActionGlyphKind.Worktree:
                     Polyline(painter, P(10f, 3f), P(15.5f, 11f), P(4.5f, 11f), P(10f, 3f));
                     Polyline(painter, P(10f, 11f), P(10f, 17f));
+                    break;
+                case ActionGlyphKind.Check:
+                    // 원본 SVG(viewBox 0 -960 960 960)를 20 칸으로 옮긴 외곽선을 선 대신 글자색으로 채운다.
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(8.333f, 13.25f));
+                    painter.LineTo(P(5.146f, 10.063f));
+                    painter.LineTo(P(6.021f, 9.188f));
+                    painter.LineTo(P(8.333f, 11.625f));
+                    painter.LineTo(P(13.979f, 5.979f));
+                    painter.LineTo(P(14.854f, 6.854f));
+                    painter.ClosePath();
+                    painter.Fill();
+                    break;
+                case ActionGlyphKind.Hierarchy:
+                    // 위 칸 → 줄기 → 가로대 → 아래 칸 셋으로 내려가는 가지.
+                    Polyline(painter, P(8f, 2.5f), P(12f, 2.5f), P(12f, 6.5f), P(8f, 6.5f), P(8f, 2.5f));
+                    Polyline(painter, P(10f, 6.5f), P(10f, 13.5f));
+                    Polyline(painter, P(4f, 13.5f), P(4f, 10f), P(16f, 10f), P(16f, 13.5f));
+                    Polyline(painter, P(2.5f, 13.5f), P(5.5f, 13.5f), P(5.5f, 16.5f), P(2.5f, 16.5f), P(2.5f, 13.5f));
+                    Polyline(painter, P(8.5f, 13.5f), P(11.5f, 13.5f), P(11.5f, 16.5f), P(8.5f, 16.5f), P(8.5f, 13.5f));
+                    Polyline(painter, P(14.5f, 13.5f), P(17.5f, 13.5f), P(17.5f, 16.5f), P(14.5f, 16.5f), P(14.5f, 13.5f));
+                    break;
+                case ActionGlyphKind.Comment:
+                    // 말풍선: 위 네모에서 왼쪽 아래로 꼬리가 내려왔다 돌아간다.
+                    Polyline(painter, P(3.5f, 3.5f), P(16.5f, 3.5f), P(16.5f, 13f), P(8f, 13f), P(4.5f, 16.5f), P(4.5f, 13f),
+                        P(3.5f, 13f), P(3.5f, 3.5f));
+                    break;
+                case ActionGlyphKind.Pencil:
+                    // 오른쪽 위 끝 → 몸통 두 변 → 왼쪽 아래 촉. 끝 가까이 가로지르는 선은 지우개 경계.
+                    Polyline(painter, P(13.5f, 3.5f), P(16.5f, 6.5f), P(7f, 16f), P(3.5f, 16.5f), P(4f, 13f), P(13.5f, 3.5f));
+                    Polyline(painter, P(11.5f, 5.5f), P(14.5f, 8.5f));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);

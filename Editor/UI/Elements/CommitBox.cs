@@ -1,3 +1,4 @@
+using System;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -22,6 +23,16 @@ namespace GitVersionControl
 
         public VisualElement Root { get; }
 
+        /// <summary>
+        /// 제목이 바뀌었을 때(입력·템플릿 채우기·Amend 로 채우기). GitKraken 레이아웃은 그래프 작업 중 줄에 같은 제목을 보인다.
+        /// </summary>
+        public event Action SubjectChanged;
+
+        /// <summary>
+        /// 제목 칸의 글 그대로(템플릿 안내 줄도 포함). 그래프 작업 중 줄 입력란이 같은 글을 보인다.
+        /// </summary>
+        public string Subject => _subject.value ?? string.Empty;
+
         public CommitBox(VisualElement host, GitServices services, StagingState state, bool showPush)
         {
             _services = services;
@@ -45,6 +56,7 @@ namespace GitVersionControl
             {
                 _state.Subject = evt.newValue;
                 Render();
+                SubjectChanged?.Invoke();
             });
             _description.RegisterValueChangedCallback(evt => _state.Description = evt.newValue);
             // 칸을 다 지우고 다른 곳을 누르면 그 칸에 템플릿을 다시 채운다(Fork 와 같다).
@@ -67,6 +79,14 @@ namespace GitVersionControl
                 FillTemplate();
             }
             Render();
+        }
+
+        /// <summary>
+        /// 다른 곳(그래프 작업 중 줄)에서 쓴 제목을 받는다.
+        /// </summary>
+        public void SetSubject(string subject)
+        {
+            _subject.value = subject ?? string.Empty;
         }
 
         private void RefillIfEmpty(TextField field, string templateText)

@@ -65,6 +65,12 @@ namespace GitVersionControl
         public static string LastError { get; private set; }
         public static DateTime LastRefreshTime { get; private set; }
 
+        /// <summary>
+        /// 마지막 새로고침이 작업 트리(git status)만 다시 읽었는지. 그때는 브랜치 전환·커밋이 없었으므로 HEAD·upstream·사용자 설정은 그대로다 —
+        /// stash 개수처럼 그런 작업에서만 바뀌는 값은 다시 읽지 않아도 된다.
+        /// </summary>
+        public static bool LastRefreshWasWorkingTreeOnly { get; private set; }
+
         /// <summary>새 상태가 반영된 뒤 메인 스레드에서 호출된다.</summary>
         public static event Action Changed;
 
@@ -72,7 +78,18 @@ namespace GitVersionControl
         private static Dictionary<string, GitFileState> s_assetStateDict = new(StringComparer.OrdinalIgnoreCase);
         private static HashSet<string> s_dirtyFolders = new(StringComparer.OrdinalIgnoreCase);
         private static bool s_refreshPending;
+
+        /// <summary>
+        /// 예약된 요청 중 하나라도 전체 새로고침을 원했는지. 작업 트리만 원한 요청끼리 모였을 때만 git status 하나로 끝낸다.
+        /// </summary>
+        private static bool s_fullRefreshPending;
         private static double s_refreshDueTime;
+
+        // ── 새로고침 세대 ── 요청마다 번호를 올리고, 새로고침은 시작할 때의 번호를 들고 간다. 그 새로고침이 반영되면 그 번호까지 끝난 것이다.
+        // 요청보다 먼저 시작한 새로고침(낡은 결과)은 번호가 작아 그 요청을 기다리는 쪽을 풀지 않는다(WaitForRefreshAsync).
+        private static int s_requestedGeneration;
+        private static int s_completedGeneration;
+        private static readonly List<(int Generation, TaskCompletionSource<bool> Waiter)> s_refreshWaiters = new();
 
         public static void Start()
         {
@@ -99,18 +116,58 @@ namespace GitVersionControl
             HeadCommit = null;
             UpstreamCommit = null;
             Apply(false, null, string.Empty, null, new List<GitStatusEntry>(), null);
+            CompleteRefreshes(int.MaxValue);
+        }
+
+        /// <summary>
+        /// 지금까지 요청된 새로고침이 화면(<see cref="Changed"/>)까지 반영되면 끝나는 Task. 이미 반영됐거나 꺼져 있으면 바로 끝난다.
+        /// git 작업 뒤 "결과가 보일 때까지" 버튼을 꺼 두는 데 쓴다(<see cref="GitOperationRunner"/>). 새로고침이 실패해도 끝난다.
+        /// </summary>
+        public static Task WaitForRefreshAsync()
+        {
+            int target = s_requestedGeneration;
+            if (IsRunning == false || s_completedGeneration >= target)
+            {
+                return Task.CompletedTask;
+            }
+            TaskCompletionSource<bool> waiter = new();
+            s_refreshWaiters.Add((target, waiter));
+            return waiter.Task;
+        }
+
+        /// <summary>
+        /// <paramref name="generation"/> 번까지의 요청이 반영됐다. 그 번호 이하를 기다리던 쪽을 깨운다.
+        /// </summary>
+        private static void CompleteRefreshes(int generation)
+        {
+            s_completedGeneration = Math.Max(s_completedGeneration, generation);
+            for (int i = s_refreshWaiters.Count - 1; i >= 0; i--)
+            {
+                if (s_refreshWaiters[i].Generation <= s_completedGeneration)
+                {
+                    TaskCompletionSource<bool> waiter = s_refreshWaiters[i].Waiter;
+                    s_refreshWaiters.RemoveAt(i);
+                    waiter.TrySetResult(true);
+                }
+            }
         }
 
         /// <summary>
         /// 새로고침을 예약한다. 짧은 시간 안의 여러 요청(임포트 연쇄 등)은 한 번의 git status 로 합친다.
         /// </summary>
-        public static void RequestRefresh(bool immediate = false)
+        /// <param name="workingTreeOnly">
+        /// HEAD·브랜치가 바뀌지 않는 작업(Stage·Unstage·파일 저장) 뒤면 true — git status 하나만 돌린다(git 실행 6번 → 1번).
+        /// 전체 새로고침이 하나라도 예약돼 있으면 전체로 한다.
+        /// </param>
+        public static void RequestRefresh(bool immediate = false, bool workingTreeOnly = false)
         {
             if (IsRunning == false)
             {
                 return;
             }
             s_refreshPending = true;
+            s_requestedGeneration++;
+            s_fullRefreshPending |= workingTreeOnly == false;
             s_refreshDueTime = EditorApplication.timeSinceStartup + (immediate ? 0 : DebounceSeconds);
         }
 
@@ -143,29 +200,39 @@ namespace GitVersionControl
             if (s_refreshPending && IsRefreshing == false && EditorApplication.timeSinceStartup >= s_refreshDueTime)
             {
                 s_refreshPending = false;
-                RefreshAsync();
+                // 아직 저장소 루트를 모르면(첫 새로고침·저장소가 아닐 때) 작업 트리만 읽을 수 없다.
+                bool full = s_fullRefreshPending || IsRepository == false || RepoRoot == null;
+                s_fullRefreshPending = false;
+                RefreshAsync(full, s_requestedGeneration);
             }
         }
 
-        private static async void RefreshAsync()
+        /// <param name="generation">시작할 때까지 들어온 요청 번호. 끝나면(실패해도) 이 번호까지 반영된 것으로 알린다.</param>
+        private static async void RefreshAsync(bool full, int generation)
         {
             IsRefreshing = true;
             string gitPath = GitVcsSettings.instance.GitExecutable;
             string projectRoot = ProjectRoot;
+            string repoRoot = RepoRoot;
+            string prefix = ProjectPrefix;
 
             try
             {
-                // 두 git 호출을 한 번의 백그라운드 작업으로 묶는다. await 뒤는 Unity 동기화 컨텍스트 덕에 메인 스레드다.
-                RefreshResult result = await Task.Run(() => Query(gitPath, projectRoot));
+                // git 호출을 한 번의 백그라운드 작업으로 묶는다. await 뒤는 Unity 동기화 컨텍스트 덕에 메인 스레드다.
+                RefreshResult result = await Task.Run(() => full ? Query(gitPath, projectRoot) : QueryWorkingTree(gitPath, projectRoot, repoRoot, prefix));
                 if (IsRunning == false)
                 {
                     return;
                 }
-                UserName = result.UserName;
-                UserEmail = result.UserEmail;
-                GitDir = result.GitDir;
-                HeadCommit = result.HeadCommit;
-                UpstreamCommit = result.UpstreamCommit;
+                LastRefreshWasWorkingTreeOnly = result.WorkingTreeOnly;
+                if (result.WorkingTreeOnly == false)
+                {
+                    UserName = result.UserName;
+                    UserEmail = result.UserEmail;
+                    GitDir = result.GitDir;
+                    HeadCommit = result.HeadCommit;
+                    UpstreamCommit = result.UpstreamCommit;
+                }
                 Apply(result.IsRepository, result.RepoRoot, result.Prefix, result.Branch, result.Entries, result.Error);
             }
             catch (Exception e)
@@ -175,11 +242,17 @@ namespace GitVersionControl
             finally
             {
                 IsRefreshing = false;
+                CompleteRefreshes(generation);
             }
         }
 
         private sealed class RefreshResult
         {
+            /// <summary>
+            /// git status 만 읽었다. 사용자·HEAD·upstream·git 폴더는 비어 있고, 지난 값을 그대로 쓴다.
+            /// </summary>
+            public bool WorkingTreeOnly;
+
             public bool IsRepository;
             public string RepoRoot;
             public string Prefix = string.Empty;
@@ -230,6 +303,29 @@ namespace GitVersionControl
             {
                 result.UpstreamCommit = RevParse(gitPath, result.RepoRoot, "@{u}");
             }
+            return result;
+        }
+
+        /// <summary>
+        /// 작업 트리만 다시 읽는다(git status 하나). 저장소 루트·접두는 지난 전체 새로고침 값을 쓴다.
+        /// status 가 실패하면(저장소가 지워지는 등) 전체 새로고침으로 넘어간다.
+        /// </summary>
+        private static RefreshResult QueryWorkingTree(string gitPath, string projectRoot, string repoRoot, string prefix)
+        {
+            GitResult status = GitCommand.Run(gitPath, repoRoot,
+                new[] { "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all" });
+            if (status.Success == false)
+            {
+                return Query(gitPath, projectRoot);
+            }
+            RefreshResult result = new()
+            {
+                WorkingTreeOnly = true,
+                IsRepository = true,
+                RepoRoot = repoRoot,
+                Prefix = prefix,
+            };
+            result.Entries = GitStatusParser.Parse(status.Output, prefix, out result.Branch);
             return result;
         }
 
@@ -305,7 +401,8 @@ namespace GitVersionControl
     {
         private static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
         {
-            GitRepository.RequestRefresh();
+            // 에셋 저장·임포트는 작업 트리만 바꾼다(HEAD·브랜치는 그대로). 터미널에서 한 커밋·전환은 포커스 복귀 때 전체로 읽는다.
+            GitRepository.RequestRefresh(workingTreeOnly: true);
         }
     }
 }

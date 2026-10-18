@@ -19,7 +19,7 @@ namespace GitVersionControl
         public const float TextZoomThreshold = 0.55f;
 
         public static readonly Color Background = new(0.17f, 0.17f, 0.17f);
-        public static readonly Color DateBand = new(1f, 1f, 1f, 0.025f);
+        public static readonly Color DateBand = new(1f, 1f, 1f, 0.06f);
         public static readonly Color Head = new(0.2f, 0.75f, 0.35f);
         public static readonly Color Selection = Color.white;
         public static readonly Color SearchMatch = new(1f, 0.9f, 0.2f);

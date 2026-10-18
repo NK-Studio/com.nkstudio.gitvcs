@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
@@ -26,12 +27,14 @@ namespace GitVersionControl
         private readonly VisualElement _wipPanel;
         private readonly VisualElement _detailHost;
         private readonly Label _wipTitle;
+        private readonly Button _discardAll;
         private readonly CommitGraphList _graph;
         private readonly GitDiffPanel _diff;
         private readonly StagingLists _staging;
         private readonly CommitBox _commit;
         private readonly GraphCommitDetail _detail;
         private readonly CommitMenu _commitMenu;
+        private readonly CommitActions _actions;
 
         private string _loadedKey;
         private bool _isLoading;
@@ -40,6 +43,11 @@ namespace GitVersionControl
         /// 그래프를 다 읽기 전에 보여 달라고 한 커밋. 읽은 뒤 고른다.
         /// </summary>
         private string _pendingReveal;
+
+        /// <summary>
+        /// 그래프를 다 읽기 전에 브랜치를 만들려고 한 커밋. 읽은 뒤 그 줄에 이름 입력란을 띄운다.
+        /// </summary>
+        private string _pendingBranchStart;
 
         public override string Title => GitText.Get("tab.graph");
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
@@ -57,6 +65,9 @@ namespace GitVersionControl
             _wipPanel = Root.Require<VisualElement>("wip-panel");
             _detailHost = Root.Require<VisualElement>("detail-host");
             _wipTitle = Root.Require<Label>("wip-title");
+            _discardAll = Root.Require<Button>("discard-all");
+            _discardAll.tooltip = GitText.Get("graph.discardAll");
+            _discardAll.clicked += DiscardAll;
 
             _errorNotice.SetVisible(false);
             _graph = new CommitGraphList(_graphHost, services.Avatars);
@@ -75,11 +86,18 @@ namespace GitVersionControl
             };
             _detail.ParentRequested += hash => _graph.SelectCommit(hash);
             _commitMenu = new CommitMenu(services);
+            _actions = new CommitActions(services);
 
+            // GitKraken 처럼 작업 중 줄의 입력란과 커밋 입력란의 제목은 같은 글이다. 어느 쪽에 써도 다른 쪽에 보인다.
+            _graph.SetWipSubject(_commit.Subject);
+            _commit.SubjectChanged += () => _graph.SetWipSubject(_commit.Subject);
+            _graph.WipSubjectEdited += _commit.SetSubject;
             _graph.WipSelected += ShowWip;
             _graph.CommitSelected += ShowCommit;
             _graph.ContextMenuRequested += PopulateCommitMenu;
             _staging.FileSelected += ShowDiff;
+            // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
+            _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
             _diff.CloseRequested += () =>
             {
                 _staging.ClearSelection();
@@ -99,17 +117,21 @@ namespace GitVersionControl
 
         public override void OnRepositoryChanged()
         {
-            RefreshWorkingTree();
-            if (IsActive)
+            // 보이지 않으면 작업 패널 목록·그래프를 다시 만들지 않는다 — 탭을 열 때(OnActivated) 만든다. 탭 옆 개수는 바로 바꾼다.
+            if (IsActive == false)
             {
-                ReloadIfNeeded();
+                NotifyBadgeChanged();
+                return;
             }
+            RefreshWorkingTree();
+            ReloadIfNeeded();
         }
 
         public override void OnBusyChanged(bool isBusy)
         {
             _staging.OnBusyChanged();
             _commit.Render();
+            UpdateDiscardAll();
         }
 
         public override void Reload()
@@ -139,6 +161,7 @@ namespace GitVersionControl
             _staging.SetEntries(entries);
             _commit.SetStagedCount(_staging.StagedCount);
             _wipTitle.text = GitText.Format("graph.wipTitle", entries.Count, Services.Repository.Branch?.Name ?? "-");
+            UpdateDiscardAll();
             if (_graph.Graph != null)
             {
                 _graph.SetGraph(_graph.Graph, WipCounts.From(entries));
@@ -180,6 +203,15 @@ namespace GitVersionControl
                 _graph.SelectCommit(_pendingReveal);
                 _pendingReveal = null;
             }
+            if (_pendingBranchStart != null)
+            {
+                string start = _pendingBranchStart;
+                _pendingBranchStart = null;
+                if (BeginCreateBranch(start) == false)
+                {
+                    _ = _actions.CreateBranchWithDialogAsync(start, start.Length > 7 ? start.Substring(0, 7) : start);
+                }
+            }
 
             // 기다리는 동안 저장소가 또 바뀌었으면 한 번 더 읽는다.
             ReloadIfNeeded();
@@ -193,6 +225,53 @@ namespace GitVersionControl
                 return true;
             }
             return _graph.SelectCommit(hash);
+        }
+
+        /// <summary>
+        /// GitKraken 처럼 그 커밋 줄의 브랜치/태그 칸에 이름 입력란을 띄운다. Enter 면 만들고 바로 전환한다.
+        /// 가운데에 diff 가 열려 있으면 그래프로 돌아온다. 그래프를 읽는 중이면 다 읽은 뒤 띄운다.
+        /// </summary>
+        /// <returns>그래프에 없는 커밋이면 false(부른 쪽이 대화상자로 묻는다).</returns>
+        public bool BeginCreateBranch(string startPoint)
+        {
+            _staging.ClearSelection();
+            _detail.ClearFileSelection();
+            ShowDiff(null);
+            if (_isLoading || _graph.Graph == null)
+            {
+                _pendingBranchStart = startPoint;
+                return true;
+            }
+            return _graph.BeginBranchInput(startPoint, name => _ = _actions.CreateAndSwitchAsync(name, startPoint));
+        }
+
+        /// <summary>
+        /// 버릴 변경이 없거나 다른 git 작업 중이면 휴지통을 끈다.
+        /// </summary>
+        private void UpdateDiscardAll()
+        {
+            _discardAll.SetEnabled(Services.Repository.Entries.Count > 0 && Services.Runner.IsBusy == false);
+        }
+
+        /// <summary>
+        /// 작업 중인 변경을 모두 버린다(GitKraken 의 휴지통). Stage 한 것까지 마지막 커밋 상태로 되돌리고 새 파일은 지운다.
+        /// 되돌릴 수 없으므로 개수와 앞쪽 파일을 보여 주고 한 번 더 묻는다.
+        /// </summary>
+        private async void DiscardAll()
+        {
+            List<GitStatusEntry> entries = Services.Repository.Entries.ToList();
+            if (entries.Count == 0 || Services.Runner.IsBusy)
+            {
+                return;
+            }
+            string list = string.Join("\n", entries.Take(10).Select(e => e.ProjectPath ?? e.RepoPath))
+                          + (entries.Count > 10 ? GitText.Format("pending.discardMore", entries.Count - 10) : string.Empty);
+            string message = GitText.Format("graph.discardAllMessage", Services.Repository.Branch?.Name ?? "-", entries.Count, list);
+            if (Services.Dialogs.Confirm(GitText.Get("graph.discardAll"), message, GitText.Get("op.discard")) == false)
+            {
+                return;
+            }
+            await Services.Runner.RunAsync(GitText.Get("op.discard"), () => Services.Commands.DiscardAsync(entries), refreshAssets: true);
         }
 
         private void ShowWip()

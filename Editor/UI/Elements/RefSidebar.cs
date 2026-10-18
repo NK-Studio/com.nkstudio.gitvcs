@@ -65,6 +65,15 @@ namespace GitVersionControl
 
             _filter = new ToolbarSearchField();
             _filter.AddToClassList(Block + "__filter");
+            // Fork 처럼 비어 있으면 "Filter" 자리표시. 포커스 표시는 바깥 상자에(브랜치 탐색기 검색창과 같다).
+            TextField filterInput = _filter.Q<TextField>();
+            if (filterInput != null)
+            {
+                filterInput.textEdition.placeholder = GitText.Get("refs.filterPlaceholder");
+                filterInput.textEdition.hidePlaceholderOnFocus = false;
+            }
+            _filter.RegisterCallback<FocusInEvent>(_ => _filter.AddToClassList("git-search--focused"));
+            _filter.RegisterCallback<FocusOutEvent>(_ => _filter.RemoveFromClassList("git-search--focused"));
             _filter.SetValueWithoutNotify(state.Filter ?? string.Empty);
             _filter.RegisterValueChangedCallback(evt =>
             {

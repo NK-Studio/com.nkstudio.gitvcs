@@ -88,6 +88,15 @@ namespace GitVersionControl
             _fileMenu = new FileActionMenu(services, GitDiffSource.WorkingTree);
             _errorNotice.SetVisible(false);
 
+            // 사이드바 필터와 같은 모양: 비어 있으면 "Filter" 자리표시, 포커스 표시는 바깥 상자에.
+            TextField filterInput = _filter.Q<TextField>();
+            if (filterInput != null)
+            {
+                filterInput.textEdition.placeholder = GitText.Get("refs.filterPlaceholder");
+                filterInput.textEdition.hidePlaceholderOnFocus = false;
+            }
+            _filter.RegisterCallback<FocusInEvent>(_ => _filter.AddToClassList("git-search--focused"));
+            _filter.RegisterCallback<FocusOutEvent>(_ => _filter.RemoveFromClassList("git-search--focused"));
             _filter.SetValueWithoutNotify(state.Filter ?? string.Empty);
             _filter.RegisterValueChangedCallback(evt =>
             {
@@ -267,6 +276,58 @@ namespace GitVersionControl
             return any;
         }
 
+        /// <summary>
+        /// → : 접힌 폴더는 펼치고, 펼친 폴더는 첫 자식으로 간다. ← : 펼친 폴더는 접고, 그 밖(파일·접힌 폴더)은 부모 폴더로 간다.
+        /// </summary>
+        private void OnTableKeyDown(KeyDownEvent evt)
+        {
+            if (evt.keyCode != KeyCode.RightArrow && evt.keyCode != KeyCode.LeftArrow)
+            {
+                return;
+            }
+            int index = _table.selectedIndex;
+            if (index < 0 || index >= _rows.Count)
+            {
+                return;
+            }
+            Row row = _rows[index];
+            bool expanded = row.IsFolder && _state.Expanded.Contains(row.RepoPath);
+            if (evt.keyCode == KeyCode.RightArrow)
+            {
+                if (row.IsFolder && expanded == false)
+                {
+                    Toggle(row);
+                }
+                else if (expanded && index + 1 < _rows.Count && _rows[index + 1].Depth > row.Depth)
+                {
+                    SelectRow(index + 1);
+                }
+            }
+            else if (expanded)
+            {
+                Toggle(row);
+            }
+            else
+            {
+                // 위로 올라가며 처음 만나는 한 단계 얕은 줄이 부모 폴더다.
+                for (int i = index - 1; i >= 0; i--)
+                {
+                    if (_rows[i].Depth < row.Depth)
+                    {
+                        SelectRow(i);
+                        break;
+                    }
+                }
+            }
+            evt.StopPropagation();
+        }
+
+        private void SelectRow(int index)
+        {
+            _table.SetSelection(index);
+            _table.ScrollToItem(index);
+        }
+
         private void Toggle(Row row)
         {
             if (row.IsFolder == false)
@@ -317,6 +378,8 @@ namespace GitVersionControl
             table.columns.Add(TextColumn("modified", GitText.Get("workspace.columnModified"), 130, (label, row) => label.text = GitDisplay.FormatDate(row.Modified)));
 
             table.selectionChanged += selected => ShowInfo(selected.FirstOrDefault() as Row);
+            // 탐색기·트리처럼 →·← 로 폴더를 펼치고 접는다(위·아래는 목록이 원래 처리한다).
+            table.RegisterCallback<KeyDownEvent>(OnTableKeyDown, TrickleDown.TrickleDown);
             table.itemsChosen += chosen =>
             {
                 if (chosen.FirstOrDefault() is Row row)
@@ -445,15 +508,8 @@ namespace GitVersionControl
                 Toggle(row);
                 return;
             }
-            string projectPath = ProjectPathOf(row.RepoPath);
-            if (Services.Assets.CanPing(projectPath))
-            {
-                Services.Assets.Ping(projectPath);
-            }
-            else
-            {
-                GitFileManager.Reveal(FullPath(row.RepoPath));
-            }
+            // 파일은 실제로 연다: Unity 에셋은 Project 창 더블클릭과 같게, 그 밖의 파일은 OS 기본 프로그램으로.
+            Services.Assets.Open(ProjectPathOf(row.RepoPath), FullPath(row.RepoPath));
         }
 
         // ── 우클릭 ───────────────────────────────────────
