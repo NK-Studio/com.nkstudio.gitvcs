@@ -16,6 +16,17 @@ namespace GitVersionControl
         public ChangesetsState Changesets = new();
         public BranchesState Branches = new();
         public BranchExplorerState Explorer = new();
+        public StagingState Staging = new();
+    }
+
+    /// <summary>
+    /// Fork·GitKraken 레이아웃의 커밋 입력란. 두 레이아웃이 같은 글을 이어 쓴다.
+    /// </summary>
+    [Serializable]
+    public sealed class StagingState
+    {
+        public string Subject = string.Empty;
+        public string Description = string.Empty;
     }
 
     [Serializable]

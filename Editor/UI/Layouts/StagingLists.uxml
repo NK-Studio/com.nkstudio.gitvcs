@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!-- Fork·GitKraken 레이아웃의 Unstaged(위)·Staged(아래) 두 목록. StagingLists 가 채운다. -->
+    <ui:VisualElement class="staging">
+        <ui:VisualElement name="view-mode-host" class="staging__toolbar" />
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="200" orientation="Vertical" class="view__split">
+            <ui:VisualElement class="view__pane staging__section">
+                <ui:VisualElement class="list-header staging__header">
+                    <ui:Label name="unstaged-title" class="list-header__cell list-header__cell--grow staging__title" />
+                    <ui:Button name="stage-button" class="staging__button" />
+                </ui:VisualElement>
+                <ui:VisualElement name="unstaged-files" class="list file-browser" />
+            </ui:VisualElement>
+            <ui:VisualElement class="view__pane staging__section">
+                <ui:VisualElement class="list-header staging__header">
+                    <ui:Label name="staged-title" class="list-header__cell list-header__cell--grow staging__title" />
+                    <ui:Button name="unstage-button" class="staging__button" />
+                </ui:VisualElement>
+                <ui:VisualElement name="staged-files" class="list file-browser" />
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

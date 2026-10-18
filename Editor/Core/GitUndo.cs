@@ -55,6 +55,11 @@ namespace GitVersionControl
         /// 브랜치를 만들면서 전환까지 했는지.
         /// </summary>
         public bool Switched;
+
+        /// <summary>
+        /// 일부 파일만 stash 했을 때 그 경로. 비어 있으면 전체 stash.
+        /// </summary>
+        public List<string> Paths = new();
     }
 
     public enum GitUndoCheckKind
@@ -175,7 +180,14 @@ namespace GitVersionControl
                     break;
                 case GitUndoKind.Stash:
                     // 다시 넣으면 stash 커밋이 새로 생기므로, 실행한 쪽이 끝난 뒤 Hash 를 새 값으로 바꾼다.
-                    plan.Commands.Add(new[] { "stash", "push", "--include-untracked" });
+                    // 일부만 넣었던 기록은 같은 경로만 다시 넣는다(전체를 넣으면 다른 작업까지 쓸려 들어간다).
+                    List<string> stash = new() { "stash", "push", "--include-untracked" };
+                    if (entry.Paths != null && entry.Paths.Count > 0)
+                    {
+                        stash.Add("--");
+                        stash.AddRange(entry.Paths);
+                    }
+                    plan.Commands.Add(stash.ToArray());
                     break;
                 case GitUndoKind.Pull:
                     plan.Checks.Add(new GitUndoCheck(GitUndoCheckKind.HeadIs, null, entry.HeadBefore));
@@ -338,6 +350,28 @@ namespace GitVersionControl
             return result;
         }
 
+        /// <summary>
+        /// 인덱스 커밋(Fork·GitKraken 방식)도 같은 "커밋" 기록이다. 고쳐 쓰기(amend)를 되돌리면 고치기 전 커밋으로 돌아가고,
+        /// 고친 차이는 stage 된 채로 남는다.
+        /// </summary>
+        public static async Task<GitResult> CommitStagedAsync(string message, bool amend)
+        {
+            string before = await HeadAsync();
+            GitResult result = await GitOperations.CommitStagedAsync(message, amend);
+            if (result.Success && string.IsNullOrEmpty(before) == false)
+            {
+                string subject = string.IsNullOrWhiteSpace(message) ? before.Substring(0, 7) : GitDisplay.FirstLine(message);
+                Journal.Record(new GitUndoEntry
+                {
+                    Kind = GitUndoKind.Commit,
+                    Title = GitText.Format(amend ? "undo.amend" : "undo.commit", subject),
+                    HeadBefore = before,
+                    HeadAfter = await HeadAsync(),
+                });
+            }
+            return result;
+        }
+
         public static async Task<GitResult> SwitchAsync(GitBranchRef branch)
         {
             string headBefore = await HeadAsync();
@@ -409,6 +443,27 @@ namespace GitVersionControl
                     Kind = GitUndoKind.Stash,
                     Title = GitText.Get("undo.stash"),
                     Hash = after,
+                });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 고른 파일·폴더만 stash. 전체 Stash 와 같은 기록(되돌리면 그 stash 를 pop)이다.
+        /// </summary>
+        public static async Task<GitResult> StashPathsAsync(IReadOnlyCollection<string> repoPaths, string message)
+        {
+            string before = await StashTopAsync();
+            GitResult result = await GitFileOperations.StashPathsAsync(repoPaths, message);
+            string after = await StashTopAsync();
+            if (result.Success && string.IsNullOrEmpty(after) == false && after != before)
+            {
+                Journal.Record(new GitUndoEntry
+                {
+                    Kind = GitUndoKind.Stash,
+                    Title = message,
+                    Hash = after,
+                    Paths = new List<string>(repoPaths),
                 });
             }
             return result;

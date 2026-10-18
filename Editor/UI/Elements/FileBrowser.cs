@@ -52,6 +52,38 @@ namespace GitVersionControl
         /// </summary>
         public Func<FileListItem, GitDiffTarget> DiffTargetOf { get; set; }
 
+        /// <summary>
+        /// 고른 파일이 바뀌었을 때(폴더 줄·선택 해제면 null). Fork 레이아웃은 이것으로 오른쪽 diff 를 바꾼다.
+        /// </summary>
+        public event Action<FileListItem> SelectionChanged;
+
+        /// <summary>
+        /// 더블클릭·Enter 동작을 바꾼다(Stage·Unstage 목록은 반대편으로 옮긴다). null 이면 diff 를 열거나 Project 창에서 고른다.
+        /// </summary>
+        public Action<FileListItem> ChooseAction { get; set; }
+
+        /// <summary>
+        /// 우클릭 메뉴 맨 위에 더할 항목(Stage·Unstage 등). "변경 내용 보기" 보다 위에 온다.
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> MenuHead { get; set; }
+
+        /// <summary>
+        /// 파일 줄 메뉴 전체를 직접 채운다(GitKraken 형태 메뉴). 정하면 기본 항목·MenuHead·ContextMenuRequested 는 쓰지 않는다.
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> FileMenu
+        {
+            set
+            {
+                _list.ReplaceMenu = value;
+                _tree.ReplaceMenu = value;
+            }
+        }
+
+        /// <summary>
+        /// 트리의 폴더 줄 메뉴(폴더 화면 경로, 아래 파일들).
+        /// </summary>
+        public event Action<DropdownMenu, string, IReadOnlyList<FileListItem>> FolderPathContextMenuRequested;
+
         /// <param name="host">UXML 의 자리(<c>.file-browser</c>). 목록·트리가 이 안에 들어간다.</param>
         /// <param name="switchHost">목록/트리 전환 버튼을 둘 자리(목록 머리 줄 오른쪽 등). null 이면 버튼 없이 설정만 따른다.</param>
         public FileBrowser(VisualElement host, VisualElement switchHost, GitServices services)
@@ -70,6 +102,7 @@ namespace GitVersionControl
             _list.ToggleChanged += (item, value) => ToggleChanged?.Invoke(new[] { item }, value);
             _list.ContextMenuRequested += (menu, item) => ContextMenuRequested?.Invoke(menu, item);
             _list.ItemChosen += OnFileChosen;
+            _list.SelectionChanged += item => SelectionChanged?.Invoke(item);
             _list.PopulateMenuHead = PopulateMenuHead;
 
             _tree = new FileTree(services.Assets, binder);
@@ -78,6 +111,8 @@ namespace GitVersionControl
             _tree.ContextMenuRequested += (menu, item) => ContextMenuRequested?.Invoke(menu, item);
             _tree.FolderContextMenuRequested += (menu, files) => FolderContextMenuRequested?.Invoke(menu, files);
             _tree.FileChosen += OnFileChosen;
+            _tree.FolderPathContextMenuRequested += (menu, path, files) => FolderPathContextMenuRequested?.Invoke(menu, path, files);
+            _tree.SelectionChanged += item => SelectionChanged?.Invoke(item);
             _tree.PopulateMenuHead = PopulateMenuHead;
 
             if (switchHost != null)
@@ -114,8 +149,19 @@ namespace GitVersionControl
             _preference.Changed -= OnModeChanged;
         }
 
+        public void ClearSelection()
+        {
+            _list.ClearSelection();
+            _tree.ClearSelection();
+        }
+
         private void OnFileChosen(FileListItem item)
         {
+            if (ChooseAction != null)
+            {
+                ChooseAction(item);
+                return;
+            }
             if (DiffTargetOf == null)
             {
                 _assets.Ping(item.ProjectPath);
@@ -126,6 +172,7 @@ namespace GitVersionControl
 
         private void PopulateMenuHead(DropdownMenu menu, FileListItem item)
         {
+            MenuHead?.Invoke(menu, item);
             if (DiffTargetOf == null)
             {
                 return;

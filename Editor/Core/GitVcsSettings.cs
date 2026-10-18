@@ -27,6 +27,7 @@ namespace GitVersionControl
         [SerializeField] private float _gitWindowScale = 1f;
         [SerializeField] private float _diffWindowScale = 1f;
         [SerializeField] private int _theme = (int)GitThemeStyle.JetBrains;
+        [SerializeField] private int _layout;
 
         /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
         public string GitExecutable
@@ -210,6 +211,19 @@ namespace GitVersionControl
             {
                 int index = (int)value;
                 SetAndSave(ref _theme, index);
+            }
+        }
+
+        /// <summary>
+        /// 변경 탭 배치(Unity VCS 체크박스 · Fork · GitKraken). 바꾸면 Git 창이 UI 를 다시 만든다.
+        /// </summary>
+        public GitLayoutStyle Layout
+        {
+            get => (GitLayoutStyle)_layout;
+            set
+            {
+                int index = (int)value;
+                SetAndSave(ref _layout, index);
             }
         }
 

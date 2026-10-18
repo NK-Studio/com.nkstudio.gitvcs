@@ -80,6 +80,11 @@
     white-space: normal;
 }
 
+/* 비어 있을 때는 위의 안내 문구가 대신 말하므로 ListView 기본 "List is empty" 는 숨긴다. */
+.git-diff__list .unity-list-view__empty-label {
+    display: none;
+}
+
 .git-diff__list {
     flex-grow: 1;
     flex-basis: 0;

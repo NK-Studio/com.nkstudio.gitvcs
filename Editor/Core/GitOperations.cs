@@ -167,6 +167,110 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 작업 트리의 변경을 인덱스에 올린다(Fork·GitKraken 의 Stage). 삭제도 함께 올리도록 <c>-A</c>.
+        /// </summary>
+        public static Task<GitResult> StageAsync(IReadOnlyCollection<GitStatusEntry> entries)
+        {
+            List<string> paths = entries.Select(e => e.RepoPath).ToList();
+            return RunWithPaths(new[] { "add", "-A" }, paths);
+        }
+
+        /// <summary>
+        /// 인덱스에서 내린다(작업 트리는 그대로). HEAD 가 없는 새 저장소는 restore 할 기준이 없어 <c>rm --cached</c> 로 인덱스에서만 뺀다.
+        /// 이름 변경은 원래 경로도 같이 내려야 인덱스에 반쪽 기록이 남지 않는다.
+        /// </summary>
+        public static async Task<GitResult> UnstageAsync(IReadOnlyCollection<GitStatusEntry> entries)
+        {
+            List<string> paths = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                paths.Add(entry.RepoPath);
+                if (entry.OriginalRepoPath != null)
+                {
+                    paths.Add(entry.OriginalRepoPath);
+                }
+            }
+            bool hasHead = (await GitRepository.RunAsync("rev-parse", "--verify", "--quiet", "HEAD")).Success;
+            return hasHead
+                ? await RunWithPaths(new[] { "restore", "--staged" }, paths)
+                : await RunWithPaths(new[] { "rm", "--cached", "-r", "--quiet" }, paths);
+        }
+
+        public static Task<GitResult> StageAllAsync()
+        {
+            return GitRepository.RunAsync("add", "-A");
+        }
+
+        public static async Task<GitResult> UnstageAllAsync()
+        {
+            bool hasHead = (await GitRepository.RunAsync("rev-parse", "--verify", "--quiet", "HEAD")).Success;
+            return hasHead
+                ? await GitRepository.RunAsync("reset", "--quiet")
+                : await GitRepository.RunAsync("rm", "--cached", "-r", "--quiet", ".");
+        }
+
+        /// <summary>
+        /// 작업 트리 쪽 변경만 버린다(인덱스에 올린 내용은 남는다). untracked 파일은 지운다.
+        /// </summary>
+        public static async Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries)
+        {
+            List<string> untracked = entries.Where(e => e.State == GitFileState.Untracked).Select(e => e.RepoPath).ToList();
+            List<string> tracked = entries.Where(e => e.State != GitFileState.Untracked).Select(e => e.RepoPath).ToList();
+            if (untracked.Count > 0)
+            {
+                string error = DeleteUntracked(GitRepository.RepoRoot, untracked);
+                if (error != null)
+                {
+                    return new GitResult(1, string.Empty, error);
+                }
+            }
+            return tracked.Count > 0
+                ? await RunWithPaths(new[] { "restore", "--worktree" }, tracked)
+                : new GitResult(0, string.Empty, string.Empty);
+        }
+
+        /// <summary>
+        /// 인덱스에 올린 것만 커밋한다(Fork·GitKraken 방식). <paramref name="amend"/> 면 마지막 커밋을 고쳐 쓴다 —
+        /// 메시지를 비우면 원래 메시지를 그대로 둔다.
+        /// </summary>
+        public static async Task<GitResult> CommitStagedAsync(string message, bool amend)
+        {
+            List<string> args = new() { "commit" };
+            string messageFile = null;
+            if (amend)
+            {
+                args.Add("--amend");
+            }
+            try
+            {
+                if (amend && string.IsNullOrWhiteSpace(message))
+                {
+                    args.Add("--no-edit");
+                }
+                else
+                {
+                    messageFile = Path.GetTempFileName();
+                    File.WriteAllText(messageFile, message, new UTF8Encoding(false));
+                    args.Add("--file=" + messageFile);
+                }
+                return await GitRepository.RunAsync(args.ToArray());
+            }
+            finally
+            {
+                TryDelete(messageFile);
+            }
+        }
+
+        /// <summary>
+        /// 마지막 커밋 메시지(Amend 를 켤 때 입력란을 채운다). 커밋이 없으면 빈 문자열.
+        /// </summary>
+        public static async Task<string> LastCommitMessageAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("log", "-1", "--format=%B");
+            return result.Success ? result.Output.TrimEnd() : string.Empty;
+        }
+
+        /// <summary>
         /// 작업 트리 변경을 stash 에 넣고 작업 트리를 HEAD 로 되돌린다. Unity 프로젝트는 새 에셋(untracked)도 함께 생기므로
         /// <c>--include-untracked</c> 로 같이 넣는다 — 빼면 .meta 짝만 남아 Unity 가 고아 meta 를 지우거나 다시 만든다.
         /// </summary>

@@ -14,6 +14,16 @@ namespace GitVersionControl
         Stash,
         Pop,
         Terminal,
+
+        /// <summary>
+        /// 경로 목록 보기(가로줄 세 개).
+        /// </summary>
+        PathList,
+
+        /// <summary>
+        /// 트리 보기(세로 줄기에서 갈라지는 두 가지와 끝 칸).
+        /// </summary>
+        FileTree,
     }
 
     /// <summary>
@@ -96,6 +106,18 @@ namespace GitVersionControl
                     Polyline(painter, P(4f, 6f), P(9f, 10f), P(4f, 14f));
                     Polyline(painter, P(10.5f, 15f), P(16f, 15f));
                     break;
+                case ActionGlyphKind.PathList:
+                    Polyline(painter, P(3f, 5f), P(17f, 5f));
+                    Polyline(painter, P(3f, 10f), P(17f, 10f));
+                    Polyline(painter, P(3f, 15f), P(17f, 15f));
+                    break;
+                case ActionGlyphKind.FileTree:
+                    DrawBox(painter, P, 2.5f, 2.5f);
+                    Polyline(painter, P(5f, 7.5f), P(5f, 15f), P(10f, 15f));
+                    Polyline(painter, P(5f, 10f), P(10f, 10f));
+                    DrawBox(painter, P, 10.5f, 7.5f);
+                    DrawBox(painter, P, 10.5f, 12.5f);
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);
             }
@@ -114,6 +136,14 @@ namespace GitVersionControl
             painter.LineTo(p(X(8f), 16f));
             painter.Stroke();
             Polyline(painter, p(X(8.5f), 4.5f), p(X(5f), 8f), p(X(8.5f), 11.5f));
+        }
+
+        /// <summary>
+        /// 트리 아이콘의 작은 칸(5×5). 왼쪽 위 모서리 좌표를 받는다.
+        /// </summary>
+        private static void DrawBox(Painter2D painter, Func<float, float, Vector2> p, float left, float top)
+        {
+            Polyline(painter, p(left, top), p(left + 5f, top), p(left + 5f, top + 5f), p(left, top + 5f), p(left, top));
         }
 
         /// <summary>

@@ -5,6 +5,8 @@
     <ui:Style src="../Styles/GitRows.uss" />
     <ui:Style src="../Styles/GitViews.uss" />
     <ui:Style src="../Styles/BranchGraph.uss" />
+    <ui:Style src="../Styles/GitDiff.uss" />
+    <ui:Style src="../Styles/GitStaging.uss" />
 
     <ui:VisualElement name="git-window" class="git-window">
         <!-- GitKraken·Fork 처럼 아이콘+글자 버튼을 묶음으로 둔 작업 막대. 버튼 안 아이콘·글자·숫자는 GitToolbar 가 채운다. -->

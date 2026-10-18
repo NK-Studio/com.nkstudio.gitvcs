@@ -72,7 +72,7 @@ namespace GitVersionControl
         {
             GitResult result = await GitRepository.RunAsync(GitDiff.BuildArguments(target, options).ToArray());
             // --no-index 는 차이가 있으면 1 로 끝난다(오류가 아니다).
-            bool isNoIndex = target.Source == GitDiffSource.WorkingTree && target.State == GitFileState.Untracked;
+            bool isNoIndex = (target.Source == GitDiffSource.WorkingTree || target.Source == GitDiffSource.Unstaged) && target.State == GitFileState.Untracked;
             bool succeeded = result.Success || (isNoIndex && result.ExitCode == 1);
             if (succeeded == false)
             {
@@ -94,6 +94,7 @@ namespace GitVersionControl
             switch (target.Source)
             {
                 case GitDiffSource.WorkingTree when target.State == GitFileState.Untracked:
+                case GitDiffSource.Unstaged when target.State == GitFileState.Untracked:
                     tempDirectory = CreateTempDirectory();
                     string empty = Path.Combine(tempDirectory, "empty");
                     File.WriteAllBytes(empty, Array.Empty<byte>());
@@ -101,6 +102,12 @@ namespace GitVersionControl
                     break;
                 case GitDiffSource.WorkingTree:
                     args.AddRange(new[] { "-M", "HEAD" });
+                    break;
+                case GitDiffSource.Staged:
+                    args.AddRange(new[] { "-M", "--cached" });
+                    break;
+                case GitDiffSource.Unstaged:
+                    args.Add("-M");
                     break;
                 case GitDiffSource.Commit:
                     args.AddRange(new[] { "-M", await ParentOrEmptyTreeAsync(target.Commit), target.Commit });
@@ -189,6 +196,16 @@ namespace GitVersionControl
                     leftRevision = "HEAD";
                     rightRevision = null;
                     break;
+                case GitDiffSource.Staged:
+                    // ":경로" 는 인덱스(stage 0)의 내용이다. 리비전 자리에 빈 문자열을 두면 ExtractAsync 가 ":경로" 를 만든다.
+                    leftRevision = "HEAD";
+                    rightRevision = string.Empty;
+                    break;
+                case GitDiffSource.Unstaged:
+                    leftRevision = string.Empty;
+                    hasLeft &= target.State != GitFileState.Untracked;
+                    rightRevision = null;
+                    break;
                 case GitDiffSource.Commit:
                     leftRevision = await ParentOrEmptyTreeAsync(target.Commit);
                     hasLeft &= leftRevision != EmptyTreeHash;
@@ -207,7 +224,7 @@ namespace GitVersionControl
                     throw new ArgumentOutOfRangeException(nameof(target), target.Source, null);
             }
 
-            string leftLabel = hasLeft ? ShortRevision(leftRevision) : GitText.Get("diff.none");
+            string leftLabel = hasLeft ? LabelOf(leftRevision) : GitText.Get("diff.none");
             string left = Path.Combine(directory, $"{fileName}.{leftLabel}{extension}");
             string error = await ExtractAsync(hasLeft ? leftRevision : null, target.LeftPath, left);
             if (error != null)
@@ -229,7 +246,7 @@ namespace GitVersionControl
             }
             else
             {
-                rightLabel = hasRight ? ShortRevision(rightRevision) : GitText.Get("diff.none");
+                rightLabel = hasRight ? LabelOf(rightRevision) : GitText.Get("diff.none");
                 right = Path.Combine(directory, $"{fileName}.{rightLabel}{extension}");
                 error = await ExtractAsync(hasRight ? rightRevision : null, target.RepoPath, right);
                 if (error != null)
@@ -259,6 +276,14 @@ namespace GitVersionControl
         {
             GitResult parent = await GitRepository.RunAsync("rev-parse", "--verify", "--quiet", commit + "^1");
             return parent.Success ? parent.Output.Trim() : EmptyTreeHash;
+        }
+
+        /// <summary>
+        /// 창 제목·파일 이름에 쓸 판 이름. 인덱스(빈 리비전)는 "Staged".
+        /// </summary>
+        private static string LabelOf(string revision)
+        {
+            return revision.Length == 0 ? GitText.Get("diff.index") : ShortRevision(revision);
         }
 
         private static string ShortRevision(string revision)

@@ -22,6 +22,14 @@ namespace GitVersionControl
         /// <summary>
         /// 되돌리기·다시 하기 목록. 커밋·전환·브랜치 만들기/지우기·Stash·Pull 이 여기 기록된다.
         /// </summary>
+        Task<GitResult> StageAsync(IReadOnlyCollection<GitStatusEntry> entries);
+        Task<GitResult> UnstageAsync(IReadOnlyCollection<GitStatusEntry> entries);
+        Task<GitResult> StageAllAsync();
+        Task<GitResult> UnstageAllAsync();
+        Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries);
+        Task<GitResult> CommitStagedAsync(string message, bool amend);
+        Task<string> LastCommitMessageAsync();
+
         GitUndoJournal UndoJournal { get; }
         Task<GitResult> UndoAsync();
         Task<GitResult> RedoAsync();
@@ -52,6 +60,20 @@ namespace GitVersionControl
         public Task<GitResult> StashPopAsync() => GitOperations.StashPopAsync();
 
         public Task<int> StashCountAsync() => GitOperations.StashCountAsync();
+
+        public Task<GitResult> StageAsync(IReadOnlyCollection<GitStatusEntry> entries) => GitOperations.StageAsync(entries);
+
+        public Task<GitResult> UnstageAsync(IReadOnlyCollection<GitStatusEntry> entries) => GitOperations.UnstageAsync(entries);
+
+        public Task<GitResult> StageAllAsync() => GitOperations.StageAllAsync();
+
+        public Task<GitResult> UnstageAllAsync() => GitOperations.UnstageAllAsync();
+
+        public Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries) => GitOperations.DiscardWorkTreeAsync(entries);
+
+        public Task<GitResult> CommitStagedAsync(string message, bool amend) => GitUndo.CommitStagedAsync(message, amend);
+
+        public Task<string> LastCommitMessageAsync() => GitOperations.LastCommitMessageAsync();
 
         public GitUndoJournal UndoJournal => GitUndo.Journal;
 

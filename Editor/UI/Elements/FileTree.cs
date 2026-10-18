@@ -41,9 +41,24 @@ namespace GitVersionControl
         public event Action<FileListItem> FileChosen;
 
         /// <summary>
+        /// 고른 줄이 바뀌었을 때. 폴더 줄이나 선택 해제면 null.
+        /// </summary>
+        public event Action<FileListItem> SelectionChanged;
+
+        /// <summary>
         /// 파일 줄 우클릭 메뉴의 맨 위 항목(diff 등)을 채운다. null 이면 없다.
         /// </summary>
         public Action<DropdownMenu, FileListItem> PopulateMenuHead;
+
+        /// <summary>
+        /// 정하면 파일 줄 메뉴 전체를 이것이 채운다(기본 항목을 넣지 않는다).
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> ReplaceMenu;
+
+        /// <summary>
+        /// 폴더 줄 메뉴. 인자는 폴더 화면 경로와 그 아래 모든 파일.
+        /// </summary>
+        public event Action<DropdownMenu, string, IReadOnlyList<FileListItem>> FolderPathContextMenuRequested;
 
         public VisualElement Root => _tree;
 
@@ -63,6 +78,7 @@ namespace GitVersionControl
                 bindItem = BindRow,
             };
             _tree.AddToClassList("list");
+            _tree.selectionChanged += selected => SelectionChanged?.Invoke((selected.FirstOrDefault() as FileTreeNode)?.Item);
             _tree.itemsChosen += chosen =>
             {
                 if (chosen.FirstOrDefault() is FileTreeNode node && node.Item != null)
@@ -97,6 +113,11 @@ namespace GitVersionControl
         public void Refresh()
         {
             _tree.RefreshItems();
+        }
+
+        public void ClearSelection()
+        {
+            _tree.ClearSelection();
         }
 
         /// <summary>지금 화면의 펼침 상태를 폴더 경로로 기록한다. 다음 SetItems 뒤에 되살린다.</summary>
@@ -167,6 +188,10 @@ namespace GitVersionControl
                 {
                     PopulateFolderMenu(evt.menu, node);
                 }
+                else if (ReplaceMenu != null)
+                {
+                    ReplaceMenu(evt.menu, node.Item);
+                }
                 else
                 {
                     PopulateMenuHead?.Invoke(evt.menu, node.Item);
@@ -195,11 +220,20 @@ namespace GitVersionControl
 
         private void PopulateFolderMenu(DropdownMenu menu, FileTreeNode folder)
         {
+            if (FolderPathContextMenuRequested != null)
+            {
+                // GitKraken 형태: git 동작이 맨 위, 보기 동작(펼치기·접기)이 아래.
+                FolderPathContextMenuRequested(menu, folder.Path, folder.Files());
+                menu.AppendSeparator();
+            }
             menu.AppendAction(GitText.Get("fileView.expandAll"), _ => _tree.ExpandAll());
             menu.AppendAction(GitText.Get("fileView.collapseAll"), _ => _tree.CollapseAll());
             menu.AppendAction(GitText.Get("common.copyPath"), _ => _assets.CopyToClipboard(folder.Path));
-            menu.AppendSeparator();
-            FolderContextMenuRequested?.Invoke(menu, folder.Files());
+            if (FolderContextMenuRequested != null)
+            {
+                menu.AppendSeparator();
+                FolderContextMenuRequested(menu, folder.Files());
+            }
         }
 
         private FileTreeNode NodeOf(VisualElement row)

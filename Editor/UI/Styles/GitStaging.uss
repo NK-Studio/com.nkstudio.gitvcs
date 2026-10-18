@@ -1,0 +1,270 @@
+/*
+ * Fork·GitKraken 레이아웃 블록: staging(Unstaged·Staged 목록), commit-box(커밋 입력란),
+ * fork-changes(Fork 탭), graph-workspace(GitKraken 탭), commit-graph(세로 커밋 그래프).
+ * 색은 Themes/*.uss 의 --git-* 토큰.
+ */
+
+/* ── staging ─────────────────────────────────────── */
+.staging {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+/* 경로/트리 전환을 가운데 두는 맨 위 줄(GitKraken). */
+.staging__toolbar {
+    flex-direction: row;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.staging__header {
+    height: 26px;
+    min-height: 26px;
+}
+
+.staging__title {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: var(--git-text);
+}
+
+.staging__button {
+    height: 20px;
+    margin: 0 0 0 6px;
+    padding: 0 10px;
+    font-size: 11px;
+    border-radius: var(--git-radius);
+}
+
+/* ── commit-box ──────────────────────────────────── */
+.commit-box {
+    flex-shrink: 0;
+    padding: 6px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+    background-color: var(--git-header-bg);
+}
+
+.commit-box__subject {
+    margin: 0 0 4px 0;
+}
+
+.commit-box__description {
+    margin: 0;
+}
+
+.commit-box__description > .unity-text-field__input {
+    min-height: 64px;
+    max-height: 160px;
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.commit-box__footer {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.commit-box__amend {
+    margin: 0;
+}
+
+.commit-box__button {
+    height: 26px;
+    min-width: 96px;
+    margin: 0 0 0 6px;
+}
+
+.commit-box__button--secondary {
+    border-radius: var(--git-radius);
+}
+
+/* ── fork-changes ────────────────────────────────── */
+.fork-changes__lists {
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+}
+
+.fork-changes__right {
+    flex-direction: column;
+}
+
+.fork-changes__diff {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 80px;
+}
+
+.fork-changes__commit {
+    flex-shrink: 0;
+}
+
+/* ── graph-workspace ─────────────────────────────── */
+.graph-workspace__center {
+    flex-direction: column;
+}
+
+.graph-workspace__fill {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.graph-workspace__side {
+    flex-direction: column;
+    border-left-width: 1px;
+    border-left-color: var(--git-border);
+    background-color: var(--git-sidebar-bg);
+}
+
+.graph-workspace__panel-title {
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 10px;
+    -unity-text-align: middle-left;
+    -unity-font-style: bold;
+    color: var(--git-text);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.graph-workspace__commit {
+    flex-shrink: 0;
+}
+
+/* 좁은 오른쪽 칸에서는 커밋 상세의 메시지·파일을 가로 대신 위아래로 쌓는다. */
+.graph-workspace__detail .commit-detail__body {
+    flex-direction: column;
+}
+
+.graph-workspace__detail .commit-detail__message {
+    width: auto;
+    height: 35%;
+    min-height: 60px;
+    margin: 0 0 4px 0;
+}
+
+/* ── commit-graph ────────────────────────────────── */
+.commit-graph {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.commit-graph__header-graph {
+    flex-shrink: 0;
+}
+
+.commit-graph__body {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+}
+
+.commit-graph__list {
+    flex-grow: 1;
+}
+
+/* 선·원을 그리는 층. 목록 위 왼쪽 그래프 칸에 겹친다. */
+.commit-graph__overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.commit-graph-row {
+    flex-direction: row;
+    align-items: center;
+    height: 26px;
+    padding: 0 4px 0 0;
+}
+
+.commit-graph-row__graph {
+    flex-shrink: 0;
+    height: 100%;
+}
+
+.commit-graph-row__message {
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+}
+
+.commit-graph-row--wip .commit-row__subject {
+    color: var(--git-text-muted);
+    -unity-font-style: italic;
+}
+
+/* ── blame-row: 파일 Blame 창의 한 줄 ─────────────────── */
+.blame-row {
+    flex-direction: row;
+    align-items: center;
+    height: 18px;
+}
+
+/* 같은 커밋 묶음마다 배경을 번갈아 칠해 경계를 보인다. */
+.blame-row--odd {
+    background-color: var(--git-header-bg);
+}
+
+.blame-row--start {
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.blame-row__hash,
+.blame-row__author,
+.blame-row__date {
+    flex-shrink: 0;
+    padding: 0 6px;
+    margin: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.blame-row__hash {
+    width: 80px;
+    color: var(--git-refs);
+}
+
+.blame-row__author {
+    width: 120px;
+}
+
+.blame-row__date {
+    width: 110px;
+}
+
+.blame-row__number {
+    width: 44px;
+    flex-shrink: 0;
+    padding: 0 6px 0 0;
+    margin: 0;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--git-diff-number);
+    background-color: var(--git-diff-gutter);
+}
+
+.blame-row__code {
+    flex-grow: 1;
+    padding: 0 0 0 8px;
+    margin: 0;
+    white-space: pre;
+    color: var(--git-diff-text);
+}
+
+.blame-row--uncommitted .blame-row__hash {
+    color: var(--git-warning);
+}

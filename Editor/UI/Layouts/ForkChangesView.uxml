@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!-- Fork 형태: 가운데 Unstaged/Staged, 오른쪽 위 diff·아래 커밋. -->
+    <ui:VisualElement class="view fork-changes">
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="0" fixed-pane-initial-dimension="380" orientation="Horizontal" class="view__split">
+            <ui:VisualElement name="staging-host" class="view__pane fork-changes__lists" />
+            <ui:VisualElement class="view__pane fork-changes__right">
+                <ui:VisualElement name="diff-host" class="fork-changes__diff" />
+                <ui:VisualElement name="commit-host" class="fork-changes__commit" />
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

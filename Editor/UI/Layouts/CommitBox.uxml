@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!-- 커밋 입력란(제목·설명·Amend·커밋 버튼). Fork·GitKraken 레이아웃이 같이 쓴다. -->
+    <ui:VisualElement class="commit-box">
+        <ui:TextField name="subject" class="commit-box__subject" />
+        <ui:TextField name="description" multiline="true" vertical-scroller-visibility="Auto" class="commit-box__description" />
+        <ui:VisualElement name="author-notice" class="notice notice--warning">
+            <ui:Label text="@pending.noAuthor" class="notice__text" />
+        </ui:VisualElement>
+        <ui:VisualElement class="commit-box__footer">
+            <ui:Toggle name="amend" text="@staging.amend" tooltip="@staging.amendTooltip" class="commit-box__amend" />
+            <ui:VisualElement class="spacer" />
+            <ui:Button name="commit-push-button" text="@staging.commitAndPush" tooltip="@staging.commitAndPushTooltip" class="commit-box__button commit-box__button--secondary" />
+            <ui:Button name="commit-button" class="commit-box__button pending-changes__commit-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

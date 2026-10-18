@@ -66,6 +66,11 @@ namespace GitVersionControl
         /// </summary>
         public Action<DropdownMenu, FileListItem> PopulateMenuHead;
 
+        /// <summary>
+        /// 정하면 파일 줄 메뉴 전체를 이것이 채운다(기본 항목을 넣지 않는다).
+        /// </summary>
+        public Action<DropdownMenu, FileListItem> ReplaceMenu;
+
         public FileList(ListView listView, IAssetNavigator assets, FileRowBinder binder) : base(listView, "FileRow")
         {
             _assets = assets;
@@ -91,6 +96,11 @@ namespace GitVersionControl
 
         protected override void PopulateContextMenu(DropdownMenu menu, FileListItem item)
         {
+            if (ReplaceMenu != null)
+            {
+                ReplaceMenu(menu, item);
+                return;
+            }
             PopulateMenuHead?.Invoke(menu, item);
             FileRowBinder.AppendFileMenu(menu, item, _assets);
             menu.AppendSeparator();

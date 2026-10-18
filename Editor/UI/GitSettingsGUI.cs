@@ -23,6 +23,7 @@ namespace GitVersionControl
 
             DrawLanguage();
             DrawTheme();
+            DrawLayout();
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -225,6 +226,21 @@ namespace GitVersionControl
             if (picked >= 0 && picked != current)
             {
                 GitTheme.Style = styles[picked];
+            }
+        }
+
+        /// <summary>
+        /// 변경 탭 배치. Fork·GitKraken 은 git 인덱스(Stage·Unstage)로 커밋한다.
+        /// </summary>
+        private static void DrawLayout()
+        {
+            GitLayoutStyle[] styles = (GitLayoutStyle[])System.Enum.GetValues(typeof(GitLayoutStyle));
+            GUIContent[] names = styles.Select(style => new GUIContent(GitLayout.DisplayName(style))).ToArray();
+            int current = System.Array.IndexOf(styles, GitLayout.Style);
+            int picked = EditorGUILayout.Popup(new GUIContent(GitText.Get("window.layout"), GitText.Get("settings.layoutTooltip")), current, names);
+            if (picked >= 0 && picked != current)
+            {
+                GitLayout.Style = styles[picked];
             }
         }
 

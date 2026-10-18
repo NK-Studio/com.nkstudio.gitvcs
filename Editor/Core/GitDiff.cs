@@ -78,6 +78,16 @@ namespace GitVersionControl
         WorkingTree,
         Commit,
         MergeBaseRange,
+
+        /// <summary>
+        /// 인덱스에 올린 변경(HEAD ↔ 인덱스). Fork·GitKraken 레이아웃의 Staged 목록.
+        /// </summary>
+        Staged,
+
+        /// <summary>
+        /// 아직 올리지 않은 변경(인덱스 ↔ 작업 트리). Fork·GitKraken 레이아웃의 Unstaged 목록.
+        /// </summary>
+        Unstaged,
     }
 
     [Serializable]
@@ -115,6 +125,17 @@ namespace GitVersionControl
             return new GitDiffTarget
             {
                 Source = GitDiffSource.WorkingTree,
+                RepoPath = entry.RepoPath,
+                OriginalRepoPath = entry.OriginalRepoPath,
+                State = entry.State,
+            };
+        }
+
+        public static GitDiffTarget ForStaging(GitStatusEntry entry, bool staged)
+        {
+            return new GitDiffTarget
+            {
+                Source = staged ? GitDiffSource.Staged : GitDiffSource.Unstaged,
                 RepoPath = entry.RepoPath,
                 OriginalRepoPath = entry.OriginalRepoPath,
                 State = entry.State,
@@ -230,7 +251,12 @@ namespace GitVersionControl
             List<string> args;
             switch (target.Source)
             {
+                case GitDiffSource.Staged:
+                    args = new List<string> { "diff", "--cached", "-M" };
+                    AppendOptions(args, options);
+                    break;
                 case GitDiffSource.WorkingTree:
+                case GitDiffSource.Unstaged:
                     if (target.State == GitFileState.Untracked)
                     {
                         args = new List<string> { "diff", "--no-index" };
@@ -241,7 +267,11 @@ namespace GitVersionControl
                     }
                     args = new List<string> { "diff", "-M" };
                     AppendOptions(args, options);
-                    args.Add("HEAD");
+                    // 작업 트리 전체(HEAD 대비)와 아직 올리지 않은 쪽(인덱스 대비)은 비교 기준만 다르다.
+                    if (target.Source == GitDiffSource.WorkingTree)
+                    {
+                        args.Add("HEAD");
+                    }
                     break;
                 case GitDiffSource.Commit:
                     // 커밋 파일 목록(CommitFilesAsync)과 같은 규칙: 첫 부모 대비, 최초 커밋은 빈 트리 대비.

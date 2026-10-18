@@ -133,22 +133,6 @@
     opacity: 1;
 }
 
-.git-theme--jetbrains .view-mode-switch__button {
-    border-width: 0;
-    background-color: rgba(0, 0, 0, 0);
-    color: var(--git-text-muted);
-}
-
-.git-theme--jetbrains .view-mode-switch__button:hover {
-    background-color: var(--git-hover);
-}
-
-.git-theme--jetbrains .view-mode-switch__button--selected,
-.git-theme--jetbrains .view-mode-switch__button--selected:hover {
-    background-color: var(--git-selected);
-    color: var(--git-selected-text);
-}
-
 /* 왼쪽 탭: 양옆 여백을 두고 둥글게 칠한 선택(IntelliJ 도구 창 목록). */
 .git-theme--jetbrains .git-sidebar__tab {
     height: 26px;

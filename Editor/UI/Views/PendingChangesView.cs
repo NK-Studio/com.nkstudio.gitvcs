@@ -10,6 +10,7 @@ namespace GitVersionControl
     /// </summary>
     public sealed class PendingChangesView : GitView
     {
+        private readonly FileActionMenu _fileActions;
         private readonly PendingChangesState _state;
         private readonly PendingSelection _selection;
         private readonly FileBrowser _files;
@@ -43,8 +44,11 @@ namespace GitVersionControl
                 DiffTargetOf = item => GitDiffTarget.ForWorkingTree((GitStatusEntry)item.Source),
             };
             _files.ToggleChanged += OnToggleChanged;
-            _files.ContextMenuRequested += PopulateContextMenu;
             _files.FolderContextMenuRequested += PopulateFolderMenu;
+            _fileActions = new FileActionMenu(services, GitDiffSource.WorkingTree);
+            _files.FileMenu = PopulateFileMenu;
+            _files.FolderPathContextMenuRequested += (menu, folder, items) =>
+                _fileActions.AppendFolderItems(menu, FileActionMenu.RepoFolderOf(folder, items[0]), items.Select(i => (GitStatusEntry)i.Source).ToList());
 
             _selectAll.RegisterValueChangedCallback(evt =>
             {
@@ -124,6 +128,19 @@ namespace GitVersionControl
                 _message.value = string.Empty;
                 Services.Runner.SetStatus(GitDisplay.FirstLine(result.Output));
             }
+        }
+
+        /// <summary>
+        /// 파일 줄 메뉴: 변경 내용 보기 · 되돌리기(기존) · 무시 › · LFS › · Stash, 그 아래 공통 묶음(히스토리·외부 프로그램·패치·편집·삭제).
+        /// </summary>
+        private void PopulateFileMenu(DropdownMenu menu, FileListItem item)
+        {
+            GitStatusEntry entry = (GitStatusEntry)item.Source;
+            menu.AppendAction(GitText.Get("diff.show"), _ => Services.Diff.Open(GitDiffTarget.ForWorkingTree(entry)));
+            PopulateContextMenu(menu, item);
+            menu.AppendSeparator();
+            _fileActions.AppendWorkingItems(menu, entry);
+            _fileActions.AppendCommonItems(menu, entry);
         }
 
         private void PopulateContextMenu(DropdownMenu menu, FileListItem item)

@@ -41,6 +41,8 @@ namespace GitVersionControl
             GitText.LanguageChanged += Rebuild;
             GitTheme.Changed -= ApplyTheme;
             GitTheme.Changed += ApplyTheme;
+            GitLayout.Changed -= Rebuild;
+            GitLayout.Changed += Rebuild;
             Build();
         }
 
@@ -75,6 +77,7 @@ namespace GitVersionControl
         {
             GitText.LanguageChanged -= Rebuild;
             GitTheme.Changed -= ApplyTheme;
+            GitLayout.Changed -= Rebuild;
             TearDown();
         }
 
@@ -114,6 +117,12 @@ namespace GitVersionControl
                 menu.AddItem(new GUIContent($"{GitText.Get("common.language")}/{GitText.NativeName(language)}"),
                     GitText.Language == language, () => GitText.SetLanguage(captured));
             }
+            string layoutMenu = GitText.Get("window.layout");
+            foreach (GitLayoutStyle style in (GitLayoutStyle[])System.Enum.GetValues(typeof(GitLayoutStyle)))
+            {
+                GitLayoutStyle captured = style;
+                menu.AddItem(new GUIContent($"{layoutMenu}/{GitLayout.DisplayName(style)}"), GitLayout.Style == style, () => GitLayout.Style = captured);
+            }
             string themeMenu = GitText.Get("window.theme");
             foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
             {
@@ -147,7 +156,18 @@ namespace GitVersionControl
         /// <summary>탭 목록. 새 탭은 여기 한 줄 추가로 끝난다.</summary>
         private void CreateViews(VisualElement content, VisualElement sidebar)
         {
-            AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
+            switch (GitLayout.Style)
+            {
+                case GitLayoutStyle.Fork:
+                    AddView(new ForkChangesView(_services, _state.Staging), content, sidebar);
+                    break;
+                case GitLayoutStyle.GitKraken:
+                    AddView(new GraphWorkspaceView(_services, _state.Staging, this), content, sidebar);
+                    break;
+                default:
+                    AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
+                    break;
+            }
             AddView(new IncomingChangesView(_services), content, sidebar);
             AddView(new ChangesetsView(_services, _state.Changesets), content, sidebar);
             AddView(new BranchesView(_services, _state.Branches), content, sidebar);

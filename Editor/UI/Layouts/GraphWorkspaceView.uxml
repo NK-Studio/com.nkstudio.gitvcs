@@ -1,0 +1,28 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <!-- GitKraken 형태: 가운데 세로 커밋 그래프(파일을 고르면 그 자리에 diff), 오른쪽 작업 패널(Unstaged·Staged·커밋) 또는 고른 커밋 상세. -->
+    <ui:VisualElement class="view graph-workspace">
+        <uie:Toolbar class="graph-workspace__toolbar">
+            <uie:ToolbarButton name="reload-button" tooltip="@common.reload" class="git-toolbar__action--icon" />
+            <ui:Label name="summary" class="view__toolbar-label" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="error-notice" class="notice notice--error">
+            <ui:Label name="error-text" class="notice__text" />
+        </ui:VisualElement>
+
+        <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="380" orientation="Horizontal" class="view__split">
+            <ui:VisualElement class="view__pane graph-workspace__center">
+                <ui:VisualElement name="graph-host" class="graph-workspace__fill" />
+                <ui:VisualElement name="diff-host" class="graph-workspace__fill" />
+            </ui:VisualElement>
+            <ui:VisualElement class="view__pane graph-workspace__side">
+                <ui:VisualElement name="wip-panel" class="graph-workspace__fill">
+                    <ui:Label name="wip-title" class="graph-workspace__panel-title" />
+                    <ui:VisualElement name="staging-host" class="graph-workspace__fill" />
+                    <ui:VisualElement name="commit-host" class="graph-workspace__commit" />
+                </ui:VisualElement>
+                <ui:VisualElement name="detail-host" class="graph-workspace__fill graph-workspace__detail" />
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>

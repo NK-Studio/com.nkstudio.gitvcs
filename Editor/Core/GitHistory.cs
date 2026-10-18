@@ -143,6 +143,15 @@ namespace GitVersionControl
             return result.Success ? (ParseBranches(result.Output), null) : (new List<GitBranchRef>(), result.Message);
         }
 
+        /// <summary>
+        /// 한 파일을 바꾼 커밋. <c>--follow</c> 로 이름이 바뀌기 전 히스토리까지 따라간다.
+        /// </summary>
+        public static async Task<(List<GitCommitInfo> commits, string error)> FileLogAsync(string repoPath, int maxCount)
+        {
+            GitResult result = await GitRepository.RunAsync("log", LogFormat, "--follow", $"--max-count={maxCount}", "--", repoPath);
+            return result.Success ? (ParseCommits(result.Output), null) : (new List<GitCommitInfo>(), result.Message);
+        }
+
         public static List<GitCommitInfo> ParseCommits(string output)
         {
             List<GitCommitInfo> commits = new();

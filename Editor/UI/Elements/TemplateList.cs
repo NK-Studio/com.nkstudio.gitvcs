@@ -79,6 +79,11 @@ namespace GitVersionControl
             ListView.RefreshItems();
         }
 
+        public void ClearSelection()
+        {
+            ListView.ClearSelection();
+        }
+
         public void Select(T item)
         {
             int index = _items.IndexOf(item);
