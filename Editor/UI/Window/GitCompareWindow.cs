@@ -6,13 +6,15 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 커밋 비교 창: 위는 바뀐 파일, 아래는 고른 파일의 diff. Branch Explorer 커밋 메뉴의 "비교" 항목이 연다.
-    /// <see cref="_from"/> 이 비어 있으면 커밋 하나의 변경(첫 부모 ↔ 커밋), 있으면 두 커밋을 그대로 비교한다(<c>From ↔ To</c>).
+    /// 커밋 비교 창: 위는 바뀐 파일, 아래는 고른 파일의 diff. Branch Explorer·Branches 탭 메뉴의 "비교" 항목이 연다.
+    /// 세 가지로 연다: 커밋 하나의 변경(첫 부모 ↔ 커밋), 두 리비전 그대로(<c>From ↔ To</c>),
+    /// 브랜치가 갈라진 뒤 바꾼 것(<c>From...To</c>: 공통 조상 ↔ To — Unity VC 의 "브랜치 비교").
     /// </summary>
     public sealed class GitCompareWindow : GitToolWindowBase
     {
         [SerializeField] private string _from;
         [SerializeField] private string _to;
+        [SerializeField] private bool _sinceMergeBase;
 
         private GitServices _services;
         private FileBrowser _files;
@@ -35,11 +37,20 @@ namespace GitVersionControl
             Open(from, to, GitText.Format("compare.windowTitleRange", GitDisplay.ShortRevision(from), GitDisplay.ShortRevision(to)));
         }
 
-        private static void Open(string from, string to, string title)
+        /// <summary>
+        /// <paramref name="to"/> 가 <paramref name="from"/> 에서 갈라진 뒤 바꾼 것(공통 조상 ↔ <paramref name="to"/>).
+        /// </summary>
+        public static void OpenSinceMergeBase(string from, string to)
+        {
+            Open(from, to, GitText.Format("compare.windowTitleMergeBase", GitDisplay.ShortRevision(from), GitDisplay.ShortRevision(to)), sinceMergeBase: true);
+        }
+
+        private static void Open(string from, string to, string title, bool sinceMergeBase = false)
         {
             GitCompareWindow window = CreateInstance<GitCompareWindow>();
             window._from = from;
             window._to = to;
+            window._sinceMergeBase = sinceMergeBase;
             window.titleContent = TitleWithIcon(title);
             window.Show();
             window.Load();
@@ -96,9 +107,22 @@ namespace GitVersionControl
 
         private GitDiffTarget TargetOf(GitFileChange change)
         {
-            return string.IsNullOrEmpty(_from)
-                ? GitDiffTarget.ForCommit(_to, change)
-                : GitDiffTarget.ForRange(_from, _to, change);
+            if (string.IsNullOrEmpty(_from))
+            {
+                return GitDiffTarget.ForCommit(_to, change);
+            }
+            return _sinceMergeBase ? GitDiffTarget.ForMergeBase(_from, _to, change) : GitDiffTarget.ForRange(_from, _to, change);
+        }
+
+        private string SummaryOf(int fileCount)
+        {
+            string from = GitDisplay.ShortRevision(_from);
+            string to = GitDisplay.ShortRevision(_to);
+            if (string.IsNullOrEmpty(_from))
+            {
+                return GitText.Format("compare.summaryCommit", to, fileCount);
+            }
+            return GitText.Format(_sinceMergeBase ? "compare.summaryMergeBase" : "compare.summaryRange", from, to, fileCount);
         }
 
         private async void Load()
@@ -115,14 +139,16 @@ namespace GitVersionControl
             {
                 files = await _services.History.CommitFilesAsync(_to);
             }
+            else if (_sinceMergeBase)
+            {
+                files = await _services.History.ChangedSinceMergeBaseAsync(_from, _to);
+            }
             else
             {
                 (files, error) = await _services.History.ChangedBetweenAsync(_from, _to);
             }
 
-            _summary.text = error ?? (string.IsNullOrEmpty(_from)
-                ? GitText.Format("compare.summaryCommit", GitDisplay.ShortRevision(_to), files.Count)
-                : GitText.Format("compare.summaryRange", GitDisplay.ShortRevision(_from), GitDisplay.ShortRevision(_to), files.Count));
+            _summary.text = error ?? SummaryOf(files.Count);
             _files.SetItems(files.Select(change => FileListItem.From(change)));
             _diff.SetTarget(null);
         }

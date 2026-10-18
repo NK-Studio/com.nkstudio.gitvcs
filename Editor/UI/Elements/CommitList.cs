@@ -33,10 +33,18 @@ namespace GitVersionControl
             row.Require<Label>("date").text = GitDisplay.FormatDate(commit.Date);
         }
 
+        /// <summary>
+        /// 메뉴 맨 위에 해시·메시지 복사를 넣을지. 전체 커밋 메뉴(<see cref="CommitMenu"/>)를 붙이는 곳은 끈다(그 메뉴의 "고급 옵션" 에 있다).
+        /// </summary>
+        public bool ShowCopyItems { get; set; } = true;
+
         protected override void PopulateContextMenu(DropdownMenu menu, GitCommitInfo commit)
         {
-            menu.AppendAction(GitText.Get("common.copyHash"), _ => _assets.CopyToClipboard(commit.Hash));
-            menu.AppendAction(GitText.Get("common.copySubject"), _ => _assets.CopyToClipboard(commit.Subject));
+            if (ShowCopyItems)
+            {
+                menu.AppendAction(GitText.Get("common.copyHash"), _ => _assets.CopyToClipboard(commit.Hash));
+                menu.AppendAction(GitText.Get("common.copySubject"), _ => _assets.CopyToClipboard(commit.Subject));
+            }
             base.PopulateContextMenu(menu, commit);
         }
     }

@@ -275,6 +275,10 @@ namespace GitVersionControl
             ["op.cherryPick"] = new[] { "{0} 체리픽", "Cherry-pick {0}" },
             ["op.revert"] = new[] { "{0} 되돌리기 커밋", "Revert {0}" },
             ["op.reset"] = new[] { "{0} 로 리셋({1})", "Reset to {0} ({1})" },
+            ["op.rebase"] = new[] { "'{0}' 을 {1} 위로 rebase", "Rebase '{0}' onto {1}" },
+            ["op.renameBranch"] = new[] { "'{0}' → '{1}' 이름 변경", "Rename '{0}' → '{1}'" },
+            ["op.pushBranch"] = new[] { "'{0}' 푸시", "Push '{0}'" },
+            ["op.deleteRemoteBranch"] = new[] { "원격 '{0}' 삭제", "Delete remote '{0}'" },
 
             // ── 창·탭 ──
             ["window.notGitMode"] = new[] { "Version Control 모드가 Git 이 아닙니다.", "Version Control mode is not Git." },
@@ -406,11 +410,35 @@ namespace GitVersionControl
             ["commit.resetMixedConfirm"] = new[] { "'{0}' 을 {1} 로 옮길까요? (mixed)\n\n그 뒤 커밋들의 내용은 stage 되지 않은 변경으로 남습니다.", "Move '{0}' to {1}? (mixed)\n\nThe content of later commits stays as unstaged changes." },
             ["commit.resetHardConfirm"] = new[] { "'{0}' 을 {1} 로 옮기고 작업 트리를 그 커밋과 똑같이 만들까요? (hard)\n\n커밋하지 않은 변경은 모두 사라지며 되살릴 수 없습니다. 옮긴 커밋은 실행 취소로 되돌릴 수 있습니다.", "Move '{0}' to {1} and make the working tree match it? (hard)\n\nAll uncommitted changes are lost for good. The move itself can be undone." },
 
+            // ── Branches 탭 브랜치 메뉴 ──
+            ["branch.createChild"] = new[] { "이 브랜치에서 브랜치 만들기…", "Create Branch from This Branch…" },
+            ["branch.mergeInto"] = new[] { "현재 브랜치('{0}')에 병합", "Merge into Current Branch ('{0}')" },
+            ["branch.rebaseOnto"] = new[] { "현재 브랜치('{0}')를 이 브랜치 위로 rebase", "Rebase Current Branch ('{0}') onto This" },
+            ["branch.compareSinceDiverged"] = new[] { "브랜치 비교 ('{0}' 에서 갈라진 뒤 바뀐 것)", "Compare Branch (changes since it left '{0}')" },
+            ["branch.compareWithOther"] = new[] { "다른 브랜치와 비교…", "Compare with Another Branch…" },
+            ["branch.showInExplorer"] = new[] { "Branch Explorer 에서 보기", "Show in Branch Explorer" },
+            ["branch.remote"] = new[] { "원격", "Remote" },
+            ["branch.push"] = new[] { "이 브랜치 푸시", "Push This Branch" },
+            ["branch.deleteRemote"] = new[] { "원격에서 삭제…", "Delete on Remote…" },
+            ["branch.rename"] = new[] { "이름 변경…", "Rename…" },
+
+            ["branch.rebaseTitle"] = new[] { "Rebase", "Rebase" },
+            ["branch.rebaseConfirm"] = new[] { "'{0}' 의 커밋을 {1} 위로 다시 쌓을까요?\n\n커밋 해시가 바뀝니다. 이미 푸시한 커밋이면 다른 사람과 히스토리가 갈라집니다. 실행 취소로 원래대로 돌릴 수 있습니다.", "Replay the commits of '{0}' on top of {1}?\n\nCommit hashes change. If they were already pushed, your history will diverge from others'. Undo restores the original." },
+            ["branch.renameTitle"] = new[] { "브랜치 이름 변경", "Rename Branch" },
+            ["branch.renamePrompt"] = new[] { "'{0}' 의 새 이름:", "New name for '{0}':" },
+            ["branch.pushTitle"] = new[] { "브랜치 푸시", "Push Branch" },
+            ["branch.pushConfirm"] = new[] { "'{0}' 을 origin 에 푸시할까요?", "Push '{0}' to origin?" },
+            ["branch.pushNewConfirm"] = new[] { "'{0}' 은 아직 원격에 없습니다.\n\norigin 에 같은 이름으로 올리고 추적을 걸까요?", "'{0}' is not on the remote yet.\n\nPush it to origin under the same name and track it?" },
+            ["branch.deleteRemoteTitle"] = new[] { "원격 브랜치 삭제", "Delete Remote Branch" },
+            ["branch.deleteRemoteConfirm"] = new[] { "{1} 저장소에서 '{0}' 브랜치를 삭제할까요?\n\n다른 사람에게도 바로 사라집니다. 로컬 브랜치는 그대로 남습니다.", "Delete branch '{0}' from {1}?\n\nIt disappears for everyone right away. Local branches are kept." },
+
             // ── 커밋 비교 창 ──
             ["compare.windowTitleCommit"] = new[] { "커밋 {0}", "Commit {0}" },
             ["compare.windowTitleRange"] = new[] { "{0} ↔ {1}", "{0} ↔ {1}" },
             ["compare.summaryCommit"] = new[] { "{0} 의 부모 ↔ {0} · 파일 {1}개", "parent of {0} ↔ {0} · {1} files" },
             ["compare.summaryRange"] = new[] { "{0} ↔ {1} · 파일 {2}개", "{0} ↔ {1} · {2} files" },
+            ["compare.windowTitleMergeBase"] = new[] { "{0}...{1}", "{0}...{1}" },
+            ["compare.summaryMergeBase"] = new[] { "{1} 이 {0} 에서 갈라진 뒤 바꾼 파일 {2}개", "{2} files changed on {1} since it left {0}" },
 
             // ── 표기 ──
             ["display.noCommits"] = new[] { "{0} (커밋 없음)", "{0} (no commits)" },

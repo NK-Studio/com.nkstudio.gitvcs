@@ -20,6 +20,8 @@ namespace GitVersionControl
         private readonly VisualElement _split;
         private readonly CommitList _commits;
         private readonly CommitDetailPanel _detail;
+        private readonly CommitMenu _commitMenu;
+        private readonly ITabNavigator _navigator;
 
         private List<GitCommitInfo> _loaded = new();
         private string _loadedKey;
@@ -32,9 +34,11 @@ namespace GitVersionControl
         private bool HasHistory => Services.Repository.HeadCommit != null || _state.AllBranches;
         private string CurrentKey => $"{Services.Repository.HeadCommit}|{(_state.AllBranches ? Services.Repository.UpstreamCommit + "|" + Services.Repository.LastFetchTime : string.Empty)}|{_state.AllBranches}";
 
-        public ChangesetsView(GitServices services, ChangesetsState state) : base(services, "ChangesetsView")
+        public ChangesetsView(GitServices services, ChangesetsState state, ITabNavigator navigator) : base(services, "ChangesetsView")
         {
             _state = state;
+            _navigator = navigator;
+            _commitMenu = new CommitMenu(services);
             _allBranches = Root.Require<ToolbarToggle>("all-branches");
             _summary = Root.Require<Label>("summary");
             _moreButton = Root.Require<ToolbarButton>("more-button");
@@ -44,7 +48,7 @@ namespace GitVersionControl
             _emptyNotice = Root.Require<VisualElement>("empty-notice");
             _split = Root.Require<VisualElement>("split");
 
-            _commits = new CommitList(Root.Require<ListView>("commit-list"), services.Assets);
+            _commits = new CommitList(Root.Require<ListView>("commit-list"), services.Assets) { ShowCopyItems = false };
             _detail = new CommitDetailPanel(Root.Require<VisualElement>("detail-host"), services, closable: false);
             _detail.ShowPlaceholder();
 
@@ -58,6 +62,21 @@ namespace GitVersionControl
             _moreButton.clicked += () => Load(append: true);
             _reloadButton.clicked += () => Load(append: false);
             _commits.SelectionChanged += OnCommitSelected;
+            _commits.ContextMenuRequested += PopulateCommitMenu;
+        }
+
+        /// <summary>
+        /// Branch Explorer 와 같은 커밋 메뉴(<see cref="CommitMenu"/>). 부모로 이동은 이미 읽은 목록 안에 부모가 있을 때만 된다.
+        /// </summary>
+        private void PopulateCommitMenu(DropdownMenu menu, GitCommitInfo commit)
+        {
+            GitCommitInfo parent = commit.Parents.Length == 0 ? null : _loaded.Find(c => c.Hash == commit.Parents[0]);
+            _commitMenu.Populate(menu, commit, new CommitMenu.Hooks
+            {
+                GoToParent = parent == null ? null : () => _commits.Select(parent),
+                ShowInExplorer = () => _navigator.SelectTab<BranchExplorerView>()?.Reveal(commit.Hash),
+                OpenBranchesTab = () => _navigator.SelectTab<BranchesView>(),
+            });
         }
 
         protected override void OnActivated()

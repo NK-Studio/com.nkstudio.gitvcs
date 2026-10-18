@@ -96,6 +96,14 @@ namespace GitVersionControl
             return isFullHash ? revision.Substring(0, 7) : revision ?? string.Empty;
         }
 
+        /// <summary>
+        /// 메뉴 항목에 넣을 이름. 메뉴는 '/' 를 하위 메뉴 구분으로 읽으므로 "feature/x" 가 하위 메뉴로 쪼개진다 — 모양이 같은 '∕'(U+2215)로 바꾼다.
+        /// </summary>
+        public static string MenuSafe(string text)
+        {
+            return (text ?? string.Empty).Replace('/', '∕');
+        }
+
         public static string FirstLine(string text)
         {
             string trimmed = (text ?? string.Empty).Trim();

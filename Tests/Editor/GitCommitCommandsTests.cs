@@ -51,6 +51,28 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("rev-parse --verify --quiet HEAD~1^{commit}", Joined(GitCommitCommands.ResolveCommit("HEAD~1")));
         }
 
+        [Test]
+        public void Test_BranchCommands_Arguments()
+        {
+            Assert.AreEqual("rebase origin/main", Joined(GitCommitCommands.Rebase("origin/main")));
+            Assert.AreEqual("branch -m old new", Joined(GitCommitCommands.RenameBranch("old", "new")));
+            Assert.AreEqual("push -u origin feature/x", Joined(GitCommitCommands.PushBranch("origin", "feature/x", setUpstream: true)));
+            Assert.AreEqual("push origin feature/x", Joined(GitCommitCommands.PushBranch("origin", "feature/x", setUpstream: false)));
+            Assert.AreEqual("push origin --delete feature/x", Joined(GitCommitCommands.DeleteRemoteBranch("origin", "feature/x")));
+        }
+
+        [Test]
+        public void Test_SplitRemoteBranch_KeepsSlashesInBranchName()
+        {
+            Assert.AreEqual(("origin", "feature/x"), GitCommitCommands.SplitRemoteBranch("origin/feature/x"));
+        }
+
+        [Test]
+        public void Test_MenuSafe_ReplacesSubmenuSeparator()
+        {
+            Assert.AreEqual("feature∕x", GitDisplay.MenuSafe("feature/x"));
+        }
+
         [TestCase("0123456789abcdef0123456789abcdef01234567", "0123456")]
         [TestCase("HEAD~2", "HEAD~2")]
         [TestCase("main", "main")]

@@ -55,7 +55,7 @@ namespace GitVersionControl
 
             IGitOperationRunner runner = services.Runner;
             IGitCommandService commands = services.Commands;
-            _branchButton.clicked += navigator.SelectTab<BranchesView>;
+            _branchButton.clicked += () => navigator.SelectTab<BranchesView>();
             _undo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.undo"), commands.UndoAsync, refreshAssets: true);
             _redo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.redo"), commands.RedoAsync, refreshAssets: true);
             _fetch.Clicked += () => _ = runner.RunAsync(GitText.Get("op.fetch"), commands.FetchAsync, refreshAssets: false);

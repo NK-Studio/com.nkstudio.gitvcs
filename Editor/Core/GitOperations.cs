@@ -147,6 +147,14 @@ namespace GitVersionControl
             return GitRepository.RunAsync(args);
         }
 
+        /// <summary>
+        /// 네트워크를 쓰는 브랜치 명령(브랜치 푸시·원격 브랜치 삭제). Push·Pull 과 같은 시간 제한.
+        /// </summary>
+        public static Task<GitResult> RunNetworkAsync(string[] args)
+        {
+            return GitCommand.RunAsync(GitRepository.RepoRoot, args, NetworkTimeoutMs);
+        }
+
         /// <param name="startPoint">새 브랜치가 가리킬 커밋. null 이면 HEAD.</param>
         public static Task<GitResult> CreateBranchAsync(string name, bool switchTo, string startPoint = null)
         {

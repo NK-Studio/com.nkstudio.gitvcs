@@ -47,6 +47,9 @@ namespace GitVersionControl
     /// <summary>다른 탭으로 이동시키는 능력만 뷰에 넘긴다(창 전체를 넘기지 않는다, ISP).</summary>
     public interface ITabNavigator
     {
-        void SelectTab<T>() where T : GitView;
+        /// <summary>
+        /// 탭을 열고 그 뷰를 돌려준다(없으면 null). 다른 탭에 할 일을 넘길 때 쓴다(예: Branch Explorer 에서 커밋 보이기).
+        /// </summary>
+        T SelectTab<T>() where T : GitView;
     }
 }

@@ -87,6 +87,53 @@ namespace GitVersionControl
             _services.Dialogs.Alert(GitText.Get("branches.deleteFailed"), result.Message);
         }
 
+        public async Task RenameAsync(GitBranchRef branch)
+        {
+            string title = GitText.Get("branch.renameTitle");
+            string name = GitTextPromptWindow.Ask(title, GitText.Format("branch.renamePrompt", branch.Name), branch.Name)?.Trim();
+            if (string.IsNullOrEmpty(name) || name == branch.Name)
+            {
+                return;
+            }
+            GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
+            if (valid.Success == false)
+            {
+                _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.renameBranch", branch.Name, name), () => _services.Commands.RenameBranchAsync(branch.Name, name), refreshAssets: false);
+        }
+
+        /// <summary>
+        /// 로컬 브랜치를 origin 에 올린다. upstream 이 없으면 같은 이름으로 올리며 추적을 건다.
+        /// </summary>
+        public async Task PushAsync(GitBranchRef branch)
+        {
+            bool setUpstream = string.IsNullOrEmpty(branch.Upstream);
+            if (_services.Dialogs.Confirm(GitText.Get("branch.pushTitle"), GitText.Format(setUpstream ? "branch.pushNewConfirm" : "branch.pushConfirm", branch.Name), GitText.Get("op.push")) == false)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.pushBranch", branch.Name), () => _services.Commands.PushBranchAsync("origin", branch.Name, setUpstream), refreshAssets: false);
+        }
+
+        /// <summary>
+        /// 원격 저장소에서 브랜치를 지운다(<c>git push origin --delete</c>). 다른 사람에게도 바로 보이는 일이라 한 번 더 묻는다.
+        /// </summary>
+        public async Task DeleteRemoteAsync(GitBranchRef remoteBranch)
+        {
+            (string remote, string name) = GitCommitCommands.SplitRemoteBranch(remoteBranch.Name);
+            if (string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+            if (_services.Dialogs.Confirm(GitText.Get("branch.deleteRemoteTitle"), GitText.Format("branch.deleteRemoteConfirm", name, remote), GitText.Get("common.delete")) == false)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.deleteRemoteBranch", remoteBranch.Name), () => _services.Commands.DeleteRemoteBranchAsync(remote, name), refreshAssets: false);
+        }
+
         /// <summary>작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 알린다. 취소하면 false.</summary>
         public static bool PrepareWorkingTree(GitServices services, string action)
         {

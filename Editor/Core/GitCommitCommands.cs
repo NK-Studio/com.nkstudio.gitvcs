@@ -82,6 +82,38 @@ namespace GitVersionControl
             return mode == GitResetMode.Hard ? null : ResetFlag(mode);
         }
 
+        public static string[] Rebase(string revision)
+        {
+            return new[] { "rebase", revision };
+        }
+
+        public static string[] RenameBranch(string oldName, string newName)
+        {
+            return new[] { "branch", "-m", oldName, newName };
+        }
+
+        /// <param name="setUpstream">upstream 이 없는 브랜치면 true: 올리면서 추적을 건다(<c>-u</c>).</param>
+        public static string[] PushBranch(string remote, string branch, bool setUpstream)
+        {
+            return setUpstream
+                ? new[] { "push", "-u", remote, branch }
+                : new[] { "push", remote, branch };
+        }
+
+        public static string[] DeleteRemoteBranch(string remote, string branch)
+        {
+            return new[] { "push", remote, "--delete", branch };
+        }
+
+        /// <summary>
+        /// 원격 브랜치 이름을 원격과 브랜치로 나눈다. "origin/feature/x" → ("origin", "feature/x"). 원격 이름에는 '/' 가 없다고 본다.
+        /// </summary>
+        public static (string remote, string branch) SplitRemoteBranch(string remoteBranchName)
+        {
+            int slash = remoteBranchName.IndexOf('/');
+            return slash < 0 ? (remoteBranchName, string.Empty) : (remoteBranchName.Substring(0, slash), remoteBranchName.Substring(slash + 1));
+        }
+
         public static string[] Tag(string name, string commit)
         {
             return new[] { "tag", name, commit };

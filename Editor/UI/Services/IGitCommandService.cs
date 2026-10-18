@@ -29,6 +29,10 @@ namespace GitVersionControl
         /// </summary>
         Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode);
 
+        Task<GitResult> RenameBranchAsync(string oldName, string newName);
+        Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream);
+        Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch);
+
         /// <summary>
         /// 리비전(브랜치·태그·해시·HEAD~2)의 커밋 해시. 없으면 null.
         /// </summary>
@@ -82,6 +86,12 @@ namespace GitVersionControl
         public Task<GitResult> ValidateTagNameAsync(string name) => GitRepository.RunAsync(GitCommitCommands.ValidateTagName(name));
 
         public Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode) => GitUndo.MoveHeadAsync(title, args, undoResetMode);
+
+        public Task<GitResult> RenameBranchAsync(string oldName, string newName) => GitRepository.RunAsync(GitCommitCommands.RenameBranch(oldName, newName));
+
+        public Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream) => GitOperations.RunNetworkAsync(GitCommitCommands.PushBranch(remote, branch, setUpstream));
+
+        public Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch) => GitOperations.RunNetworkAsync(GitCommitCommands.DeleteRemoteBranch(remote, branch));
 
         public async Task<string> ResolveCommitAsync(string revision)
         {

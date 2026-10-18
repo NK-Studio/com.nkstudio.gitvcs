@@ -185,8 +185,8 @@ namespace GitVersionControl
                     break;
             }
             AddView(new IncomingChangesView(_services), content, sidebar);
-            AddView(new ChangesetsView(_services, _state.Changesets), content, sidebar);
-            AddView(new BranchesView(_services, _state.Branches), content, sidebar);
+            AddView(new ChangesetsView(_services, _state.Changesets, this), content, sidebar);
+            AddView(new BranchesView(_services, _state.Branches, this), content, sidebar);
             AddView(new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
         }
 
@@ -203,13 +203,15 @@ namespace GitVersionControl
             _tabs.Add(tab);
         }
 
-        public void SelectTab<T>() where T : GitView
+        public T SelectTab<T>() where T : GitView
         {
             int index = _views.FindIndex(view => view is T);
-            if (index >= 0)
+            if (index < 0)
             {
-                SelectTab(index);
+                return null;
             }
+            SelectTab(index);
+            return (T)_views[index];
         }
 
         private void SelectTab(int index)

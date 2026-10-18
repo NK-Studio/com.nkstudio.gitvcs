@@ -32,9 +32,19 @@ namespace GitVersionControl
             GitCompareWindow.OpenCommit(commit.Hash);
         }
 
-        public async Task CompareWithRevisionAsync(GitCommitInfo commit)
+        public Task CompareWithRevisionAsync(GitCommitInfo commit)
         {
-            string revision = GitTextPromptWindow.Ask(GitText.Get("commit.compareTitle"), GitText.Format("commit.compareWithPrompt", Describe(commit)), "HEAD");
+            return CompareWithRevisionAsync(commit.Hash, Describe(commit), "HEAD");
+        }
+
+        /// <summary>
+        /// 다른 리비전을 물어 <paramref name="target"/> 과 비교한다(물은 쪽 ↔ 대상).
+        /// </summary>
+        /// <param name="target">커밋 해시 또는 브랜치 이름.</param>
+        /// <param name="description">물을 때 보일 대상 설명.</param>
+        public async Task CompareWithRevisionAsync(string target, string description, string defaultRevision)
+        {
+            string revision = GitTextPromptWindow.Ask(GitText.Get("commit.compareTitle"), GitText.Format("commit.compareWithPrompt", description), defaultRevision);
             if (string.IsNullOrWhiteSpace(revision))
             {
                 return;
@@ -45,13 +55,19 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(GitText.Get("commit.compareTitle"), GitText.Format("commit.unknownRevision", revision.Trim()));
                 return;
             }
-            GitCompareWindow.OpenRange(other, commit.Hash);
+            GitCompareWindow.OpenRange(other, target);
         }
 
-        public async Task CreateBranchAsync(GitCommitInfo commit)
+        public Task CreateBranchAsync(GitCommitInfo commit)
+        {
+            return CreateBranchFromAsync(commit.Hash, Describe(commit));
+        }
+
+        /// <param name="startPoint">새 브랜치가 가리킬 커밋 해시.</param>
+        public async Task CreateBranchFromAsync(string startPoint, string description)
         {
             string title = GitText.Get("commit.createBranchTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.createBranchPrompt", Describe(commit)), string.Empty)?.Trim();
+            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.createBranchPrompt", description), string.Empty)?.Trim();
             if (string.IsNullOrEmpty(name))
             {
                 return;
@@ -68,7 +84,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            await _services.Runner.RunAsync(GitText.Format("op.createBranch", name), () => _services.Commands.CreateBranchAtAsync(name, commit.Hash, switchTo), refreshAssets: switchTo);
+            await _services.Runner.RunAsync(GitText.Format("op.createBranch", name), () => _services.Commands.CreateBranchAtAsync(name, startPoint, switchTo), refreshAssets: switchTo);
         }
 
         public async Task CreateTagAsync(GitCommitInfo commit)
@@ -104,14 +120,30 @@ namespace GitVersionControl
 
         public Task MergeAsync(GitCommitInfo commit, GitMergeMode mode)
         {
+            return MergeAsync(commit.Hash, commit.ShortHash, Describe(commit), mode);
+        }
+
+        /// <param name="revision">병합할 커밋 해시 또는 브랜치 이름. 브랜치 이름이면 병합 메시지에 그 이름이 남는다.</param>
+        /// <param name="shortName">진행 표시·실행 취소 목록에 보일 짧은 이름.</param>
+        public Task MergeAsync(string revision, string shortName, string description, GitMergeMode mode)
+        {
             string key = mode switch
             {
                 GitMergeMode.NoFastForward => "commit.mergeNoFfConfirm",
                 GitMergeMode.Squash => "commit.squashConfirm",
                 _ => "commit.mergeConfirm",
             };
-            return MoveHeadAsync(GitText.Get("commit.mergeTitle"), GitText.Format(key, Describe(commit), CurrentBranchName()),
-                GitText.Format("op.merge", commit.ShortHash), GitCommitCommands.Merge(commit.Hash, mode), null);
+            return MoveHeadAsync(GitText.Get("commit.mergeTitle"), GitText.Format(key, description, CurrentBranchName()),
+                GitText.Format("op.merge", shortName), GitCommitCommands.Merge(revision, mode), null);
+        }
+
+        /// <summary>
+        /// 현재 브랜치의 커밋을 <paramref name="revision"/> 위로 다시 쌓는다.
+        /// </summary>
+        public Task RebaseOntoAsync(string revision, string shortName, string description)
+        {
+            return MoveHeadAsync(GitText.Get("branch.rebaseTitle"), GitText.Format("branch.rebaseConfirm", CurrentBranchName(), description),
+                GitText.Format("op.rebase", CurrentBranchName(), shortName), GitCommitCommands.Rebase(revision), null);
         }
 
         public Task CherryPickAsync(GitCommitInfo commit)
@@ -154,7 +186,7 @@ namespace GitVersionControl
             await _services.Runner.RunAsync(operation, () => _services.Commands.MoveHeadAsync(operation, args, undoResetMode), refreshAssets: true);
         }
 
-        private string CurrentBranchName()
+        public string CurrentBranchName()
         {
             GitBranchInfo branch = _services.Repository.Branch;
             return branch == null || branch.Detached ? "HEAD" : branch.Name;
