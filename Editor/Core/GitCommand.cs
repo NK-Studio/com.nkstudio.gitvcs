@@ -46,7 +46,17 @@ namespace GitVersionControl
             return Task.Run(() => Run(gitPath, workingDirectory, args, timeoutMs));
         }
 
-        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
+        /// <summary>
+        /// 표준 입력을 넘기는 명령(<c>git credential fill</c> 등). <paramref name="environment"/> 는 이 실행에만 더할 환경 변수.
+        /// </summary>
+        public static Task<GitResult> RunWithInputAsync(string workingDirectory, IReadOnlyList<string> args, string standardInput, IReadOnlyDictionary<string, string> environment)
+        {
+            string gitPath = GitVcsSettings.instance.GitExecutable;
+            return Task.Run(() => Run(gitPath, workingDirectory, args, DefaultTimeoutMs, standardInput, environment));
+        }
+
+        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs,
+            string standardInput = null, IReadOnlyDictionary<string, string> environment = null)
         {
             GitLocator.Location git = GitLocator.Resolve(gitPath);
             if (git.Found == false)
@@ -74,6 +84,13 @@ namespace GitVersionControl
             startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = "1";
             // 에디터 PATH 에 git 이 없어서 시스템 PATH 로 찾은 경우에도 git-lfs·credential manager 를 찾게 한다.
             startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+            if (environment != null)
+            {
+                foreach (KeyValuePair<string, string> pair in environment)
+                {
+                    startInfo.EnvironmentVariables[pair.Key] = pair.Value;
+                }
+            }
 
             try
             {
@@ -81,6 +98,10 @@ namespace GitVersionControl
                 if (process == null)
                 {
                     return new GitResult(-1, string.Empty, GitText.Format("command.startFailed", gitPath));
+                }
+                if (standardInput != null)
+                {
+                    process.StandardInput.Write(standardInput);
                 }
                 process.StandardInput.Close();
 

@@ -45,6 +45,27 @@ namespace GitVersionControl
             return $"https://api.github.com/repos/{owner}/{repository}/commits/{commitHash}";
         }
 
+        /// <summary>
+        /// <c>git credential fill</c> 에 넘길 입력: GitHub 의 https 자격 증명을 묻는다.
+        /// </summary>
+        public const string GitHubCredentialQuery = "protocol=https\nhost=github.com\n\n";
+
+        /// <summary>
+        /// <c>git credential fill</c> 출력("key=value" 줄들)에서 password(=토큰). 없으면 null.
+        /// </summary>
+        public static string ParseCredentialPassword(string output)
+        {
+            foreach (string rawLine in (output ?? string.Empty).Split('\n'))
+            {
+                string line = rawLine.TrimEnd('\r');
+                if (line.StartsWith("password=", StringComparison.Ordinal) && line.Length > "password=".Length)
+                {
+                    return line.Substring("password=".Length);
+                }
+            }
+            return null;
+        }
+
         /// <summary>d=404: 등록된 그림이 없으면 기본 그림 대신 404 를 받아 머리글자로 둔다.</summary>
         public static string GravatarUrl(string email)
         {

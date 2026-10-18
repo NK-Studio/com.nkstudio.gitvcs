@@ -16,6 +16,7 @@ namespace GitVersionControl
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
         [SerializeField] private bool _showAvatars;
+        [SerializeField] private bool _avatarsUseGitCredentials;
         [SerializeField] private int _diffEngine;
         [SerializeField] private int _diffAlgorithm = (int)DiffAlgorithm.Histogram;
         [SerializeField] private int _diffWhitespace;
@@ -77,6 +78,16 @@ namespace GitVersionControl
         {
             get => _showAvatars;
             set => SetAndSave(ref _showAvatars, value);
+        }
+
+        /// <summary>
+        /// 아바타를 찾을 때 git 에 저장된 GitHub 자격 증명(Git Credential Manager 등)으로 GitHub API 에 로그인할지.
+        /// 비공개 저장소는 로그인하지 않으면 커밋의 작성자 계정을 알 수 없다. 저장된 비밀을 읽는 일이라 기본은 꺼 둔다.
+        /// </summary>
+        public bool AvatarsUseGitCredentials
+        {
+            get => _avatarsUseGitCredentials;
+            set => SetAndSave(ref _avatarsUseGitCredentials, value);
         }
 
         /// <summary>

@@ -29,6 +29,12 @@ namespace GitVersionControl
     {
         private const string UserAgent = "com.nkstudio.gitvcs";
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(7);
+
+        /// <summary>
+        /// "아바타 없음" 기록 파일. 예전(.none)에는 비공개 저장소·요청 제한도 "없음" 으로 기록해 7일 동안 머리글자로 남았다 —
+        /// 이름을 바꿔 그 기록은 무시한다(2026-10-18).
+        /// </summary>
+        private const string MissingExtension = ".missing";
         private static readonly string CacheFolder = Path.Combine(GitRepository.ProjectRoot ?? ".", "Library", "GitVersionControl", "Avatars");
 
         private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.OrdinalIgnoreCase);
@@ -36,6 +42,16 @@ namespace GitVersionControl
         private readonly HashSet<string> _missing = new(StringComparer.OrdinalIgnoreCase);
         private string _remoteKey;
         private (string owner, string repository)? _gitHubRemote;
+
+        /// <summary>
+        /// git 에서 읽은 GitHub 토큰. 메모리에만 둔다. 한 번 물어 없으면 빈 문자열(다시 묻지 않는다).
+        /// </summary>
+        private string _gitHubToken;
+
+        /// <summary>
+        /// 마지막으로 본 "git 의 GitHub 로그인 사용" 설정. 바뀌면 이번 세션의 "없음" 판단과 토큰을 버리고 다시 찾는다.
+        /// </summary>
+        private bool _usedGitCredentials;
 
         public bool IsEnabled => GitVcsSettings.instance.ShowAvatars;
 
@@ -46,6 +62,12 @@ namespace GitVersionControl
             if (IsEnabled == false || string.IsNullOrWhiteSpace(email))
             {
                 return null;
+            }
+            if (_usedGitCredentials != GitVcsSettings.instance.AvatarsUseGitCredentials)
+            {
+                _usedGitCredentials = GitVcsSettings.instance.AvatarsUseGitCredentials;
+                _missing.Clear();
+                _gitHubToken = null;
             }
             if (_textures.TryGetValue(email, out Texture2D texture) && texture != null)
             {
@@ -80,11 +102,16 @@ namespace GitVersionControl
             bool temporaryFailure = false;
             try
             {
-                foreach (string url in await CandidateUrlsAsync(email, commitHash))
+                (List<string> urls, bool gitHubAnswered) = await CandidateUrlsAsync(email, commitHash);
+                // GitHub 가 작성자를 알려 주지 못한 경우(비공개 저장소·요청 제한·네트워크)는 "없음" 으로 단정하지 않는다.
+                temporaryFailure = gitHubAnswered == false;
+                foreach (string url in urls)
                 {
-                    (bytes, temporaryFailure) = await DownloadAsync(url);
-                    if (bytes != null)
+                    (byte[] downloaded, bool downloadTemporary) = await DownloadAsync(url);
+                    temporaryFailure |= downloadTemporary;
+                    if (downloaded != null)
                     {
+                        bytes = downloaded;
                         break;
                     }
                 }
@@ -124,7 +151,8 @@ namespace GitVersionControl
             }
         }
 
-        private async Task<List<string>> CandidateUrlsAsync(string email, string commitHash)
+        /// <returns>시도할 주소들, GitHub 커밋 API 가 답을 줬는지(실패했으면 false — 그때는 "없음" 을 디스크에 기억하지 않는다).</returns>
+        private async Task<(List<string> urls, bool gitHubAnswered)> CandidateUrlsAsync(string email, string commitHash)
         {
             List<string> urls = new();
             string noReply = GitAvatarSources.NoReplyAvatarUrl(email);
@@ -133,10 +161,12 @@ namespace GitVersionControl
                 urls.Add(noReply);
             }
 
+            bool gitHubAnswered = true;
             (string owner, string repository)? remote = await GitHubRemoteAsync();
             if (remote.HasValue && string.IsNullOrEmpty(commitHash) == false)
             {
-                string avatarUrl = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash);
+                (string avatarUrl, bool answered) = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash, await GitHubTokenAsync());
+                gitHubAnswered = answered;
                 if (string.IsNullOrEmpty(avatarUrl) == false)
                 {
                     urls.Add(avatarUrl + (avatarUrl.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size);
@@ -144,7 +174,26 @@ namespace GitVersionControl
             }
 
             urls.Add(GitAvatarSources.GravatarUrl(email));
-            return urls;
+            return (urls, gitHubAnswered);
+        }
+
+        /// <summary>
+        /// 설정에서 켰을 때만 git 의 자격 증명 도우미에게 GitHub 토큰을 묻는다. 로그인 창은 띄우지 않는다
+        /// (GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never) — 저장된 것이 없으면 그냥 없음.
+        /// </summary>
+        private async Task<string> GitHubTokenAsync()
+        {
+            if (GitVcsSettings.instance.AvatarsUseGitCredentials == false)
+            {
+                return null;
+            }
+            if (_gitHubToken == null)
+            {
+                GitResult result = await GitCommand.RunWithInputAsync(GitRepository.RepoRoot ?? GitRepository.ProjectRoot, new[] { "credential", "fill" },
+                    GitAvatarSources.GitHubCredentialQuery, new Dictionary<string, string> { ["GCM_INTERACTIVE"] = "never" });
+                _gitHubToken = result.Success ? GitAvatarSources.ParseCredentialPassword(result.Output) ?? string.Empty : string.Empty;
+            }
+            return _gitHubToken.Length == 0 ? null : _gitHubToken;
         }
 
         /// <summary>origin 이 GitHub 저장소면 (owner, repo). 저장소가 바뀌지 않는 한 한 번만 묻는다.</summary>
@@ -175,18 +224,25 @@ namespace GitVersionControl
             public string avatar_url;
         }
 
-        private static async Task<string> GitHubCommitAvatarAsync(string owner, string repository, string commitHash)
+        /// <param name="token">GitHub 토큰. null 이면 로그인하지 않고 묻는다(공개 저장소만 답한다).</param>
+        /// <returns>(아바타 주소 또는 null, 답을 받았는지). 커밋은 찾았는데 GitHub 계정과 이어지지 않은 이메일이면 (null, true).</returns>
+        private static async Task<(string avatarUrl, bool answered)> GitHubCommitAvatarAsync(string owner, string repository, string commitHash, string token)
         {
             using UnityWebRequest request = UnityWebRequest.Get(GitAvatarSources.GitHubCommitApiUrl(owner, repository, commitHash));
             request.SetRequestHeader("User-Agent", UserAgent);
             request.SetRequestHeader("Accept", "application/vnd.github+json");
+            if (string.IsNullOrEmpty(token) == false)
+            {
+                request.SetRequestHeader("Authorization", "Bearer " + token);
+            }
             await SendAsync(request);
             if (request.result != UnityWebRequest.Result.Success)
             {
-                return null;
+                // 404(비공개 저장소에 로그인 없이)·403/429(요청 제한)·네트워크 오류: 작성자를 모른다.
+                return (null, false);
             }
             CommitResponse response = JsonUtility.FromJson<CommitResponse>(request.downloadHandler.text);
-            return response?.author?.avatar_url;
+            return (response?.author?.avatar_url, true);
         }
 
         /// <returns>(받은 바이트 또는 null, 일시적 실패인지)</returns>
@@ -218,7 +274,7 @@ namespace GitVersionControl
             texture = null;
             knownMissing = false;
             string imagePath = Path.Combine(CacheFolder, key + ".img");
-            string missingPath = Path.Combine(CacheFolder, key + ".none");
+            string missingPath = Path.Combine(CacheFolder, key + MissingExtension);
             try
             {
                 if (File.Exists(imagePath) && DateTime.Now - File.GetLastWriteTime(imagePath) < CacheLifetime)
@@ -244,7 +300,7 @@ namespace GitVersionControl
             {
                 Directory.CreateDirectory(CacheFolder);
                 File.WriteAllBytes(Path.Combine(CacheFolder, key + ".img"), bytes);
-                File.Delete(Path.Combine(CacheFolder, key + ".none"));
+                File.Delete(Path.Combine(CacheFolder, key + MissingExtension));
             }
             catch (IOException)
             {
@@ -257,7 +313,7 @@ namespace GitVersionControl
             try
             {
                 Directory.CreateDirectory(CacheFolder);
-                File.WriteAllText(Path.Combine(CacheFolder, key + ".none"), string.Empty);
+                File.WriteAllText(Path.Combine(CacheFolder, key + MissingExtension), string.Empty);
             }
             catch (IOException)
             {

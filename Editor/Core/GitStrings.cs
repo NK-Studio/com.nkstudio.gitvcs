@@ -474,6 +474,8 @@ namespace GitVersionControl
             ["settings.refreshOnFocus"] = new[] { "포커스 복귀 시 새로고침", "Refresh on Focus" },
             ["settings.refreshOnFocusTooltip"] = new[] { "다른 프로그램(터미널·IDE)에서 git 작업을 한 뒤 Unity 로 돌아오면 상태를 다시 읽습니다.", "Re-read the status when you come back to Unity after using git in a terminal or IDE." },
             ["settings.avatars"] = new[] { "작성자 아바타 표시", "Show Author Avatars" },
+            ["settings.avatarsCredentials"] = new[] { "비공개 저장소: git 의 GitHub 로그인 사용", "Private repos: use git's GitHub login" },
+            ["settings.avatarsCredentialsTooltip"] = new[] { "비공개 GitHub 저장소는 로그인해야 커밋 작성자의 계정(아바타)을 알 수 있습니다. 켜면 git 에 저장된 GitHub 자격 증명(Git Credential Manager 등)을 로그인 창 없이 읽어 GitHub API 요청에만 쓰고, 메모리에만 둡니다.", "Private GitHub repositories only reveal commit authors' accounts (avatars) to signed-in requests. When on, the GitHub credential stored by git (e.g. Git Credential Manager) is read without prompting, used only for GitHub API requests, and kept in memory only." },
             ["settings.avatarsTooltip"] = new[] { "브랜치 탐색기에 GitHub·Gravatar 의 작성자 그림을 보여 줍니다. 켜면 작성자 이메일(Gravatar 는 해시)과 커밋 해시가 GitHub·Gravatar 로 전송됩니다.", "Show author pictures from GitHub and Gravatar in the Branch Explorer. When on, author emails (hashed for Gravatar) and commit hashes are sent to GitHub and Gravatar." },
             ["settings.repository"] = new[] { "저장소", "Repository" },
             ["settings.checking"] = new[] { "확인 중…", "Checking…" },
