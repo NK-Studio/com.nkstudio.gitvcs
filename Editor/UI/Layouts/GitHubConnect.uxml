@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!-- GitHub 에 로그인하지 않았을 때 Git 창 대신 보이는 연결 화면. 동작은 GitHubConnectPanel 이 맡는다. -->
+    <ui:Style src="../Styles/GitCommon.uss" />
+    <ui:Style src="../Styles/GitWindow.uss" />
+
+    <ui:VisualElement name="github-connect" class="git-window github-connect">
+        <ui:VisualElement class="github-connect__card">
+            <ui:Label text="@connect.title" class="github-connect__title" />
+            <ui:Label text="@connect.description" class="github-connect__text" />
+
+            <ui:VisualElement name="start-step" class="github-connect__step">
+                <ui:Button name="sign-in-button" text="@github.signIn" class="github-connect__primary" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="waiting-step" class="github-connect__step">
+                <ui:Label name="waiting-text" class="github-connect__text" />
+                <ui:Label name="user-code" class="github-connect__code" />
+                <ui:VisualElement class="github-connect__row">
+                    <ui:Button name="copy-code-button" text="@github.copyCode" class="github-connect__secondary" />
+                    <ui:Button name="open-page-button" text="@github.openPage" class="github-connect__secondary" />
+                    <ui:Button name="cancel-button" text="@common.cancel" class="github-connect__secondary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Label name="error-text" class="github-connect__error" />
+            <ui:Button name="skip-button" text="@connect.skip" class="github-connect__link" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

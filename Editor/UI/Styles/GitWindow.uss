@@ -22,6 +22,90 @@
     display: none;
 }
 
+/* ── github-connect: GitHub 에 로그인하지 않았을 때 본체 대신 보이는 연결 화면 ───────── */
+.github-connect {
+    align-items: center;
+    justify-content: center;
+}
+
+.github-connect__card {
+    width: 420px;
+    max-width: 90%;
+    padding: 24px;
+    border-width: 1px;
+    border-color: var(--git-border);
+    border-radius: 8px;
+    background-color: var(--git-toolbar-bg);
+}
+
+.github-connect__title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--git-text);
+    margin: 0 0 8px 0;
+    padding: 0;
+}
+
+.github-connect__text {
+    white-space: normal;
+    color: var(--git-text-muted);
+    margin: 0 0 12px 0;
+    padding: 0;
+}
+
+.github-connect__step {
+    margin-top: 4px;
+}
+
+.github-connect__primary {
+    height: 32px;
+    margin: 0;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--git-accent-text);
+    background-color: var(--git-accent);
+    border-width: 0;
+    border-radius: 6px;
+}
+
+.github-connect__code {
+    font-size: 28px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+    color: var(--git-text);
+    margin: 4px 0 12px 0;
+}
+
+.github-connect__row {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.github-connect__secondary {
+    height: 24px;
+    margin: 0 3px;
+}
+
+.github-connect__error {
+    white-space: normal;
+    color: var(--git-warning);
+    margin: 12px 0 0 0;
+}
+
+.github-connect__link {
+    align-self: center;
+    margin-top: 16px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    font-size: 11px;
+}
+
+.github-connect__link:hover {
+    color: var(--git-text);
+}
+
 /* ── git-actionbar: 위쪽 작업 막대(GitKraken·Fork 형태) ───────── */
 .git-actionbar {
     flex-direction: row;

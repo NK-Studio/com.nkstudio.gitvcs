@@ -15,6 +15,11 @@ namespace GitVersionControl
     {
         private const string NotReadyModifier = "git-window--not-ready";
 
+        /// <summary>
+        /// 연결 화면에서 "이번에는 건너뛰기" 를 누른 에디터 세션. 에디터를 다시 켜면 연결 화면이 다시 나온다.
+        /// </summary>
+        private const string SkipConnectKey = "GitVersionControl.SkipGitHubConnect";
+
         [SerializeField] private GitWindowState _state = new();
 
         private GitServices _services;
@@ -26,6 +31,7 @@ namespace GitVersionControl
         private Label _notReadyMessage;
         private UiScaleController _scale;
         private VisualElement _layout;
+        private GitHubConnectPanel _connect;
 
         [MenuItem("Window/Version Control/Git")]
         public static void Open()
@@ -43,11 +49,25 @@ namespace GitVersionControl
             GitTheme.Changed += ApplyTheme;
             GitLayout.Changed -= Rebuild;
             GitLayout.Changed += Rebuild;
+            // 로그인하면 연결 화면에서 본체로, 로그아웃하면 다시 연결 화면으로 바꾼다.
+            GitHubAccount.Changed -= Rebuild;
+            GitHubAccount.Changed += Rebuild;
             Build();
         }
 
+        /// <summary>
+        /// GitHub 에 로그인하지 않았으면 본체 대신 연결 화면을 띄운다. 패키지에 OAuth 앱이 없으면(로그인할 수 없으면) 묻지 않는다.
+        /// </summary>
+        private static bool NeedsGitHubConnect =>
+            GitHubAccount.IsConfigured && GitHubAccount.IsSignedIn == false && SessionState.GetBool(SkipConnectKey, false) == false;
+
         private void Build()
         {
+            if (NeedsGitHubConnect)
+            {
+                BuildConnect();
+                return;
+            }
             _services = GitServices.CreateDefault();
 
             TemplateContainer layout = GitUiAssets.CloneLayout("GitWindow");
@@ -75,16 +95,32 @@ namespace GitVersionControl
             OnRepositoryChanged();
         }
 
+        private void BuildConnect()
+        {
+            TemplateContainer layout = GitUiAssets.CloneLayout("GitHubConnect");
+            rootVisualElement.Add(layout);
+            _layout = layout;
+            ApplyTheme();
+            _connect = new GitHubConnectPanel(layout, () =>
+            {
+                SessionState.SetBool(SkipConnectKey, true);
+                Rebuild();
+            });
+        }
+
         private void OnDisable()
         {
             GitText.LanguageChanged -= Rebuild;
             GitTheme.Changed -= ApplyTheme;
             GitLayout.Changed -= Rebuild;
+            GitHubAccount.Changed -= Rebuild;
             TearDown();
         }
 
         private void TearDown()
         {
+            _connect?.Dispose();
+            _connect = null;
             if (_services == null)
             {
                 return;

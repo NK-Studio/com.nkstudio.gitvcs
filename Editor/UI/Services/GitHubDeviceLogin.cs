@@ -25,6 +25,11 @@ namespace GitVersionControl
 
         private const string UserAgent = "com.nkstudio.gitvcs";
 
+        /// <summary>
+        /// Git 창의 연결 화면과 Preferences 가 함께 쓰는 진행. 한쪽에서 시작한 로그인이 다른 쪽에도 그대로 보인다.
+        /// </summary>
+        public static GitHubDeviceLogin Shared { get; } = new();
+
         private int _attempt;
 
         public Step Current { get; private set; } = Step.Idle;

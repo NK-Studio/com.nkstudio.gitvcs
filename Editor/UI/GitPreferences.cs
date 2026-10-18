@@ -12,7 +12,7 @@ namespace GitVersionControl
     {
         private const float AvatarSize = 40f;
 
-        private static readonly GitHubDeviceLogin s_login = new();
+        private static readonly GitHubDeviceLogin s_login = GitHubDeviceLogin.Shared;
         private static Texture2D s_avatar;
         private static string s_avatarUrl;
 
