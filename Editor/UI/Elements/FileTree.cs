@@ -18,6 +18,11 @@ namespace GitVersionControl
         private readonly FileRowBinder _binder;
         private readonly VisualTreeAsset _template;
         private readonly Dictionary<string, int> _idByFolderPath = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 파일 줄 id 도 경로마다 고정한다. 목록이 새로 들어와도(저장·창 포커스마다 새로고침) 같은 파일은 같은 id 라 선택을 되살릴 수 있다.
+        /// </summary>
+        private readonly Dictionary<string, int> _idByFilePath = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _collapsedFolders = new(StringComparer.OrdinalIgnoreCase);
         private int _nextId;
 
@@ -70,6 +75,7 @@ namespace GitVersionControl
         public void SetItems(IEnumerable<FileListItem> items)
         {
             RememberExpansion();
+            List<int> selectedIds = _tree.selectedIds.ToList();
             List<FileTreeNode> roots = FileTreeBuilder.Build(items);
             _tree.SetRootItems(roots.Select(ToItemData).ToList());
             _tree.Rebuild();
@@ -82,6 +88,10 @@ namespace GitVersionControl
                     _tree.CollapseItem(id);
                 }
             }
+
+            // 새로고침 전에 고른 줄을 다시 고른다(사라진 파일은 빠진다). 알림은 보내지 않는다 — 사용자가 바꾼 선택이 아니다.
+            List<int> stillPresent = selectedIds.Where(id => _tree.viewController.GetIndexForId(id) >= 0).ToList();
+            _tree.SetSelectionByIdWithoutNotify(stillPresent);
         }
 
         public void Refresh()
@@ -123,9 +133,10 @@ namespace GitVersionControl
                     _idByFolderPath[node.Path] = id;
                 }
             }
-            else
+            else if (_idByFilePath.TryGetValue(node.Item.RepoPath, out id) == false)
             {
                 id = ++_nextId;
+                _idByFilePath[node.Item.RepoPath] = id;
             }
             List<TreeViewItemData<FileTreeNode>> children = node.IsFolder ? node.Children.Select(ToItemData).ToList() : null;
             return new TreeViewItemData<FileTreeNode>(id, node, children);

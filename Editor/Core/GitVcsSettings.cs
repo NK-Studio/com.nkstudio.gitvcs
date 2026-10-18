@@ -26,6 +26,7 @@ namespace GitVersionControl
         [SerializeField] private List<string> _diffToolPaths = new();
         [SerializeField] private float _gitWindowScale = 1f;
         [SerializeField] private float _diffWindowScale = 1f;
+        [SerializeField] private int _theme = (int)GitThemeStyle.JetBrains;
 
         /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
         public string GitExecutable
@@ -197,6 +198,19 @@ namespace GitVersionControl
         {
             get => UiScaleController.Clamp(_diffWindowScale);
             set => SetAndSave(ref _diffWindowScale, UiScaleController.Clamp(value));
+        }
+
+        /// <summary>
+        /// 창 모양(JetBrains·Unity). 읽기·바꾸기는 <see cref="GitTheme"/> 를 통한다 — 바꾸면 열린 창이 다시 칠해야 해서.
+        /// </summary>
+        public GitThemeStyle Theme
+        {
+            get => (GitThemeStyle)_theme;
+            set
+            {
+                int index = (int)value;
+                SetAndSave(ref _theme, index);
+            }
         }
 
         private void SetAndSave<T>(ref T field, T value)

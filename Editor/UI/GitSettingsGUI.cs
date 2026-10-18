@@ -22,6 +22,7 @@ namespace GitVersionControl
             EditorGUILayout.LabelField("Git", EditorStyles.boldLabel);
 
             DrawLanguage();
+            DrawTheme();
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -210,6 +211,21 @@ namespace GitVersionControl
                 s_foundTools[engine] = path;
             }
             return path;
+        }
+
+        /// <summary>
+        /// 창 모양. 어둡게·밝게는 에디터 스킨을 따르므로 스타일만 고른다.
+        /// </summary>
+        private static void DrawTheme()
+        {
+            GitThemeStyle[] styles = (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle));
+            string[] names = styles.Select(GitTheme.DisplayName).ToArray();
+            int current = System.Array.IndexOf(styles, GitTheme.Style);
+            int picked = EditorGUILayout.Popup(new GUIContent(GitText.Get("window.theme"), GitText.Get("settings.themeTooltip")), current, names.Select(n => new GUIContent(n)).ToArray());
+            if (picked >= 0 && picked != current)
+            {
+                GitTheme.Style = styles[picked];
+            }
         }
 
         /// <summary>언어 선택. 이름은 각 언어 자기 말로 보여서 어떤 언어로 보고 있든 고를 수 있게 한다.</summary>

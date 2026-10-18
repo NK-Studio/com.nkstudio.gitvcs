@@ -25,6 +25,7 @@ namespace GitVersionControl
         private VisualElement _notReady;
         private Label _notReadyMessage;
         private UiScaleController _scale;
+        private VisualElement _layout;
 
         [MenuItem("Window/Version Control/Git")]
         public static void Open()
@@ -38,6 +39,8 @@ namespace GitVersionControl
         {
             GitText.LanguageChanged -= Rebuild;
             GitText.LanguageChanged += Rebuild;
+            GitTheme.Changed -= ApplyTheme;
+            GitTheme.Changed += ApplyTheme;
             Build();
         }
 
@@ -49,6 +52,8 @@ namespace GitVersionControl
             VisualElement scaleHost = new();
             rootVisualElement.Add(scaleHost);
             scaleHost.Add(layout);
+            _layout = layout;
+            ApplyTheme();
             GitVcsSettings settings = GitVcsSettings.instance;
             _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
             _window = layout.Require<VisualElement>("git-window");
@@ -69,6 +74,7 @@ namespace GitVersionControl
         private void OnDisable()
         {
             GitText.LanguageChanged -= Rebuild;
+            GitTheme.Changed -= ApplyTheme;
             TearDown();
         }
 
@@ -108,14 +114,33 @@ namespace GitVersionControl
                 menu.AddItem(new GUIContent($"{GitText.Get("common.language")}/{GitText.NativeName(language)}"),
                     GitText.Language == language, () => GitText.SetLanguage(captured));
             }
+            string themeMenu = GitText.Get("window.theme");
+            foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
+            {
+                GitThemeStyle captured = style;
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitTheme.DisplayName(style)}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+            }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.GitWindowScale * 100f))}"), false, () => _scale?.Reset());
         }
 
+        /// <summary>
+        /// 테마 시트는 창 내용(템플릿) 루트에 붙인다 — 창 USS 와 같은 높이라 토큰이 모든 탭·목록 줄에 닿는다.
+        /// 에디터 스킨(어둡게·밝게)을 바꾸면 창에 포커스가 돌아올 때 맞춘다.
+        /// </summary>
+        private void ApplyTheme()
+        {
+            if (_layout != null)
+            {
+                GitTheme.Apply(_layout);
+            }
+        }
+
         private void OnFocus()
         {
+            ApplyTheme();
             _services?.Repository.RequestRefresh();
         }
 

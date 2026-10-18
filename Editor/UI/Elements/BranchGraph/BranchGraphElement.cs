@@ -28,6 +28,18 @@ namespace GitVersionControl
         private bool _centerPending = true;
         private bool _isPanning;
         private GitGraphNode _hovered;
+
+        // Painter2D 로 그리는 색 중 배경에 따라 달라야 하는 것은 테마 토큰(--git-graph-*)에서 읽는다. 기본값은 어두운 테마 값.
+        private static readonly CustomStyleProperty<Color> SelectionProperty = new("--git-graph-selection");
+        private static readonly CustomStyleProperty<Color> SearchProperty = new("--git-graph-search");
+        private static readonly CustomStyleProperty<Color> HeadProperty = new("--git-graph-head");
+        private static readonly CustomStyleProperty<Color> DateBandProperty = new("--git-graph-date-band");
+        private static readonly CustomStyleProperty<Color> TruncatedProperty = new("--git-graph-truncated");
+        private Color _selectionColor = GraphStyle.Selection;
+        private Color _searchColor = GraphStyle.SearchMatch;
+        private Color _headColor = GraphStyle.Head;
+        private Color _dateBandColor = GraphStyle.DateBand;
+        private Color _truncatedColor = GraphStyle.Truncated;
         private Vector2 _pointer;
 
         public GraphViewport Viewport { get; }
@@ -67,6 +79,7 @@ namespace GitVersionControl
             Add(_tooltip);
 
             generateVisualContent += Draw;
+            RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             if (_avatars != null)
             {
                 // 아바타는 받는 대로 나타난다. 패널에서 떨어지면 구독을 끊는다.
@@ -201,7 +214,7 @@ namespace GitVersionControl
         /// <summary>날짜가 같은 연속 칸을 묶어 띠로 번갈아 칠한다.</summary>
         private void DrawDateBands(Painter2D painter)
         {
-            painter.fillColor = GraphStyle.DateBand;
+            painter.fillColor = _dateBandColor;
             int bandIndex = 0;
             foreach ((int start, int end) in DateRuns())
             {
@@ -257,7 +270,7 @@ namespace GitVersionControl
             }
 
             // 기간 밖으로 이어지는 히스토리: 왼쪽으로 짧은 흐린 선.
-            painter.strokeColor = GraphStyle.Truncated;
+            painter.strokeColor = _truncatedColor;
             foreach (GitGraphNode node in _graph.TruncatedNodes)
             {
                 Vector2 p = Viewport.ToCanvas(GraphStyle.WorldPosition(node));
@@ -284,15 +297,15 @@ namespace GitVersionControl
                 float alpha = matches ? 1f : 0.3f;
                 if (node.Commit.Hash == _selectedHash)
                 {
-                    FillCircle(painter, p, radius + 7f, GraphStyle.Selection);
+                    FillCircle(painter, p, radius + 7f, _selectionColor);
                 }
                 else if (searching && matches)
                 {
-                    FillCircle(painter, p, radius + 7f, GraphStyle.SearchMatch);
+                    FillCircle(painter, p, radius + 7f, _searchColor);
                 }
 
                 bool isLaneTip = node.Column == node.Lane.LastColumn;
-                Color ring = node.IsHead ? GraphStyle.Head : GraphStyle.LaneColor(node.Lane);
+                Color ring = node.IsHead ? _headColor : GraphStyle.LaneColor(node.Lane);
                 ring.a = alpha;
                 FillCircle(painter, p, radius + (isLaneTip ? 4f : 2.5f), ring);
 
@@ -300,6 +313,17 @@ namespace GitVersionControl
                 fill.a = alpha;
                 FillCircle(painter, p, radius, fill);
             }
+        }
+
+        private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
+        {
+            ICustomStyle style = evt.customStyle;
+            _selectionColor = style.TryGetValue(SelectionProperty, out Color selection) ? selection : GraphStyle.Selection;
+            _searchColor = style.TryGetValue(SearchProperty, out Color search) ? search : GraphStyle.SearchMatch;
+            _headColor = style.TryGetValue(HeadProperty, out Color head) ? head : GraphStyle.Head;
+            _dateBandColor = style.TryGetValue(DateBandProperty, out Color band) ? band : GraphStyle.DateBand;
+            _truncatedColor = style.TryGetValue(TruncatedProperty, out Color truncated) ? truncated : GraphStyle.Truncated;
+            MarkDirtyRepaint();
         }
 
         private static void FillCircle(Painter2D painter, Vector2 center, float radius, Color color)

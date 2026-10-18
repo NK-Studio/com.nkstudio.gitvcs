@@ -84,7 +84,7 @@
     margin-right: 6px;
     font-size: 10px;
     -unity-font-style: bold;
-    color: #74bfff;
+    color: var(--git-refs);
 }
 
 .commit-row__refs--hidden {

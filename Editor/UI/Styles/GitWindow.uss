@@ -2,7 +2,7 @@
 
 .git-window {
     flex-grow: 1;
-    background-color: var(--git-panel);
+    background-color: var(--git-bg);
 }
 
 .git-window__body {
@@ -29,7 +29,7 @@
     align-items: center;
     height: 48px;
     padding: 0 6px;
-    background-color: var(--git-panel-dark);
+    background-color: var(--git-toolbar-bg);
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
     overflow: hidden;
@@ -66,11 +66,11 @@
     -unity-text-align: middle-left;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
-    border-radius: 3px;
+    border-radius: var(--git-radius);
 }
 
 .git-actionbar__branch:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--git-hover);
 }
 
 /* 버튼 묶음 사이 세로 구분선. */
@@ -80,7 +80,7 @@
     align-items: center;
     padding: 0 4px;
     border-left-width: 1px;
-    border-left-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--git-divider);
 }
 
 .git-actionbar__group--first {
@@ -110,13 +110,13 @@
     margin: 0;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
-    border-radius: 3px;
+    border-radius: var(--git-radius);
     justify-content: center;
     align-items: center;
 }
 
 .git-actionbar__refresh:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--git-hover);
 }
 
 /* ── git-action: 아이콘 위·글자 아래 버튼 ── */
@@ -131,16 +131,16 @@
     padding: 2px 0 1px 0;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
-    border-radius: 4px;
+    border-radius: var(--git-radius);
     color: var(--git-text);
 }
 
 .git-action:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--git-hover);
 }
 
 .git-action:active {
-    background-color: rgba(255, 255, 255, 0.16);
+    background-color: var(--git-pressed);
 }
 
 .git-action:disabled {
@@ -174,7 +174,7 @@
     font-size: 9px;
     -unity-font-style: bold;
     -unity-text-align: middle-center;
-    color: #ffffff;
+    color: var(--git-accent-text);
     background-color: var(--git-accent);
 }
 
@@ -203,7 +203,7 @@
 
 .git-sidebar {
     min-width: 120px;
-    background-color: var(--git-panel-dark);
+    background-color: var(--git-sidebar-bg);
     border-right-width: 1px;
     border-right-color: var(--git-border);
     padding-top: 4px;
@@ -217,7 +217,7 @@
 }
 
 .git-sidebar__tab:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--git-hover);
 }
 
 .git-sidebar__tab--selected,
@@ -230,11 +230,15 @@
     color: var(--git-text);
 }
 
+.git-sidebar__tab--selected .git-sidebar__tab-title {
+    color: var(--git-selected-text);
+}
+
 .git-sidebar__tab-badge {
     font-size: 10px;
     padding: 0 5px;
     border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.12);
+    background-color: var(--git-badge-bg);
     color: var(--git-text);
 }
 

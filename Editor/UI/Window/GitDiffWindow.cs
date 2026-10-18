@@ -43,6 +43,7 @@ namespace GitVersionControl
         private ToolbarToggle _splitToggle;
         private Font _monospace;
         private UiScaleController _scale;
+        private VisualElement _content;
 
         public static void Open(GitDiffTarget target, IGitDiffService service)
         {
@@ -70,6 +71,10 @@ namespace GitVersionControl
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StylePath));
             root.AddToClassList("git-window");
             root.AddToClassList("git-diff");
+            _content = root;
+            GitTheme.Apply(root);
+            GitTheme.Changed -= ApplyTheme;
+            GitTheme.Changed += ApplyTheme;
 
             root.Add(BuildToolbar());
             root.Add(BuildInfoBar());
@@ -95,8 +100,32 @@ namespace GitVersionControl
         /// <summary>
         /// 창 오른쪽 위 ⋮ 메뉴에 UI 크기 조절을 더한다(Ctrl+휠 을 모르는 사람을 위한 같은 기능).
         /// </summary>
+        private void ApplyTheme()
+        {
+            if (_content != null)
+            {
+                GitTheme.Apply(_content);
+            }
+        }
+
+        private void OnFocus()
+        {
+            ApplyTheme();
+        }
+
+        private void OnDisable()
+        {
+            GitTheme.Changed -= ApplyTheme;
+        }
+
         public void AddItemsToMenu(GenericMenu menu)
         {
+            string themeMenu = GitText.Get("window.theme");
+            foreach (GitThemeStyle style in (GitThemeStyle[])Enum.GetValues(typeof(GitThemeStyle)))
+            {
+                GitThemeStyle captured = style;
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitTheme.DisplayName(style)}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+            }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());

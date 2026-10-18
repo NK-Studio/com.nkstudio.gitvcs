@@ -52,6 +52,28 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(expected, UiScaleController.Clamp(scale), 0.0001f);
         }
 
+        [TestCase(GitThemeStyle.JetBrains, true, "JetBrainsDark")]
+        [TestCase(GitThemeStyle.JetBrains, false, "JetBrainsLight")]
+        [TestCase(GitThemeStyle.Unity, true, "UnityDark")]
+        [TestCase(GitThemeStyle.Unity, false, "UnityLight")]
+        public void Test_GitTheme_SheetName_CombinesStyleAndSkin(GitThemeStyle style, bool isDark, string expected)
+        {
+            Assert.AreEqual(expected, GitTheme.SheetName(style, isDark));
+        }
+
+        [Test]
+        public void Test_GitTheme_EverySheetExists()
+        {
+            foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
+            {
+                foreach (bool isDark in new[] { true, false })
+                {
+                    string path = $"Packages/com.nkstudio.gitvcs/Editor/UI/Themes/{GitTheme.SheetName(style, isDark)}.uss";
+                    Assert.IsNotNull(UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.StyleSheet>(path), path);
+                }
+            }
+        }
+
         [TestCase(260f, 600f, 260f)]
         [TestCase(260f, 300f, 180f)]
         [TestCase(260f, 150f, 80f)]

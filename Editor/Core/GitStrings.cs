@@ -131,6 +131,10 @@ namespace GitVersionControl
             ["settings.diffArgumentsTooltip"] = new[] { "{LEFT} {RIGHT} = 비교할 두 파일, {LEFT_TITLE} {RIGHT_TITLE} = 창 제목.", "{LEFT} {RIGHT} = files to compare, {LEFT_TITLE} {RIGHT_TITLE} = window titles." },
             ["settings.diffPreview"] = new[] { "실행: {0} {1}", "Runs: {0} {1}" },
 
+            // ── 테마 ──
+            ["window.theme"] = new[] { "테마", "Theme" },
+            ["settings.themeTooltip"] = new[] { "Git 창·diff 뷰어 모양. 어둡게·밝게는 Unity 에디터 스킨을 따릅니다.", "Look of the Git window and diff viewer. Dark/light follows the Unity editor skin." },
+
             // ── UI 배율 ──
             ["window.uiScale"] = new[] { "UI 크기", "UI Scale" },
             ["window.uiScaleIn"] = new[] { "크게 (Ctrl+휠 위, Ctrl+=)", "Larger (Ctrl+Wheel Up, Ctrl+=)" },

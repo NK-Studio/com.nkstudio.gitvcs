@@ -1,0 +1,182 @@
+/*
+ * 테마별 모양. 색은 Themes/*.uss 토큰이 정하고, 여기는 Unity 기본 컨트롤(도구 막대·목록 선택·입력란·버튼)이 그 토큰을 따르게 한다.
+ * 창 루트에 GitTheme 이 붙이는 클래스: git-themed(항상), git-theme--unity | git-theme--jetbrains, git-theme--dark | git-theme--light.
+ *
+ * 선택자에 클래스를 여러 개 붙인 이유: Unity 기본 스킨의 목록 선택 규칙(.unity-collection-view:focus ... --selected)보다
+ * 구체적이어야 덮어쓸 수 있다.
+ */
+
+/* ── 공통: 목록 줄무늬·마우스 올림·선택 ───────────────── */
+/*
+ * 순서와 구체성이 중요하다: 줄무늬 < 마우스 올림 < 선택. 선택 규칙은 :hover 를 붙인 판까지 두어 가장 구체적으로 만든다 —
+ * 그러지 않으면 클릭한 직후(마우스가 아직 그 줄 위에 있을 때) 마우스 올림 색이 이기고, 짝수 줄은 줄무늬 색이 선택 색을 덮는다.
+ */
+.git-themed .unity-collection-view .unity-collection-view__item.unity-collection-view__item--alternative-background {
+    background-color: var(--git-row-alt);
+}
+
+.git-themed .unity-collection-view .unity-collection-view__item:hover:enabled {
+    background-color: var(--git-hover);
+}
+
+.git-themed .unity-collection-view .unity-collection-view__item.unity-collection-view__item--selected,
+.git-themed .unity-collection-view .unity-collection-view__item.unity-collection-view__item--selected.unity-collection-view__item--alternative-background,
+.git-themed .unity-collection-view .unity-collection-view__item.unity-collection-view__item--selected:hover:enabled,
+.git-themed .unity-collection-view:focus .unity-collection-view__item.unity-collection-view__item--selected,
+.git-themed .unity-collection-view:focus .unity-collection-view__item.unity-collection-view__item--selected:hover:enabled {
+    background-color: var(--git-selected);
+}
+
+.git-themed .unity-collection-view .unity-collection-view__item--selected .unity-label {
+    color: var(--git-selected-text);
+}
+
+/* ── 공통: 도구 막대 ───────────────────────────────── */
+.git-themed .unity-toolbar {
+    background-color: var(--git-toolbar-bg);
+    border-bottom-color: var(--git-border);
+}
+
+/* ── JetBrains: 평평한 도구 막대 버튼, 둥근 선택 ─────────── */
+.git-theme--jetbrains .unity-toolbar {
+    height: 26px;
+    padding: 0 4px;
+    align-items: center;
+}
+
+.git-theme--jetbrains .unity-toolbar-button,
+.git-theme--jetbrains .unity-toolbar-toggle {
+    height: 22px;
+    margin: 0 1px;
+    padding: 0 6px;
+    border-width: 0;
+    border-radius: var(--git-radius);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text);
+}
+
+.git-theme--jetbrains .unity-toolbar-button:hover,
+.git-theme--jetbrains .unity-toolbar-toggle:hover {
+    background-color: var(--git-hover);
+}
+
+.git-theme--jetbrains .unity-toolbar-button:active,
+.git-theme--jetbrains .unity-toolbar-toggle:checked {
+    background-color: var(--git-pressed);
+}
+
+.git-theme--jetbrains .unity-toolbar-toggle:checked {
+    color: var(--git-text);
+}
+
+/* 입력란·드롭다운: 얇은 테두리와 둥근 모서리. */
+.git-theme--jetbrains .unity-base-text-field__input,
+.git-theme--jetbrains .unity-base-popup-field__input,
+.git-theme--jetbrains .unity-search-field-base {
+    background-color: var(--git-field-bg);
+    border-color: var(--git-field-border);
+    border-width: 1px;
+    border-radius: 4px;
+    color: var(--git-text);
+}
+
+.git-theme--jetbrains .unity-base-text-field__input {
+    padding: 4px 6px;
+}
+
+.git-theme--jetbrains .unity-toolbar .unity-base-text-field__input,
+.git-theme--jetbrains .unity-search-field-base .unity-base-text-field__input {
+    padding: 0 4px;
+}
+
+.git-theme--jetbrains .unity-base-text-field__input:focus,
+.git-theme--jetbrains .unity-base-text-field:focus .unity-base-text-field__input {
+    border-color: var(--git-accent);
+}
+
+/* 일반 버튼(작업 막대·목록 전환처럼 자기 모양이 있는 버튼은 제외하고 이름으로 고른다). */
+.git-theme--jetbrains .notice__action,
+.git-theme--jetbrains .commit-detail__close,
+.git-theme--jetbrains .branch-explorer__overlay-button,
+.git-theme--jetbrains .git-diff__nav {
+    background-color: var(--git-button-bg);
+    border-color: var(--git-button-border);
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    color: var(--git-text);
+}
+
+.git-theme--jetbrains .notice__action:hover,
+.git-theme--jetbrains .commit-detail__close:hover,
+.git-theme--jetbrains .branch-explorer__overlay-button:hover,
+.git-theme--jetbrains .git-diff__nav:hover {
+    background-color: var(--git-button-hover);
+}
+
+/* 커밋 버튼은 JetBrains 의 기본(파란) 버튼. */
+.git-theme--jetbrains .pending-changes__commit-button {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    color: var(--git-accent-text);
+}
+
+.git-theme--jetbrains .pending-changes__commit-button:hover {
+    background-color: var(--git-accent-hover);
+}
+
+.git-theme--jetbrains .pending-changes__commit-button:disabled {
+    background-color: var(--git-button-bg);
+    border-color: var(--git-button-border);
+    color: var(--git-text-muted);
+    opacity: 1;
+}
+
+.git-theme--jetbrains .view-mode-switch__button {
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+}
+
+.git-theme--jetbrains .view-mode-switch__button:hover {
+    background-color: var(--git-hover);
+}
+
+.git-theme--jetbrains .view-mode-switch__button--selected,
+.git-theme--jetbrains .view-mode-switch__button--selected:hover {
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+/* 왼쪽 탭: 양옆 여백을 두고 둥글게 칠한 선택(IntelliJ 도구 창 목록). */
+.git-theme--jetbrains .git-sidebar__tab {
+    height: 26px;
+    margin: 1px 6px;
+    padding: 0 8px;
+    border-radius: var(--git-radius);
+}
+
+.git-theme--jetbrains .git-sidebar {
+    padding-top: 6px;
+}
+
+/* 머리 줄은 굵은 구분선 대신 얇은 선. */
+.git-theme--jetbrains .list-header {
+    height: 24px;
+    min-height: 24px;
+}
+
+.git-theme--jetbrains .notice {
+    border-left-width: 0;
+    border-width: 1px;
+    border-color: var(--git-border);
+}
+
+.git-theme--jetbrains .notice--warning {
+    border-color: var(--git-warning);
+}
+
+.git-theme--jetbrains .notice--error {
+    border-color: var(--git-danger);
+}
