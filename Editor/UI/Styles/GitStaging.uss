@@ -29,7 +29,7 @@
 
 .staging__title {
     font-size: 11px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text);
 }
 
@@ -128,7 +128,7 @@
     height: 28px;
     padding: 0 10px;
     -unity-text-align: middle-left;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text);
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
@@ -191,7 +191,7 @@
     margin: 0;
     padding: 0;
     -unity-text-align: middle-center;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: #ffffff;
 }
 

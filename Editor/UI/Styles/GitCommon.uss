@@ -3,8 +3,23 @@
  * 색·모서리는 모두 Themes/*.uss 의 --git-* 토큰을 쓴다(창 루트에 테마 시트 하나가 붙는다, GitTheme).
  */
 
+/* 글꼴: IBM Plex Sans KR, 한글 글꼴에 없는 글자는 JP → SC → TC 순서로 대체(글꼴 에셋의 대체 표). 모두 SIL OFL 1.1(Fonts/IBMPlexSansKR-OFL.txt).
+   굵은 글자는 -unity-font-style: bold 대신 Bold 에셋을 직접 쓴다 — bold 로 두면 Regular 를 억지로 두껍게 그려 글자가 뭉개진다.
+   글꼴 에셋은 동적이라 그릴 때마다 바뀌지만 GitFontAssetSaveGuard 가 저장을 막는다. 코드(diff·blame)는 코드에서 고정폭 글꼴을 따로 지정한다. */
 .git-window {
     color: var(--git-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.asset");
+}
+
+/* 누를 수 있는 것에는 손가락 커서. */
+.git-window .unity-button,
+.git-window .unity-toolbar-button,
+.git-window .unity-toolbar-toggle,
+.git-window .unity-toolbar-menu,
+.git-window .unity-base-popup-field__input,
+.git-window .unity-toggle__input,
+.git-window .git-sidebar__tab {
+    cursor: link;
 }
 
 /* 남는 공간을 채우는 빈 요소(도구 막대에서 버튼을 오른쪽으로 민다). */
@@ -50,7 +65,7 @@
     min-width: 14px;
     border-radius: 3px;
     font-size: 9px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     -unity-text-align: middle-center;
     color: var(--git-state-text);
     padding: 0;
@@ -162,7 +177,7 @@
 
 .view-mode-switch__button--selected .view-mode-switch__label {
     color: var(--git-selected-text);
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
 }
 
 /* 큰 칸(스테이징 패널 맨 위)에 둘 때. */

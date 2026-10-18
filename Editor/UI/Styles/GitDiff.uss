@@ -14,7 +14,7 @@
 }
 
 .git-diff__title {
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     -unity-text-align: middle-left;
     margin: 0 6px;
     flex-shrink: 1;
@@ -43,7 +43,7 @@
 
 .git-diff__stat {
     font-size: 11px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     margin-right: 6px;
     padding: 0;
 }

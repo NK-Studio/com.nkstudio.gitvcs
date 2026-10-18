@@ -659,6 +659,8 @@ namespace GitVersionControl
                 StartHoverTicker();
             }
             _hovered = node;
+            // 커밋 위에서는 손가락 커서(누르면 고른다). USS 의 cursor 는 요소 단위라 수식어로 켜고 끈다.
+            EnableInClassList(Block + "--node-hover", node != null);
             UpdateTooltip();
         }
 

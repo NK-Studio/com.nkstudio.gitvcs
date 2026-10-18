@@ -42,7 +42,7 @@
 
 .pending-changes__commit-title {
     font-size: 10px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text-muted);
     margin-bottom: 2px;
 }
@@ -108,7 +108,7 @@
     flex-grow: 1;
     flex-shrink: 1;
     font-size: 10px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text);
 }
 
@@ -184,5 +184,5 @@
     height: 30px;
     margin: 2px 0;
     font-size: 14px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
 }

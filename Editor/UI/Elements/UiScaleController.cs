@@ -64,7 +64,7 @@ namespace GitVersionControl
             _indicator.style.paddingTop = 4;
             _indicator.style.paddingBottom = 4;
             _indicator.style.fontSize = 14;
-            _indicator.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _indicator.style.unityFontDefinition = FontDefinition.FromFont(GitFonts.Bold);
             _indicator.style.color = Color.white;
             _indicator.style.backgroundColor = new Color(0f, 0f, 0f, 0.75f);
             SetRadius(_indicator.style, 4f);

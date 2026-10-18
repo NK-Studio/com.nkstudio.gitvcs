@@ -40,7 +40,7 @@
 
 .github-connect__title {
     font-size: 18px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text);
     margin: 0 0 8px 0;
     padding: 0;
@@ -61,7 +61,7 @@
     height: 32px;
     margin: 0;
     font-size: 13px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-accent-text);
     background-color: var(--git-accent);
     border-width: 0;
@@ -70,7 +70,7 @@
 
 .github-connect__code {
     font-size: 28px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     -unity-text-align: middle-center;
     letter-spacing: 4px;
     color: var(--git-text);
@@ -144,7 +144,7 @@
 
 .git-actionbar__value {
     font-size: 13px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-text);
     padding: 0 2px;
     margin: 0;
@@ -260,7 +260,7 @@
     padding: 0 3px;
     border-radius: 7px;
     font-size: 9px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     -unity-text-align: middle-center;
     color: var(--git-accent-text);
     background-color: var(--git-accent);

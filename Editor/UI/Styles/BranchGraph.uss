@@ -16,12 +16,16 @@
 }
 
 .branch-graph__initials {
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     -unity-text-align: middle-center;
     color: var(--git-graph-pill-text);
 }
 
 /* 작성자 아바타(둥근 모서리 반지름은 크기에 맞춰 코드가 정한다). */
+.branch-graph--node-hover {
+    cursor: link;
+}
+
 .branch-graph__avatar {
     position: absolute;
     -unity-background-scale-mode: scale-and-crop;
@@ -39,7 +43,7 @@
     padding: 1px 5px;
     border-radius: 4px;
     font-size: 9px;
-    -unity-font-style: bold;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.asset");
     color: var(--git-graph-pill-text);
     background-color: var(--git-graph-pill-bg);
 }
