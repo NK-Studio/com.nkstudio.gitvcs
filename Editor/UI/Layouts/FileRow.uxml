@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
     <ui:VisualElement class="file-row">
-        <ui:VisualElement class="column--toggle">
+        <ui:VisualElement name="toggle-column" class="column--toggle file-row__toggle-column">
             <ui:Toggle name="toggle" class="file-row__toggle" />
         </ui:VisualElement>
         <ui:Label name="badge" class="file-row__badge state-badge" />

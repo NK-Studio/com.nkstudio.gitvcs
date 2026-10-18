@@ -11,6 +11,7 @@ namespace GitVersionControl
     public sealed class FileRowBinder
     {
         private const string ToggleHiddenModifier = "file-row__toggle--hidden";
+        private const string ToggleColumnHiddenModifier = "file-row__toggle-column--hidden";
         private const string BadgeHiddenModifier = "file-row__badge--hidden";
         private const string FolderModifier = "file-row--folder";
         private const string CountModifier = "file-row__note--count";
@@ -85,6 +86,8 @@ namespace GitVersionControl
         {
             Toggle toggle = row.Require<Toggle>("toggle");
             toggle.EnableInClassList(ToggleHiddenModifier, isChecked.HasValue == false);
+            // 체크박스가 없는 목록(Unstaged·Staged·커밋 파일)에서 빈 칸(22px)이 남아 아이콘이 멀리 밀리지 않게 칸째 접는다.
+            row.Require<VisualElement>("toggle-column").EnableInClassList(ToggleColumnHiddenModifier, isChecked.HasValue == false);
             toggle.showMixedValue = mixed;
             if (isChecked.HasValue)
             {
