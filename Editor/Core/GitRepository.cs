@@ -66,6 +66,12 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// 충돌 등으로 멈춘 채 진행 중인 작업(rebase·merge·cherry-pick·revert). 터미널에서 시작한 것도 포함한다.
+        /// git 폴더의 표시 파일만 보므로 캐시하지 않고 그때그때 읽는다 — 표시 파일이 생기고 사라지면 파일 감시가 새로고침을 부른다.
+        /// </summary>
+        public static GitOperationKind InProgressOperation => GitInProgress.Detect(GitDir);
+
         /// <summary>테스트가 git 작업 코드를 임시 저장소로 돌리는 중인지(<see cref="UseRepositoryForTests"/>). 그동안 새로고침·감시·자동 fetch 는 쉰다.</summary>
         public static bool IsOverriddenForTests => s_testScope != null;
 

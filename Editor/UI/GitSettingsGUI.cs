@@ -90,6 +90,7 @@ namespace GitVersionControl
                     new GUIContent(GitText.Get("settings.autoFetchMinutes"), GitText.Format("settings.autoFetchMinutesTooltip", GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes)),
                     settings.AutoFetchMinutes);
             }
+            settings.StopOnRebaseConflict = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stopOnRebaseConflict"), GitText.Get("settings.stopOnRebaseConflictTooltip")), settings.StopOnRebaseConflict);
             settings.StageMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.StageMetaPairs);
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));

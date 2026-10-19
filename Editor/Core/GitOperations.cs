@@ -21,9 +21,16 @@ namespace GitVersionControl
         /// 경로 매칭은 index 와 HEAD 를 겹쳐서 하므로 삭제·이름 변경의 원래 경로도 넘길 수 있지만, untracked 파일은
         /// "git 이 모르는 경로" 라 먼저 add 해야 한다.
         /// 경로 목록은 Windows 명령줄 길이(32K) 제한을 피하려고 NUL 구분 파일로 넘긴다.
+        ///
+        /// 병합·cherry-pick·revert 가 충돌로 멈춘 동안은 git 이 부분 커밋을 거부하므로 <see cref="CommitInProgressAsync"/> 로 간다.
         /// </summary>
         public static async Task<GitResult> CommitAsync(IReadOnlyCollection<GitStatusEntry> entries, string message)
         {
+            if (GitInProgress.RequiresFullCommit(GitRepository.InProgressOperation))
+            {
+                return await CommitInProgressAsync(entries, message);
+            }
+
             List<string> untracked = entries.Where(e => e.State == GitFileState.Untracked).Select(e => e.RepoPath).ToList();
             List<string> paths = new();
             foreach (GitStatusEntry entry in entries)
@@ -59,6 +66,55 @@ namespace GitVersionControl
                 TryDelete(pathsFile);
                 TryDelete(messageFile);
                 TryDelete(untrackedFile);
+            }
+        }
+
+        /// <summary>
+        /// 멈춘 병합·cherry-pick·revert 를 커밋으로 끝낸다. 병합 커밋은 일부 파일만 담을 수 없으므로 고른 파일을 stage(충돌 파일이면 해결됨으로 표시)한 뒤
+        /// 인덱스 전체를 커밋한다 — git 이 이미 자동으로 합쳐 stage 해 둔 파일도 함께 들어가고, 고르지 않은 작업 트리 수정은 빠진다.
+        /// 충돌 표시가 남은 파일을 골랐거나, 고르지 않은 충돌 파일이 남으면 아무것도 커밋하지 않고 알린다.
+        /// </summary>
+        private static async Task<GitResult> CommitInProgressAsync(IReadOnlyCollection<GitStatusEntry> entries, string message)
+        {
+            List<string> withMarkers = GitInProgress.WithConflictMarkers(entries, GitRepository.RepoRoot);
+            if (withMarkers.Count > 0)
+            {
+                return new GitResult(1, string.Empty, GitText.Format("inprogress.markersLeft", GitInProgress.ListPaths(withMarkers)));
+            }
+
+            List<string> paths = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                paths.Add(entry.RepoPath);
+                if (entry.OriginalRepoPath != null)
+                {
+                    paths.Add(entry.OriginalRepoPath);
+                }
+            }
+            // stage 하기 전에 본다 — 커밋하지 못할 것이면 인덱스를 건드리지 않는다.
+            List<string> leftover = (await GitInProgress.UnmergedPathsAsync()).Except(paths).ToList();
+            if (leftover.Count > 0)
+            {
+                return new GitResult(1, string.Empty, GitText.Format("inprogress.unresolved", GitInProgress.ListPaths(leftover)));
+            }
+            if (paths.Count > 0)
+            {
+                GitResult add = await RunWithPaths(new[] { "add", "-A" }, paths);
+                if (add.Success == false)
+                {
+                    return add;
+                }
+            }
+            // --only 없이: 인덱스 전체가 병합 결과다.
+            string messageFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(messageFile, message, new UTF8Encoding(false));
+                return await GitRepository.RunAsync("commit", "--file=" + messageFile);
+            }
+            finally
+            {
+                TryDelete(messageFile);
             }
         }
 
@@ -248,6 +304,15 @@ namespace GitVersionControl
         /// </summary>
         public static async Task<GitResult> CommitStagedAsync(string message, bool amend)
         {
+            // 충돌로 멈춘 병합 등을 이 커밋으로 끝내려는데 충돌 파일이 남았으면, git 의 짧은 거부 대신 남은 파일을 적어 알린다.
+            if (amend == false && GitRepository.InProgressOperation != GitOperationKind.None)
+            {
+                List<string> unmerged = await GitInProgress.UnmergedPathsAsync();
+                if (unmerged.Count > 0)
+                {
+                    return new GitResult(1, string.Empty, GitText.Format("inprogress.unresolved", GitInProgress.ListPaths(unmerged)));
+                }
+            }
             List<string> args = new() { "commit" };
             string messageFile = null;
             if (amend)

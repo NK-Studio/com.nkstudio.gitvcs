@@ -176,7 +176,8 @@ namespace GitVersionControl
             return new[] { "rebase", "--rebase-merges", "--autostash", "--onto", commit + "^", commit };
         }
 
-        public static async Task<GitResult> RunAsync(GitRewriteKind kind, string commit, string newMessage, string undoTitle)
+        /// <param name="stopOnConflict">커밋 빼기가 충돌하면 멈춰 둘지(<see cref="GitVcsSettings.StopOnRebaseConflict"/>). null 이면 설정을 따른다.</param>
+        public static async Task<GitResult> RunAsync(GitRewriteKind kind, string commit, string newMessage, string undoTitle, bool? stopOnConflict = null)
         {
             string head = await RevParseAsync("HEAD");
             if (head == null)
@@ -197,7 +198,7 @@ namespace GitVersionControl
 
             if (kind == GitRewriteKind.Drop)
             {
-                return await DropAsync(target, head, undoTitle);
+                return await DropAsync(target, head, undoTitle, stopOnConflict ?? GitVcsSettings.instance.StopOnRebaseConflict);
             }
 
             string temp = Path.Combine(GitRepository.ProjectRoot, "Temp", "GitVersionControl", "Rewrite");
@@ -272,7 +273,7 @@ namespace GitVersionControl
             return reset;
         }
 
-        private static async Task<GitResult> DropAsync(GitRewriteCommit target, string head, string undoTitle)
+        private static async Task<GitResult> DropAsync(GitRewriteCommit target, string head, string undoTitle, bool stopOnConflict)
         {
             if (target.Parents.Length != 1)
             {
@@ -290,9 +291,13 @@ namespace GitVersionControl
                 : await GitCommand.RunAsync(GitRepository.RepoRoot, DropRebase(target.Hash), GitUndo.NoEditor);
             if (result.Success == false)
             {
-                // 충돌로 멈췄으면 시작 전으로 되돌린다(autostash 한 변경도 돌아온다).
+                // 충돌로 멈췄으면 시작 전으로 되돌린다(autostash 한 변경도 돌아온다). 설정을 켰으면 멈춘 채 두고 Git 창 배너에서 풀게 한다.
                 if (GitRepository.IsRebaseInProgress)
                 {
+                    if (stopOnConflict)
+                    {
+                        return new GitResult(result.ExitCode, result.Output, GitText.Format("inprogress.stoppedOnConflict", GitInProgress.DisplayName(GitOperationKind.Rebase), result.Message));
+                    }
                     await GitRepository.RunAsync("rebase", "--abort");
                     return new GitResult(result.ExitCode, result.Output, GitText.Format("rewrite.dropConflict", result.Message));
                 }

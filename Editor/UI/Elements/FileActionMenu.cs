@@ -40,6 +40,10 @@ namespace GitVersionControl
             {
                 return;
             }
+            if (entry.State == GitFileState.Conflicted)
+            {
+                AppendConflictItems(menu, entry);
+            }
             string name = Path.GetFileName(entry.RepoPath);
             string extensionPattern = GitIgnorePatterns.ForExtension(entry.RepoPath);
             string folder = Path.GetDirectoryName(entry.RepoPath)?.Replace('\\', '/');
@@ -64,6 +68,31 @@ namespace GitVersionControl
 
             menu.AppendAction(GitText.Get("menu.stashFile"), _ => Stash(new[] { entry.RepoPath }, GitText.Format("menu.stashMessage", name)), Idle());
             menu.AppendSeparator();
+        }
+
+        /// <summary>
+        /// 충돌 파일: 고친 그대로 해결됨으로 표시 · 한쪽(ours·theirs) 내용으로 해결. 바이너리 에셋(씬·프리팹·텍스처)은 손으로 고칠 수 없어 한쪽을 고르는 것이 창 안에서 푸는 길이다.
+        /// 쪽 이름은 작업에 따라 다르다 — rebase 에서는 ours 가 바탕 브랜치, theirs 가 다시 쌓는 내 커밋이다(git 과 같다).
+        /// </summary>
+        private void AppendConflictItems(DropdownMenu menu, GitStatusEntry entry)
+        {
+            GitOperationKind kind = _services.Repository.InProgressOperation;
+            menu.AppendAction(GitText.Get("inprogress.resolveMarked"), _ => Resolve(entry, GitConflictSide.AsIs), Idle());
+            menu.AppendAction(GitText.Format("inprogress.resolveOurs", GitText.Get("inprogress.ours." + kind)), _ => Resolve(entry, GitConflictSide.Ours), Idle());
+            menu.AppendAction(GitText.Format("inprogress.resolveTheirs", GitText.Get("inprogress.theirs." + kind)), _ => Resolve(entry, GitConflictSide.Theirs), Idle());
+            menu.AppendSeparator();
+        }
+
+        private void Resolve(GitStatusEntry entry, GitConflictSide side)
+        {
+            if (side == GitConflictSide.AsIs && GitInProgress.HasConflictMarkers(FullPath(entry.RepoPath))
+                && _services.Dialogs.Confirm(GitText.Get("inprogress.resolveMarked"), GitText.Format("inprogress.resolveMarkersConfirm", entry.RepoPath), GitText.Get("inprogress.resolveMarked")) == false)
+            {
+                return;
+            }
+            // 한쪽을 고르면 파일 내용이 바뀌므로 에셋을 다시 읽는다.
+            _ = _services.Runner.RunAsync(GitText.Format("inprogress.opResolve", Path.GetFileName(entry.RepoPath)),
+                () => _services.Commands.ResolveConflictAsync(entry, side), refreshAssets: side != GitConflictSide.AsIs, workingTreeOnly: true);
         }
 
         /// <summary>

@@ -22,6 +22,12 @@ namespace GitVersionControl
         string UserName { get; }
         string UserEmail { get; }
 
+        /// <summary>충돌 등으로 멈춘 채 진행 중인 작업(<see cref="GitRepository.InProgressOperation"/>).</summary>
+        GitOperationKind InProgressOperation { get; }
+
+        /// <summary>멈춘 병합·cherry-pick·revert 에 git 이 준비해 둔 커밋 메시지(<see cref="GitInProgress.ReadPreparedMessage"/>). 없으면 null.</summary>
+        string PreparedCommitMessage { get; }
+
         /// <summary>새 상태가 반영된 뒤 메인 스레드에서 온다.</summary>
         event Action Changed;
 
@@ -49,6 +55,8 @@ namespace GitVersionControl
         public DateTime? LastFetchTime => GitRepository.LastFetchTime;
         public string UserName => GitRepository.UserName;
         public string UserEmail => GitRepository.UserEmail;
+        public GitOperationKind InProgressOperation => GitRepository.InProgressOperation;
+        public string PreparedCommitMessage => GitInProgress.ReadPreparedMessage(GitRepository.GitDir);
         public bool LastRefreshWasWorkingTreeOnly => GitRepository.LastRefreshWasWorkingTreeOnly;
 
         public event Action Changed

@@ -22,6 +22,10 @@ namespace GitVersionControl
         private readonly Label _behindText;
         private readonly Button _commitButton;
         private string _template;
+        private GitOperationKind _seenOperation;
+
+        /// <summary>마지막으로 채운 준비 메시지. 작업이 배너(이어가기·취소)로 끝났는데 그대로 남아 있으면 템플릿으로 되돌린다.</summary>
+        private string _preparedMessage;
 
         public override string Title => GitText.Get("tab.pending");
         public override string Badge => _selection.Rows.Count > 0 ? _selection.Rows.Count.ToString() : null;
@@ -140,6 +144,7 @@ namespace GitVersionControl
 
         private void UpdateCommitArea()
         {
+            FillPreparedMessage();
             int total = _selection.Rows.Count;
             int selected = _selection.CheckedCount;
             _summary.text = GitText.Format("pending.summary", total, selected);
@@ -156,6 +161,32 @@ namespace GitVersionControl
 
             _commitButton.text = GitText.Format("pending.commitButton", selected);
             _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
+        }
+
+        /// <summary>
+        /// 멈춘 병합·cherry-pick·revert 는 이 커밋으로 끝난다. 그 작업이 보이기 시작할 때 비어 있는(템플릿 그대로인) 메시지 칸에
+        /// git 이 준비한 메시지(MERGE_MSG)를 채운다. 사용자가 쓴 글은 덮지 않는다. 작업이 커밋 없이 끝나면(배너의 이어가기·취소) 손대지 않은 그 메시지를 거둔다.
+        /// </summary>
+        private void FillPreparedMessage()
+        {
+            GitOperationKind kind = Services.Repository.InProgressOperation;
+            if (kind == _seenOperation)
+            {
+                return;
+            }
+            _seenOperation = kind;
+            if (_preparedMessage != null && _message.value == _preparedMessage)
+            {
+                _message.value = TemplateText();
+            }
+            _preparedMessage = null;
+            bool untouched = string.IsNullOrWhiteSpace(_message.value) || _message.value == TemplateText();
+            string message = GitInProgress.RequiresFullCommit(kind) && untouched ? Services.Repository.PreparedCommitMessage : null;
+            if (message != null)
+            {
+                _message.value = message;
+                _preparedMessage = message;
+            }
         }
 
         private async void Commit()

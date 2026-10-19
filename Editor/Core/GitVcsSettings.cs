@@ -33,6 +33,7 @@ namespace GitVersionControl
         [SerializeField] private bool _watchFileSystem = true;
         [SerializeField] private bool _autoFetch = true;
         [SerializeField] private int _autoFetchMinutes = GitAutoFetch.DefaultIntervalMinutes;
+        [SerializeField] private bool _stopOnRebaseConflict;
         [SerializeField] private bool _stageMetaPairs;
         [SerializeField] private bool _checkoutNewBranch;
         [SerializeField] private int _language = -1;
@@ -105,6 +106,16 @@ namespace GitVersionControl
         {
             get => Math.Clamp(_autoFetchMinutes, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes);
             set => SetAndSave(ref _autoFetchMinutes, Math.Clamp(value, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes));
+        }
+
+        /// <summary>
+        /// Git 창에서 시작한 rebase(브랜치 rebase·커밋 빼기)가 충돌하면 멈춰 두고 창 안에서 풀게 할지. 기본은 끔 —
+        /// 바로 취소해 시작 전 상태로 돌린다(<see cref="GitUndo.RebaseAsync"/>). 켜면 Git 창 위쪽 배너에서 충돌을 풀고 이어가거나 취소한다(<see cref="GitInProgress"/>).
+        /// </summary>
+        public bool StopOnRebaseConflict
+        {
+            get => _stopOnRebaseConflict;
+            set => SetAndSave(ref _stopOnRebaseConflict, value);
         }
 
         /// <summary>

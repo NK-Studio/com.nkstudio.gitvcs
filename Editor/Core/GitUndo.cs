@@ -466,13 +466,20 @@ namespace GitVersionControl
 
         /// <summary>
         /// HEAD 를 옮기는 작업(병합·체리픽·revert·reset)을 실행하고, HEAD 가 실제로 바뀌었으면 기록한다.
-        /// 충돌로 멈추면 git 이 실패를 돌려주고 HEAD 는 그대로라 기록하지 않는다.
+        /// 충돌로 멈추면 git 이 실패를 돌려주고 HEAD 는 그대로라 기록하지 않는다 — 진행 중인 채로 남고, Git 창 배너에서 풀어 이어가거나 취소한다.
+        /// 그 기록은 이어가기가 끝날 때 남긴다(<see cref="GitInProgress.ContinueAsync"/>).
         /// </summary>
         /// <param name="resetMode">되돌리기에 쓸 reset 방식. null 이면 <c>--keep</c>.</param>
         public static async Task<GitResult> MoveHeadAsync(string title, string[] args, string resetMode = null)
         {
             string before = await HeadAsync();
+            GitOperationKind kindBefore = GitRepository.InProgressOperation;
             GitResult result = await GitRepository.RunAsync(args);
+            GitOperationKind kindAfter = GitRepository.InProgressOperation;
+            if (result.Success == false && kindBefore == GitOperationKind.None && kindAfter != GitOperationKind.None)
+            {
+                return new GitResult(result.ExitCode, result.Output, GitText.Format("inprogress.stoppedOnConflict", GitInProgress.DisplayName(kindAfter), result.Message));
+            }
             string after = await HeadAsync();
             if (result.Success && string.IsNullOrEmpty(before) == false && after != before)
             {
@@ -491,11 +498,13 @@ namespace GitVersionControl
         /// <summary>
         /// 현재 브랜치를 <paramref name="revision"/> 위로 다시 쌓는다.
         ///
-        /// Git 창에는 충돌을 풀며 이어 가는 화면이 없으므로, 충돌로 멈추면 바로 취소해 시작 전 상태(브랜치·커밋·로컬 변경)로 돌려놓는다 —
-        /// 반쯤 옮겨진 분리된 HEAD 로 남겨 두면 터미널 없이는 빠져나올 수 없다. 이미 진행 중인 rebase(터미널에서 시작한 것)가 있으면 손대지 않고 거부한다.
+        /// 충돌로 멈추면 기본(<see cref="GitVcsSettings.StopOnRebaseConflict"/> 끔)은 바로 취소해 시작 전 상태(브랜치·커밋·로컬 변경)로 돌려놓는다 —
+        /// 반쯤 옮겨진 분리된 HEAD 로 두는 것을 원하지 않는 사람이 많다. 설정을 켜면 멈춘 채 두고, Git 창 배너에서 풀어 이어가거나 취소한다(<see cref="GitInProgress"/>).
+        /// 이미 진행 중인 rebase(터미널에서 시작한 것)가 있으면 손대지 않고 거부한다.
         /// 성공하면 <see cref="GitResult.Error"/> 는 비어 있고, 사용자가 꼭 알아야 할 일(<see cref="AutostashConflicted"/>)이 있을 때만 그 안내문을 담는다.
         /// </summary>
-        public static async Task<GitResult> RebaseAsync(string title, string revision)
+        /// <param name="stopOnConflict">충돌하면 멈춰 둘지. null 이면 설정을 따른다.</param>
+        public static async Task<GitResult> RebaseAsync(string title, string revision, bool? stopOnConflict = null)
         {
             if (GitRepository.IsRebaseInProgress)
             {
@@ -508,6 +517,10 @@ namespace GitVersionControl
             {
                 if (GitRepository.IsRebaseInProgress)
                 {
+                    if (stopOnConflict ?? GitVcsSettings.instance.StopOnRebaseConflict)
+                    {
+                        return new GitResult(result.ExitCode, result.Output, GitText.Format("inprogress.stoppedOnConflict", GitInProgress.DisplayName(GitOperationKind.Rebase), result.Message));
+                    }
                     // --abort 는 autostash 한 변경도 되돌린다.
                     await GitRepository.RunAsync("rebase", "--abort");
                     return new GitResult(result.ExitCode, result.Output, GitText.Format("rebase.conflictAborted", result.Message));

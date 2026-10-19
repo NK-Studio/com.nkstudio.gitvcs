@@ -49,8 +49,15 @@ namespace GitVersionControl
             "Library", "Temp", "Logs", "obj", "UserSettings", "MemoryCaptures", ".vs", ".gradle",
         };
 
-        /// <summary>폴링에서 볼 git 폴더 안 파일. index 만 작업 트리 변경이고 나머지는 HEAD·브랜치가 움직였다는 뜻이다.</summary>
-        private static readonly string[] s_polledGitFiles = { "index", "HEAD", "packed-refs", "FETCH_HEAD", "MERGE_HEAD", "logs/HEAD" };
+        /// <summary>
+        /// 폴링에서 볼 git 폴더 안 파일·폴더. index 만 작업 트리 변경이고 나머지는 HEAD·브랜치가 움직였다는 뜻이다.
+        /// 진행 중 작업의 표시(MERGE_HEAD·CHERRY_PICK_HEAD·REVERT_HEAD·rebase 폴더·sequencer)는 생기고 사라지는 것으로 잡는다 — Git 창 배너가 따라 바뀐다.
+        /// </summary>
+        private static readonly string[] s_polledGitFiles =
+        {
+            "index", "HEAD", "packed-refs", "FETCH_HEAD", "logs/HEAD",
+            "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer",
+        };
 
         private static readonly List<WindowsDirectoryWatcher> s_watchers = new();
 
@@ -229,7 +236,7 @@ namespace GitVersionControl
             {
                 return GitChangeKind.WorkingTree;
             }
-            // HEAD·refs·packed-refs·FETCH_HEAD·MERGE_HEAD·rebase 상태·config(사용자 이름) 등.
+            // HEAD·refs·packed-refs·FETCH_HEAD·진행 중 작업 표시(MERGE_HEAD·CHERRY_PICK_HEAD·REVERT_HEAD·rebase-merge·sequencer)·config(사용자 이름) 등.
             return GitChangeKind.Full;
         }
 
@@ -276,14 +283,19 @@ namespace GitVersionControl
             s_polledTimes = times;
         }
 
-        /// <summary>없는 파일은 <see cref="DateTime.MinValue"/> — 생기거나 사라지는 것(MERGE_HEAD)도 변경으로 잡힌다.</summary>
+        /// <summary>
+        /// 없는 파일은 <see cref="DateTime.MinValue"/> — 생기거나 사라지는 것(MERGE_HEAD)도 변경으로 잡힌다.
+        /// 폴더(rebase-merge)는 안에 파일이 생기거나 바뀌면 수정 시각이 바뀌므로 rebase 가 한 커밋씩 나아가는 것도 잡힌다.
+        /// </summary>
         private static DateTime[] ReadPolledTimes()
         {
             DateTime[] times = new DateTime[s_polledGitFiles.Length];
             for (int i = 0; i < times.Length; i++)
             {
                 string path = s_gitDir + s_polledGitFiles[i];
-                times[i] = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+                times[i] = File.Exists(path) ? File.GetLastWriteTimeUtc(path)
+                    : Directory.Exists(path) ? Directory.GetLastWriteTimeUtc(path)
+                    : DateTime.MinValue;
             }
             return times;
         }

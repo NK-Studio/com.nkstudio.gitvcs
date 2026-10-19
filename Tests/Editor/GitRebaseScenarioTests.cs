@@ -837,15 +837,15 @@ namespace GitVersionControl.Tests
 
         // ───────────────────────── 도우미 ─────────────────────────
 
-        /// <summary>브랜치 메뉴의 rebase 와 같은 경로.</summary>
+        /// <summary>브랜치 메뉴의 rebase 와 같은 경로. 충돌하면 기본 설정대로 바로 취소한다(사용자 설정에 흔들리지 않게 고정).</summary>
         private IEnumerator Rebase(string onto, Action<GitResult> done)
         {
-            return Await(GitUndo.RebaseAsync("rebase onto " + onto, onto), done);
+            return Await(GitUndo.RebaseAsync("rebase onto " + onto, onto, stopOnConflict: false), done);
         }
 
         private IEnumerator Rewrite(GitRewriteKind kind, string revision, string message, Action<GitResult> done)
         {
-            return Await(GitRewrite.RunAsync(kind, Rev(revision), message, kind.ToString()), done);
+            return Await(GitRewrite.RunAsync(kind, Rev(revision), message, kind.ToString(), stopOnConflict: false), done);
         }
 
         /// <summary>메인 스레드에서 에디터 프레임을 넘기며 끝나기를 기다린다 — 실제 창에서 도는 것과 같은 동기화 컨텍스트다.</summary>

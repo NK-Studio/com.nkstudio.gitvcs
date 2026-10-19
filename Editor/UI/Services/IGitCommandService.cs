@@ -29,8 +29,18 @@ namespace GitVersionControl
         /// </summary>
         Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode);
 
-        /// <summary>현재 브랜치를 rebase 한다. 충돌하면 취소해 원래대로 돌려놓는다(<see cref="GitUndo.RebaseAsync"/>).</summary>
+        /// <summary>현재 브랜치를 rebase 한다. 충돌하면 설정에 따라 취소해 원래대로 돌리거나 멈춰 둔다(<see cref="GitUndo.RebaseAsync"/>).</summary>
         Task<GitResult> RebaseAsync(string title, string revision);
+
+        /// <summary>
+        /// 충돌로 멈춘 rebase·병합·cherry-pick·revert 를 이어가기·건너뛰기·취소한다(<see cref="GitInProgress"/>).
+        /// </summary>
+        Task<GitResult> ContinueOperationAsync();
+        Task<GitResult> SkipOperationAsync();
+        Task<GitResult> AbortOperationAsync();
+
+        /// <summary>충돌 파일 하나를 해결됨으로 표시한다. 한쪽을 고르면 그 내용으로 바꾼 뒤 표시한다.</summary>
+        Task<GitResult> ResolveConflictAsync(GitStatusEntry entry, GitConflictSide side);
 
         Task<GitResult> RenameBranchAsync(string oldName, string newName);
         Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream);
@@ -117,6 +127,14 @@ namespace GitVersionControl
 
         public Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode) => GitUndo.MoveHeadAsync(title, args, undoResetMode);
         public Task<GitResult> RebaseAsync(string title, string revision) => GitUndo.RebaseAsync(title, revision);
+
+        public Task<GitResult> ContinueOperationAsync() => GitInProgress.ContinueAsync();
+
+        public Task<GitResult> SkipOperationAsync() => GitInProgress.SkipAsync();
+
+        public Task<GitResult> AbortOperationAsync() => GitInProgress.AbortAsync();
+
+        public Task<GitResult> ResolveConflictAsync(GitStatusEntry entry, GitConflictSide side) => GitInProgress.ResolveAsync(entry, side);
 
         public Task<GitResult> RenameBranchAsync(string oldName, string newName) => GitRepository.RunAsync(GitCommitCommands.RenameBranch(oldName, newName));
 

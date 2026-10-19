@@ -25,6 +25,7 @@ namespace GitVersionControl
 
         private GitServices _services;
         private GitToolbar _toolbar;
+        private OperationBanner _operationBanner;
         private readonly List<GitView> _views = new();
         private readonly List<SidebarTab> _tabs = new();
         private VisualElement _window;
@@ -88,6 +89,7 @@ namespace GitVersionControl
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
             SplitPaneClamp.Attach(layout.Require<TwoPaneSplitView>("body"));
             _toolbar = new GitToolbar(layout, _services, this);
+            _operationBanner = new OperationBanner(layout, _services);
             _toolbar.RefreshRequested += () =>
             {
                 _views.Find(view => view.IsActive)?.Reload();
@@ -332,6 +334,7 @@ namespace GitVersionControl
                 : string.IsNullOrEmpty(repository.LastError) ? GitText.Get("window.notRepository") : repository.LastError;
 
             _toolbar.Render();
+            _operationBanner.Render();
             if (ready == false)
             {
                 return;
@@ -351,6 +354,7 @@ namespace GitVersionControl
         private void OnRunnerStateChanged()
         {
             _toolbar.Render();
+            _operationBanner.Render();
             foreach (GitView view in _views)
             {
                 view.OnBusyChanged(_services.Runner.IsBusy);

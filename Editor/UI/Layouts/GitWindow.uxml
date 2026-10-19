@@ -47,6 +47,14 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
+        <!-- 충돌로 멈춘 rebase·병합·cherry-pick·revert 안내 줄. 진행 중일 때만 OperationBanner 가 보인다. -->
+        <ui:VisualElement name="operation-banner" class="git-window__notice notice notice--warning operation-banner">
+            <ui:Label name="operation-banner-text" class="notice__text" />
+            <ui:Button name="operation-continue-button" text="@inprogress.continue" class="notice__action" />
+            <ui:Button name="operation-skip-button" text="@inprogress.skip" class="notice__action" />
+            <ui:Button name="operation-abort-button" text="@inprogress.abort" class="notice__action" />
+        </ui:VisualElement>
+
         <ui:VisualElement name="not-ready" class="git-window__notice notice">
             <ui:Label name="not-ready-message" class="notice__text" />
             <ui:Button name="open-settings-button" text="@common.openVcsSettings" class="notice__action" />
