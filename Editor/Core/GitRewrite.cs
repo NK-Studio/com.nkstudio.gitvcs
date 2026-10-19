@@ -278,14 +278,20 @@ namespace GitVersionControl
             {
                 return Fail("rewrite.mergeCommit");
             }
+            // 터미널에서 시작해 멈춘 rebase 가 있으면 git 이 새 rebase 를 거부하는데, 그 뒤 아래에서 "우리 것" 으로 알고 취소하면 사용자의 작업을 날린다.
+            if (GitRepository.IsRebaseInProgress)
+            {
+                return Fail("rebase.alreadyInProgress");
+            }
+            string stashBefore = await GitUndo.StashTopAsync();
             GitResult result = target.Hash == head
                 // 맨 위 커밋을 빼는 것은 부모로 옮기는 것과 같다. --keep 은 로컬 수정과 겹치면 거부한다.
                 ? await GitRepository.RunAsync("reset", "--keep", target.Parents[0])
-                : await GitCommand.RunAsync(GitRepository.RepoRoot, DropRebase(target.Hash), new Dictionary<string, string> { ["GIT_EDITOR"] = "true" });
+                : await GitCommand.RunAsync(GitRepository.RepoRoot, DropRebase(target.Hash), GitUndo.NoEditor);
             if (result.Success == false)
             {
                 // 충돌로 멈췄으면 시작 전으로 되돌린다(autostash 한 변경도 돌아온다).
-                if (Directory.Exists(Path.Combine(GitRepository.GitDir ?? string.Empty, "rebase-merge")))
+                if (GitRepository.IsRebaseInProgress)
                 {
                     await GitRepository.RunAsync("rebase", "--abort");
                     return new GitResult(result.ExitCode, result.Output, GitText.Format("rewrite.dropConflict", result.Message));
@@ -297,7 +303,10 @@ namespace GitVersionControl
             {
                 Record(undoTitle, head, after, null);
             }
-            return result;
+            // 성공이면 Error 는 비우고, 커밋하지 않은 변경을 되돌리다 충돌했을 때만 안내문을 담는다(GitUndo.RebaseAsync 와 같다).
+            return await GitUndo.AutostashConflicted(stashBefore)
+                ? new GitResult(0, result.Output, GitText.Get("rebase.autostashConflict"))
+                : new GitResult(0, result.Output, string.Empty);
         }
 
         private static async Task<GitRewriteCommit> ReadCommitAsync(string revision)

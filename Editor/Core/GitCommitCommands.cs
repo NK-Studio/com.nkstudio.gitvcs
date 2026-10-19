@@ -82,9 +82,12 @@ namespace GitVersionControl
             return mode == GitResetMode.Hard ? null : ResetFlag(mode);
         }
 
+        /// <summary>
+        /// 커밋하지 않은 변경은 잠깐 stash 했다가 끝나면 되돌린다(<c>--autostash</c>) — 없으면 git 이 변경이 있다며 시작조차 하지 않는다.
+        /// </summary>
         public static string[] Rebase(string revision)
         {
-            return new[] { "rebase", revision };
+            return new[] { "rebase", "--autostash", revision };
         }
 
         public static string[] RenameBranch(string oldName, string newName)

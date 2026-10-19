@@ -25,7 +25,11 @@ namespace GitVersionControl
         public static bool IsRepository { get; private set; }
 
         /// <summary>저장소 루트(슬래시 구분). 저장소가 아니면 null.</summary>
-        public static string RepoRoot { get; private set; }
+        public static string RepoRoot
+        {
+            get => s_testScope?.RepoRoot ?? s_repoRoot;
+            private set => s_repoRoot = value;
+        }
 
         /// <summary>저장소 루트에서 Unity 프로젝트 루트까지의 상대 경로("" 또는 "client/unity/").</summary>
         public static string ProjectPrefix { get; private set; } = string.Empty;
@@ -43,7 +47,27 @@ namespace GitVersionControl
         public static string HeadCommit { get; private set; }
 
         /// <summary>.git 폴더의 절대 경로(worktree 면 그 worktree 의 git 폴더).</summary>
-        public static string GitDir { get; private set; }
+        public static string GitDir
+        {
+            get => s_testScope?.GitDir ?? s_gitDir;
+            private set => s_gitDir = value;
+        }
+
+        /// <summary>
+        /// rebase 가 멈춘 채 진행 중인지(충돌 등). 터미널에서 시작한 것도 포함한다 — 그때 다른 rebase 를 시작하거나 취소하면 안 된다.
+        /// </summary>
+        public static bool IsRebaseInProgress
+        {
+            get
+            {
+                string gitDir = GitDir;
+                return string.IsNullOrEmpty(gitDir) == false
+                    && (Directory.Exists(Path.Combine(gitDir, "rebase-merge")) || Directory.Exists(Path.Combine(gitDir, "rebase-apply")));
+            }
+        }
+
+        /// <summary>테스트가 git 작업 코드를 임시 저장소로 돌리는 중인지(<see cref="UseRepositoryForTests"/>). 그동안 새로고침·감시·자동 fetch 는 쉰다.</summary>
+        public static bool IsOverriddenForTests => s_testScope != null;
 
         /// <summary>마지막 fetch 시각. 터미널에서 한 fetch 도 FETCH_HEAD 를 갱신하므로 함께 잡힌다.</summary>
         public static DateTime? LastFetchTime
@@ -73,6 +97,10 @@ namespace GitVersionControl
 
         /// <summary>새 상태가 반영된 뒤 메인 스레드에서 호출된다.</summary>
         public static event Action Changed;
+
+        private static string s_repoRoot;
+        private static string s_gitDir;
+        private static TestScope s_testScope;
 
         private static List<GitStatusEntry> s_entries = new();
         private static Dictionary<string, GitFileState> s_assetStateDict = new(StringComparer.OrdinalIgnoreCase);
@@ -119,6 +147,45 @@ namespace GitVersionControl
             UpstreamCommit = null;
             Apply(false, null, string.Empty, null, new List<GitStatusEntry>(), null);
             CompleteRefreshes(int.MaxValue);
+        }
+
+        /// <summary>
+        /// 테스트 전용: <see cref="RunAsync"/>·<see cref="RepoRoot"/>·<see cref="GitDir"/> 를 임시 저장소로 돌리고, 실행 취소 기록은 <paramref name="journal"/> 에 모은다.
+        /// 그러면 rebase·실행 취소 같은 작업 코드를 실제 프로젝트 저장소를 건드리지 않고 그대로 시험할 수 있다.
+        /// 그동안 이 저장소의 새로고침·파일 감시·자동 fetch 는 쉬고, 끝나면 다시 맞춘다. 한 번에 하나만 쓴다.
+        /// </summary>
+        public static IDisposable UseRepositoryForTests(string repoRoot, string gitDir, GitUndoJournal journal)
+        {
+            if (s_testScope != null)
+            {
+                throw new InvalidOperationException("UseRepositoryForTests is already active.");
+            }
+            s_testScope = new TestScope(repoRoot.Replace('\\', '/'), gitDir.Replace('\\', '/'));
+            GitUndo.OverrideJournal(journal);
+            return s_testScope;
+        }
+
+        private sealed class TestScope : IDisposable
+        {
+            public readonly string RepoRoot;
+            public readonly string GitDir;
+
+            public TestScope(string repoRoot, string gitDir)
+            {
+                RepoRoot = repoRoot;
+                GitDir = gitDir;
+            }
+
+            public void Dispose()
+            {
+                if (s_testScope != this)
+                {
+                    return;
+                }
+                s_testScope = null;
+                GitUndo.OverrideJournal(null);
+                UpdateFileWatcher();
+            }
         }
 
         /// <summary>
@@ -199,6 +266,10 @@ namespace GitVersionControl
 
         private static void OnUpdate()
         {
+            if (s_testScope != null)
+            {
+                return;
+            }
             if (s_refreshPending && IsRefreshing == false && EditorApplication.timeSinceStartup >= s_refreshDueTime)
             {
                 s_refreshPending = false;
@@ -341,6 +412,10 @@ namespace GitVersionControl
         /// <summary>파일 감시를 설정·저장소 상태에 맞춘다(설정 화면에서 켜고 끌 때도 부른다).</summary>
         public static void UpdateFileWatcher()
         {
+            if (s_testScope != null)
+            {
+                return;
+            }
             GitFileWatcher.Sync(IsRunning && IsRepository && GitVcsSettings.instance.WatchFileSystem, RepoRoot, GitDir, ProjectPrefix);
         }
 

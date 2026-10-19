@@ -182,10 +182,28 @@ namespace GitVersionControl
         /// <summary>
         /// 현재 브랜치의 커밋을 <paramref name="revision"/> 위로 다시 쌓는다.
         /// </summary>
-        public Task RebaseOntoAsync(string revision, string shortName, string description)
+        public async Task RebaseOntoAsync(string revision, string shortName, string description)
         {
-            return MoveHeadAsync(GitText.Get("branch.rebaseTitle"), GitText.Format("branch.rebaseConfirm", CurrentBranchName(), description),
-                GitText.Format("op.rebase", CurrentBranchName(), shortName), GitCommitCommands.Rebase(revision), null);
+            if (_services.Dialogs.Confirm(GitText.Get("branch.rebaseTitle"), GitText.Format("branch.rebaseConfirm", CurrentBranchName(), description), GitText.Get("common.continue")) == false)
+            {
+                return;
+            }
+            if (_services.Dialogs.SaveOpenWork() == false)
+            {
+                return;
+            }
+            string operation = GitText.Format("op.rebase", CurrentBranchName(), shortName);
+            GitResult result = await _services.Runner.RunAsync(operation, () => _services.Commands.RebaseAsync(operation, revision), refreshAssets: true);
+            AlertNotice(GitText.Get("branch.rebaseTitle"), result);
+        }
+
+        /// <summary>성공했지만 알려야 할 일이 있을 때(rebase 의 autostash 충돌). 실패는 Runner 가 이미 알린다.</summary>
+        private void AlertNotice(string title, GitResult result)
+        {
+            if (result.Success && string.IsNullOrEmpty(result.Error) == false)
+            {
+                _services.Dialogs.Alert(title, result.Error);
+            }
         }
 
         public Task CherryPickAsync(GitCommitInfo commit)
@@ -296,7 +314,11 @@ namespace GitVersionControl
                 GitRewriteKind.Fixup => "op.fixup",
                 _ => "op.drop",
             }, commit.ShortHash);
-            await _services.Runner.RunAsync(operation, () => _services.Commands.RewriteAsync(kind, commit.Hash, message, operation), refreshAssets: kind == GitRewriteKind.Drop);
+            GitResult result = await _services.Runner.RunAsync(operation, () => _services.Commands.RewriteAsync(kind, commit.Hash, message, operation), refreshAssets: kind == GitRewriteKind.Drop);
+            if (kind == GitRewriteKind.Drop)
+            {
+                AlertNotice(title, result);
+            }
         }
 
         /// <summary>

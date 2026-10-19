@@ -29,6 +29,9 @@ namespace GitVersionControl
         /// </summary>
         Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode);
 
+        /// <summary>현재 브랜치를 rebase 한다. 충돌하면 취소해 원래대로 돌려놓는다(<see cref="GitUndo.RebaseAsync"/>).</summary>
+        Task<GitResult> RebaseAsync(string title, string revision);
+
         Task<GitResult> RenameBranchAsync(string oldName, string newName);
         Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream);
         Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch);
@@ -113,6 +116,7 @@ namespace GitVersionControl
         public Task<GitResult> ValidateTagNameAsync(string name) => GitRepository.RunAsync(GitCommitCommands.ValidateTagName(name));
 
         public Task<GitResult> MoveHeadAsync(string title, string[] args, string undoResetMode) => GitUndo.MoveHeadAsync(title, args, undoResetMode);
+        public Task<GitResult> RebaseAsync(string title, string revision) => GitUndo.RebaseAsync(title, revision);
 
         public Task<GitResult> RenameBranchAsync(string oldName, string newName) => GitRepository.RunAsync(GitCommitCommands.RenameBranch(oldName, newName));
 

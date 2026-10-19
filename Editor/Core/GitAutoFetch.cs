@@ -193,6 +193,7 @@ namespace GitVersionControl
                 || s_fetching
                 || GitRepository.IsRunning == false
                 || GitRepository.IsRepository == false
+                || GitRepository.IsOverriddenForTests
                 || GitOperationRunner.AnyBusy
                 || EditorApplication.isCompiling
                 || EditorApplication.isUpdating)

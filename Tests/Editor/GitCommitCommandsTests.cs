@@ -54,7 +54,7 @@ namespace GitVersionControl.Tests
         [Test]
         public void Test_BranchCommands_Arguments()
         {
-            Assert.AreEqual("rebase origin/main", Joined(GitCommitCommands.Rebase("origin/main")));
+            Assert.AreEqual("rebase --autostash origin/main", Joined(GitCommitCommands.Rebase("origin/main")));
             Assert.AreEqual("branch -m old new", Joined(GitCommitCommands.RenameBranch("old", "new")));
             Assert.AreEqual("push -u origin feature/x", Joined(GitCommitCommands.PushBranch("origin", "feature/x", setUpstream: true)));
             Assert.AreEqual("push origin feature/x", Joined(GitCommitCommands.PushBranch("origin", "feature/x", setUpstream: false)));

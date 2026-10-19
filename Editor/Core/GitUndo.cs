@@ -357,7 +357,15 @@ namespace GitVersionControl
     /// </summary>
     public static class GitUndo
     {
-        public static GitUndoJournal Journal => GitUndoJournal.Shared;
+        private static GitUndoJournal s_journalOverride;
+
+        public static GitUndoJournal Journal => s_journalOverride ?? GitUndoJournal.Shared;
+
+        /// <summary>테스트가 기록을 따로 모을 때(<see cref="GitRepository.UseRepositoryForTests"/>). null 이면 공용 목록으로 돌아간다.</summary>
+        internal static void OverrideJournal(GitUndoJournal journal)
+        {
+            s_journalOverride = journal;
+        }
 
         public static async Task<GitResult> CommitAsync(IReadOnlyCollection<GitStatusEntry> entries, string message)
         {
@@ -479,6 +487,63 @@ namespace GitVersionControl
             }
             return result;
         }
+
+        /// <summary>
+        /// 현재 브랜치를 <paramref name="revision"/> 위로 다시 쌓는다.
+        ///
+        /// Git 창에는 충돌을 풀며 이어 가는 화면이 없으므로, 충돌로 멈추면 바로 취소해 시작 전 상태(브랜치·커밋·로컬 변경)로 돌려놓는다 —
+        /// 반쯤 옮겨진 분리된 HEAD 로 남겨 두면 터미널 없이는 빠져나올 수 없다. 이미 진행 중인 rebase(터미널에서 시작한 것)가 있으면 손대지 않고 거부한다.
+        /// 성공하면 <see cref="GitResult.Error"/> 는 비어 있고, 사용자가 꼭 알아야 할 일(<see cref="AutostashConflicted"/>)이 있을 때만 그 안내문을 담는다.
+        /// </summary>
+        public static async Task<GitResult> RebaseAsync(string title, string revision)
+        {
+            if (GitRepository.IsRebaseInProgress)
+            {
+                return new GitResult(1, string.Empty, GitText.Get("rebase.alreadyInProgress"));
+            }
+            string before = await HeadAsync();
+            string stashBefore = await StashTopAsync();
+            GitResult result = await GitCommand.RunAsync(GitRepository.RepoRoot, GitCommitCommands.Rebase(revision), NoEditor);
+            if (result.Success == false)
+            {
+                if (GitRepository.IsRebaseInProgress)
+                {
+                    // --abort 는 autostash 한 변경도 되돌린다.
+                    await GitRepository.RunAsync("rebase", "--abort");
+                    return new GitResult(result.ExitCode, result.Output, GitText.Format("rebase.conflictAborted", result.Message));
+                }
+                return result;
+            }
+            string after = await HeadAsync();
+            if (string.IsNullOrEmpty(before) == false && after != before)
+            {
+                Journal.Record(new GitUndoEntry
+                {
+                    Kind = GitUndoKind.MoveHead,
+                    Title = title,
+                    HeadBefore = before,
+                    HeadAfter = after,
+                });
+            }
+            return await AutostashConflicted(stashBefore)
+                ? new GitResult(0, result.Output, GitText.Get("rebase.autostashConflict"))
+                : new GitResult(0, result.Output, string.Empty);
+        }
+
+        /// <summary>
+        /// <c>--autostash</c> 로 끝난 rebase 가 커밋하지 않은 변경을 되돌리다 충돌했는지. 그때 git 은 성공(0)으로 끝내지만
+        /// 파일에 충돌 표시를 남기고 원래 변경을 stash 에 둔다 — 새 stash 가 생긴 것으로 안다(git 의 안내문은 번역될 수 있어 읽지 않는다).
+        /// </summary>
+        internal static async Task<bool> AutostashConflicted(string stashBefore)
+        {
+            string stashAfter = await StashTopAsync();
+            return string.IsNullOrEmpty(stashAfter) == false && stashAfter != stashBefore;
+        }
+
+        /// <summary>
+        /// rebase 가 메시지 편집기를 띄우지 않게 한다. 백그라운드 프로세스라 편집기가 뜨면 아무도 닫지 못해 시간 초과까지 멈춘다.
+        /// </summary>
+        internal static readonly IReadOnlyDictionary<string, string> NoEditor = new Dictionary<string, string> { ["GIT_EDITOR"] = "true", ["GIT_SEQUENCE_EDITOR"] = "true" };
 
         private static string NameOrShortHash(string branch, string head)
         {
@@ -651,7 +716,7 @@ namespace GitVersionControl
 
         private static Task<string> HeadAsync() => RevParseAsync("HEAD");
 
-        private static Task<string> StashTopAsync() => RevParseAsync("refs/stash");
+        internal static Task<string> StashTopAsync() => RevParseAsync("refs/stash");
 
         private static Task<string> BranchTipAsync(string name) => RevParseAsync("refs/heads/" + name);
 
