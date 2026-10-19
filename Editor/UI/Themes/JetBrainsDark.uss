@@ -19,6 +19,12 @@
     --git-accent-text: #ffffff;
     /* 강조색을 글자·선 아이콘에 쓸 때(개수·현재 브랜치 아이콘·링크). 바탕용 --git-accent 는 작은 글자로 읽기 어려워 따로 둔다(대비 5:1 이상). */
     --git-accent-fg: #7aa7ff;
+    /* 우클릭 메뉴(GitContextMenu): 바탕·테두리·고른 줄·고른 줄 글자·그림자. */
+    --git-menu-bg: #2b2d30;
+    --git-menu-border: #43454a;
+    --git-menu-hover: #2e436e;
+    --git-menu-hover-text: #dfe1e5;
+    --git-menu-shadow: rgba(0,0,0,0.45);
     --git-success: #5fb865;
     --git-warning: #d6ae58;
     --git-danger: #db5c5c;

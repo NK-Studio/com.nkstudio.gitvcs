@@ -24,6 +24,7 @@ namespace GitVersionControl
                 Content.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StyleFolder + sheet + ".uss"));
             }
             rootVisualElement.Add(Content);
+            GitContextMenu.Attach(Content, Content);
             GitTheme.Apply(Content);
             GitTheme.Changed -= ApplyTheme;
             GitTheme.Changed += ApplyTheme;

@@ -319,3 +319,109 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
+/* 우클릭 메뉴(GitContextMenu). Unity 기본 메뉴(늘 밝은 회색) 대신 테마 색을 따른다.
+   막(overlay)은 창 전체를 덮어 바깥 클릭을 받고, 메뉴는 그 안에 절대 위치로 뜬다. 하위 메뉴도 같은 막 안의 다른 패널이다. */
+.git-menu__overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.git-menu {
+    position: absolute;
+    min-width: 200px;
+    padding: 4px;
+    background-color: var(--git-menu-bg);
+    border-width: 1px;
+    border-color: var(--git-menu-border);
+    border-radius: var(--git-radius);
+    /* USS 에는 box-shadow 가 없어서 아래·오른쪽 테두리를 조금 짙게 해 떠 있는 느낌만 준다. */
+    border-bottom-color: var(--git-menu-shadow);
+    border-right-color: var(--git-menu-shadow);
+}
+
+.git-menu__item {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    padding-left: 2px;
+    padding-right: 6px;
+    border-radius: 4px;
+}
+
+.git-menu__item--hover {
+    background-color: var(--git-menu-hover);
+}
+
+.git-menu__item--hover > .git-menu__label,
+.git-menu__item--hover > .git-menu__check,
+.git-menu__item--hover > .git-menu__arrow {
+    color: var(--git-menu-hover-text);
+}
+
+.git-menu__item--disabled > .git-menu__label,
+.git-menu__item--disabled > .git-menu__check,
+.git-menu__item--disabled.git-menu__item--hover > .git-menu__label {
+    color: var(--git-text-muted);
+}
+
+.git-menu__item--disabled.git-menu__item--hover {
+    background-color: var(--git-hover);
+}
+
+/* 커서: 막은 창 전체를 덮으므로 밑의 입력란(I자)·경계선(↔) 커서가 비치지 않게 기본 화살표로 둔다.
+   누를 수 있는 줄(하위 메뉴 포함)은 다른 버튼처럼 손가락, 꺼진 줄·구분선·여백은 화살표.
+   cursor 는 상속되지 않으므로 줄 안의 글자 요소(*)에도 준다. */
+.git-menu__overlay,
+.git-menu,
+.git-menu__separator {
+    cursor: arrow;
+}
+
+.git-menu__item,
+.git-menu__item * {
+    cursor: link;
+}
+
+.git-menu__item.git-menu__item--disabled,
+.git-menu__item.git-menu__item--disabled * {
+    cursor: arrow;
+}
+
+.git-menu__check {
+    width: 18px;
+    min-width: 18px;
+    padding: 0;
+    margin: 0;
+    -unity-text-align: middle-center;
+    color: var(--git-text);
+}
+
+.git-menu__label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 0;
+    margin: 0;
+    color: var(--git-text);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+}
+
+.git-menu__arrow {
+    width: 16px;
+    min-width: 16px;
+    padding: 0;
+    margin: 0 0 0 16px;
+    font-size: 14px;
+    -unity-text-align: middle-right;
+    color: var(--git-text-muted);
+}
+
+.git-menu__separator {
+    height: 1px;
+    margin: 4px 6px;
+    background-color: var(--git-divider);
+}

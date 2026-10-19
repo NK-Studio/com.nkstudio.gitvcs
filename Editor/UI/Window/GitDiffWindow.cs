@@ -46,6 +46,7 @@ namespace GitVersionControl
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StylePath));
             root.AddToClassList("git-window");
             _content = root;
+            GitContextMenu.Attach(root, root);
             GitTheme.Apply(root);
             GitTheme.Changed -= ApplyTheme;
             GitTheme.Changed += ApplyTheme;

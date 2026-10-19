@@ -96,6 +96,7 @@ namespace GitVersionControl
             CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar-views"));
             _services.InlineBranches = this;
             _services.PopupHost = _window;
+            GitContextMenu.Attach(layout, _window);
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
