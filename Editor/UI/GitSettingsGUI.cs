@@ -76,6 +76,20 @@ namespace GitVersionControl
 
             settings.ShowOverlays = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.overlays")), settings.ShowOverlays);
             settings.RefreshOnFocus = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.refreshOnFocus"), GitText.Get("settings.refreshOnFocusTooltip")), settings.RefreshOnFocus);
+            bool watch = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.watchFileSystem"), GitText.Get("settings.watchFileSystemTooltip")), settings.WatchFileSystem);
+            if (watch != settings.WatchFileSystem)
+            {
+                settings.WatchFileSystem = watch;
+                GitRepository.UpdateFileWatcher();
+            }
+            settings.AutoFetch = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.autoFetch"), GitText.Get("settings.autoFetchTooltip")), settings.AutoFetch);
+            using (new EditorGUI.DisabledScope(settings.AutoFetch == false))
+            using (new EditorGUI.IndentLevelScope())
+            {
+                settings.AutoFetchMinutes = EditorGUILayout.DelayedIntField(
+                    new GUIContent(GitText.Get("settings.autoFetchMinutes"), GitText.Format("settings.autoFetchMinutesTooltip", GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes)),
+                    settings.AutoFetchMinutes);
+            }
             settings.StageMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.StageMetaPairs);
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));

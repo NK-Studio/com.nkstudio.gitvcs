@@ -39,6 +39,11 @@ namespace GitVersionControl
             _dialogs = dialogs;
         }
 
+        private static int s_activeCount;
+
+        /// <summary>어느 창에서든 git 쓰기 작업이 도는 중인지. 자동 fetch 는 그동안 쉬어 참조 잠금이 겹치지 않게 한다(<see cref="GitAutoFetch"/>).</summary>
+        public static bool AnyBusy => s_activeCount > 0;
+
         public bool IsBusy { get; private set; }
         public string StatusText { get; private set; } = string.Empty;
         public event Action StateChanged;
@@ -46,6 +51,7 @@ namespace GitVersionControl
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
         {
             IsBusy = true;
+            s_activeCount++;
             SetStatus(GitText.Format("runner.running", title));
             GitResult result;
             try
@@ -68,6 +74,7 @@ namespace GitVersionControl
                 _repository.RequestRefresh(immediate: true, workingTreeOnly);
                 await Task.WhenAny(_repository.WaitForRefreshAsync(), Task.Delay(RefreshWaitLimitMs));
                 IsBusy = false;
+                s_activeCount--;
                 StateChanged?.Invoke();
             }
             return result;

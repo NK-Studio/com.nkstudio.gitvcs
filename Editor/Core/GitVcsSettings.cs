@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -29,11 +30,14 @@ namespace GitVersionControl
         [SerializeField] private string _gitExecutable = "git";
         [SerializeField] private bool _showOverlays = true;
         [SerializeField] private bool _refreshOnFocus = true;
+        [SerializeField] private bool _watchFileSystem = true;
+        [SerializeField] private bool _autoFetch = true;
+        [SerializeField] private int _autoFetchMinutes = GitAutoFetch.DefaultIntervalMinutes;
         [SerializeField] private bool _stageMetaPairs;
         [SerializeField] private bool _checkoutNewBranch;
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
-        [SerializeField] private bool _showAvatars;
+        [SerializeField] private bool _showAvatars = true;
         [SerializeField] private int _diffEngine;
         [SerializeField] private int _diffAlgorithm = (int)DiffAlgorithm.Histogram;
         [SerializeField] private int _diffWhitespace;
@@ -76,6 +80,31 @@ namespace GitVersionControl
         {
             get => _refreshOnFocus;
             set => SetAndSave(ref _refreshOnFocus, value);
+        }
+
+        /// <summary>
+        /// 저장소 폴더를 감시해 바깥(터미널·IDE)에서 생긴 변경을 바로 반영할지(<see cref="GitFileWatcher"/>).
+        /// </summary>
+        public bool WatchFileSystem
+        {
+            get => _watchFileSystem;
+            set => SetAndSave(ref _watchFileSystem, value);
+        }
+
+        /// <summary>
+        /// 원격을 주기적으로 fetch 해 다른 곳에서 푸시한 커밋을 Pull 전에 보여 줄지(<see cref="GitAutoFetch"/>).
+        /// </summary>
+        public bool AutoFetch
+        {
+            get => _autoFetch;
+            set => SetAndSave(ref _autoFetch, value);
+        }
+
+        /// <summary>자동 fetch 간격(분). <see cref="GitAutoFetch.MinIntervalMinutes"/>~<see cref="GitAutoFetch.MaxIntervalMinutes"/>.</summary>
+        public int AutoFetchMinutes
+        {
+            get => Math.Clamp(_autoFetchMinutes, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes);
+            set => SetAndSave(ref _autoFetchMinutes, Math.Clamp(value, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes));
         }
 
         /// <summary>

@@ -11,7 +11,7 @@ namespace GitVersionControl
     /// 현재 Unity 프로젝트가 속한 git 저장소의 상태 캐시.
     ///
     /// Project 창 오버레이는 매 프레임 수백 번 그려지므로 git 을 직접 부르지 않고 이 캐시만 읽는다.
-    /// 캐시는 에셋 임포트·에디터 포커스 복귀·커밋 뒤에 백그라운드에서 다시 채운다.
+    /// 캐시는 에셋 임포트·에디터 포커스 복귀·커밋 뒤, 그리고 저장소 폴더의 바깥 변경(<see cref="GitFileWatcher"/>)·자동 fetch(<see cref="GitAutoFetch"/>) 때 백그라운드에서 다시 채운다.
     /// 상태는 static 이라 도메인 리로드 때 사라지고, <see cref="GitVersionControlObject"/> 가 다시 <see cref="Start"/> 한다.
     /// </summary>
     public static class GitRepository
@@ -100,6 +100,7 @@ namespace GitVersionControl
             IsRunning = true;
             EditorApplication.focusChanged += OnFocusChanged;
             EditorApplication.update += OnUpdate;
+            GitAutoFetch.Start();
             RequestRefresh(immediate: true);
         }
 
@@ -112,6 +113,7 @@ namespace GitVersionControl
             IsRunning = false;
             EditorApplication.focusChanged -= OnFocusChanged;
             EditorApplication.update -= OnUpdate;
+            GitAutoFetch.Stop();
             s_refreshPending = false;
             HeadCommit = null;
             UpstreamCommit = null;
@@ -336,6 +338,12 @@ namespace GitVersionControl
             return result.Success ? result.Output.Trim() : null;
         }
 
+        /// <summary>파일 감시를 설정·저장소 상태에 맞춘다(설정 화면에서 켜고 끌 때도 부른다).</summary>
+        public static void UpdateFileWatcher()
+        {
+            GitFileWatcher.Sync(IsRunning && IsRepository && GitVcsSettings.instance.WatchFileSystem, RepoRoot, GitDir, ProjectPrefix);
+        }
+
         private static void Apply(bool isRepository, string repoRoot, string prefix, GitBranchInfo branch, List<GitStatusEntry> entries, string error)
         {
             IsRepository = isRepository;
@@ -346,6 +354,7 @@ namespace GitVersionControl
             LastRefreshTime = DateTime.Now;
             s_entries = entries;
             BuildLookup(entries);
+            UpdateFileWatcher();
 
             EditorApplication.RepaintProjectWindow();
             Changed?.Invoke();
