@@ -12,6 +12,7 @@
     --git-header-bg: #f7f8fa;
     --git-list-bg: #ffffff;
     --git-text: #000000;
+    --git-text-strong: #000000;
     --git-text-muted: #6c707e;
     /* 본문과 흐린 글자 사이: 늘 보여야 하는 보조 아이콘(PR 필터 추가 등). */
     --git-text-secondary: #4e5260;

@@ -108,6 +108,7 @@ namespace GitVersionControl
             _diff.EnablePartialStaging(services.Runner, services.Commands, services.Dialogs);
             // "이 파일 편집" 의 저장 확인은 운영체제 대화상자 대신 Git 창 위 팝업으로.
             _diff.PopupHostProvider = () => services.PopupHost;
+            _diff.EnableMergeEditor(services);
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);

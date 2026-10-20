@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace GitVersionControl
 {
     /// <summary>
@@ -86,7 +88,28 @@ namespace GitVersionControl
             dialogs.HostProvider = () => services.PopupHost;
             runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
             runner.ErrorHandler = (title, message) => GitErrorDialog.ShowAsync(services, title, message);
+            runner.LocalChangesHandler = (title, message) => OfferStashAndRetryAsync(services, title, message);
             return services;
+        }
+
+        /// <summary>
+        /// 로컬 변경이 덮어써져 실패한 작업(Pull·Merge·전환 등)의 오류를 알리면서 "Stash 하고 다시 ~" 를 권한다.
+        /// 고르고 stash 가 됐으면 true(실행기가 그 작업을 다시 한다). 그냥 닫았거나 stash 가 실패했으면 false.
+        /// </summary>
+        private static async Task<bool> OfferStashAndRetryAsync(GitServices services, string operation, string message)
+        {
+            string title = GitText.Format("runner.failed", operation);
+            if (await services.Dialogs.ConfirmAsync(title, message, GitText.Format("runner.stashAndRetry", operation), icon: ActionGlyphKind.Stash) == false)
+            {
+                return false;
+            }
+            GitResult stash = await services.Commands.StashAsync();
+            if (stash.Success == false)
+            {
+                await services.Dialogs.AlertAsync(GitText.Format("runner.failed", GitText.Get("op.stash")), stash.Message, ActionGlyphKind.Stash);
+                return false;
+            }
+            return true;
         }
     }
 

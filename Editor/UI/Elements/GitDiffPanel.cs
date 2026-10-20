@@ -140,6 +140,7 @@ namespace GitVersionControl
 
         private ToolbarButton _closeButton;
         private ToolbarButton _reloadButton;
+        private GitMergeEditor _merge;
 
         // ── 부분 스테이징(GitKraken 식 거터 + 버튼) ──
 
@@ -230,6 +231,23 @@ namespace GitVersionControl
         public void ShowCloseButton(bool isVisible)
         {
             _closeButton.SetVisible(isVisible);
+            _merge?.ShowCloseButton(isVisible);
+        }
+
+        /// <summary>
+        /// 충돌 파일을 고르면 diff 대신 병합 편집기(<see cref="GitMergeEditor"/>)를 덮어 보인다. Git 창 안의 diff 칸만 켠다(저장·해결에 작업 실행기가 든다).
+        /// </summary>
+        public void EnableMergeEditor(GitServices services)
+        {
+            if (_merge != null)
+            {
+                return;
+            }
+            _merge = new GitMergeEditor(services);
+            _merge.CloseRequested += () => CloseRequested?.Invoke();
+            _merge.ShowCloseButton(_closeButton.style.display.value != DisplayStyle.None);
+            _merge.Root.SetVisible(false);
+            Root.Add(_merge.Root);
         }
 
         /// <summary>
@@ -461,6 +479,18 @@ namespace GitVersionControl
 
         public void Reload()
         {
+            if (_merge != null)
+            {
+                bool conflicted = _merge.CanOpen(_target);
+                _merge.Root.SetVisible(conflicted);
+                if (conflicted)
+                {
+                    ++_loadVersion;
+                    HideLoading();
+                    _merge.Open(_target.RepoPath);
+                    return;
+                }
+            }
             if (_target == null)
             {
                 ShowEmpty();
