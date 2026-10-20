@@ -149,6 +149,30 @@ namespace GitVersionControl
                 evt.originPanel.visualTree.UnregisterCallback<KeyUpEvent>(OnShiftKey, TrickleDown.TrickleDown);
             });
             Root.RegisterCallback<PointerMoveEvent>(evt => SetShiftHeld(evt.shiftKey), TrickleDown.TrickleDown);
+
+            // 파일을 고르고 Delete(맥은 Backspace 도)를 누르면 그 파일들의 변경을 버릴지 Git 창 위 팝업으로 묻는다.
+            Root.RegisterCallback<KeyDownEvent>(OnDeleteKey);
+        }
+
+        private void OnDeleteKey(KeyDownEvent evt)
+        {
+            if (evt.keyCode != UnityEngine.KeyCode.Delete && evt.keyCode != UnityEngine.KeyCode.Backspace)
+            {
+                return;
+            }
+            // 입력란 안의 지우기 키는 글자를 지우는 것이다.
+            if (evt.target is VisualElement target && (target is TextField || target.GetFirstAncestorOfType<TextField>() != null))
+            {
+                return;
+            }
+            bool staged = _selectedStaged.Count > 0;
+            List<GitStatusEntry> selected = staged ? _selectedStaged : _selectedUnstaged;
+            if (selected.Count == 0)
+            {
+                return;
+            }
+            evt.StopPropagation();
+            Discard(selected.ToList(), staged);
         }
 
         private void OnShiftKey<T>(KeyboardEventBase<T> evt) where T : KeyboardEventBase<T>, new()
@@ -491,19 +515,36 @@ namespace GitVersionControl
             RunPredicted(GitText.Get("op.unstage"), () => _services.Commands.UnstageAsync(targets), status => GitStaging.PredictUnstage(status, paths));
         }
 
-        private async void Discard(IEnumerable<GitStatusEntry> entries)
+        /// <summary>
+        /// 변경을 버린다. 되돌릴 수 없으므로 Git 창 위 팝업(<see cref="GitConfirmDialog"/>)으로 한 번 더 묻는다.
+        /// Unstaged 면 작업 트리 쪽만(stage 한 내용은 남는다), Staged 면 stage 한 것까지 마지막 커밋 상태로 되돌린다. 새 파일은 지운다.
+        /// </summary>
+        private async void Discard(IEnumerable<GitStatusEntry> entries, bool staged = false)
         {
             if (_services.Runner.IsBusy)
             {
                 return;
             }
-            List<GitStatusEntry> targets = WithPairs(entries, _unstagedEntries);
-            string list = string.Join("\n", targets.Take(10).Select(e => e.ProjectPath ?? e.RepoPath));
-            if (_services.Dialogs.Confirm(GitText.Get("staging.discard"), GitText.Format("staging.discardMessage", list), GitText.Get("op.discard")) == false)
+            List<GitStatusEntry> targets = WithPairs(entries, staged ? _stagedEntries : _unstagedEntries);
+            if (targets.Count == 0)
             {
                 return;
             }
-            await _services.Runner.RunAsync(GitText.Get("op.discard"), () => _services.Commands.DiscardWorkTreeAsync(targets), refreshAssets: true);
+            string list = string.Join("\n", targets.Take(10).Select(e => e.ProjectPath ?? e.RepoPath))
+                          + (targets.Count > 10 ? GitText.Format("pending.discardMore", targets.Count - 10) : string.Empty);
+            string title = targets.Count > 1 ? GitText.Format("staging.discardSelected", targets.Count) : GitText.Get("staging.discard");
+            string message = GitText.Format(staged ? "staging.discardStagedMessage" : "staging.discardMessage", list);
+            // Fork 방식은 Fork 처럼 파일 목록 없이 짧게 묻는 경고창.
+            Task<bool> confirm = _shiftForAll
+                ? GitConfirmDialog.ShowAlertAsync(_services, ActionGlyphKind.Undo, GitText.Get("staging.discardAlertTitle"),
+                    GitText.Get(staged ? "staging.discardAlertStagedMessage" : "staging.discardAlertMessage"), GitText.Get("staging.discardAlertOk"))
+                : GitConfirmDialog.ShowAsync(_services, ActionGlyphKind.Undo, title, message, GitText.Get("op.discard"));
+            if (await confirm == false || _services.Runner.IsBusy)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Get("op.discard"),
+                () => staged ? _services.Commands.DiscardAsync(targets) : _services.Commands.DiscardWorkTreeAsync(targets), refreshAssets: true);
         }
     }
 }

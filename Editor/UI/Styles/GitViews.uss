@@ -638,3 +638,63 @@
     white-space: normal;
     color: var(--git-text);
 }
+
+/* ── confirm-dialog--alert: Fork(macOS 경고창) 모양. 좁은 둥근 카드에 아이콘·질문·안내를 위아래로 쌓고, 버튼 둘을 같은 폭으로 ─── */
+.confirm-dialog.confirm-dialog--alert {
+    width: 260px;
+    padding: 18px 16px 16px 16px;
+    border-radius: 14px;
+}
+
+.confirm-dialog--alert .branch-dialog__header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.confirm-dialog--alert .branch-dialog__badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    margin: 0 0 14px 0;
+}
+
+.confirm-dialog--alert .branch-dialog__badge-glyph {
+    width: 30px;
+    height: 30px;
+}
+
+.confirm-dialog--alert .confirm-dialog__title {
+    flex-grow: 0;
+    align-self: stretch;
+    margin-right: 0;
+    font-size: 13px;
+}
+
+.confirm-dialog--alert .confirm-dialog__message {
+    margin: 0 0 6px 0;
+    color: var(--git-text);
+}
+
+.confirm-dialog--alert .branch-dialog__buttons {
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.confirm-dialog--alert .branch-dialog__create,
+.confirm-dialog--alert .branch-dialog__cancel {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+    height: 26px;
+    margin: 0;
+    border-radius: 7px;
+}
+
+.confirm-dialog--alert .branch-dialog__cancel {
+    margin-right: 8px;
+}
+
+.confirm-dialog--alert .branch-dialog__create {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
+}
