@@ -108,13 +108,26 @@ namespace GitVersionControl
             return Path.GetFullPath(Path.Combine(GitRepository.RepoRoot, path));
         }
 
+        /// <summary>
+        /// 썸네일을 기억하는 기준: 경로·크기·수정 시각. 작업 사본이 LFS 주소 파일이면 원본을 받아 뒀는지도 넣는다 —
+        /// 주소 파일은 원본을 받아도 그대로라, 넣지 않으면 받기 전에 기억한 "썸네일 없음" 이 계속 남는다.
+        /// </summary>
         /// <returns>파일이 없으면 null.</returns>
         private static string ThumbnailKey(string fullPath)
         {
             try
             {
                 FileInfo info = new(fullPath);
-                return info.Exists ? $"{fullPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}" : null;
+                if (info.Exists == false)
+                {
+                    return null;
+                }
+                string key = $"{fullPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+                if (info.Length < GitLfs.MaxPointerBytes && GitLfs.ReadPointer(fullPath) is (string oid, long size))
+                {
+                    key += GitLfs.LocalObjectPath(GitRepository.GitDir, oid, size) != null ? "|lfs-local" : "|lfs-missing";
+                }
+                return key;
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException || e is NotSupportedException)
             {
