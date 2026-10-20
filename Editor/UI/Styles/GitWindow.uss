@@ -449,6 +449,16 @@
 .git-toolbar__icon {
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.unity-toolbar-button.git-toolbar__icon-button {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 .git-sidebar {

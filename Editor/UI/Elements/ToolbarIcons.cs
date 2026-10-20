@@ -10,6 +10,8 @@ namespace GitVersionControl
         {
             Image icon = new() { image = EditorGUIUtility.IconContent("Refresh").image };
             icon.AddToClassList("git-toolbar__icon");
+            // 글자 대신 아이콘만 있는 버튼: 아이콘을 버튼 높이 가운데에 둔다(기본 도구 막대 버튼은 글자 기준이라 위로 붙는다).
+            button.AddToClassList("git-toolbar__icon-button");
             button.text = string.Empty;
             button.Add(icon);
         }
