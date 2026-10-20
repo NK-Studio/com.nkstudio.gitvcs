@@ -392,6 +392,25 @@
 }
 
 /* ── 바이너리 파일 카드(이미지 밖, 또는 새로 만든·지운 이미지): Fork 처럼 상태·아이콘·확장자·크기 ─────────── */
+/* ── LFS 원본 없음 안내 ───────────────────────── */
+.git-diff-lfs {
+    flex-grow: 1;
+    align-items: center;
+    padding: 24px 16px 0 16px;
+}
+
+.git-diff-lfs__message {
+    margin-bottom: 12px;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+    white-space: normal;
+}
+
+.git-diff-lfs__button {
+    margin-top: 4px;
+    padding: 4px 12px;
+}
+
 .git-diff-binary {
     flex-grow: 1;
     align-items: center;

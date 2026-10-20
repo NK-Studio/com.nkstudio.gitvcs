@@ -22,8 +22,10 @@ namespace GitVersionControl
 
         /// <summary>
         /// 이미지 diff 용으로 양쪽 판의 이미지를 텍스처로 읽는다. 받은 쪽이 <see cref="GitImagePair.Dispose"/> 로 텍스처를 지운다.
+        /// LFS 원본이 없는 쪽은 텍스처 대신 <see cref="GitImageSide.LfsPointerSize"/> 가 찬다.
         /// </summary>
-        Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target);
+        /// <param name="fetchLfs">true 면 저장소가 받지 않게 막아 둔 LFS 원본(<c>lfs.fetchexclude</c>)도 이 파일의 두 판만 내려받는다.</param>
+        Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target, bool fetchLfs = false);
 
         /// <summary>
         /// 바이너리 파일 카드(Fork 처럼 "created · 242 KB")에 쓸 양쪽 판의 크기(바이트). 없는 쪽(추가·삭제)은 null.
@@ -47,6 +49,13 @@ namespace GitVersionControl
         /// 아무 내용도 없는 git 트리. 최초 커밋의 "부모"로 쓴다(git 이 모든 저장소에 대해 같은 해시로 알고 있다).
         /// </summary>
         private const string EmptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+        private const int DefaultExtractTimeoutMs = 60_000;
+
+        /// <summary>
+        /// LFS 원본 내려받기. 수백 MB 짜리 PSB 도 있어 넉넉히 둔다.
+        /// </summary>
+        private const int LfsFetchTimeoutMs = 10 * 60_000;
 
         private readonly IDialogService _dialogs;
 
@@ -91,12 +100,12 @@ namespace GitVersionControl
             return (GitDiff.Parse(result.Output), null);
         }
 
-        public async Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target)
+        public async Task<(GitImagePair pair, string error)> LoadImagesAsync(GitDiffTarget target, bool fetchLfs = false)
         {
             string directory = CreateTempDirectory();
             try
             {
-                (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, directory);
+                (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, directory, fetchLfs);
                 if (error != null)
                 {
                     return (null, error);
@@ -159,8 +168,15 @@ namespace GitVersionControl
 
         private static string LoadSide(GitImageSide side, string path)
         {
-            (Texture2D texture, string error) = GitImageLoader.Load(path);
+            // LFS 원본을 받지 않은 파일은 주소 파일만 있다. 이미지로 읽으려다 "읽지 못함" 이 되지 않게 따로 표시한다.
+            side.LfsPointerSize = GitLfs.ReadPointerSize(path);
+            if (side.LfsPointerSize != null)
+            {
+                return null;
+            }
+            (Texture2D texture, int? layerCount, string error) = GitImageLoader.Load(path);
             side.Texture = texture;
+            side.LayerCount = texture != null ? layerCount : null;
             side.ByteSize = texture != null ? new FileInfo(path).Length : 0;
             return error;
         }
@@ -282,7 +298,8 @@ namespace GitVersionControl
         /// 임시 파일은 <paramref name="directory"/>(프로젝트 Temp 아래)에 두어 에디터를 끄면 Unity 가 정리한다.
         /// </summary>
         /// <returns>두 파일 경로와 각 판 이름(커밋 앞 8자리·Staged·작업 사본·없음).</returns>
-        private async Task<(string left, string right, string leftLabel, string rightLabel, string error)> MaterializeAsync(GitDiffTarget target, string directory)
+        /// <param name="fetchLfs">true 면 LFS 원본을 막아 둔 저장소 설정을 이번만 비워 두 판의 원본을 받는다. 작업 사본이 주소 파일이면 그 원본도 임시 파일로 받는다(작업 사본은 건드리지 않는다).</param>
+        private async Task<(string left, string right, string leftLabel, string rightLabel, string error)> MaterializeAsync(GitDiffTarget target, string directory, bool fetchLfs = false)
         {
             string fileName = Path.GetFileNameWithoutExtension(target.RepoPath);
             string extension = Path.GetExtension(target.RepoPath);
@@ -331,7 +348,7 @@ namespace GitVersionControl
 
             string leftLabel = hasLeft ? LabelOf(leftRevision) : GitText.Get("diff.none");
             string left = Path.Combine(directory, $"{fileName}.{leftLabel}{extension}");
-            string error = await ExtractAsync(hasLeft ? leftRevision : null, target.LeftPath, left);
+            string error = await ExtractAsync(hasLeft ? leftRevision : null, target.LeftPath, left, fetchLfs);
             if (error != null)
             {
                 return (null, null, null, null, error);
@@ -348,12 +365,22 @@ namespace GitVersionControl
                     right = Path.Combine(directory, $"{fileName}.deleted{extension}");
                     File.WriteAllBytes(right, Array.Empty<byte>());
                 }
+                else if (fetchLfs && GitLfs.ReadPointerSize(right) != null)
+                {
+                    string smudged = Path.Combine(directory, $"{fileName}.{rightLabel}{extension}");
+                    error = await SmudgeAsync(right, target.RepoPath, smudged);
+                    if (error != null)
+                    {
+                        return (null, null, null, null, error);
+                    }
+                    right = smudged;
+                }
             }
             else
             {
                 rightLabel = hasRight ? LabelOf(rightRevision) : GitText.Get("diff.none");
                 right = Path.Combine(directory, $"{fileName}.{rightLabel}{extension}");
-                error = await ExtractAsync(hasRight ? rightRevision : null, target.RepoPath, right);
+                error = await ExtractAsync(hasRight ? rightRevision : null, target.RepoPath, right, fetchLfs);
                 if (error != null)
                 {
                     return (null, null, null, null, error);
@@ -363,14 +390,31 @@ namespace GitVersionControl
         }
 
         /// <param name="revision">null 이면 빈 파일을 만든다.</param>
-        private static async Task<string> ExtractAsync(string revision, string repoPath, string outputPath)
+        /// <param name="fetchLfs">true 면 받지 않게 막아 둔 LFS 원본도 이 판 하나만 내려받는다.</param>
+        private static async Task<string> ExtractAsync(string revision, string repoPath, string outputPath, bool fetchLfs = false)
         {
             if (revision == null)
             {
                 File.WriteAllBytes(outputPath, Array.Empty<byte>());
                 return null;
             }
-            GitResult result = await GitCommand.RunToFileAsync(GitRepository.RepoRoot, new[] { "cat-file", "--filters", $"{revision}:{repoPath}" }, outputPath);
+            List<string> args = new();
+            if (fetchLfs)
+            {
+                args.AddRange(GitLfs.FetchAllArguments);
+            }
+            args.AddRange(new[] { "cat-file", "--filters", $"{revision}:{repoPath}" });
+            GitResult result = await GitCommand.RunToFileAsync(GitRepository.RepoRoot, args, outputPath, fetchLfs ? LfsFetchTimeoutMs : DefaultExtractTimeoutMs);
+            return result.Success ? null : result.Message;
+        }
+
+        /// <summary>
+        /// 작업 사본에 남은 LFS 주소 파일을 원본으로 바꿔 <paramref name="outputPath"/> 에 쓴다(<c>git lfs smudge</c>). 작업 사본 파일은 그대로 둔다.
+        /// </summary>
+        private static async Task<string> SmudgeAsync(string pointerPath, string repoPath, string outputPath)
+        {
+            List<string> args = new(GitLfs.FetchAllArguments) { "lfs", "smudge", "--", repoPath };
+            GitResult result = await GitCommand.RunToFileAsync(GitRepository.RepoRoot, args, outputPath, LfsFetchTimeoutMs, inputPath: pointerPath);
             return result.Success ? null : result.Message;
         }
 

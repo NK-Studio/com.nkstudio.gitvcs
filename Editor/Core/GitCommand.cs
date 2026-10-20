@@ -156,11 +156,13 @@ namespace GitVersionControl
 
         /// <summary>
         /// stdout 을 글자로 바꾸지 않고 그대로 파일에 쓴다(<c>git show 리비전:경로</c> 로 그림·바이너리 원본을 꺼낼 때).
-        /// <see cref="GitResult.Output"/> 은 비어 있다.
+        /// <see cref="GitResult.Output"/> 은 비어 있다. LFS 원본을 내려받을 수도 있어 패키지 로그인 토큰을 <see cref="Run"/> 처럼 붙인다.
         /// </summary>
-        public static Task<GitResult> RunToFileAsync(string workingDirectory, IReadOnlyList<string> args, string outputPath, int timeoutMs = DefaultTimeoutMs)
+        /// <param name="inputPath">표준 입력으로 흘려 넣을 파일(<c>git lfs smudge</c> 에 주소 파일을 줄 때). null 이면 바로 닫는다.</param>
+        public static Task<GitResult> RunToFileAsync(string workingDirectory, IReadOnlyList<string> args, string outputPath, int timeoutMs = DefaultTimeoutMs, string inputPath = null)
         {
             string gitPath = GitVcsSettings.instance.GitExecutable;
+            string tokenOverride = GitAuth.TokenOverride;
             return Task.Run(() =>
             {
                 GitLocator.Location git = GitLocator.Resolve(gitPath);
@@ -168,9 +170,10 @@ namespace GitVersionControl
                 {
                     return new GitResult(-1, string.Empty, git.Hint);
                 }
+                IReadOnlyList<string> finalArgs = string.IsNullOrEmpty(tokenOverride) ? args : GitAuth.TokenHelperArguments().Concat(args).ToList();
                 ProcessStartInfo startInfo = new(git.Path)
                 {
-                    Arguments = BuildArguments(args),
+                    Arguments = BuildArguments(finalArgs),
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -182,12 +185,21 @@ namespace GitVersionControl
                 startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
                 startInfo.EnvironmentVariables["GIT_OPTIONAL_LOCKS"] = "0";
                 startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+                if (string.IsNullOrEmpty(tokenOverride) == false)
+                {
+                    startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;
+                }
                 try
                 {
                     using Process process = Process.Start(startInfo);
                     if (process == null)
                     {
                         return new GitResult(-1, string.Empty, GitText.Format("command.startFailed", gitPath));
+                    }
+                    if (inputPath != null)
+                    {
+                        using System.IO.FileStream input = System.IO.File.OpenRead(inputPath);
+                        input.CopyTo(process.StandardInput.BaseStream);
                     }
                     process.StandardInput.Close();
                     // stdout 을 비우는 동안 stderr 파이프가 차서 멈추지 않도록 따로 읽는다(Run 과 같은 이유로 전용 스레드).

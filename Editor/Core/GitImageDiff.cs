@@ -68,13 +68,13 @@ namespace GitVersionControl
         private static readonly string[] DirectExtensions = { ".png", ".jpg", ".jpeg" };
 
         /// <summary>
-        /// Unity 텍스처 임포터로 읽는 형식.
+        /// Unity 텍스처 임포터로 읽는 형식. PSD·PSB 는 임포터 없이 <see cref="GitPsd"/> 로 읽는다.
         /// </summary>
-        private static readonly string[] ImporterExtensions = { ".tga", ".psd", ".exr", ".tif", ".tiff", ".bmp", ".gif", ".hdr", ".iff", ".pict" };
+        private static readonly string[] ImporterExtensions = { ".tga", ".exr", ".tif", ".tiff", ".bmp", ".gif", ".hdr", ".iff", ".pict" };
 
         public static bool IsImage(string path)
         {
-            return CanDecodeDirectly(path) || HasExtension(path, ImporterExtensions);
+            return CanDecodeDirectly(path) || GitPsd.IsPsd(path) || HasExtension(path, ImporterExtensions);
         }
 
         public static bool CanDecodeDirectly(string path)

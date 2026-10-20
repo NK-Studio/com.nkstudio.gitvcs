@@ -41,6 +41,9 @@ namespace GitVersionControl
             "returned error: 403",
             "permission to ",
             "the requested url returned error: 404",
+            // git-lfs: 권한 없는 계정이 비공개 저장소의 LFS 원본을 받으려 할 때.
+            "batch response: not found",
+            "batch response: authentication required",
         };
 
         // gh 2.40+ "Logged in to github.com account NAME", 그 전 "Logged in to github.com as NAME".

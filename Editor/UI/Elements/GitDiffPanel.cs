@@ -69,6 +69,10 @@ namespace GitVersionControl
         private Button _nextButton;
         private readonly GitImageDiffView _imageView;
         private readonly VisualElement _binaryView;
+        private readonly VisualElement _lfsView;
+        private readonly Label _lfsMessage;
+        private readonly Button _lfsFetchButton;
+        private readonly Button _lfsAccountButton;
         private bool _isImageMode;
 
         private ToolbarButton _closeButton;
@@ -123,6 +127,22 @@ namespace GitVersionControl
             // 이미지 파일이면 줄 목록 대신 이 뷰가 보인다.
             _imageView = new GitImageDiffView();
             Root.Add(_imageView.Root);
+
+            // LFS 원본을 받지 않은 이미지(저장소가 lfs.fetchexclude 로 막아 둔 아트 원본 등)는 안내와 "이 파일 원본 받기" 버튼.
+            _lfsView = new VisualElement();
+            _lfsView.AddToClassList("git-diff-lfs");
+            _lfsMessage = new Label();
+            _lfsMessage.AddToClassList("git-diff-lfs__message");
+            _lfsView.Add(_lfsMessage);
+            _lfsFetchButton = new Button(FetchLfs);
+            _lfsFetchButton.AddToClassList("git-diff-lfs__button");
+            _lfsView.Add(_lfsFetchButton);
+            // 계정 문제로 못 받았을 때만 보인다. 이 창은 Git 창과 따로 떠서 계정 팝업 대신 Project Settings > Git 을 연다.
+            _lfsAccountButton = new Button(() => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath)) { text = GitText.Get("lfs.chooseAccount") };
+            _lfsAccountButton.AddToClassList("git-diff-lfs__button");
+            _lfsView.Add(_lfsAccountButton);
+            _lfsView.SetVisible(false);
+            Root.Add(_lfsView);
 
             // 바이너리 파일(이미지 밖)이면 줄 목록 대신 파일 카드가 보인다(Fork 와 같다).
             _binaryView = new VisualElement();
@@ -283,6 +303,66 @@ namespace GitVersionControl
             _addedStat.SetVisible(isImage == false);
             _removedStat.SetVisible(isImage == false);
             _imageView.Root.SetVisible(false);
+            _lfsView.SetVisible(false);
+        }
+
+        /// <summary>
+        /// LFS 원본이 없다는 안내와 받기 버튼을 보인다.
+        /// </summary>
+        /// <param name="failure">방금 받기에 실패했으면 그 이유(안내 아래에 덧붙인다).</param>
+        private void ShowLfsMissing(long missingBytes, string failure)
+        {
+            _imageView.Clear();
+            _imageView.Root.SetVisible(false);
+            _notice.SetVisible(false);
+            string message = GitText.Get("lfs.missing");
+            bool isAuthFailure = failure != null && GitAuth.IsAuthFailure(failure);
+            if (isAuthFailure)
+            {
+                // GitHub 는 권한 없는 계정에게 비공개 저장소를 "Not Found" 로 답한다. git-lfs 의 긴 오류 대신 고치는 법을 보인다.
+                message += "\n\n" + GitText.Get("lfs.authFailed");
+            }
+            else if (failure != null)
+            {
+                message += "\n\n" + GitText.Format("lfs.fetchFailed", FirstLine(failure));
+            }
+            _lfsMessage.text = message;
+            _lfsAccountButton.SetVisible(isAuthFailure);
+            _lfsFetchButton.text = missingBytes > 0
+                ? GitText.Format("lfs.fetchWithSize", GitImageDiff.FormatBytes(missingBytes))
+                : GitText.Get("lfs.fetch");
+            _lfsFetchButton.SetEnabled(true);
+            _lfsView.SetVisible(true);
+        }
+
+        /// <summary>
+        /// git-lfs 오류에서 사람이 읽을 첫 줄("Downloading …" 진행 줄은 건너뛴다).
+        /// </summary>
+        private static string FirstLine(string message)
+        {
+            foreach (string line in message.Split('\n'))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Length > 0 && trimmed.StartsWith("Downloading ", StringComparison.Ordinal) == false)
+                {
+                    return trimmed;
+                }
+            }
+            return message.Trim();
+        }
+
+        /// <summary>
+        /// 이 파일의 두 판만 LFS 원본을 받아 다시 보인다. 받은 원본은 .git/lfs 에 남아 다음부터는 바로 보인다.
+        /// </summary>
+        private void FetchLfs()
+        {
+            if (_target == null)
+            {
+                return;
+            }
+            _lfsFetchButton.SetEnabled(false);
+            _lfsFetchButton.text = GitText.Get("lfs.fetching");
+            LoadImagesAsync(++_loadVersion, fetchLfs: true);
         }
 
         private VisualElement BuildToolbar()
@@ -513,15 +593,29 @@ namespace GitVersionControl
             }
         }
 
-        private async void LoadImagesAsync(int version)
+        private async void LoadImagesAsync(int version, bool fetchLfs = false)
         {
-            (GitImagePair pair, string error) = await _service.LoadImagesAsync(_target);
+            (GitImagePair pair, string error) = await _service.LoadImagesAsync(_target, fetchLfs);
             if (version != _loadVersion)
             {
                 pair?.Dispose();
                 return;
             }
             HideLoading();
+            if (fetchLfs && error != null)
+            {
+                // 받기에 실패했다(권한·네트워크 등). 안내를 남겨 다시 누를 수 있게 한다.
+                ShowLfsMissing(0, error);
+                return;
+            }
+            if (pair != null && pair.IsMissingLfs)
+            {
+                long missingBytes = pair.MissingLfsBytes;
+                pair.Dispose();
+                ShowLfsMissing(missingBytes, fetchLfs ? GitText.Get("lfs.stillMissing") : null);
+                return;
+            }
+            _lfsView.SetVisible(false);
             if (error != null)
             {
                 _imageView.Clear();

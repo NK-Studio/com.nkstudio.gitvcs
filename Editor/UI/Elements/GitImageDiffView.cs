@@ -309,7 +309,7 @@ namespace GitVersionControl
             string[] others = other != null && other.Exists ? PropertyValues(other) : null;
             for (int i = 0; i < values.Length; i++)
             {
-                bool changed = others != null && values[i] != others[i];
+                bool changed = others != null && (i >= others.Length || values[i] != others[i]);
                 column.Add(PropertyLine(i + 1, values[i], changed, changedModifier));
             }
             return column;
@@ -317,12 +317,13 @@ namespace GitVersionControl
 
         private static string[] PropertyValues(GitImageSide side)
         {
-            return new[]
-            {
-                GitText.Format("imageDiff.propertySize", GitImageDiff.FormatBytes(side.ByteSize), side.ByteSize.ToString("N0", CultureInfo.InvariantCulture)),
-                GitText.Format("imageDiff.propertyFormat", string.IsNullOrEmpty(side.Format) ? "-" : side.Format.ToLowerInvariant()),
-                GitText.Format("imageDiff.propertyDimensions", side.Width, side.Height),
-            };
+            string size = GitText.Format("imageDiff.propertySize", GitImageDiff.FormatBytes(side.ByteSize), side.ByteSize.ToString("N0", CultureInfo.InvariantCulture));
+            string format = GitText.Format("imageDiff.propertyFormat", string.IsNullOrEmpty(side.Format) ? "-" : side.Format.ToLowerInvariant());
+            string dimensions = GitText.Format("imageDiff.propertyDimensions", side.Width, side.Height);
+            // PSD·PSB 는 레이어 수를 한 줄 더 보인다.
+            return side.LayerCount is int layers
+                ? new[] { size, format, dimensions, GitText.Format("imageDiff.propertyLayers", layers) }
+                : new[] { size, format, dimensions };
         }
 
         private static VisualElement PropertyLine(int number, string text, bool changed, string changedModifier)

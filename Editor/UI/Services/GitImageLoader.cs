@@ -28,6 +28,18 @@ namespace GitVersionControl
         /// </summary>
         public string Format;
 
+        /// <summary>
+        /// PSD·PSB 의 레이어 수(그룹 포함). 다른 형식이면 null.
+        /// </summary>
+        public int? LayerCount;
+
+        /// <summary>
+        /// 이 판이 LFS 주소 파일뿐이면(원본을 받지 않았다) 원본 크기. 그러면 <see cref="Texture"/> 는 null 이다.
+        /// </summary>
+        public long? LfsPointerSize;
+
+        public bool IsMissingLfs => LfsPointerSize != null;
+
         public bool Exists => Texture != null;
         public int Width => Texture != null ? Texture.width : 0;
         public int Height => Texture != null ? Texture.height : 0;
@@ -47,6 +59,16 @@ namespace GitVersionControl
         public GitImageSide Left;
         public GitImageSide Right;
 
+        /// <summary>
+        /// 한쪽이라도 LFS 원본이 없어 비교할 수 없다.
+        /// </summary>
+        public bool IsMissingLfs => (Left?.IsMissingLfs ?? false) || (Right?.IsMissingLfs ?? false);
+
+        /// <summary>
+        /// 받아야 할 LFS 원본 크기의 합(바이트).
+        /// </summary>
+        public long MissingLfsBytes => (Left?.LfsPointerSize ?? 0) + (Right?.LfsPointerSize ?? 0);
+
         public void Dispose()
         {
             Left?.Dispose();
@@ -56,7 +78,7 @@ namespace GitVersionControl
 
     /// <summary>
     /// 이미지 파일을 메모리 텍스처로 읽는다. 메인 스레드에서만 부른다.
-    /// PNG·JPG 는 <see cref="ImageConversion.LoadImage(Texture2D, byte[])"/> 로 바로 읽고, 그 외(TGA·PSD·EXR 등)는
+    /// PNG·JPG 는 <see cref="ImageConversion.LoadImage(Texture2D, byte[])"/> 로, PSD·PSB 는 <see cref="GitPsd"/> 로 바로 읽고, 그 외(TGA·EXR 등)는
     /// <see cref="TempFolder"/> 에 잠깐 복사해 Unity 텍스처 임포터로 읽은 뒤 바로 지운다. 프로젝트에 이미 임포트된 텍스처를 쓰지 않는 이유:
     /// 압축·최대 크기 설정이 원본 픽셀을 바꿔 공정한 비교가 안 된다.
     /// </summary>
@@ -64,30 +86,69 @@ namespace GitVersionControl
     {
         public const string TempFolder = "Assets/GitVcsImageDiffTemp";
 
-        /// <returns>파일이 없거나 비어 있으면 texture 도 error 도 null(그쪽은 "없음").</returns>
-        public static (Texture2D texture, string error) Load(string path)
+        /// <returns>파일이 없거나 비어 있으면 texture 도 error 도 null(그쪽은 "없음"). layerCount 는 PSD·PSB 일 때만 있다.</returns>
+        public static (Texture2D texture, int? layerCount, string error) Load(string path)
         {
             if (File.Exists(path) == false || new FileInfo(path).Length == 0)
             {
-                return (null, null);
+                return (null, null, null);
             }
             try
             {
+                if (GitPsd.IsPsd(path))
+                {
+                    return LoadPsd(path);
+                }
                 Texture2D texture = GitImageDiff.CanDecodeDirectly(path) ? LoadDirect(path) : LoadWithImporter(path);
                 if (texture == null)
                 {
-                    return (null, GitText.Format("imageDiff.decodeFailed", Path.GetFileName(path)));
+                    return (null, null, GitText.Format("imageDiff.decodeFailed", Path.GetFileName(path)));
                 }
-                texture.hideFlags = HideFlags.HideAndDontSave;
-                // 확대했을 때 픽셀 하나하나가 또렷하게 보이도록.
-                texture.filterMode = FilterMode.Point;
-                texture.wrapMode = TextureWrapMode.Clamp;
-                return (texture, null);
+                return (Prepare(texture), null, null);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException)
             {
-                return (null, e.Message);
+                return (null, null, e.Message);
             }
+        }
+
+        private static Texture2D Prepare(Texture2D texture)
+        {
+            texture.hideFlags = HideFlags.HideAndDontSave;
+            // 확대했을 때 픽셀 하나하나가 또렷하게 보이도록.
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            return texture;
+        }
+
+        /// <summary>
+        /// PSD·PSB 는 임포터를 거치지 않고 직접 해석한다. 2D PSD Importer 가 깔린 프로젝트에서도 레이어를 펼친 원본 그대로 비교되고,
+        /// 프로젝트에 임시 에셋을 만들지 않으며 PSB 도 읽는다.
+        /// </summary>
+        private static (Texture2D texture, int? layerCount, string error) LoadPsd(string path)
+        {
+            GitPsdImage image;
+            try
+            {
+                image = GitPsd.Decode(File.ReadAllBytes(path));
+            }
+            catch (Exception e) when (e is InvalidDataException || e is NotSupportedException || e is IndexOutOfRangeException || e is OverflowException)
+            {
+                return (null, null, GitText.Format("imageDiff.decodeFailed", Path.GetFileName(path)) + " " + e.Message);
+            }
+            if (image.Width <= 0 || image.Height <= 0)
+            {
+                return (null, null, GitText.Format("imageDiff.decodeFailed", Path.GetFileName(path)));
+            }
+            if (image.Width > SystemInfo.maxTextureSize || image.Height > SystemInfo.maxTextureSize)
+            {
+                return (null, null, GitText.Format("imageDiff.tooLarge", Path.GetFileName(path), image.Width, image.Height, SystemInfo.maxTextureSize));
+            }
+
+            Texture2D texture = new(image.Width, image.Height, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+            texture.SetPixels32(image.Pixels);
+            texture.Apply(false, false);
+            return (Prepare(texture), image.LayerCount, null);
         }
 
         private static Texture2D LoadDirect(string path)

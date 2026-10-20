@@ -11,6 +11,7 @@ namespace GitVersionControl.Tests
         [TestCase("remote: Permission to o/r.git denied to someone.\nfatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 403")]
         [TestCase("fatal: could not read Username for 'https://github.com': terminal prompts disabled")]
         [TestCase("remote: Invalid username or password.\nfatal: Authentication failed for 'https://github.com/o/r.git/'")]
+        [TestCase("Error downloading a.psd (1975858): Smudge error: Error downloading a.psd (1975858): batch response: Not Found")]
         public void Test_IsAuthFailure_AuthErrors_True(string message)
         {
             Assert.IsTrue(GitAuth.IsAuthFailure(message));
