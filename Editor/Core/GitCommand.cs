@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -53,7 +54,9 @@ namespace GitVersionControl
             return Task.Run(() => Run(gitPath, workingDirectory, args, DefaultTimeoutMs, environment));
         }
 
-        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs, IReadOnlyDictionary<string, string> environment = null)
+        /// <param name="input">표준 입력에 쓸 글(<c>git credential fill</c> 의 요청). null 이면 바로 닫는다.</param>
+        /// <param name="applyTokenOverride">false 면 패키지 로그인 토큰(<see cref="GitAuth.TokenOverride"/>)을 붙이지 않는다 — 다른 계정의 자격 증명을 꺼내 볼 때.</param>
+        public static GitResult Run(string gitPath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs, IReadOnlyDictionary<string, string> environment = null, string input = null, bool applyTokenOverride = true)
         {
             GitLocator.Location git = GitLocator.Resolve(gitPath);
             if (git.Found == false)
@@ -61,9 +64,26 @@ namespace GitVersionControl
                 // 그냥 "git" 으로 실행하면 macOS 에서는 Xcode 껍데기(/usr/bin/git)가 설치 창을 띄울 수 있다. 실행하지 않고 해결 방법을 돌려준다.
                 return new GitResult(-1, string.Empty, git.Hint);
             }
-            ProcessStartInfo startInfo = new(git.Path)
+            return RunProcess(git.Path, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride);
+        }
+
+        /// <summary>
+        /// git 이 아닌 도구(gh)를 git 과 같은 규칙(프롬프트 끔·PATH·시간 제한·stdout/stderr 동시 읽기)으로 실행한다. 패키지 로그인 토큰은 붙이지 않는다.
+        /// </summary>
+        public static GitResult RunTool(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
+        {
+            return RunProcess(executablePath, workingDirectory, args, timeoutMs, null, null, applyTokenOverride: false);
+        }
+
+        private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
+        {
+            string gitPath = executablePath;
+            // 이 저장소에 "패키지 로그인 쓰기" 를 골랐으면 그 토큰을 돌려주는 도우미를 앞에 붙인다. 토큰은 환경 변수로만 넘긴다(GitAuth).
+            string tokenOverride = applyTokenOverride ? GitAuth.TokenOverride : null;
+            IReadOnlyList<string> finalArgs = string.IsNullOrEmpty(tokenOverride) ? args : GitAuth.TokenHelperArguments().Concat(args).ToList();
+            ProcessStartInfo startInfo = new(executablePath)
             {
-                Arguments = BuildArguments(args),
+                Arguments = BuildArguments(finalArgs),
                 WorkingDirectory = workingDirectory,
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -81,6 +101,10 @@ namespace GitVersionControl
             startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = "1";
             // 에디터 PATH 에 git 이 없어서 시스템 PATH 로 찾은 경우에도 git-lfs·credential manager 를 찾게 한다.
             startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+            if (string.IsNullOrEmpty(tokenOverride) == false)
+            {
+                startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;
+            }
             if (environment != null)
             {
                 foreach (KeyValuePair<string, string> pair in environment)
@@ -95,6 +119,10 @@ namespace GitVersionControl
                 if (process == null)
                 {
                     return new GitResult(-1, string.Empty, GitText.Format("command.startFailed", gitPath));
+                }
+                if (input != null)
+                {
+                    process.StandardInput.Write(input);
                 }
                 process.StandardInput.Close();
 
@@ -122,7 +150,7 @@ namespace GitVersionControl
             }
             catch (System.ComponentModel.Win32Exception e)
             {
-                return new GitResult(-1, string.Empty, GitText.Format("command.notFound", git.Path, e.Message));
+                return new GitResult(-1, string.Empty, GitText.Format("command.notFound", executablePath, e.Message));
             }
         }
 

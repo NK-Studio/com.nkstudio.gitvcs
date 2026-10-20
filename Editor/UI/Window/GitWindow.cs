@@ -47,6 +47,22 @@ namespace GitVersionControl
             window.Show();
         }
 
+        /// <summary>
+        /// Git 창을 열고 그 위에 이 저장소의 GitHub 계정 고르기 팝업을 띄운다(Project Settings > Git 의 "바꾸기").
+        /// </summary>
+        public static void ChooseAccount()
+        {
+            Open();
+            GitWindow window = GetWindow<GitWindow>();
+            window.rootVisualElement.schedule.Execute(() =>
+            {
+                if (window._services != null)
+                {
+                    _ = GitAccountDialog.ShowAsync(window._services, null);
+                }
+            });
+        }
+
         private void CreateGUI()
         {
             GitText.LanguageChanged -= Rebuild;

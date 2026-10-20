@@ -83,7 +83,15 @@ namespace GitVersionControl
             caret.RegisterCallback<ClickEvent>(_ => OpenBranchPicker());
             _undo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.undo"), commands.UndoAsync, refreshAssets: true);
             _redo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.redo"), commands.RedoAsync, refreshAssets: true);
-            _fetch.Clicked += () => _ = runner.RunAsync(GitText.Get("op.fetch"), commands.FetchAsync, refreshAssets: false);
+            _fetch.Clicked += async () =>
+            {
+                GitResult result = await runner.RunAsync(GitText.Get("op.fetch"), commands.FetchAsync, refreshAssets: false);
+                if (result.Success)
+                {
+                    GitAutoFetch.ClearAuthFailure();
+                    Render();
+                }
+            };
             _pull.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pull"), commands.PullAsync, refreshAssets: true);
             _push.Clicked += () =>
             {
@@ -102,8 +110,18 @@ namespace GitVersionControl
             };
 
             commands.UndoJournal.Changed += Render;
+            GitAutoFetch.Completed += OnAutoFetchCompleted;
             _bar.RegisterCallback<GeometryChangedEvent>(evt => _bar.EnableInClassList(CompactModifier, evt.newRect.width < CompactWidth));
-            _bar.RegisterCallback<DetachFromPanelEvent>(_ => commands.UndoJournal.Changed -= Render);
+            _bar.RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                commands.UndoJournal.Changed -= Render;
+                GitAutoFetch.Completed -= OnAutoFetchCompleted;
+            });
+        }
+
+        private void OnAutoFetchCompleted(GitAutoFetchOutcome outcome)
+        {
+            Render();
         }
 
         public void Render()
@@ -130,6 +148,9 @@ namespace GitVersionControl
             _redo.Tooltip = journal.NextRedo != null ? GitText.Format("actionbar.redoTooltip", journal.NextRedo.Title) : GitText.Get("actionbar.nothingToRedo");
 
             _fetch.SetEnabled(idle && ready);
+            // 자동 fetch 가 계정 문제로 실패했으면 경고(!)를 단다. 눌러서 수동 Fetch 하면 계정 고르기 팝업이 뜬다.
+            _fetch.SetWarning(GitAutoFetch.LastFailureWasAuth);
+            _fetch.Tooltip = GitAutoFetch.LastFailureWasAuth ? GitText.Get("actionbar.fetchAuthFailed") : GitText.Get("actionbar.fetchTooltip");
             _pull.SetEnabled(idle && ready && hasUpstream);
             _pull.SetBadge(behind);
             _pull.Tooltip = GitText.Format("actionbar.pullTooltip", behind);
@@ -207,6 +228,7 @@ namespace GitVersionControl
         private sealed class ActionButton
         {
             private const string BadgeHiddenModifier = "git-action__badge--hidden";
+            private const string BadgeWarningModifier = "git-action__badge--warning";
 
             private readonly Button _button;
             private readonly Label _badge;
@@ -267,8 +289,19 @@ namespace GitVersionControl
             /// </summary>
             public void SetBadge(int count)
             {
+                _badge.RemoveFromClassList(BadgeWarningModifier);
                 _badge.EnableInClassList(BadgeHiddenModifier, count <= 0);
                 _badge.text = count > 99 ? "99+" : count.ToString();
+            }
+
+            /// <summary>
+            /// 숫자 대신 빨간 "!" 배지. 끄면 배지를 숨긴다(숫자 배지를 쓰는 버튼에는 쓰지 않는다).
+            /// </summary>
+            public void SetWarning(bool shown)
+            {
+                _badge.EnableInClassList(BadgeWarningModifier, shown);
+                _badge.EnableInClassList(BadgeHiddenModifier, shown == false);
+                _badge.text = "!";
             }
         }
     }

@@ -33,9 +33,13 @@ namespace GitVersionControl
             GitRepository.Changed -= OnRepositoryChanged;
             GitRepository.Changed += OnRepositoryChanged;
             // 에디터를 처음 열 때는 설정·에셋이 다 읽히기 전이라 한 프레임 뒤에 시작한다.
+            GitHubAccount.Changed -= GitAccounts.ApplyTokenOverride;
+            GitHubAccount.Changed += GitAccounts.ApplyTokenOverride;
             EditorApplication.delayCall += () =>
             {
                 RestoreVisibleMetaFiles();
+                // 이 저장소에 패키지 로그인을 골라 뒀으면 그 토큰을 git 에 넘긴다(도메인 리로드마다 다시 정한다).
+                GitAccounts.ApplyTokenOverride();
                 GitRepository.Start();
             };
         }

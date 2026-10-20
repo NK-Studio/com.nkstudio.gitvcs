@@ -59,6 +59,17 @@ namespace GitVersionControl
 
         public static bool IsFetching => s_fetching;
 
+        /// <summary>
+        /// 마지막 자동 fetch 가 계정 문제(<see cref="GitAuth.IsAuthFailure"/>)로 실패했는지. 도구 막대 Fetch 버튼에 경고를 단다 —
+        /// 조용히 실패하면 Pull 숫자가 오래된 값인 줄 모른다. 다음 성공(자동·수동)에서 지운다.
+        /// </summary>
+        public static bool LastFailureWasAuth { get; private set; }
+
+        public static void ClearAuthFailure()
+        {
+            LastFailureWasAuth = false;
+        }
+
         /// <summary>자동 fetch 가 끝나 결과가 나왔을 때(메인 스레드).</summary>
         public static event Action<GitAutoFetchOutcome> Completed;
 
@@ -161,6 +172,7 @@ namespace GitVersionControl
                 {
                     SessionState.SetInt(FailuresKey, 0);
                 }
+                LastFailureWasAuth = outcome == GitAutoFetchOutcome.Failed && GitAuth.IsAuthFailure(message);
                 if (outcome == GitAutoFetchOutcome.Fetched)
                 {
                     // 파일 감시가 꺼져 있어도 원격 추적 브랜치 변화가 보이게 한다. 감시가 같은 변경을 잡아도 디바운스로 한 번에 합쳐진다.

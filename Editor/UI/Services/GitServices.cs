@@ -50,8 +50,11 @@ namespace GitVersionControl
         {
             GitRepositoryState repository = new();
             EditorDialogService dialogs = new();
-            return new GitServices(repository, new GitHistoryService(), new GitCommandService(),
-                new GitOperationRunner(repository, dialogs), dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
+            GitOperationRunner runner = new(repository, dialogs);
+            GitServices services = new(repository, new GitHistoryService(), new GitCommandService(),
+                runner, dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
+            runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
+            return services;
         }
     }
 

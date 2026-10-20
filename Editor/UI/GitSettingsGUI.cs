@@ -10,8 +10,60 @@ namespace GitVersionControl
     /// </summary>
     internal static class GitSettingsGUI
     {
+        private static string s_accountText;
+        private static bool s_accountLoading;
+
+        static GitSettingsGUI()
+        {
+            GitAccounts.Changed += () =>
+            {
+                s_accountText = null;
+                SettingsService.RepaintAllSettingsWindow();
+            };
+        }
         private static string s_versionText;
         private static bool s_isBusy;
+
+        /// <summary>
+        /// "GitHub 계정(이 저장소)": 지금 쓰는 계정과 바꾸기. 계정은 git 을 불러 알아내므로 처음 그릴 때 한 번 읽고, 바꾸기 뒤에는 다시 읽는다.
+        /// </summary>
+        private static void DrawAccount()
+        {
+            if (s_accountText == null && s_accountLoading == false)
+            {
+                _ = LoadAccountAsync();
+            }
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(new GUIContent(GitText.Get("settings.account"), GitText.Get("settings.accountTooltip")), new GUIContent(s_accountText ?? GitText.Get("common.loading")));
+                if (GUILayout.Button(GitText.Get("settings.accountChange"), GUILayout.Width(80)))
+                {
+                    GitWindow.ChooseAccount();
+                }
+            }
+        }
+
+        private static async System.Threading.Tasks.Task LoadAccountAsync()
+        {
+            s_accountLoading = true;
+            try
+            {
+                (string owner, string repository)? remote = await GitAccounts.GitHubRemoteAsync();
+                if (remote == null)
+                {
+                    s_accountText = GitText.Get("settings.accountNotGitHub");
+                    return;
+                }
+                string current = await GitAccounts.CurrentUsernameAsync(remote.Value.owner, remote.Value.repository);
+                string how = await GitAccounts.ChosenDescriptionAsync() ?? GitText.Get("settings.accountDefault");
+                s_accountText = string.IsNullOrEmpty(current) ? GitText.Get("settings.accountUnknown") : $"{current}  ({how})";
+            }
+            finally
+            {
+                s_accountLoading = false;
+                SettingsService.RepaintAllSettingsWindow();
+            }
+        }
 
         public static void Draw()
         {
@@ -23,6 +75,7 @@ namespace GitVersionControl
             DrawLanguage();
             DrawTheme();
             DrawLayout();
+            DrawAccount();
 
             using (new EditorGUILayout.HorizontalScope())
             {

@@ -698,3 +698,91 @@
 .confirm-dialog--alert .branch-dialog__create {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
 }
+
+/* ── account-dialog: 이 저장소의 GitHub 계정 고르기(GitAccountDialog). 막·카드·버튼은 branch-dialog·confirm-dialog 를 쓴다 ─── */
+.confirm-dialog.account-dialog {
+    width: 540px;
+}
+
+.account-dialog__badge--failed {
+    background-color: var(--git-danger);
+}
+
+.account-dialog__list {
+    margin: 6px 0 4px 58px;
+    border-width: 1px;
+    border-radius: 6px;
+    border-color: var(--git-border);
+}
+
+.account-dialog__row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 40px;
+    padding: 4px 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.account-dialog__row:last-child {
+    border-bottom-width: 0;
+}
+
+.account-dialog__names {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.account-dialog__login {
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+}
+
+.account-dialog__source {
+    margin: 1px 0 0 0;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
+.account-dialog__access {
+    margin: 0 10px;
+    padding: 0;
+    font-size: 12px;
+}
+
+.account-dialog__access--yes {
+    color: var(--git-success);
+}
+
+.account-dialog__access--no {
+    color: var(--git-danger);
+}
+
+.account-dialog__access--unknown {
+    color: var(--git-text-muted);
+}
+
+.branch-dialog .account-dialog__use {
+    margin: 0;
+    min-width: 110px;
+}
+
+.account-dialog__empty {
+    margin: 0;
+    padding: 10px;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--git-text-muted);
+}
+
+.account-dialog__status {
+    margin: 4px 0 0 58px;
+    font-size: 11px;
+    white-space: normal;
+    color: var(--git-danger);
+}

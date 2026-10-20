@@ -47,6 +47,12 @@ namespace GitVersionControl
 
         public bool IsBusy { get; private set; }
         public string StatusText { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// 원격 작업이 인증 문제로 실패했을 때(<see cref="GitAuth.IsAuthFailure"/>) 오류 알림 대신 부른다. 계정을 골라 다시 해야 하면 true.
+        /// null 이면 다른 실패처럼 알린다. 창이 <see cref="GitAccountDialog"/> 를 넣는다.
+        /// </summary>
+        public Func<string, Task<bool>> AuthFailureHandler { get; set; }
         public event Action StateChanged;
 
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
@@ -65,8 +71,19 @@ namespace GitVersionControl
                     result = await operation();
                 }
                 // 끝나면 "~ 완료" 를 남기지 않고 비운다(GitKraken 처럼 결과는 화면이 바뀐 것으로 보인다). 실패만 남긴다.
+                // 계정이 틀렸거나 로그인이 없어 원격이 거부했으면, 오류 글 대신 어느 계정이 거부됐는지 알리고 계정을 고르게 한다(고르면 한 번 더).
+                bool authHandled = false;
+                if (result.Success == false && showErrorDialog && AuthFailureHandler != null && GitAuth.IsAuthFailure(result.Message))
+                {
+                    authHandled = true;
+                    if (await AuthFailureHandler(result.Message))
+                    {
+                        result = await operation();
+                        authHandled = false;
+                    }
+                }
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
-                if (result.Success == false && showErrorDialog)
+                if (result.Success == false && showErrorDialog && authHandled == false)
                 {
                     _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);
                 }
