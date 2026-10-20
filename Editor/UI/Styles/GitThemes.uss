@@ -175,3 +175,105 @@
 .git-theme--jetbrains .notice--error {
     border-color: var(--git-danger);
 }
+
+/* ── Unity: GitKraken 식 색 버튼 대신 Unity 에디터 기본 버튼 모양 ─────────── */
+/* Stage All·Unstage All·줄 hover 의 Stage File·Unstage File·모든 변경 버리기(휴지통)는 기본 모양(GitStaging.uss·GitRows.uss)이
+   GitKraken 처럼 초록·빨강 테두리라 Unity 에디터 안에서는 겉돈다. Unity 테마에서는 에디터 버튼처럼 회색 바탕·어두운 테두리·작은 모서리로 그리고,
+   마우스를 올리면 한 단계 밝게, 누르면 선택 색. 기본 규칙(:hover:enabled 까지)보다 세게 하려고 클래스를 겹쳐 적는다. */
+.git-theme--unity .staging .staging__button--stage,
+.git-theme--unity .staging .staging__button--unstage,
+.git-theme--unity .file-row .file-row__action--stage,
+.git-theme--unity .file-row .file-row__action--unstage,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all {
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: var(--git-button-border);
+    background-color: var(--git-button-bg);
+    color: var(--git-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
+    opacity: 1;
+}
+
+.git-theme--unity .staging .staging__button--stage:hover:enabled,
+.git-theme--unity .staging .staging__button--unstage:hover:enabled,
+.git-theme--unity .file-row .file-row__action--stage:hover:enabled,
+.git-theme--unity .file-row .file-row__action--unstage:hover:enabled,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:hover:enabled {
+    border-color: var(--git-button-border);
+    background-color: var(--git-button-hover);
+    color: var(--git-text);
+}
+
+.git-theme--unity .staging .staging__button--stage:active:enabled,
+.git-theme--unity .staging .staging__button--unstage:active:enabled,
+.git-theme--unity .file-row .file-row__action--stage:active:enabled,
+.git-theme--unity .file-row .file-row__action--unstage:active:enabled,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:active:enabled {
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+.git-theme--unity .staging .staging__button--stage:disabled,
+.git-theme--unity .staging .staging__button--unstage:disabled,
+.git-theme--unity .file-row .file-row__action:disabled,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:disabled {
+    border-color: var(--git-button-border);
+    background-color: var(--git-button-bg);
+    color: var(--git-text-muted);
+    opacity: 0.5;
+}
+
+/* 살짝의 기교: 무엇을 하는 버튼인지 바탕에 옅게 섞은 의미 색으로 알린다(밑줄 같은 한쪽 테두리 강조는 쓰지 않는다).
+   글자는 바탕과 대비가 충분한 밝은 버튼 글자색(--git-action-text) 그대로라 읽기 쉽다. 색은 Unity 테마 토큰(Themes/Unity*.uss):
+   - Stage: 회색 버튼에 차분한 초록을 섞은 바탕(--git-stage-*), Unstage·버리기: 차분한 빨강을 섞은 바탕(--git-unstage-*).
+   - 마우스를 올리면 섞은 색이 한 단계 진해지고, 누르면 의미 색이 또렷한 바탕. 테두리는 Unity 버튼 테두리 그대로. */
+.git-theme--unity .staging .staging__button--stage,
+.git-theme--unity .file-row .file-row__action--stage {
+    background-color: var(--git-stage-bg);
+    color: var(--git-action-text);
+}
+
+.git-theme--unity .staging .staging__button--unstage,
+.git-theme--unity .file-row .file-row__action--unstage {
+    background-color: var(--git-unstage-bg);
+    color: var(--git-action-text);
+}
+
+.git-theme--unity .staging .staging__button--stage:hover:enabled,
+.git-theme--unity .file-row .file-row__action--stage:hover:enabled {
+    background-color: var(--git-stage-hover);
+    color: var(--git-action-text);
+}
+
+.git-theme--unity .staging .staging__button--unstage:hover:enabled,
+.git-theme--unity .file-row .file-row__action--unstage:hover:enabled,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:hover:enabled {
+    background-color: var(--git-unstage-hover);
+    color: var(--git-action-text);
+}
+
+.git-theme--unity .staging .staging__button--stage:active:enabled,
+.git-theme--unity .file-row .file-row__action--stage:active:enabled {
+    background-color: var(--git-stage-pressed);
+    color: #ffffff;
+}
+
+.git-theme--unity .staging .staging__button--unstage:active:enabled,
+.git-theme--unity .file-row .file-row__action--unstage:active:enabled,
+.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:active:enabled {
+    background-color: var(--git-unstage-pressed);
+    color: #ffffff;
+}
+
+/* 휴지통: 평소에는 회색 버튼에 밝은 아이콘, 마우스를 올리면 버리기 색(위 :hover). 누르면 흰 아이콘. */
+.git-theme--unity .graph-workspace__discard-all .graph-workspace__discard-all-icon {
+    -unity-background-image-tint-color: var(--git-action-text);
+}
+
+.git-theme--unity .graph-workspace__discard-all:active:enabled .graph-workspace__discard-all-icon {
+    -unity-background-image-tint-color: #ffffff;
+}
+
+.git-theme--unity .graph-workspace__discard-all:disabled .graph-workspace__discard-all-icon {
+    -unity-background-image-tint-color: var(--git-text-muted);
+}

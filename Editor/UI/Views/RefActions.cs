@@ -132,7 +132,7 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
                 return;
             }
-            if (BranchActions.PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return;
             }

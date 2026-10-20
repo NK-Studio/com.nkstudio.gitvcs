@@ -16,6 +16,9 @@ namespace GitVersionControl
 
         /// <summary>이 커밋을 가리키는 참조 중 줄 이름이 아닌 것("origin/main", "tag: v0.1").</summary>
         public List<string> RefLabels = new();
+
+        /// <summary>HEAD 가 이 커밋에서 가리키는 브랜치 이름(<c>%D</c> 의 "HEAD -> main"). 아니면 null.</summary>
+        public string HeadBranch;
     }
 
     public sealed class GitGraphLane
@@ -211,6 +214,7 @@ namespace GitVersionControl
                     if (label.StartsWith("HEAD -> ", StringComparison.Ordinal))
                     {
                         label = label.Substring(8);
+                        node.HeadBranch = label;
                     }
                     if (label == "HEAD" || label.EndsWith("/HEAD", StringComparison.Ordinal))
                     {

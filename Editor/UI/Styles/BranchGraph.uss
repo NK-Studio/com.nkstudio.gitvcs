@@ -7,6 +7,12 @@
     flex-grow: 1;
     overflow: hidden;
     background-color: var(--git-graph-bg);
+    /* Painter2D 로 그리는 색(BranchGraphElement.OnCustomStyleResolved). 테마 변수는 물려받기만 해서 C# 에서 바로 읽히지 않으므로 옮겨 적는다. */
+    --graph-selection: var(--git-graph-selection);
+    --graph-search: var(--git-graph-search);
+    --graph-head: var(--git-graph-head);
+    --graph-date-band: var(--git-graph-date-band);
+    --graph-truncated: var(--git-graph-truncated);
 }
 
 .branch-graph__label {

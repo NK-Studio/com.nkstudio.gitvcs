@@ -205,6 +205,9 @@ namespace GitVersionControl
             ["graph.wip"] = new[] { "// 작업 중", "// WIP" },
             ["graph.branchNamePlaceholder"] = new[] { "브랜치 이름 입력", "enter branch name" },
             ["refs.filterPlaceholder"] = new[] { "필터", "Filter" },
+            ["branchPicker.search"] = new[] { "검색", "Search" },
+            ["branchPicker.empty"] = new[] { "일치하는 브랜치가 없습니다", "No matching branches" },
+            ["branchPicker.tooltip"] = new[] { "브랜치를 검색해 전환합니다.", "Search and switch branches." },
             ["graph.columnRefs"] = new[] { "브랜치 / 태그", "Branch / Tag" },
             ["graph.wipTitle"] = new[] { "{1} 의 변경 {0}개", "{0} changes on {1}" },
             ["graph.discardAll"] = new[] { "모든 변경 버리기", "Discard All Changes" },
@@ -297,7 +300,6 @@ namespace GitVersionControl
 
             // ── 작업 실행기 ──
             ["runner.running"] = new[] { "{0} 중…", "{0}…" },
-            ["runner.done"] = new[] { "{0} 완료", "{0} done" },
             ["runner.failed"] = new[] { "{0} 실패", "{0} failed" },
             ["op.fetch"] = new[] { "Fetch", "Fetch" },
             ["op.pull"] = new[] { "Pull", "Pull" },

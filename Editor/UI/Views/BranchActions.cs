@@ -38,7 +38,7 @@ namespace GitVersionControl
         public async Task SwitchAsync(GitBranchRef branch, ICollection<string> localNames)
         {
             GitBranchRef target = ResolveSwitchTarget(branch, localNames);
-            if (PrepareWorkingTree(_services, GitText.Format("branches.actionSwitch", target.Name)) == false)
+            if (await PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionSwitch", target.Name)) == false)
             {
                 return;
             }
@@ -54,7 +54,7 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(GitText.Get("branches.createTitle"), GitText.Format("branches.invalidName", name));
                 return false;
             }
-            if (switchTo && PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (switchTo && await PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return false;
             }
@@ -172,19 +172,22 @@ namespace GitVersionControl
             await _services.Runner.RunAsync(GitText.Format("op.setUpstream", branch.Name, upstream), () => _services.Commands.SetUpstreamAsync(branch.Name, upstream), refreshAssets: false);
         }
 
-        /// <summary>작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 알린다. 취소하면 false.</summary>
-        public static bool PrepareWorkingTree(GitServices services, string action)
+        /// <summary>
+        /// 작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 Git 창 위 팝업(<see cref="GitConfirmDialog"/>)으로 알린다. 취소하면 false.
+        /// GitKraken 배치는 GitKraken 처럼 묻지 않고 바로 진행한다 — 충돌하지 않는 변경은 따라가고, 충돌하면 git 이 전환을 거부해 아무것도 바뀌지 않는다.
+        /// </summary>
+        public static async Task<bool> PrepareWorkingTreeAsync(GitServices services, string action)
         {
             if (services.Dialogs.SaveOpenWork() == false)
             {
                 return false;
             }
             int pending = services.Repository.Entries.Count;
-            if (pending == 0)
+            if (pending == 0 || GitLayout.Style == GitLayoutStyle.GitKraken)
             {
                 return true;
             }
-            return services.Dialogs.Confirm(GitText.Get("branches.switchTitle"),
+            return await GitConfirmDialog.ShowAsync(services, ActionGlyphKind.Branch, GitText.Get("branches.switchTitle"),
                 GitText.Format("branches.pendingWarning", pending, action), GitText.Get("common.continue"));
         }
     }

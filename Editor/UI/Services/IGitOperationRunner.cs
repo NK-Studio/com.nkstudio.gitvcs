@@ -57,7 +57,8 @@ namespace GitVersionControl
             try
             {
                 result = await operation();
-                SetStatus(GitText.Format(result.Success ? "runner.done" : "runner.failed", title));
+                // 끝나면 "~ 완료" 를 남기지 않고 비운다(GitKraken 처럼 결과는 화면이 바뀐 것으로 보인다). 실패만 남긴다.
+                SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
                 if (result.Success == false && showErrorDialog)
                 {
                     _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);

@@ -99,6 +99,16 @@ namespace GitVersionControl
         /// 연필(비스듬한 몸통과 뾰족한 끝). 커밋 그래프 작업 중 줄의 제목 입력란.
         /// </summary>
         Pencil,
+
+        /// <summary>
+        /// 검색(손잡이 달린 돋보기). 작업 막대 브랜치 고르기의 검색창.
+        /// </summary>
+        Search,
+
+        /// <summary>
+        /// 아래를 향한 작은 삼각형(채움). 눌러서 펼치는 버튼 뒤에 붙인다.
+        /// </summary>
+        Caret,
     }
 
     /// <summary>
@@ -278,6 +288,18 @@ namespace GitVersionControl
                     // 오른쪽 위 끝 → 몸통 두 변 → 왼쪽 아래 촉. 끝 가까이 가로지르는 선은 지우개 경계.
                     Polyline(painter, P(13.5f, 3.5f), P(16.5f, 6.5f), P(7f, 16f), P(3.5f, 16.5f), P(4f, 13f), P(13.5f, 3.5f));
                     Polyline(painter, P(11.5f, 5.5f), P(14.5f, 8.5f));
+                    break;
+                case ActionGlyphKind.Search:
+                    DrawMagnifier(painter, P, scale);
+                    break;
+                case ActionGlyphKind.Caret:
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(5f, 7.5f));
+                    painter.LineTo(P(15f, 7.5f));
+                    painter.LineTo(P(10f, 13f));
+                    painter.ClosePath();
+                    painter.Fill();
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);

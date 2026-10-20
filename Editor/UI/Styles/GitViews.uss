@@ -616,3 +616,25 @@
 .branch-dialog .branch-dialog__cancel:hover:enabled {
     background-color: var(--git-button-hover);
 }
+
+/* ── confirm-dialog: 확인 팝업(GitConfirmDialog). 막·카드·버튼은 branch-dialog 를 그대로 쓴다 ─────────── */
+.confirm-dialog {
+    width: 460px;
+}
+
+/* 제목 줄은 닫기(×) 자리만큼 오른쪽을 비운다. */
+.confirm-dialog__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-right: 24px;
+    white-space: normal;
+}
+
+/* 안내 글: 아이콘 아래 제목 시작선(배지 44 + 간격 14)에 맞춰 들이고 줄바꿈을 그대로 보인다. */
+.confirm-dialog__message {
+    margin: 0 0 6px 58px;
+    padding: 0;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--git-text);
+}

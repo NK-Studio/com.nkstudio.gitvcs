@@ -161,6 +161,163 @@
     background-color: var(--git-hover);
 }
 
+/* 브랜치 이름 + ▾(누르면 펼친다는 표시). GitToolbar 가 버튼을 이 줄로 감싼다. 마우스를 올리면 줄 전체를 밝게(버튼만이 아니라 ▾ 까지).
+   펼쳐 있으면 ▾ 를 ▴ 로 뒤집는다. */
+.git-actionbar__branch-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+    border-radius: var(--git-radius);
+}
+
+.git-actionbar__branch-row:hover {
+    background-color: var(--git-hover);
+}
+
+.git-actionbar__branch-row > .git-actionbar__branch {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.git-actionbar__branch-row > .git-actionbar__branch:hover {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-actionbar__caret {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    margin: 0 4px 0 2px;
+    color: var(--git-text-muted);
+    cursor: link;
+}
+
+.git-actionbar__branch-row--open > .git-actionbar__caret {
+    rotate: 180deg;
+}
+
+/* ── branch-picker: 작업 막대 브랜치 이름 아래에 펼치는 브랜치 고르기(GitBranchPicker, GitKraken 과 같다) ──
+   창 전체를 덮는 투명한 막 위에 목록 상자를 띄운다. 막을 누르면 닫는다. left·top·width 는 GitBranchPicker 가 넣는다. */
+.branch-picker-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.branch-picker {
+    position: absolute;
+    padding: 8px 0 6px 0;
+    border-width: 1px;
+    border-radius: 6px;
+    border-color: var(--git-menu-border);
+    background-color: var(--git-menu-bg);
+}
+
+/* 검색창: 바깥 상자 하나만 테두리(안쪽 TextField 는 투명), 포커스면 강조색. */
+.branch-picker__field {
+    flex-direction: row;
+    align-items: center;
+    height: 30px;
+    margin: 0 8px 6px 8px;
+    padding: 0 6px 0 8px;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+}
+
+.branch-picker__field--focused {
+    border-color: var(--git-accent);
+}
+
+.branch-picker__search-glyph {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    color: var(--git-text-muted);
+}
+
+.branch-picker .branch-picker__search {
+    flex-grow: 1;
+    margin: 0;
+}
+
+.branch-picker .branch-picker__search > .unity-base-text-field__input {
+    margin: 0;
+    padding: 0 2px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 13px;
+}
+
+/* 줄 12개 높이까지만 펼치고 나머지는 스크롤. 높이는 GitBranchPicker 가 줄 수에 맞춰 넣는다. */
+.branch-picker__list {
+    flex-grow: 0;
+    max-height: 336px;
+}
+
+/* 읽는 중·걸린 것 없음은 아래 안내 글(.branch-picker__message)이 말하므로 ListView 기본 "List is empty" 는 띄우지 않는다. */
+.branch-picker__list .unity-list-view__empty-label {
+    display: none;
+}
+
+.branch-picker__row {
+    flex-direction: row;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px 0 14px;
+    cursor: link;
+}
+
+/* 마우스·↑↓ 로 고른 줄. */
+.branch-picker__row--highlight {
+    background-color: var(--git-menu-hover);
+    color: var(--git-menu-hover-text);
+}
+
+/* 지금 체크아웃한 브랜치(GitKraken 처럼 초록 바탕). 고른 줄이어도 초록을 지킨다. */
+.branch-picker__row--current,
+.branch-picker__row--current.branch-picker__row--highlight {
+    background-color: rgba(51, 191, 89, 0.28);
+    color: var(--git-text);
+}
+
+.branch-picker__glyph {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+.branch-picker__glyph--remote,
+.branch-picker__row--remote > .branch-picker__glyph--local {
+    display: none;
+}
+
+.branch-picker__row--remote > .branch-picker__glyph--remote {
+    display: flex;
+}
+
+.branch-picker__name {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+}
+
+.branch-picker__message {
+    margin: 4px 14px 2px 14px;
+    padding: 0;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--git-text-muted);
+}
+
 /* 버튼 묶음 사이 세로 구분선. */
 .git-actionbar__group {
     flex-direction: row;
@@ -398,10 +555,10 @@
     color: var(--git-text-muted);
 }
 
-/* 구역 개수: 10px 는 파란 숫자가 흐려 보여 한 단계 키운다. 색은 글자용 강조색(--git-accent-fg). */
+/* 구역 개수: 10px 는 흐려 보여 한 단계 키운다. 색은 테마 토큰(--git-section-count — JetBrains 는 강조색, Unity 는 흐린 글자색). */
 .ref-tree__row--section .ref-tree__badge {
     font-size: 11px;
-    color: var(--git-accent-fg);
+    color: var(--git-section-count);
 }
 
 /* 현재 브랜치·워크트리: 굵게, 아이콘은 강조색. */

@@ -343,6 +343,8 @@ namespace GitVersionControl
             if (repository.LastRefreshWasWorkingTreeOnly == false)
             {
                 _toolbar.RefreshStashCount();
+                // 작업 막대 브랜치 목록을 뒤에서 읽어 둔다 — 누르자마자 다 그린 목록이 보이게.
+                _ = GitBranchPicker.Prefetch();
             }
             _refs.OnRepositoryChanged();
             foreach (GitView view in _views)

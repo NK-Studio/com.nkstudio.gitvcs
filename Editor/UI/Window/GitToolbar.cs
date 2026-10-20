@@ -5,7 +5,7 @@ namespace GitVersionControl
 {
     /// <summary>
     /// 창 위쪽 작업 막대(<c>.git-actionbar</c>). GitKraken·Fork 처럼 아이콘+글자 버튼을 묶어 둔다:
-    /// 저장소·브랜치(누르면 브랜치 탭) | 가운데: 실행 취소·다시 실행 | Fetch·Pull·Push | 새 브랜치 | Stash·Pop | 오른쪽: 진행 상태 | 터미널·새로고침.
+    /// 저장소·브랜치(누르면 검색해 고르는 브랜치 목록 — <see cref="GitBranchPicker"/>) | 가운데: 실행 취소·다시 실행 | Fetch·Pull·Push | 새 브랜치 | Stash·Pop | 오른쪽: 진행 상태 | 터미널·새로고침.
     /// Pull·Push·Pop 버튼에는 받을/올릴 커밋 수와 stash 수를 숫자로 겹쳐 보인다.
     /// </summary>
     public sealed class GitToolbar
@@ -60,7 +60,27 @@ namespace GitVersionControl
 
             IGitOperationRunner runner = services.Runner;
             IGitCommandService commands = services.Commands;
-            _branchButton.clicked += navigator.FocusRefs;
+            // GitKraken 처럼 브랜치 이름을 누르면 그 아래에 검색해 고르는 목록을 펼친다. 띄울 곳이 없으면 예전처럼 사이드바 참조 트리로 간다.
+            // 이름 뒤 ▾ 는 버튼 안이 아니라 옆에 둔다 — 글자 요소(Button)에 자식을 넣으면 글자 폭을 재지 않아 이름이 사라진다.
+            VisualElement branchRow = new();
+            branchRow.AddToClassList("git-actionbar__branch-row");
+            VisualElement branchContext = _branchButton.parent;
+            branchContext.Insert(branchContext.IndexOf(_branchButton), branchRow);
+            branchRow.Add(_branchButton);
+            ActionGlyph caret = new(ActionGlyphKind.Caret) { pickingMode = PickingMode.Position };
+            caret.AddToClassList("git-actionbar__caret");
+            branchRow.Add(caret);
+            void OpenBranchPicker()
+            {
+                if (GitBranchPicker.Show(services, branchContext, open => branchRow.EnableInClassList("git-actionbar__branch-row--open", open)) == false)
+                {
+                    navigator.FocusRefs();
+                }
+            }
+            _branchButton.clicked += OpenBranchPicker;
+            // 마우스를 올리면 누르기 전에 목록을 새로 읽기 시작한다(이미 읽는 중이면 그대로).
+            branchRow.RegisterCallback<PointerEnterEvent>(_ => GitBranchPicker.Prefetch());
+            caret.RegisterCallback<ClickEvent>(_ => OpenBranchPicker());
             _undo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.undo"), commands.UndoAsync, refreshAssets: true);
             _redo.Clicked += () => _ = runner.RunAsync(GitText.Get("op.redo"), commands.RedoAsync, refreshAssets: true);
             _fetch.Clicked += () => _ = runner.RunAsync(GitText.Get("op.fetch"), commands.FetchAsync, refreshAssets: false);

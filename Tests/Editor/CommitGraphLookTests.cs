@@ -61,6 +61,21 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_CommitRefs_Of_HeadBranchNotLane_IsCurrentAndFirst()
+        {
+            GitGraphLane lane = new() { Name = "master", LastColumn = 2 };
+            GitGraphNode node = new() { Column = 2, Lane = lane, RefLabels = new List<string> { "feature/x" }, HeadBranch = "feature/x" };
+
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+
+            Assert.AreEqual(2, refs.Count);
+            Assert.AreEqual("feature/x", refs[0].Name);
+            Assert.AreEqual(CommitRefKind.Current, refs[0].Kind);
+            Assert.AreEqual("master", refs[1].Name);
+            Assert.AreEqual(CommitRefKind.Local, refs[1].Kind);
+        }
+
+        [Test]
         public void Test_CommitRefs_Of_MiddleOfLane_HasNoLaneName()
         {
             GitGraphLane lane = new() { Name = "main", LastColumn = 5 };

@@ -55,6 +55,16 @@ namespace GitVersionControl
             public VisualElement Band;
 
             /// <summary>
+            /// 고른 줄·마우스가 올라간 줄의 메시지 칸 바탕(GitKraken 과 같다).
+            /// </summary>
+            public VisualElement Highlight;
+
+            /// <summary>
+            /// 고른 줄에서 가지 색 띠를 진하게 덮는 막.
+            /// </summary>
+            public VisualElement BandGlow;
+
+            /// <summary>
             /// 이 줄 커밋의 가지 열. WIP 줄이면 -1(띠가 없다).
             /// </summary>
             public int LaneRow = -1;
@@ -65,6 +75,13 @@ namespace GitVersionControl
             public VisualElement WipEditor;
 
             public TextField WipInput;
+
+            /// <summary>
+            /// 작업 중 줄 입력란 뒤의 변경 개수(고침·추가·지움 순서의 숫자 글자). 묶음은 <see cref="WipCountsRoot"/>.
+            /// </summary>
+            public Label[] WipCounts;
+
+            public VisualElement WipCountsRoot;
 
             public VisualElement Cell(CommitGraphColumn column)
             {
@@ -147,9 +164,20 @@ namespace GitVersionControl
         private const float MinRefNameWidth = 18f;
 
         /// <summary>
-        /// "+n" 앞 간격(.commit-graph-ref__more 의 margin-left).
+        /// "+n" 앞 간격(.commit-graph-ref__more 의 margin-left). 이 틈에 커밋까지 잇는 선이 지나간다(GitKraken 과 같다).
         /// </summary>
-        private const float MoreGap = 4f;
+        private const float MoreGap = 6f;
+
+        /// <summary>
+        /// "+n" 상자의 좌우 여백 합(.commit-graph-ref__more 의 padding 5 + 5).
+        /// </summary>
+        private const float MorePadding = 10f;
+
+        /// <summary>
+        /// 이름표 바탕의 가지 색 진하기: 현재 브랜치는 진하게, 로컬 브랜치와 "+n" 은 옅게(GitKraken 과 같다).
+        /// </summary>
+        private const float CurrentRefAlpha = 0.7f;
+        private const float LocalRefAlpha = 0.35f;
 
         /// <summary>
         /// 칸 폭이 최소 폭에서 이만큼 안이면 끝까지 줄인 것으로 본다(끌어 놓은 폭의 소수점 오차).
@@ -164,9 +192,14 @@ namespace GitVersionControl
         private const string CenteredRefsModifier = "commit-graph--refs-centered";
 
         /// <summary>
-        /// 새 브랜치 이름 입력란의 최소 폭.
+        /// 새 브랜치 이름 입력란과 브랜치/태그 칸 양쪽 경계 사이 간격. 오른쪽 간격에서 커밋까지 잇는 선이 나간다.
         /// </summary>
-        private const float MinBranchInputWidth = 160f;
+        private const float BranchInputMargin = 6f;
+
+        /// <summary>
+        /// 새 브랜치 이름 입력란의 최소 폭. 칸을 끝까지 줄여도 깜박이는 커서와 글자 한두 개는 보이게.
+        /// </summary>
+        private const float MinBranchInputWidth = 20f;
 
         private const float MaxGraphColumnWidth = 800f;
 
@@ -192,12 +225,16 @@ namespace GitVersionControl
         /// </summary>
         private const float LaneTintAlpha = 0.10f;
 
-        private static readonly CustomStyleProperty<Color> HeadProperty = new("--git-graph-head");
-        private static readonly CustomStyleProperty<Color> OutlineProperty = new("--git-list-bg");
-        private static readonly CustomStyleProperty<Color> MutedProperty = new("--git-text-muted");
-        private static readonly CustomStyleProperty<Color> ModifiedProperty = new("--git-state-modified");
-        private static readonly CustomStyleProperty<Color> AddedProperty = new("--git-state-added");
-        private static readonly CustomStyleProperty<Color> DeletedProperty = new("--git-state-untracked");
+        /// <summary>
+        /// 고른 줄에서 띠를 덮는 가지 색의 진하기(GitKraken 처럼 고른 줄의 띠가 밝아진다).
+        /// </summary>
+        private const float SelectedLaneTintAlpha = 0.45f;
+
+        // 테마 색. 테마 변수(--git-*)는 물려받기만 해서 요소의 사용자 정의 스타일로는 읽히지 않으므로,
+        // GitStaging.uss 가 선·원 층(.commit-graph__overlay)에 이 이름으로 옮겨 적은 값을 읽는다.
+        private static readonly CustomStyleProperty<Color> HeadProperty = new("--graph-head");
+        private static readonly CustomStyleProperty<Color> OutlineProperty = new("--graph-outline");
+        private static readonly CustomStyleProperty<Color> MutedProperty = new("--graph-muted");
 
         private readonly ListView _list;
         private readonly VisualElement _overlay;
@@ -209,6 +246,17 @@ namespace GitVersionControl
         private readonly Label[] _headerCells = new Label[3];
         private readonly ColumnResizer[] _resizers = new ColumnResizer[3];
         private readonly TextField _branchInput;
+
+        /// <summary>
+        /// 이름표 칸에 마우스를 올렸을 때 그 줄 참조를 모두 세로로 펼친 목록(<see cref="ShowRefsPopup"/>).
+        /// </summary>
+        private readonly VisualElement _refsPopup;
+
+        /// <summary>
+        /// 펼친 목록의 줄 번호와 그 줄 이름표 칸. 닫혀 있으면 -1·null.
+        /// </summary>
+        private int _refsPopupIndex = -1;
+        private VisualElement _refsPopupCell;
         private CommitGraphColumn[] _order;
         private float _refsWidth;
         private float _messageWidth;
@@ -266,9 +314,6 @@ namespace GitVersionControl
         private Color _headColor = GraphStyle.Head;
         private Color _outlineColor = new(0.12f, 0.12f, 0.13f);
         private Color _mutedColor = Color.gray;
-        private Color _modifiedColor = new(0.44f, 0.68f, 1f);
-        private Color _addedColor = new(0.45f, 0.74f, 0.47f);
-        private Color _deletedColor = new(0.91f, 0.56f, 0.54f);
 
         /// <summary>
         /// 줄을 골랐을 때. 작업 중 줄이면 null.
@@ -286,6 +331,11 @@ namespace GitVersionControl
         /// 커밋 줄 우클릭 메뉴.
         /// </summary>
         public event Action<DropdownMenu, GitGraphNode> ContextMenuRequested;
+
+        /// <summary>
+        /// 이름표(줄 이름표나 펼친 목록의 참조)를 두 번 눌렀을 때. 그 참조로 전환한다(GitKraken 과 같다).
+        /// </summary>
+        public event Action<GitGraphNode, CommitRef> RefActivated;
 
         public VisualElement Root { get; }
 
@@ -374,6 +424,7 @@ namespace GitVersionControl
             _avatarLayer = new GraphLabelLayer(_avatarHost);
 
             // GitKraken 처럼 새 브랜치 이름은 그 커밋 줄의 브랜치/태그 칸에서 받는다. 줄 요소는 재사용되므로 입력란 하나를 그 줄 자리에 띄운다.
+            // 입력란은 칸 안에만 두고, 커밋까지는 이름표처럼 가지 색 선으로 잇는다(DrawRefConnectors).
             _branchInput = new TextField();
             _branchInput.AddToClassList("commit-graph__branch-input");
             _branchInput.textEdition.placeholder = GitText.Get("graph.branchNamePlaceholder");
@@ -383,9 +434,42 @@ namespace GitVersionControl
             _branchInput.RegisterCallback<FocusOutEvent>(_ => CloseBranchInput());
             body.Add(_branchInput);
 
+            // 펼친 참조 목록. 누르면 그 커밋 줄을 고르고, 우클릭은 그 줄 메뉴. 마우스가 그 줄 이름표 칸이 아닌 곳으로 벗어나면 닫는다.
+            _refsPopup = new VisualElement();
+            _refsPopup.AddToClassList("commit-graph-refs-popup");
+            _refsPopup.SetVisible(false);
+            _refsPopup.RegisterCallback<PointerLeaveEvent>(evt =>
+            {
+                if (_refsPopupCell == null || _refsPopupCell.worldBound.Contains(evt.position) == false)
+                {
+                    HideRefsPopup();
+                }
+            });
+            _refsPopup.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button == 0 && _refsPopupIndex >= 0)
+                {
+                    _list.SetSelection(_refsPopupIndex);
+                }
+            });
+            _refsPopup.AddManipulator(new ContextualMenuManipulator(evt =>
+            {
+                if (_refsPopupIndex >= 0 && _refsPopupIndex < _items.Count && _items[_refsPopupIndex] is GitGraphNode node)
+                {
+                    _list.SetSelection(_refsPopupIndex);
+                    ContextMenuRequested?.Invoke(evt.menu, node);
+                }
+            }));
+            body.Add(_refsPopup);
+
             // 목록을 스크롤하거나 크기가 바뀌면 선을 다시 그린다. ListView 는 생성자에서 안쪽 ScrollView 를 만든다.
             _list.RegisterCallback<GeometryChangedEvent>(_ => Redraw());
-            _list.Q<ScrollView>().verticalScroller.valueChanged += _ => Redraw();
+            // 펼친 참조 목록은 줄을 따라가지 않으므로 스크롤하면 닫는다.
+            _list.Q<ScrollView>().verticalScroller.valueChanged += _ =>
+            {
+                HideRefsPopup();
+                Redraw();
+            };
             if (_avatars != null)
             {
                 // 아바타는 받는 대로 나타난다. 패널에서 떨어지면 구독을 끊는다.
@@ -422,6 +506,7 @@ namespace GitVersionControl
             string selectedHash = SelectedNode?.Commit.Hash;
             bool wipSelected = _list.selectedItem is WipItem;
 
+            HideRefsPopup();
             Graph = graph;
             _wip = wip;
             _layout = VerticalGraphLayout.Build(graph, wip.Total > 0, AvatarsEnabled);
@@ -516,6 +601,7 @@ namespace GitVersionControl
             order.RemoveAt(from);
             order.Insert(Mathf.Clamp(to, 0, order.Count), column);
             _order = order.ToArray();
+            HideRefsPopup();
             GitVcsSettings.instance.GraphColumnOrder = string.Join(",", _order.Select(c => ((int)c).ToString()));
 
             RebuildHeader();
@@ -618,6 +704,7 @@ namespace GitVersionControl
             _refsWidth = refsWidth;
             _graphWidthOverride = graphWidthOverride;
             _messageWidth = messageWidth;
+            HideRefsPopup();
             ApplyColumnWidths();
             _overlay.MarkDirtyRepaint();
             PlaceAvatars();
@@ -726,19 +813,33 @@ namespace GitVersionControl
 
         /// <summary>
         /// 가지 색 띠를 이 줄 커밋 원의 가운데에서 시작하게 놓는다(그래프 칸 왼쪽의 빈 자리와 왼쪽 가지 위에는 깔지 않는다).
+        /// 작업 중 줄은 HEAD 열의 빈 원(<see cref="DrawWip"/>)에서 시작한다.
         /// </summary>
         private void PlaceBand(GraphRow row)
         {
-            if (row.LaneRow < 0)
-            {
-                return;
-            }
-            row.Band.style.left = X(row.LaneRow) - _graphOffset;
+            int laneRow = row.LaneRow >= 0 ? row.LaneRow : HeadNode?.Lane.Row ?? 0;
+            row.Band.style.left = X(laneRow) - _graphOffset;
+        }
+
+        private GitGraphNode HeadNode => _layout.NodesNewestFirst.FirstOrDefault(node => node.IsHead);
+
+        /// <summary>
+        /// 띠 색: 칸에 옅게 깐 가지 색, 끝 막대, 고른 줄에서 덮는 진한 가지 색.
+        /// </summary>
+        private static void PaintBand(GraphRow row, Color laneColor)
+        {
+            Color tint = laneColor;
+            tint.a = LaneTintAlpha;
+            Color glow = laneColor;
+            glow.a = SelectedLaneTintAlpha;
+            row.Band.style.backgroundColor = tint;
+            row.Band.style.borderRightColor = laneColor;
+            row.BandGlow.style.backgroundColor = glow;
         }
 
         /// <summary>
         /// 이름이 첫 글자와 "…" 보다 좁아질 만큼 칸이 좁으면 이름을 빼고 아이콘만 남긴다(--no-name).
-        /// 그보다 좁아지면 이름표는 그대로 두고 칸 경계가 가린다. 숨긴 이름·참조는 이름표 툴팁으로 본다.
+        /// 그보다 좁아지면 이름표는 그대로 두고 칸 경계가 가린다. 숨긴 이름·참조는 마우스를 올리면 펼치는 목록으로 본다.
         /// </summary>
         private void FitRefs(GraphRow row)
         {
@@ -749,7 +850,7 @@ namespace GitVersionControl
             VisualElement pill = row.Refs[0];
             Label more = (Label)row.Refs[1];
             float inner = ColumnWidth(CommitGraphColumn.Refs) - RefsCellPadding;
-            float moreWidth = row.RefCount > 1 ? MoreGap + MoreTextWidth(more) : 0f;
+            float moreWidth = row.RefCount > 1 ? MoreGap + MorePadding + MoreTextWidth(more) : 0f;
             bool showName = inner - moreWidth >= PillChrome(row.RefKind) + MinRefNameWidth;
             pill.EnableInClassList("commit-graph-ref--no-name", showName == false);
         }
@@ -877,12 +978,15 @@ namespace GitVersionControl
             {
                 return false;
             }
+            HideRefsPopup();
             _branchInputHash = hash;
             _branchInputSubmit = submit;
             _branchInput.SetValueWithoutNotify(string.Empty);
             _branchInput.SetVisible(true);
             _list.ScrollToItem(index);
             PlaceBranchInput();
+            // 이 줄의 이름표 연결선은 입력란이 대신한다.
+            _overlay.MarkDirtyRepaint();
             // 보이게 한 다음 프레임에 포커스해야 글자 입력이 바로 들어간다.
             _branchInput.schedule.Execute(() =>
             {
@@ -895,7 +999,8 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 입력란을 그 커밋 줄의 브랜치/태그 칸 위에 맞춘다. 스크롤·칸 폭·다시 읽기(작업 중 줄이 생기고 없어지면 줄이 밀린다)마다 부른다.
+        /// 입력란을 그 커밋 줄의 브랜치/태그 칸 안에 맞춘다. 스크롤·칸 폭·다시 읽기(작업 중 줄이 생기고 없어지면 줄이 밀린다)마다 부른다.
+        /// GitKraken 처럼 칸 밖으로 넘치지 않고 칸 폭을 따라 줄어든다(좁으면 글자가 옆으로 밀려 보인다).
         /// </summary>
         private void PlaceBranchInput()
         {
@@ -912,9 +1017,8 @@ namespace GitVersionControl
             const float inset = 4f;
             _branchInput.style.top = VerticalGraphLayout.RowCenterY(index, ScrollY) - VerticalGraphLayout.RowHeight * 0.5f + inset;
             _branchInput.style.height = VerticalGraphLayout.RowHeight - inset * 2f;
-            _branchInput.style.left = ColumnStart(CommitGraphColumn.Refs) + 6f;
-            // 칸이 좁거나 접혀 있어도 이름을 쓸 수 있게 최소 폭을 두고, 모자라면 옆 칸 위로 넘친다.
-            _branchInput.style.width = Mathf.Max(ColumnWidth(CommitGraphColumn.Refs) - 10f, MinBranchInputWidth);
+            _branchInput.style.left = ColumnStart(CommitGraphColumn.Refs) + BranchInputMargin;
+            _branchInput.style.width = Mathf.Max(ColumnWidth(CommitGraphColumn.Refs) - BranchInputMargin * 2f, MinBranchInputWidth);
         }
 
         private void OnBranchInputKeyDown(KeyDownEvent evt)
@@ -947,6 +1051,7 @@ namespace GitVersionControl
             _branchInputHash = null;
             _branchInputSubmit = null;
             _branchInput.SetVisible(false);
+            _overlay.MarkDirtyRepaint();
         }
 
         private static Label HeaderCell(string text)
@@ -984,28 +1089,7 @@ namespace GitVersionControl
 
             VisualElement refs = new();
             refs.AddToClassList("commit-graph-row__refs");
-            // 이름표 = [체크 표시][이름]. Label 에 자식을 넣으면 글자 폭을 재지 않아 잘리므로 감싸는 요소에 나란히 둔다.
-            VisualElement pill = new();
-            pill.AddToClassList("commit-graph-ref");
-            // 현재 브랜치 체크 표시. 글자(✓)는 글꼴마다 모양이 달라 Painter2D 로 그린다. 보이고 숨기는 것은 USS(--current).
-            ActionGlyph check = new(ActionGlyphKind.Check);
-            check.AddToClassList("commit-graph-ref__check");
-            pill.Add(check);
-            Label name = new();
-            name.AddToClassList("commit-graph-ref__name");
-            name.AddToClassList("ellipsis");
-            pill.Add(name);
-            // 로컬에 있는 브랜치(현재·로컬) 이름 뒤의 노트북 표시(GitKraken 과 같다). 그림과 보이고 숨기는 것은 USS(--current·--local).
-            VisualElement local = new() { pickingMode = PickingMode.Ignore };
-            local.AddToClassList("commit-graph-ref__local");
-            pill.Add(local);
-            // 원격(구름)·태그 이름 뒤의 종류 아이콘. 노트북과 같은 자리라 이름을 뺀 좁은 칸에서도 무엇인지 알 수 있다.
-            ActionGlyph remote = new(ActionGlyphKind.Cloud);
-            remote.AddToClassList("commit-graph-ref__remote-icon");
-            pill.Add(remote);
-            ActionGlyph tag = new(ActionGlyphKind.Tag);
-            tag.AddToClassList("commit-graph-ref__tag-icon");
-            pill.Add(tag);
+            VisualElement pill = CreateRefPill();
             refs.Add(pill);
             Label more = new();
             more.AddToClassList("commit-graph-ref__more");
@@ -1014,17 +1098,56 @@ namespace GitVersionControl
             // 이름표 폭이 바뀌면(다른 커밋에 다시 묶이면) 이름표에서 시작하는 선도 다시 그린다.
             pill.RegisterCallback<GeometryChangedEvent>(_ => _overlay.MarkDirtyRepaint());
             more.RegisterCallback<GeometryChangedEvent>(_ => _overlay.MarkDirtyRepaint());
+            // 이름표를 두 번 누르면 그 참조(줄에 보이는 첫 참조)로 전환한다.
+            pill.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button == 0 && evt.clickCount == 2 && row.userData is int index && index < _items.Count && _items[index] is GitGraphNode node)
+                {
+                    IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+                    if (refs.Count > 0)
+                    {
+                        RefActivated?.Invoke(node, refs[0]);
+                    }
+                }
+            });
+            // 이름표 칸에 마우스를 올리면 이 커밋의 참조를 모두 펼쳐 보인다(GitKraken 과 같다). 펼친 목록으로 옮겨 가면 닫지 않는다.
+            refs.RegisterCallback<PointerEnterEvent>(_ => ShowRefsPopup(row));
+            refs.RegisterCallback<PointerLeaveEvent>(evt =>
+            {
+                if (_refsPopupCell == refs && _refsPopup.worldBound.Contains(evt.position) == false)
+                {
+                    HideRefsPopup();
+                }
+            });
 
             VisualElement graph = new();
             graph.AddToClassList("commit-graph-row__graph");
+            // ListView 가 항목 전체에 칠하는 고른 줄·마우스 바탕은 끈다(인라인이라 테마 USS 보다 앞선다). GitKraken 처럼 고른 줄은
+            // 그래프 칸의 가지 색 띠를 진하게(BandGlow), 메시지 칸에만 바탕(Highlight)을 깐다 — 브랜치/태그 칸은 칠하지 않는다.
+            // 항목 클래스는 줄 자체나 감싸는 요소에 붙는다(ListView 설정에 따라 다르다).
+            row.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                VisualElement item = row.ClassListContains(BaseVerticalCollectionView.itemUssClassName) ? row : row.parent;
+                item.style.backgroundColor = Color.clear;
+            });
             VisualElement band = new() { pickingMode = PickingMode.Ignore };
             band.AddToClassList("commit-graph-row__band");
+            // 고른 줄의 띠를 진하게 덮는 막. 색(가지 색)은 BindRow 가, 보이고 숨기는 것은 USS(--selected).
+            VisualElement bandGlow = new() { pickingMode = PickingMode.Ignore };
+            bandGlow.AddToClassList("commit-graph-row__band-glow");
+            band.Add(bandGlow);
             graph.Add(band);
             row.Band = band;
+            row.BandGlow = bandGlow;
             row.Add(graph);
 
             VisualElement message = new();
             message.AddToClassList("commit-graph-row__message");
+            // 고른 줄·마우스가 올라간 줄의 메시지 칸 바탕. 보이고 숨기는 것과 색은 USS(--selected·:hover).
+            VisualElement highlight = new() { pickingMode = PickingMode.Ignore };
+            highlight.AddToClassList("commit-graph-row__highlight");
+            message.Add(highlight);
+            row.Highlight = highlight;
             Label subject = new();
             subject.AddToClassList("commit-row__subject");
             subject.AddToClassList("ellipsis");
@@ -1062,6 +1185,9 @@ namespace GitVersionControl
             bool isWip = _items[index] is WipItem;
             row.EnableInClassList("commit-graph-row--wip", isWip);
             row.WipEditor?.SetVisible(isWip);
+            row.WipCountsRoot?.SetVisible(isWip);
+            // 작업 중 줄은 제목 글자 대신 입력란·변경 개수를 보인다.
+            subject.SetVisible(isWip == false);
             if (isWip)
             {
                 _wipRow = row;
@@ -1073,9 +1199,21 @@ namespace GitVersionControl
                 row.RefCount = 0;
                 row.LaneRow = -1;
                 BindRefs(pill, more, Array.Empty<CommitRef>(), Color.clear);
-                row.Band.style.backgroundColor = StyleKeyword.Null;
-                row.Band.style.borderRightColor = StyleKeyword.Null;
-                subject.text = WipCountsText();
+                // GitKraken 처럼 작업 중 줄도 HEAD 가지 색 띠를 깐다.
+                GitGraphNode head = HeadNode;
+                if (head != null)
+                {
+                    PaintBand(row, GraphStyle.LaneColor(head.Lane));
+                }
+                else
+                {
+                    row.Band.style.backgroundColor = StyleKeyword.Null;
+                    row.Band.style.borderRightColor = StyleKeyword.Null;
+                    row.BandGlow.style.backgroundColor = StyleKeyword.Null;
+                }
+                PlaceBand(row);
+                BindWipCounts(row);
+                subject.text = string.Empty;
                 subject.tooltip = null;
                 return;
             }
@@ -1096,31 +1234,50 @@ namespace GitVersionControl
             FitRefs(row);
             // 가지 색 띠: 커밋 원 자리부터 그래프 칸 오른쪽 끝까지 옅게 깔고 끝에 막대를 둬서 줄마다 어느 가지인지 보이게 한다.
             // 막대는 칸 순서와 상관없이 그래프 칸에 붙는다(GitKraken 과 같다 — 기본 순서에서는 메시지 바로 앞).
-            Color tint = laneColor;
-            tint.a = LaneTintAlpha;
             row.LaneRow = node.Lane.Row;
-            row.Band.style.backgroundColor = tint;
-            row.Band.style.borderRightColor = laneColor;
+            PaintBand(row, laneColor);
             PlaceBand(row);
             subject.text = commit.Subject;
             subject.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
         }
 
         /// <summary>
-        /// 입력란 뒤의 "~3   +8   −170". 개수가 0 인 종류는 뺀다. 색은 파일 상태 표시와 같은 테마 색.
+        /// 입력란 뒤의 변경 개수: [연필 아이콘]3 [+ 아이콘]8 [− 아이콘]170(GitKraken 과 같다). 개수가 0 인 종류는 뺀다.
         /// </summary>
-        private string WipCountsText()
+        private void BindWipCounts(GraphRow row)
         {
-            string text = string.Empty;
-            text += Count("~", _wip.Modified, _modifiedColor);
-            text += Count("+", _wip.Added, _addedColor);
-            text += Count("\u2212", _wip.Deleted, _deletedColor);
-            return text.TrimStart();
-
-            static string Count(string sign, int count, Color color)
+            int[] counts = { _wip.Modified, _wip.Added, _wip.Deleted };
+            for (int i = 0; i < counts.Length; i++)
             {
-                return count == 0 ? string.Empty : $"   <color=#{ColorUtility.ToHtmlStringRGB(color)}>{sign}{count}</color>";
+                row.WipCounts[i].parent.SetVisible(counts[i] > 0);
+                row.WipCounts[i].text = counts[i].ToString();
             }
+        }
+
+        /// <summary>
+        /// 변경 개수 묶음 = 종류마다 [아이콘][숫자]. 아이콘 그림·색은 USS(--modified 는 원래 색, --added·--deleted 는 테마 색으로 물들인다).
+        /// </summary>
+        private static VisualElement MakeWipCounts(out Label[] labels)
+        {
+            VisualElement counts = new() { pickingMode = PickingMode.Ignore };
+            counts.AddToClassList("commit-graph-wip__counts");
+            string[] kinds = { "modified", "added", "deleted" };
+            labels = new Label[kinds.Length];
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                VisualElement group = new() { pickingMode = PickingMode.Ignore };
+                group.AddToClassList("commit-graph-wip__count");
+                VisualElement icon = new() { pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("commit-graph-wip__count-icon");
+                icon.AddToClassList("commit-graph-wip__count-icon--" + kinds[i]);
+                group.Add(icon);
+                Label number = new() { pickingMode = PickingMode.Ignore };
+                number.AddToClassList("commit-graph-wip__count-number");
+                group.Add(number);
+                counts.Add(group);
+                labels[i] = number;
+            }
+            return counts;
         }
 
         /// <summary>
@@ -1156,7 +1313,12 @@ namespace GitVersionControl
             pencil.AddToClassList("commit-graph-wip__pencil");
             editor.Add(pencil);
             row.Message.Insert(0, editor);
+            VisualElement counts = MakeWipCounts(out row.WipCounts);
+            row.Message.Insert(row.Message.IndexOf(editor) + 1, counts);
+            // 고른 줄 바탕은 입력란보다 뒤에 그린다.
+            row.Highlight.SendToBack();
             row.WipEditor = editor;
+            row.WipCountsRoot = counts;
             row.WipInput = input;
 
             input.RegisterValueChangedCallback(evt =>
@@ -1214,24 +1376,168 @@ namespace GitVersionControl
             {
                 return;
             }
-            CommitRef first = refs[0];
-            pill.Q<Label>(className: "commit-graph-ref__name").text = GitDisplay.Nfc(first.Name);
-            pill.tooltip = GitDisplay.Nfc(string.Join("\n", refs.Select(r => r.Name)));
-            pill.EnableInClassList("commit-graph-ref--current", first.Kind == CommitRefKind.Current);
-            pill.EnableInClassList("commit-graph-ref--local", first.Kind == CommitRefKind.Local);
-            pill.EnableInClassList("commit-graph-ref--remote", first.Kind == CommitRefKind.Remote);
-            pill.EnableInClassList("commit-graph-ref--tag", first.Kind == CommitRefKind.Tag);
-            // 로컬·원격 이름표는 가지 색을 입혀 선과 같은 색으로 잇는다(현재 브랜치·태그는 USS 의 고정 색).
-            bool usesLaneColor = first.Kind == CommitRefKind.Local || first.Kind == CommitRefKind.Remote;
-            Color fill = laneColor;
-            fill.a = first.Kind == CommitRefKind.Local ? 0.35f : 0f;
-            pill.style.backgroundColor = usesLaneColor ? fill : StyleKeyword.Null;
-            pill.style.borderLeftColor = usesLaneColor ? laneColor : StyleKeyword.Null;
-            pill.style.borderRightColor = usesLaneColor ? laneColor : StyleKeyword.Null;
-            pill.style.borderTopColor = usesLaneColor ? laneColor : StyleKeyword.Null;
-            pill.style.borderBottomColor = usesLaneColor ? laneColor : StyleKeyword.Null;
+            BindRefPill(pill, refs[0], laneColor);
+            // 숨은 이름·참조는 마우스를 올리면 펼치는 목록(ShowRefsPopup)으로 보므로 운영체제 툴팁은 두지 않는다.
             more.text = refs.Count > 1 ? $"+{refs.Count - 1}" : string.Empty;
-            more.tooltip = pill.tooltip;
+            // "+n" 은 로컬 이름표와 같은 옅은 가지 색 상자(GitKraken 과 같다).
+            Color moreFill = laneColor;
+            moreFill.a = LocalRefAlpha;
+            more.style.backgroundColor = moreFill;
+        }
+
+        /// <summary>
+        /// 이름표 = [체크 표시][이름][종류 아이콘]. Label 에 자식을 넣으면 글자 폭을 재지 않아 잘리므로 감싸는 요소에 나란히 둔다.
+        /// </summary>
+        private static VisualElement CreateRefPill()
+        {
+            VisualElement pill = new();
+            pill.AddToClassList("commit-graph-ref");
+            // 현재 브랜치 체크 표시. 글자(✓)는 글꼴마다 모양이 달라 Painter2D 로 그린다. 보이고 숨기는 것은 USS(--current).
+            ActionGlyph check = new(ActionGlyphKind.Check);
+            check.AddToClassList("commit-graph-ref__check");
+            pill.Add(check);
+            Label name = new();
+            name.AddToClassList("commit-graph-ref__name");
+            name.AddToClassList("ellipsis");
+            pill.Add(name);
+            // 로컬에 있는 브랜치(현재·로컬) 이름 뒤의 노트북 표시(GitKraken 과 같다). 그림과 보이고 숨기는 것은 USS(--current·--local).
+            VisualElement local = new() { pickingMode = PickingMode.Ignore };
+            local.AddToClassList("commit-graph-ref__local");
+            pill.Add(local);
+            // 원격(구름)·태그 이름 뒤의 종류 아이콘. 노트북과 같은 자리라 이름을 뺀 좁은 칸에서도 무엇인지 알 수 있다.
+            ActionGlyph remote = new(ActionGlyphKind.Cloud);
+            remote.AddToClassList("commit-graph-ref__remote-icon");
+            pill.Add(remote);
+            ActionGlyph tag = new(ActionGlyphKind.Tag);
+            tag.AddToClassList("commit-graph-ref__tag-icon");
+            pill.Add(tag);
+            // 커서(USS cursor)는 포인터 바로 밑 요소 것을 쓰므로 안쪽 요소는 포인터를 받지 않게 해 이름표 어디서나 손가락 커서가 되게 한다.
+            check.pickingMode = PickingMode.Ignore;
+            name.pickingMode = PickingMode.Ignore;
+            remote.pickingMode = PickingMode.Ignore;
+            tag.pickingMode = PickingMode.Ignore;
+            return pill;
+        }
+
+        /// <summary>
+        /// 이름표 하나에 참조 이름과 종류를 넣는다. 현재 브랜치는 강조, 원격은 테두리만, 태그는 태그 색.
+        /// </summary>
+        private static void BindRefPill(VisualElement pill, CommitRef commitRef, Color laneColor)
+        {
+            pill.Q<Label>(className: "commit-graph-ref__name").text = GitDisplay.Nfc(commitRef.Name);
+            pill.EnableInClassList("commit-graph-ref--current", commitRef.Kind == CommitRefKind.Current);
+            pill.EnableInClassList("commit-graph-ref--local", commitRef.Kind == CommitRefKind.Local);
+            pill.EnableInClassList("commit-graph-ref--remote", commitRef.Kind == CommitRefKind.Remote);
+            pill.EnableInClassList("commit-graph-ref--tag", commitRef.Kind == CommitRefKind.Tag);
+            // 브랜치 이름표는 GitKraken 처럼 가지 색을 입혀 선과 같은 색으로 잇는다: 현재 브랜치는 진하게, 로컬은 옅게(테두리 없이 채움만),
+            // 원격은 채움 없이 테두리만. 태그는 USS 의 고정 색.
+            bool usesLaneColor = commitRef.Kind != CommitRefKind.Tag;
+            Color fill = laneColor;
+            fill.a = commitRef.Kind switch
+            {
+                CommitRefKind.Current => CurrentRefAlpha,
+                CommitRefKind.Local => LocalRefAlpha,
+                _ => 0f,
+            };
+            // 테두리 폭(1px)은 남겨 두어 종류마다 이름표 크기가 같다. 채운 이름표는 테두리를 투명하게 해 바탕과 겹쳐 진해지지 않게 한다.
+            Color border = commitRef.Kind == CommitRefKind.Remote ? laneColor : Color.clear;
+            pill.style.backgroundColor = usesLaneColor ? fill : StyleKeyword.Null;
+            pill.style.borderLeftColor = usesLaneColor ? border : StyleKeyword.Null;
+            pill.style.borderRightColor = usesLaneColor ? border : StyleKeyword.Null;
+            pill.style.borderTopColor = usesLaneColor ? border : StyleKeyword.Null;
+            pill.style.borderBottomColor = usesLaneColor ? border : StyleKeyword.Null;
+        }
+
+        /// <summary>
+        /// 이름표 칸에 마우스가 올라오면 그 줄 이름표 자리에 이 커밋의 참조를 모두 세로로 펼친다(GitKraken 과 같다).
+        /// 참조가 하나이고 이름이 다 보이면 펼칠 것이 없으므로 띄우지 않는다. 마우스가 펼친 목록을 벗어나면 닫는다.
+        /// </summary>
+        private void ShowRefsPopup(GraphRow row)
+        {
+            if (_branchInputHash != null || row.RefCount == 0 || row.userData is not int index || index >= _items.Count || _items[index] is not GitGraphNode node)
+            {
+                return;
+            }
+            VisualElement pill = row.Refs[0];
+            Label more = (Label)row.Refs[1];
+            if (row.RefCount == 1 && IsRefNameCut(pill) == false)
+            {
+                return;
+            }
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+            Color laneColor = GraphStyle.LaneColor(node.Lane);
+            while (_refsPopup.childCount < refs.Count)
+            {
+                VisualElement item = CreateRefPill();
+                // 마우스가 올라간 참조를 밝게(USS :hover). 이름표 바탕이 가지 색 인라인 스타일이라 위에 얇은 막을 깐다.
+                VisualElement veil = new() { pickingMode = PickingMode.Ignore };
+                veil.AddToClassList("commit-graph-ref__veil");
+                item.Add(veil);
+                // 두 번 누르면 그 참조로 전환한다.
+                int refIndex = _refsPopup.childCount;
+                item.RegisterCallback<PointerDownEvent>(evt =>
+                {
+                    if (evt.button != 0 || evt.clickCount != 2 || _refsPopupIndex < 0 || _refsPopupIndex >= _items.Count || _items[_refsPopupIndex] is not GitGraphNode target)
+                    {
+                        return;
+                    }
+                    IReadOnlyList<CommitRef> targetRefs = CommitRefs.Of(target);
+                    if (refIndex < targetRefs.Count)
+                    {
+                        RefActivated?.Invoke(target, targetRefs[refIndex]);
+                    }
+                });
+                _refsPopup.Add(item);
+            }
+            for (int i = 0; i < _refsPopup.childCount; i++)
+            {
+                VisualElement item = _refsPopup[i];
+                item.SetVisible(i < refs.Count);
+                if (i < refs.Count)
+                {
+                    BindRefPill(item, refs[i], laneColor);
+                    // 위아래로 붙은 이름표는 맞닿는 테두리를 한 줄만 남기고, 모서리는 목록의 바깥 네 귀만 둥글게 한다(USS).
+                    item.EnableInClassList("commit-graph-ref--stack-first", i == 0);
+                    item.EnableInClassList("commit-graph-ref--stack-last", i == refs.Count - 1);
+                }
+            }
+
+            // 줄의 이름표 바로 위에 겹쳐 첫 참조가 제자리에서 펼쳐져 보이게 한다. 이름표와 "+n" 을 다 덮는 폭부터 시작한다.
+            Rect pillBound = pill.worldBound;
+            float right = more.resolvedStyle.display != DisplayStyle.None && string.IsNullOrEmpty(more.text) == false ? more.worldBound.xMax : pillBound.xMax;
+            Vector2 topLeft = _body.WorldToLocal(pillBound.position);
+            _refsPopup.style.left = topLeft.x;
+            _refsPopup.style.top = topLeft.y;
+            _refsPopup.style.minWidth = right - pillBound.xMin;
+            _refsPopupIndex = index;
+            _refsPopupCell = row.Refs;
+            _refsPopup.SetVisible(true);
+            _refsPopup.BringToFront();
+        }
+
+        /// <summary>
+        /// 이름표 이름이 말줄임으로 잘렸거나 칸이 좁아 아예 빠졌는지.
+        /// </summary>
+        private static bool IsRefNameCut(VisualElement pill)
+        {
+            Label name = pill.Q<Label>(className: "commit-graph-ref__name");
+            if (name.resolvedStyle.display == DisplayStyle.None)
+            {
+                return true;
+            }
+            Vector2 size = name.MeasureTextSize(name.text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined);
+            return float.IsNaN(size.x) == false && size.x > name.contentRect.width + 0.5f;
+        }
+
+        private void HideRefsPopup()
+        {
+            if (_refsPopupIndex < 0)
+            {
+                return;
+            }
+            _refsPopupIndex = -1;
+            _refsPopupCell = null;
+            _refsPopup.SetVisible(false);
         }
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
@@ -1240,10 +1546,10 @@ namespace GitVersionControl
             _headColor = style.TryGetValue(HeadProperty, out Color head) ? head : GraphStyle.Head;
             _outlineColor = style.TryGetValue(OutlineProperty, out Color outline) ? outline : _outlineColor;
             _mutedColor = style.TryGetValue(MutedProperty, out Color muted) ? muted : _mutedColor;
-            _modifiedColor = style.TryGetValue(ModifiedProperty, out Color modified) ? modified : _modifiedColor;
-            _addedColor = style.TryGetValue(AddedProperty, out Color added) ? added : _addedColor;
-            _deletedColor = style.TryGetValue(DeletedProperty, out Color deleted) ? deleted : _deletedColor;
             _overlay.MarkDirtyRepaint();
+            // 테마가 바뀌면 줄에 넣은 색(가지 색 이름표·띠, 변경 개수 글자)도 새 테마로 다시 칠한다.
+            _list.RefreshItems();
+            PlaceAvatars();
         }
 
         private float ScrollY
@@ -1346,7 +1652,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            Dictionary<int, float> refEnds = RefEndsByRow();
+            Dictionary<int, RefSpan> spans = RefSpansByRow();
             // 아직 배치 전인 줄은 이름표 칸의 그래프 쪽 끝에서 시작한다.
             float fallbackX = _graphOffset - 6f;
             painter.lineWidth = 1.5f;
@@ -1354,26 +1660,66 @@ namespace GitVersionControl
             {
                 int row = _layout.RowOf[node];
                 float y = VerticalGraphLayout.RowCenterY(row, scrollY);
-                if (y < -rowHeight || y > height + rowHeight || CommitRefs.Of(node).Count == 0)
+                // 이름 입력란을 띄운 줄은 이름표가 없어도 입력란 오른쪽 끝(칸 끝 - 간격)에서 커밋까지 잇는다(GitKraken 과 같다).
+                bool branchInput = node.Commit.Hash == _branchInputHash;
+                if (y < -rowHeight || y > height + rowHeight || (CommitRefs.Of(node).Count == 0 && branchInput == false))
                 {
                     continue;
                 }
-                // 이름표는 글자 폭만큼만 차지하므로 칸 끝이 아니라 이름표의 그래프 쪽 끝에서 잇는다.
-                float startX = refEnds.TryGetValue(row, out float end) ? end : fallbackX;
                 painter.strokeColor = GraphStyle.LaneColor(node.Lane);
-                painter.BeginPath();
-                painter.MoveTo(new Vector2(startX, y));
-                painter.LineTo(new Vector2(X(node.Lane.Row), y));
-                painter.Stroke();
+                // 이름표는 글자 폭만큼만 차지하므로 칸 끝이 아니라 이름표의 그래프 쪽 끝에서 잇는다.
+                // "+n" 상자가 있으면 이름표와 상자 사이 틈에도 선을 그어 이름표 → "+n" → 커밋이 한 줄로 이어 보이게 한다(선 층이 줄 위라 상자는 건너뛴다).
+                float startX = fallbackX;
+                if (branchInput)
+                {
+                    startX = _graphOffset - BranchInputMargin;
+                }
+                else if (spans.TryGetValue(row, out RefSpan span))
+                {
+                    startX = span.End;
+                    if (span.HasMore)
+                    {
+                        Line(painter, span.PillEnd, span.MoreStart, y);
+                    }
+                }
+                Line(painter, startX, X(node.Lane.Row), y);
             }
         }
 
-        /// <summary>
-        /// 화면에 있는 줄마다 그래프 왼쪽 이름표 칸에서 마지막으로 보이는 요소("+n" 이 있으면 그것)의 오른쪽 끝(선·원 층 좌표). 줄 번호 → x.
-        /// </summary>
-        private Dictionary<int, float> RefEndsByRow()
+        private static void Line(Painter2D painter, float fromX, float toX, float y)
         {
-            Dictionary<int, float> ends = new();
+            if (toX <= fromX)
+            {
+                return;
+            }
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(fromX, y));
+            painter.LineTo(new Vector2(toX, y));
+            painter.Stroke();
+        }
+
+        /// <summary>
+        /// 그래프 왼쪽 이름표 칸에서 보이는 이름표·"+n" 의 가로 자리(선·원 층 좌표).
+        /// </summary>
+        private struct RefSpan
+        {
+            public float PillEnd;
+            public float MoreStart;
+
+            /// <summary>
+            /// 마지막으로 보이는 요소("+n" 이 있으면 그것)의 오른쪽 끝. 여기서 커밋까지 잇는다.
+            /// </summary>
+            public float End;
+
+            public bool HasMore;
+        }
+
+        /// <summary>
+        /// 화면에 있는 줄마다 이름표·"+n" 자리. 줄 번호 → 자리. 칸이 좁으면 이름표가 칸 경계에 가려지므로(overflow: hidden) 보이는 끝인 칸 경계까지만 본다.
+        /// </summary>
+        private Dictionary<int, RefSpan> RefSpansByRow()
+        {
+            Dictionary<int, RefSpan> spans = new();
             _list.Query<GraphRow>().ForEach(row =>
             {
                 if (row.userData is not int index || row.resolvedStyle.display == DisplayStyle.None)
@@ -1381,16 +1727,34 @@ namespace GitVersionControl
                     return;
                 }
                 VisualElement refsCell = row.Refs;
-                VisualElement edge = refsCell[1].resolvedStyle.display != DisplayStyle.None ? refsCell[1] : refsCell[0];
-                // 칸이 좁으면 이름표가 칸 경계에 가려지므로(overflow: hidden) 선은 보이는 끝인 칸 경계에서 시작한다.
-                float x = Mathf.Min(edge.worldBound.xMax, refsCell.worldBound.xMax);
-                if (edge.resolvedStyle.display == DisplayStyle.None || float.IsNaN(x))
+                VisualElement pill = refsCell[0];
+                VisualElement more = refsCell[1];
+                if (pill.resolvedStyle.display == DisplayStyle.None)
                 {
                     return;
                 }
-                ends[index] = _overlay.WorldToLocal(new Vector2(x, 0f)).x;
+                float cellEnd = refsCell.worldBound.xMax;
+                float pillEnd = Mathf.Min(pill.worldBound.xMax, cellEnd);
+                if (float.IsNaN(pillEnd))
+                {
+                    return;
+                }
+                bool hasMore = more.resolvedStyle.display != DisplayStyle.None && more.worldBound.xMin < cellEnd;
+                float end = hasMore ? Mathf.Min(more.worldBound.xMax, cellEnd) : pillEnd;
+                spans[index] = new RefSpan
+                {
+                    PillEnd = ToOverlayX(pillEnd),
+                    MoreStart = hasMore ? ToOverlayX(more.worldBound.xMin) : 0f,
+                    End = ToOverlayX(end),
+                    HasMore = hasMore,
+                };
             });
-            return ends;
+            return spans;
+        }
+
+        private float ToOverlayX(float worldX)
+        {
+            return _overlay.WorldToLocal(new Vector2(worldX, 0f)).x;
         }
 
         /// <summary>
@@ -1413,7 +1777,8 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 작업 중 줄: HEAD 열에 빈 원, HEAD 까지 점선.
+        /// 작업 중 줄(GitKraken 과 같다): HEAD 열에 커밋 원과 같은 크기의 점선 원, HEAD 까지 점선. 색은 HEAD 가지 색.
+        /// 원 안은 목록 바탕으로 채워, 원 가운데에서 시작하는 가지 색 띠가 원 오른쪽 가장자리부터 보이게 한다(커밋 줄은 아바타가 덮는다).
         /// </summary>
         private void DrawWip(Painter2D painter, float scrollY)
         {
@@ -1421,27 +1786,53 @@ namespace GitVersionControl
             {
                 return;
             }
-            GitGraphNode head = _layout.NodesNewestFirst.FirstOrDefault(node => node.IsHead);
+            GitGraphNode head = HeadNode;
             float x = X(head?.Lane.Row ?? 0);
             float y = VerticalGraphLayout.RowCenterY(0, scrollY);
+            // 커밋 원의 가지 색 테두리 바깥과 같은 크기(아바타면 아바타 + 2, 아니면 작은 원 바깥).
+            float radius = _layout.HasAvatars ? VerticalGraphLayout.AvatarRadius + 2f : 6.5f;
+            Color color = head != null ? GraphStyle.LaneColor(head.Lane) : _mutedColor;
 
-            painter.strokeColor = _mutedColor;
+            painter.strokeColor = color;
             painter.lineWidth = 1.5f;
             // 한 줄로 접으면 HEAD 까지의 점선이 사이 커밋들을 지나가므로 긋지 않는다.
             if (head != null && CompactGraph == false && _layout.RowOf.TryGetValue(head, out int headRow))
             {
                 float headY = VerticalGraphLayout.RowCenterY(headRow, scrollY);
-                for (float dashY = y + 7f; dashY < headY - 6f; dashY += 6f)
+                float headTop = headY - NodeTopRadius(head);
+                for (float dashY = y + radius + 2f; dashY < headTop; dashY += 6f)
                 {
                     painter.BeginPath();
                     painter.MoveTo(new Vector2(x, dashY));
-                    painter.LineTo(new Vector2(x, Mathf.Min(dashY + 3f, headY - 6f)));
+                    painter.LineTo(new Vector2(x, Mathf.Min(dashY + 3f, headTop)));
                     painter.Stroke();
                 }
             }
-            painter.BeginPath();
-            painter.Arc(new Vector2(x, y), 6f, Angle.Degrees(0f), Angle.Degrees(360f));
-            painter.Stroke();
+
+            FillCircle(painter, new Vector2(x, y), radius, _outlineColor);
+            // 점선 원: 같은 길이의 호를 고르게 나눠 긋는다.
+            const int dashes = 12;
+            const float step = 360f / dashes;
+            painter.lineWidth = 2f;
+            for (int i = 0; i < dashes; i++)
+            {
+                float start = i * step;
+                painter.BeginPath();
+                painter.Arc(new Vector2(x, y), radius - 1f, Angle.Degrees(start), Angle.Degrees(start + step * 0.55f));
+                painter.Stroke();
+            }
+        }
+
+        /// <summary>
+        /// 커밋 원 위쪽 가장자리까지의 거리(HEAD 고리까지). <see cref="DrawNode"/> 와 맞춘다.
+        /// </summary>
+        private float NodeTopRadius(GitGraphNode node)
+        {
+            if (_layout.HasAvatars && node.Commit.IsMerge == false)
+            {
+                return VerticalGraphLayout.AvatarRadius + (node.IsHead ? 4f : 2f);
+            }
+            return node.IsHead ? 8f : 6.5f;
         }
 
         private void DrawNodes(Painter2D painter, float scrollY, float height, float rowHeight)
@@ -1453,36 +1844,40 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                Vector2 center = new(X(node.Lane.Row), y);
-                Color laneColor = GraphStyle.LaneColor(node.Lane);
-                if (_layout.HasAvatars && node.Commit.IsMerge == false)
-                {
-                    // 아바타 원: 줄 색 테두리 + 작성자 색 바탕(그림을 받기 전·머리글자 뒤에 보인다). 그림은 위 층이 얹는다.
-                    const float avatarRadius = VerticalGraphLayout.AvatarRadius;
-                    if (node.IsHead)
-                    {
-                        FillCircle(painter, center, avatarRadius + 4f, _headColor);
-                        FillCircle(painter, center, avatarRadius + 3f, _outlineColor);
-                    }
-                    FillCircle(painter, center, avatarRadius + 2f, laneColor);
-                    FillCircle(painter, center, avatarRadius, GraphStyle.AuthorColor(node.Commit.AuthorName));
-                    continue;
-                }
+                DrawNode(painter, node, new Vector2(X(node.Lane.Row), y));
+            }
+        }
+
+        private void DrawNode(Painter2D painter, GitGraphNode node, Vector2 center)
+        {
+            Color laneColor = GraphStyle.LaneColor(node.Lane);
+            if (_layout.HasAvatars && node.Commit.IsMerge == false)
+            {
+                // 아바타 원: 줄 색 테두리 + 작성자 색 바탕(그림을 받기 전·머리글자 뒤에 보인다). 그림은 위 층이 얹는다.
+                const float avatarRadius = VerticalGraphLayout.AvatarRadius;
                 if (node.IsHead)
                 {
-                    FillCircle(painter, center, 8f, _headColor);
+                    FillCircle(painter, center, avatarRadius + 4f, _headColor);
+                    FillCircle(painter, center, avatarRadius + 3f, _outlineColor);
                 }
-                FillCircle(painter, center, 6.5f, _outlineColor);
-                FillCircle(painter, center, 5f, node.Commit.IsMerge ? _outlineColor : laneColor);
-                if (node.Commit.IsMerge)
-                {
-                    // 병합 커밋은 속이 빈 원.
-                    painter.strokeColor = laneColor;
-                    painter.lineWidth = 2f;
-                    painter.BeginPath();
-                    painter.Arc(center, 4.5f, Angle.Degrees(0f), Angle.Degrees(360f));
-                    painter.Stroke();
-                }
+                FillCircle(painter, center, avatarRadius + 2f, laneColor);
+                FillCircle(painter, center, avatarRadius, GraphStyle.AuthorColor(node.Commit.AuthorName));
+                return;
+            }
+            if (node.IsHead)
+            {
+                FillCircle(painter, center, 8f, _headColor);
+            }
+            FillCircle(painter, center, 6.5f, _outlineColor);
+            FillCircle(painter, center, 5f, node.Commit.IsMerge ? _outlineColor : laneColor);
+            if (node.Commit.IsMerge)
+            {
+                // 병합 커밋은 속이 빈 원.
+                painter.strokeColor = laneColor;
+                painter.lineWidth = 2f;
+                painter.BeginPath();
+                painter.Arc(center, 4.5f, Angle.Degrees(0f), Angle.Degrees(360f));
+                painter.Stroke();
             }
         }
 

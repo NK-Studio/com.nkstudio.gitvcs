@@ -19,6 +19,8 @@
     --git-accent-text: #ffffff;
     /* 강조색을 글자·선 아이콘에 쓸 때(개수·현재 브랜치 아이콘·링크). 바탕용 --git-accent 는 작은 글자로 읽기 어려워 따로 둔다(대비 5:1 이상). */
     --git-accent-fg: #1a4478;
+    /* 사이드바 참조 트리 구역(로컬·리모트…) 옆 개수. Unity 에디터처럼 강조색 대신 흐린 글자색(구역 이름과 같은 결). */
+    --git-section-count: #4f4f4f;
     /* 우클릭 메뉴(GitContextMenu): 바탕·테두리·고른 줄·고른 줄 글자·그림자. */
     --git-menu-bg: #f0f0f0;
     --git-menu-border: #999999;
@@ -35,6 +37,14 @@
     --git-button-bg: #e4e4e4;
     --git-button-border: #b2b2b2;
     --git-button-hover: #ececec;
+    /* Stage·Unstage 버튼(GitThemes.uss 의 Unity 규칙): 밝은 회색 버튼(#e4e4e4)에 차분한 초록·빨강을 섞은 바탕. 글자는 기본 글자색. */
+    --git-action-text: #090909;
+    --git-stage-bg: #cfdccc;
+    --git-stage-hover: #c1d3bd;
+    --git-stage-pressed: #3f7f37;
+    --git-unstage-bg: #e6cfcc;
+    --git-unstage-hover: #dfc0bc;
+    --git-unstage-pressed: #b0443a;
     --git-radius: 3px;
     --git-state-modified: #d9822b;
     --git-state-added: #2f9e44;
@@ -62,6 +72,9 @@
     --git-graph-head: #2f9e44;
     --git-graph-date-band: rgba(0,0,0,0.07);
     --git-graph-truncated: rgba(80,80,80,0.5);
+    /* 커밋 그래프 작업 중 줄의 변경 개수 아이콘(+·−)의 색: 추가·지움. 에디터 회색 바탕에 맞춰 채도를 낮춘 색(가지 색과 같은 결). */
+    --git-count-added: #3f7f37;
+    --git-count-deleted: #b0443a;
     --git-diff-bg: #ffffff;
     --git-diff-added-line: rgba(46,160,67,0.15);
     --git-diff-added-change: rgba(46,160,67,0.35);

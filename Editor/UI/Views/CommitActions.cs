@@ -91,7 +91,7 @@ namespace GitVersionControl
                 return;
             }
             bool atHead = startPoint == _services.Repository.HeadCommit;
-            if (atHead == false && BranchActions.PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (atHead == false && await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return;
             }
@@ -116,7 +116,7 @@ namespace GitVersionControl
                 _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
                 return;
             }
-            if (switchTo && BranchActions.PrepareWorkingTree(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (switchTo && await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
             {
                 return;
             }
@@ -149,11 +149,11 @@ namespace GitVersionControl
         public async Task SwitchToAsync(GitCommitInfo commit)
         {
             string title = GitText.Get("commit.switchTitle");
-            if (_services.Dialogs.Confirm(title, GitText.Format("commit.switchConfirm", Describe(commit)), GitText.Get("commit.switchOk")) == false)
+            if (await GitConfirmDialog.ShowAsync(_services, ActionGlyphKind.Branch, title, GitText.Format("commit.switchConfirm", Describe(commit)), GitText.Get("commit.switchOk")) == false)
             {
                 return;
             }
-            if (BranchActions.PrepareWorkingTree(_services, GitText.Format("commit.actionSwitch", commit.ShortHash)) == false)
+            if (await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("commit.actionSwitch", commit.ShortHash)) == false)
             {
                 return;
             }

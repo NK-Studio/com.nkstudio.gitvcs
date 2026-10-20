@@ -35,6 +35,7 @@ namespace GitVersionControl
         private readonly GraphCommitDetail _detail;
         private readonly CommitMenu _commitMenu;
         private readonly CommitActions _actions;
+        private readonly BranchActions _branchActions;
 
         private string _loadedKey;
         private bool _isLoading;
@@ -87,6 +88,7 @@ namespace GitVersionControl
             _detail.ParentRequested += hash => _graph.SelectCommit(hash);
             _commitMenu = new CommitMenu(services);
             _actions = new CommitActions(services);
+            _branchActions = new BranchActions(services);
 
             // GitKraken 처럼 작업 중 줄의 입력란과 커밋 입력란의 제목은 같은 글이다. 어느 쪽에 써도 다른 쪽에 보인다.
             _graph.SetWipSubject(_commit.Subject);
@@ -95,6 +97,7 @@ namespace GitVersionControl
             _graph.WipSelected += ShowWip;
             _graph.CommitSelected += ShowCommit;
             _graph.ContextMenuRequested += PopulateCommitMenu;
+            _graph.RefActivated += SwitchToRef;
             _staging.FileSelected += ShowDiff;
             // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
             _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
@@ -303,6 +306,32 @@ namespace GitVersionControl
             {
                 _diff.SetTarget(target);
             }
+        }
+
+        /// <summary>
+        /// 이름표를 두 번 눌렀을 때(GitKraken 과 같다): 브랜치는 체크아웃(원격은 같은 이름의 로컬이 있으면 그쪽, 없으면 추적 브랜치를 만든다),
+        /// 태그는 그 커밋으로 전환(분리된 HEAD). 이미 현재 브랜치거나 다른 git 작업 중이면 하지 않는다.
+        /// </summary>
+        private void SwitchToRef(GitGraphNode node, CommitRef commitRef)
+        {
+            if (Services.Runner.IsBusy || commitRef.Kind == CommitRefKind.Current)
+            {
+                return;
+            }
+            if (commitRef.Kind == CommitRefKind.Tag)
+            {
+                _ = _actions.SwitchToAsync(node.Commit);
+                return;
+            }
+            IReadOnlyList<GitBranchRef> branches = _graph.Graph?.Branches ?? new List<GitBranchRef>();
+            GitBranchRef branch = branches.FirstOrDefault(b => b.Name == commitRef.Name)
+                                  ?? new GitBranchRef { Name = commitRef.Name, IsRemote = commitRef.Kind == CommitRefKind.Remote };
+            if (branch.IsCurrent)
+            {
+                return;
+            }
+            HashSet<string> localNames = new(branches.Where(b => b.IsRemote == false).Select(b => b.Name));
+            _ = _branchActions.SwitchAsync(branch, localNames);
         }
 
         /// <summary>

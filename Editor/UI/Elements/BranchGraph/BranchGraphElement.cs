@@ -40,11 +40,12 @@ namespace GitVersionControl
         private IVisualElementScheduledItem _hoverTicker;
 
         // Painter2D 로 그리는 색 중 배경에 따라 달라야 하는 것은 테마 토큰(--git-graph-*)에서 읽는다. 기본값은 어두운 테마 값.
-        private static readonly CustomStyleProperty<Color> SelectionProperty = new("--git-graph-selection");
-        private static readonly CustomStyleProperty<Color> SearchProperty = new("--git-graph-search");
-        private static readonly CustomStyleProperty<Color> HeadProperty = new("--git-graph-head");
-        private static readonly CustomStyleProperty<Color> DateBandProperty = new("--git-graph-date-band");
-        private static readonly CustomStyleProperty<Color> TruncatedProperty = new("--git-graph-truncated");
+        // 테마 변수는 물려받기만 해서 사용자 정의 스타일로는 읽히지 않으므로, BranchGraph.uss 가 이 요소에 옮겨 적은 이름(--graph-*)을 읽는다.
+        private static readonly CustomStyleProperty<Color> SelectionProperty = new("--graph-selection");
+        private static readonly CustomStyleProperty<Color> SearchProperty = new("--graph-search");
+        private static readonly CustomStyleProperty<Color> HeadProperty = new("--graph-head");
+        private static readonly CustomStyleProperty<Color> DateBandProperty = new("--graph-date-band");
+        private static readonly CustomStyleProperty<Color> TruncatedProperty = new("--graph-truncated");
         private Color _selectionColor = GraphStyle.Selection;
         private Color _searchColor = GraphStyle.SearchMatch;
         private Color _headColor = GraphStyle.Head;
