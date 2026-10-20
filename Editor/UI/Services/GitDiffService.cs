@@ -111,6 +111,10 @@ namespace GitVersionControl
                     return (null, error);
                 }
 
+                // 저장소가 받지 않게 막아 둔 경로는 원본을 이미 받아 뒀어도 주소 파일로 나온다. 받아 둔 원본이 있으면 그걸 쓴다.
+                left = UseLocalLfsObject(left, directory, "left");
+                right = UseLocalLfsObject(right, directory, "right");
+
                 GitImagePair pair = new()
                 {
                     Left = new GitImageSide { Label = leftLabel, Format = Path.GetExtension(target.LeftPath ?? target.RepoPath) },
@@ -164,6 +168,33 @@ namespace GitVersionControl
         private static long? LengthOf(string path)
         {
             return string.IsNullOrEmpty(path) == false && File.Exists(path) ? new FileInfo(path).Length : null;
+        }
+
+        /// <summary>
+        /// <paramref name="path"/> 가 LFS 주소 파일이고 원본이 .git/lfs 에 있으면 그 원본을 임시 폴더에 같은 확장자로 복사해 그 경로를 준다.
+        /// 아니면 <paramref name="path"/> 그대로. 확장자를 지키는 이유: 형식(PSD 등)을 확장자로 판별한다.
+        /// </summary>
+        private static string UseLocalLfsObject(string path, string directory, string tag)
+        {
+            if (GitLfs.ReadPointer(path) is not (string oid, long size))
+            {
+                return path;
+            }
+            string local = GitLfs.LocalObjectPath(GitRepository.GitDir, oid, size);
+            if (local == null)
+            {
+                return path;
+            }
+            string copy = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(path)}.{tag}.lfs{Path.GetExtension(path)}");
+            try
+            {
+                File.Copy(local, copy, true);
+                return copy;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                return path;
+            }
         }
 
         private static string LoadSide(GitImageSide side, string path)

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using NUnit.Framework;
 
@@ -50,6 +51,62 @@ namespace GitVersionControl.Tests
         {
             Assert.IsNull(GitLfs.ParsePointerSize(new byte[0]));
             Assert.IsNull(GitLfs.ParsePointerSize(null));
+        }
+
+        [Test]
+        public void Test_TryParsePointer_ReturnsOid()
+        {
+            Assert.IsTrue(GitLfs.TryParsePointer(Encoding.UTF8.GetBytes(Pointer), out string oid, out long size));
+            Assert.AreEqual("adf0a091c359d5afcd5c6e15c81203496807f760ee71a1bd02b59e0aff7132b1", oid);
+            Assert.AreEqual(2834512L, size);
+        }
+
+        [Test]
+        public void Test_LocalObjectPath_FindsDownloadedObject_AndChecksSize()
+        {
+            string gitDir = Path.Combine(Path.GetTempPath(), "gitvcs-lfs-" + System.Guid.NewGuid().ToString("N"));
+            const string oid = "adf0a091c359d5afcd5c6e15c81203496807f760ee71a1bd02b59e0aff7132b1";
+            string objectPath = Path.Combine(gitDir, "lfs", "objects", "ad", "f0", oid);
+            try
+            {
+                Assert.IsNull(GitLfs.LocalObjectPath(gitDir, oid, 3));
+                Directory.CreateDirectory(Path.GetDirectoryName(objectPath));
+                File.WriteAllBytes(objectPath, new byte[] { 1, 2, 3 });
+                Assert.AreEqual(objectPath, GitLfs.LocalObjectPath(gitDir, oid, 3));
+                // 받다 끊겨 크기가 다르면 쓰지 않는다.
+                Assert.IsNull(GitLfs.LocalObjectPath(gitDir, oid, 4));
+                // 경로를 벗어나는 oid 는 받지 않는다.
+                Assert.IsNull(GitLfs.LocalObjectPath(gitDir, "../../etc", 3));
+            }
+            finally
+            {
+                if (Directory.Exists(gitDir))
+                {
+                    Directory.Delete(gitDir, true);
+                }
+            }
+        }
+
+        [Test]
+        public void Test_LocalObjectPath_WorktreeUsesCommonDir()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "gitvcs-lfs-" + System.Guid.NewGuid().ToString("N"));
+            string commonDir = Path.Combine(root, "repo", ".git");
+            string worktreeGitDir = Path.Combine(commonDir, "worktrees", "wt");
+            const string oid = "adf0a091c359d5afcd5c6e15c81203496807f760ee71a1bd02b59e0aff7132b1";
+            string objectPath = Path.Combine(commonDir, "lfs", "objects", "ad", "f0", oid);
+            try
+            {
+                Directory.CreateDirectory(worktreeGitDir);
+                File.WriteAllText(Path.Combine(worktreeGitDir, "commondir"), "../..\n");
+                Directory.CreateDirectory(Path.GetDirectoryName(objectPath));
+                File.WriteAllBytes(objectPath, new byte[] { 1 });
+                Assert.AreEqual(Path.GetFullPath(objectPath), GitLfs.LocalObjectPath(worktreeGitDir, oid, 1));
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
         }
     }
 }
