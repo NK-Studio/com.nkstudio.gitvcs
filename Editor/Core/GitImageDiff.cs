@@ -40,9 +40,15 @@ namespace GitVersionControl
         public int Height;
 
         /// <summary>
-        /// 캔버스 크기의 차이 이미지(Unity 순서: 아래 줄부터). 바뀐 픽셀은 <see cref="GitImageDiff.ChangedColor"/>, 나머지는 이후 이미지를 흐린 회색조로.
+        /// 캔버스 크기의 차이 이미지(Unity 순서: 아래 줄부터). 나머지는 이미지를 어두운 회색조로 깔고,
+        /// 바뀐 픽셀은 그 위에 <see cref="GitImageDiff.ChangedColor"/> 를 차이가 클수록 진하게 섞는다 — 바뀐 곳이 넓어도 윤곽이 남게.
         /// </summary>
         public Color32[] Mask;
+
+        /// <summary>
+        /// 픽셀마다 바뀌었는지(<see cref="Mask"/> 와 같은 순서).
+        /// </summary>
+        public bool[] Changed;
 
         public int ChangedPixels;
         public int TotalPixels;
@@ -56,7 +62,10 @@ namespace GitVersionControl
     /// </summary>
     public static class GitImageDiff
     {
-        public static readonly Color32 ChangedColor = new(255, 0, 255, 255);
+        /// <summary>
+        /// 바뀐 픽셀 강조색. 순수 마젠타(255,0,255)는 Unity 의 셰이더 깨짐 색과 같아 쓰지 않는다.
+        /// </summary>
+        public static readonly Color32 ChangedColor = new(255, 72, 72, 255);
 
         /// <summary>
         /// <c>Texture2D.LoadImage</c> 로 바로 읽는 형식.
@@ -121,6 +130,7 @@ namespace GitVersionControl
                 Width = width,
                 Height = height,
                 Mask = new Color32[width * height],
+                Changed = new bool[width * height],
                 TotalPixels = width * height,
                 SizeChanged = leftWidth != rightWidth || leftHeight != rightHeight,
             };
@@ -147,7 +157,8 @@ namespace GitVersionControl
                     if (isChanged)
                     {
                         result.ChangedPixels++;
-                        result.Mask[canvasRow + x] = ChangedColor;
+                        result.Changed[canvasRow + x] = true;
+                        result.Mask[canvasRow + x] = Highlighted(before, after, hasLeft, hasRight);
                     }
                     else
                     {
@@ -168,6 +179,32 @@ namespace GitVersionControl
                    || Math.Abs(a.g - b.g) > tolerance
                    || Math.Abs(a.b - b.b) > tolerance
                    || Math.Abs(a.a - b.a) > tolerance;
+        }
+
+        /// <summary>
+        /// 바뀐 픽셀: 이후(없으면 이전)의 어두운 회색조 위에 강조색을 차이 크기만큼 섞는다. 작은 차이도 알아보게 최소 40% 는 섞는다.
+        /// 차이는 알파를 곱한 색으로 잰다 — 거의 투명한 픽셀의 색 차이가 크게 보이지 않게.
+        /// </summary>
+        private static Color32 Highlighted(Color32 before, Color32 after, bool hasLeft, bool hasRight)
+        {
+            int magnitude = 255;
+            if (hasLeft && hasRight)
+            {
+                magnitude = Math.Max(Math.Max(Math.Abs(Premultiplied(before.r, before.a) - Premultiplied(after.r, after.a)),
+                                              Math.Abs(Premultiplied(before.g, before.a) - Premultiplied(after.g, after.a))),
+                                     Math.Max(Math.Abs(Premultiplied(before.b, before.a) - Premultiplied(after.b, after.a)),
+                                              Math.Abs(before.a - after.a)));
+            }
+            Color32 source = hasRight ? after : before;
+            Color32 baseColor = Faded(source);
+            baseColor.a = 255;
+            float t = 0.4f + 0.6f * magnitude / 255f;
+            return Color32.Lerp(baseColor, ChangedColor, t);
+        }
+
+        private static int Premultiplied(byte channel, byte alpha)
+        {
+            return channel * alpha / 255;
         }
 
         /// <summary>

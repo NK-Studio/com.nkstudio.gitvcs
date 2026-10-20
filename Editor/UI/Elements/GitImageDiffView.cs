@@ -32,6 +32,7 @@ namespace GitVersionControl
         private readonly Label _sizeChanged;
         private readonly Label _changedInfo;
         private readonly VisualElement _stage;
+        private readonly VisualElement _modeControls;
 
         private GitImagePair _pair;
         private Color32[] _leftPixels;
@@ -63,6 +64,10 @@ namespace GitVersionControl
 
             Toolbar toolbar = new();
             toolbar.AddToClassList("git-image-diff__toolbar");
+            // 보기 방식·불투명도·허용 오차. 새로 만들거나 지운 이미지(한쪽만 있음)에는 비교할 게 없어 숨긴다.
+            _modeControls = new VisualElement();
+            _modeControls.AddToClassList("git-image-diff__mode-controls");
+            toolbar.Add(_modeControls);
             string[] modeKeys = { "imageDiff.twoUp", "imageDiff.swipe", "imageDiff.onion", "imageDiff.difference" };
             for (int i = 0; i < _modeToggles.Length; i++)
             {
@@ -81,18 +86,18 @@ namespace GitVersionControl
                     }
                 });
                 _modeToggles[i] = toggle;
-                toolbar.Add(toggle);
+                _modeControls.Add(toggle);
             }
 
             _opacitySlider = new Slider(GitText.Get("imageDiff.opacity"), 0f, 1f) { value = 0.5f };
             _opacitySlider.AddToClassList("git-image-diff__slider");
             _opacitySlider.RegisterValueChangedCallback(_ => ApplyTransform());
-            toolbar.Add(_opacitySlider);
+            _modeControls.Add(_opacitySlider);
 
             _toleranceSlider = new SliderInt(GitText.Get("imageDiff.tolerance"), 0, 64) { value = 0, showInputField = true, tooltip = GitText.Get("imageDiff.toleranceTooltip") };
             _toleranceSlider.AddToClassList("git-image-diff__slider");
             _toleranceSlider.RegisterValueChangedCallback(_ => ComputeDiff());
-            toolbar.Add(_toleranceSlider);
+            _modeControls.Add(_toleranceSlider);
 
             VisualElement spacer = new();
             spacer.AddToClassList("spacer");
@@ -150,13 +155,29 @@ namespace GitVersionControl
             _rightPixels = pair.Right.Exists ? pair.Right.Texture.GetPixels32() : null;
             _isFit = true;
 
+            _modeControls.SetVisible(IsSingle == false);
+            if (IsSingle)
+            {
+                // 새로 만들거나 지운 이미지: 비교 없이 있는 쪽 이미지만 보인다.
+                GitImageSide side = pair.Left.Exists ? pair.Left : pair.Right;
+                _leftInfo.text = GitText.Format("imageDiff.singleInfo", side.Label, side.Width, side.Height, GitImageDiff.FormatBytes(side.ByteSize));
+                _rightInfo.text = string.Empty;
+                _sizeChanged.SetVisible(false);
+                BuildStage();
+                return;
+            }
             _leftInfo.text = DescribeSide("imageDiff.before", pair.Left);
             _rightInfo.text = DescribeSide("imageDiff.after", pair.Right);
-            _sizeChanged.SetVisible(pair.Left.Exists && pair.Right.Exists && (pair.Left.Width != pair.Right.Width || pair.Left.Height != pair.Right.Height));
+            _sizeChanged.SetVisible(pair.Left.Width != pair.Right.Width || pair.Left.Height != pair.Right.Height);
 
             BuildStage();
             ComputeDiff();
         }
+
+        /// <summary>
+        /// 한쪽에만 이미지가 있다(새로 만든·지운 파일). 둘 다 없으면 비교 화면 그대로 "없음" 을 보인다.
+        /// </summary>
+        private bool IsSingle => _pair != null && _pair.Left.Exists != _pair.Right.Exists;
 
         public void Clear()
         {
@@ -225,6 +246,26 @@ namespace GitVersionControl
                 return;
             }
 
+            if (IsSingle)
+            {
+                bool added = _pair.Right.Exists;
+                GitImageSide side = added ? _pair.Right : _pair.Left;
+                Viewport single = new(this, side.Label);
+                single.AddImage(side);
+                single.SetStatus(GitText.Get(added ? "imageDiff.added" : "imageDiff.deleted"), added ? "git-image-diff--added" : "git-image-diff--deleted");
+                _viewports = new[] { single };
+                _stage.Add(single.Root);
+                if (_isFit)
+                {
+                    Fit();
+                }
+                else
+                {
+                    ApplyTransform();
+                }
+                return;
+            }
+
             ImageDiffMode mode = Mode;
             string before = GitText.Get("imageDiff.before");
             string after = GitText.Get("imageDiff.after");
@@ -242,10 +283,10 @@ namespace GitVersionControl
                 }
                 case ImageDiffMode.Swipe:
                 {
-                    // 아래층이 이후, 왼쪽부터 잘린 위층이 이전 — 경계선 왼쪽이 이전, 오른쪽이 이후.
+                    // 경계선 왼쪽은 이전만, 오른쪽은 이후만 보인다. 두 층을 각각 잘라 겹치지 않게 한다 —
+                    // 한 층을 통째로 깔면 위층의 투명한 곳으로 아래층이 비친다.
                     Viewport viewport = new(this, $"{before} · {_pair.Left.Label}  |  {after} · {_pair.Right.Label}");
-                    viewport.AddImage(_pair.Right);
-                    viewport.AddSwipeImage(_pair.Left);
+                    viewport.AddSwipeImages(_pair.Left, _pair.Right);
                     _viewports = new[] { viewport };
                     break;
                 }
@@ -516,6 +557,9 @@ namespace GitVersionControl
             private VisualElement _swipeClip;
             private Image _swipeImage;
             private GitImageSide _swipeSide;
+            private VisualElement _swipeRightClip;
+            private Image _swipeRightImage;
+            private GitImageSide _swipeRightSide;
             private VisualElement _swipeHandle;
             private Image _onionImage;
             private GitImageSide _onionSide;
@@ -575,14 +619,34 @@ namespace GitVersionControl
                 _placeholder.SetVisible(side.Exists == false);
             }
 
-            public void AddSwipeImage(GitImageSide side)
+            /// <summary>
+            /// 새로 만든·지운 이미지: 위 가운데에 상태 글자(추가됨·삭제됨)를 띄우고 이미지 둘레에 같은 색 테두리를 두른다.
+            /// </summary>
+            public void SetStatus(string text, string modifier)
             {
-                _swipeSide = side;
+                Root.AddToClassList(modifier);
+                _backdrop.AddToClassList("git-image-diff__frame");
+                Label status = new(text) { pickingMode = PickingMode.Ignore };
+                status.AddToClassList("git-image-diff__status");
+                Root.Add(status);
+            }
+
+            public void AddSwipeImages(GitImageSide left, GitImageSide right)
+            {
+                _swipeSide = left;
                 _swipeClip = Layer();
                 _swipeClip.AddToClassList("git-image-diff__clip");
-                _swipeImage = ImageOf(side);
+                _swipeImage = ImageOf(left);
                 _swipeClip.Add(_swipeImage);
                 _content.Add(_swipeClip);
+
+                _swipeRightSide = right;
+                _swipeRightClip = Layer();
+                _swipeRightClip.AddToClassList("git-image-diff__clip");
+                _swipeRightImage = ImageOf(right);
+                _swipeRightClip.Add(_swipeRightImage);
+                _content.Add(_swipeRightClip);
+                _placeholder.SetVisible(left.Exists == false || right.Exists == false);
 
                 // 경계선은 배율과 상관없이 같은 굵기로 보이게 뷰포트 좌표에 둔다. 넓은 투명 칸이 잡기 쉬운 손잡이 역할을 한다.
                 _swipeHandle = new VisualElement();
@@ -645,7 +709,14 @@ namespace GitVersionControl
                 Size(_onionImage, _onionSide, zoom);
                 if (_onionImage != null)
                 {
-                    _onionImage.style.opacity = _owner._opacitySlider.value;
+                    // 이전은 반대로 옅어진다(교차 페이드) — 100% 면 이후만, 0% 면 이전만 보인다.
+                    // 이전을 늘 그대로 두면 이후의 투명한 곳으로 이전이 비친다.
+                    float opacity = _owner._opacitySlider.value;
+                    _onionImage.style.opacity = opacity;
+                    if (_bottom != null)
+                    {
+                        _bottom.style.opacity = 1f - opacity;
+                    }
                 }
                 if (DifferenceImage != null)
                 {
@@ -656,6 +727,9 @@ namespace GitVersionControl
                     float split = width * _owner._swipe;
                     Place(_swipeClip, 0, 0, split, height);
                     Size(_swipeImage, _swipeSide, zoom);
+                    // 오른쪽 층은 경계선에서 시작하고, 안의 이미지를 그만큼 왼쪽으로 당겨 캔버스 위치를 맞춘다.
+                    Place(_swipeRightClip, split, 0, Mathf.Max(0f, width - split), height);
+                    Place(_swipeRightImage, -split, 0, (_swipeRightSide?.Width ?? 0) * zoom, (_swipeRightSide?.Height ?? 0) * zoom);
                     _swipeHandle.style.left = pan.x + split - SwipeHandleWidth * 0.5f;
                 }
             }

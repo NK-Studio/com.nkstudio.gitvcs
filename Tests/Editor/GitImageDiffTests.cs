@@ -72,8 +72,8 @@ namespace GitVersionControl.Tests
             GitImageDiffResult result = GitImageDiff.Compare(Filled(4, 4, Red), 4, 4, after, 4, 4, 0);
 
             Assert.AreEqual(1, result.ChangedPixels);
-            Assert.AreEqual(GitImageDiff.ChangedColor, result.Mask[5]);
-            Assert.AreNotEqual(GitImageDiff.ChangedColor, result.Mask[4]);
+            Assert.IsTrue(result.Changed[5]);
+            Assert.IsFalse(result.Changed[4]);
         }
 
         [Test]
@@ -103,10 +103,10 @@ namespace GitVersionControl.Tests
             Assert.IsTrue(result.SizeChanged);
             Assert.AreEqual(2, result.ChangedPixels);
             // Unity 순서는 아래 줄부터: 0·1 이 아래 줄(이후에만 있음), 2·3 이 위 줄.
-            Assert.AreEqual(GitImageDiff.ChangedColor, result.Mask[0]);
-            Assert.AreEqual(GitImageDiff.ChangedColor, result.Mask[1]);
-            Assert.AreNotEqual(GitImageDiff.ChangedColor, result.Mask[2]);
-            Assert.AreNotEqual(GitImageDiff.ChangedColor, result.Mask[3]);
+            Assert.IsTrue(result.Changed[0]);
+            Assert.IsTrue(result.Changed[1]);
+            Assert.IsFalse(result.Changed[2]);
+            Assert.IsFalse(result.Changed[3]);
         }
 
         [Test]
@@ -118,8 +118,8 @@ namespace GitVersionControl.Tests
             GitImageDiffResult result = GitImageDiff.Compare(before, 1, 2, new[] { Blue }, 1, 1, 0);
 
             Assert.AreEqual(1, result.ChangedPixels);
-            Assert.AreEqual(GitImageDiff.ChangedColor, result.Mask[0]);
-            Assert.AreNotEqual(GitImageDiff.ChangedColor, result.Mask[1]);
+            Assert.IsTrue(result.Changed[0]);
+            Assert.IsFalse(result.Changed[1]);
         }
 
         [Test]

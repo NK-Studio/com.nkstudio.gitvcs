@@ -303,6 +303,42 @@
     background-color: rgba(0, 0, 0, 0.55);
 }
 
+.git-image-diff__mode-controls {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* 새로 만든·지운 이미지: 이미지 둘레 테두리와 위 가운데 상태 글자(GitHub 처럼 추가는 초록, 삭제는 빨강). */
+.git-image-diff__frame {
+    border-width: 1px;
+}
+
+.git-image-diff--added .git-image-diff__frame {
+    border-color: var(--git-success);
+}
+
+.git-image-diff--deleted .git-image-diff__frame {
+    border-color: var(--git-danger);
+}
+
+.git-image-diff__status {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 6px;
+    -unity-text-align: middle-center;
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.git-image-diff--added .git-image-diff__status {
+    color: var(--git-success);
+}
+
+.git-image-diff--deleted .git-image-diff__status {
+    color: var(--git-danger);
+}
+
 .git-image-diff__placeholder {
     position: absolute;
     left: 0;

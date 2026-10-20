@@ -303,7 +303,7 @@ namespace GitVersionControl
             toolbar.Add(_unifiedToggle);
             toolbar.Add(_splitToggle);
 
-            // 알고리즘·공백·문맥 줄 수는 설정(Project Settings > Version Control)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
+            // 알고리즘·공백·문맥 줄 수는 설정(Project Settings > Git)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
             ToolbarButton external = new(() =>
             {
                 if (_target != null)
@@ -463,10 +463,8 @@ namespace GitVersionControl
                 ShowLoadingLater(version);
             }
 
-            // 이미지 비교는 양쪽 판이 다 있을 때만(수정). 새로 만든·지운 이미지는 비교할 반대쪽이 없으니
-            // 다른 바이너리처럼 파일 카드("created"·"deleted"·크기)로 보인다.
-            bool isImage = GitImageDiff.IsImage(_target.RepoPath)
-                           && _target.State != GitFileState.Added && _target.State != GitFileState.Untracked && _target.State != GitFileState.Deleted;
+            // 이미지는 이미지 보기로. 새로 만든·지운 이미지는 비교 없이 있는 쪽 이미지만 "추가됨"·"삭제됨" 과 함께 보인다(GitImageDiffView).
+            bool isImage = GitImageDiff.IsImage(_target.RepoPath);
             SetImageMode(isImage);
             if (isImage)
             {
