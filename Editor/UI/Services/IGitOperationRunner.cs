@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using UnityEditor;
 
@@ -57,6 +58,12 @@ namespace GitVersionControl
             try
             {
                 result = await operation();
+                // 앞서 git 이 도중에 끝나 잠금 파일이 남았으면, 지우고 다시 할지 묻는다(Fork·SourceTree 처럼).
+                if (result.Success == false && GitLockFile.TryFind(result.Message, GitRepository.GitDir, out string lockPath)
+                    && ConfirmRemoveLock(lockPath))
+                {
+                    result = await operation();
+                }
                 // 끝나면 "~ 완료" 를 남기지 않고 비운다(GitKraken 처럼 결과는 화면이 바뀐 것으로 보인다). 실패만 남긴다.
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
                 if (result.Success == false && showErrorDialog)
@@ -79,6 +86,34 @@ namespace GitVersionControl
                 StateChanged?.Invoke();
             }
             return result;
+        }
+
+        /// <summary>
+        /// 남은 잠금 파일을 지울지 묻고, 그러라면 지운다. 정말 다른 git 이 돌고 있으면 그쪽이 망가질 수 있어 늘 묻는다.
+        /// </summary>
+        private bool ConfirmRemoveLock(string lockPath)
+        {
+            if (File.Exists(lockPath) == false)
+            {
+                // 그 사이 다른 git 이 끝나며 지웠다. 그냥 다시 해 본다.
+                return true;
+            }
+            TimeSpan age = DateTime.Now - File.GetLastWriteTime(lockPath);
+            string ageText = age.TotalMinutes >= 1 ? GitText.Format("lock.ageMinutes", (int)age.TotalMinutes) : GitText.Format("lock.ageSeconds", Math.Max(0, (int)age.TotalSeconds));
+            if (_dialogs.Confirm(GitText.Get("lock.title"), GitText.Format("lock.message", lockPath, ageText), GitText.Get("lock.remove")) == false)
+            {
+                return false;
+            }
+            try
+            {
+                File.Delete(lockPath);
+                return true;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                _dialogs.Alert(GitText.Get("lock.title"), e.Message);
+                return false;
+            }
         }
 
         public void SetStatus(string text)

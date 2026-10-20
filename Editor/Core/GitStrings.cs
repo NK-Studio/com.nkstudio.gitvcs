@@ -310,6 +310,11 @@ namespace GitVersionControl
             // ── 작업 실행기 ──
             ["runner.running"] = new[] { "{0} 중…", "{0}…" },
             ["runner.failed"] = new[] { "{0} 실패", "{0} failed" },
+            ["lock.title"] = new[] { "git 잠금 파일이 남아 있습니다", "A git lock file was left behind" },
+            ["lock.message"] = new[] { "앞서 git 작업이 도중에 끝나 잠금 파일이 남은 것 같습니다({1} 전에 만들어짐).\n\n{0}\n\n다른 git 프로그램(터미널·Fork 등)이 지금 작업 중이 아니라면 지우고 다시 시도하세요.", "A previous git operation seems to have stopped midway and left a lock file (created {1} ago).\n\n{0}\n\nIf no other git program (terminal, Fork, etc.) is working right now, remove it and try again." },
+            ["lock.remove"] = new[] { "지우고 다시 시도", "Remove and Retry" },
+            ["lock.ageMinutes"] = new[] { "{0}분", "{0} min" },
+            ["lock.ageSeconds"] = new[] { "{0}초", "{0} s" },
             ["op.fetch"] = new[] { "Fetch", "Fetch" },
             ["op.pull"] = new[] { "Pull", "Pull" },
             ["op.push"] = new[] { "Push", "Push" },

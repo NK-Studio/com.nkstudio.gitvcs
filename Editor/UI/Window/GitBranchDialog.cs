@@ -27,7 +27,7 @@ namespace GitVersionControl
     public sealed class GitBranchDialog
     {
         private readonly List<string> _existing;
-        private readonly TaskCompletionSource<GitBranchDialogResult> _done = new();
+        private readonly TaskCompletionSource<GitBranchDialogResult> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly VisualElement _overlay;
         private readonly TextField _name;
         private readonly Label _problem;

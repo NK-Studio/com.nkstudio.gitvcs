@@ -11,7 +11,10 @@ namespace GitVersionControl
     /// </summary>
     public sealed class GitConfirmDialog
     {
-        private readonly TaskCompletionSource<bool> _done = new();
+        /// <summary>
+        /// 기다리던 쪽은 다음 틀에 이어 간다 — 바로 이어서 운영체제 대화상자(오류 알림 등)를 띄우면 닫히기 전의 팝업이 그 뒤에 남아 보인다.
+        /// </summary>
+        private readonly TaskCompletionSource<bool> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly VisualElement _overlay;
 
         /// <summary>
