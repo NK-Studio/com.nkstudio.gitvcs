@@ -9,7 +9,7 @@ namespace GitVersionControl
     ///
     /// 예전에는 Mode 드롭다운에 "Git" 항목(VersionControlObject)을 더했지만, 그러면 ProjectSettings/VersionControlSettings.asset 에
     /// "Git" 이 저장돼 이 패키지가 없는 팀원의 에디터가 모르는 모드를 읽게 된다. 이제 모드와 상관없이 켜고,
-    /// 예전 버전이 "Git" 으로 바꿔 둔 프로젝트는 열 때 "Visible Meta Files" 로 되돌린다.
+    /// 예전 버전이 "Git" 으로 바꿔 둔 프로젝트(그 뒤 Unity 가 "Hidden Meta Files" 로 바꾼 경우 포함)는 열 때 "Visible Meta Files" 로 되돌린다.
     /// 설정은 Project Settings > Git(<see cref="GitSettingsGUI"/>), Project 창 상태 배지는 <see cref="EditorApplication.projectWindowItemOnGUI"/> 로 그린다.
     /// </summary>
     [InitializeOnLoad]
@@ -21,6 +21,8 @@ namespace GitVersionControl
         public const string LegacyModeName = "Git";
 
         public const string VisibleMetaFilesMode = "Visible Meta Files";
+
+        public const string HiddenMetaFilesMode = "Hidden Meta Files";
 
         public const string ProjectSettingsPath = "Project/Git";
 
@@ -38,9 +40,14 @@ namespace GitVersionControl
             };
         }
 
+        /// <summary>
+        /// git 은 .meta 파일이 보여야 함께 커밋할 수 있다. "Git"(예전 버전) 이거나, 그 항목이 사라진 뒤 Unity 가 대신 고른 "Hidden Meta Files" 면
+        /// "Visible Meta Files" 로 되돌린다. 다른 버전 관리(Perforce·Unity Version Control 등) 모드는 건드리지 않는다.
+        /// </summary>
         private static void RestoreVisibleMetaFiles()
         {
-            if (VersionControlSettings.mode == LegacyModeName)
+            string mode = VersionControlSettings.mode;
+            if (mode == LegacyModeName || mode == HiddenMetaFilesMode)
             {
                 VersionControlSettings.mode = VisibleMetaFilesMode;
             }
