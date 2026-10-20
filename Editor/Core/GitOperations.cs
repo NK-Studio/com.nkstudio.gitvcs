@@ -411,10 +411,20 @@ namespace GitVersionControl
                         File.Delete(fullPath);
                     }
 
-                    string dir = Path.GetDirectoryName(fullPath);
-                    while (dir != null && dir.Length > root.Length && Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any() == false)
+                    // 폴더의 .meta 만 지우면 폴더가 남아 있어 Unity 가 곧바로 .meta 를 다시 만든다. 폴더가 비었으면(.DS_Store 같은 것만 있으면) 같이 지운다.
+                    if (fullPath.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
                     {
-                        Directory.Delete(dir);
+                        string folder = fullPath.Substring(0, fullPath.Length - ".meta".Length);
+                        if (Directory.Exists(folder) && IsEffectivelyEmpty(folder))
+                        {
+                            Directory.Delete(folder, true);
+                        }
+                    }
+
+                    string dir = Path.GetDirectoryName(fullPath);
+                    while (dir != null && dir.Length > root.Length && Directory.Exists(dir) && IsEffectivelyEmpty(dir))
+                    {
+                        Directory.Delete(dir, true);
                         dir = Path.GetDirectoryName(dir);
                     }
                 }
@@ -424,6 +434,27 @@ namespace GitVersionControl
                 }
             }
             return errors.Length == 0 ? null : errors.ToString();
+        }
+
+        /// <summary>
+        /// 운영체제가 몰래 만드는 파일. 폴더가 비었는지 볼 때 없는 것으로 친다.
+        /// </summary>
+        private static readonly string[] OsJunkFiles = { ".DS_Store", "Thumbs.db", "desktop.ini" };
+
+        /// <summary>
+        /// 폴더 안(하위 폴더 포함)에 운영체제가 만든 파일(<see cref="OsJunkFiles"/>)과 빈 폴더 말고는 아무것도 없는지.
+        /// </summary>
+        public static bool IsEffectivelyEmpty(string directory)
+        {
+            foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            {
+                string name = Path.GetFileName(file);
+                if (OsJunkFiles.Any(junk => string.Equals(junk, name, StringComparison.OrdinalIgnoreCase)) == false)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static string WritePathspecFile(IEnumerable<string> paths)
