@@ -108,6 +108,76 @@
     opacity: 0.7;
 }
 
+/* 충돌 구역(StagingLists 가 코드로 만든다): GitKraken 사이드바처럼 Unstaged·Staged 위에
+   "병합 충돌이 있습니다" 안내 · 무엇을 어디에 합치는 중인지 · 충돌 파일 목록과 [모두 해결됨으로 표시] · 해결한 파일 목록.
+   목록 높이는 줄 수에 맞춰 코드가 정한다. 경고색은 테마의 --git-warning, 모두 풀면 --git-success. */
+.staging-conflict {
+    flex-shrink: 0;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.staging-conflict__alert {
+    margin: 8px 8px 0 8px;
+    padding: 6px 10px;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-warning);
+    background-color: rgba(224, 160, 48, 0.16);
+    color: var(--git-text-strong);
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.staging-conflict--resolved .staging-conflict__alert {
+    border-color: var(--git-success);
+    background-color: rgba(95, 184, 101, 0.16);
+}
+
+.staging-conflict__detail {
+    margin: 4px 8px 4px 8px;
+    color: var(--git-text-muted);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.staging .list-header.staging-conflict__header {
+    height: 30px;
+    min-height: 30px;
+}
+
+/* 목록 칸에는 공용 .list 도 붙어 있어 flex-basis 가 0 이 된다. basis 0 은 코드가 준 height 를 이겨 칸이 0 으로 찌그러지므로
+   auto 로 되돌린다(.list 보다 세게 하려고 클래스 둘로 적는다). */
+.staging-conflict .staging-conflict__files {
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: auto;
+}
+
+/* [모두 해결됨으로 표시]: Stage 버튼과 같은 모양에 경고색. */
+.staging__button.staging-conflict__resolve-all {
+    border-width: 1px;
+    border-color: var(--git-warning);
+    background-color: rgba(224, 160, 48, 0.18);
+    color: var(--git-text);
+}
+
+.staging__button.staging-conflict__resolve-all:hover:enabled {
+    background-color: rgba(224, 160, 48, 0.32);
+}
+
+.staging__button.staging-conflict__resolve-all:active:enabled {
+    background-color: rgba(224, 160, 48, 0.45);
+}
+
+.staging--fork .staging__button.staging-conflict__resolve-all {
+    border-color: var(--git-button-border);
+    background-color: var(--git-pressed);
+}
+
 /* ── commit-box ──────────────────────────────────── */
 .commit-box {
     flex-shrink: 0;
@@ -154,11 +224,13 @@
 
 /* ── fork-changes ────────────────────────────────── */
 .fork-changes__lists {
+    min-width: 220px;
     border-right-width: 1px;
     border-right-color: var(--git-border);
 }
 
 .fork-changes__right {
+    min-width: 260px;
     flex-direction: column;
 }
 
@@ -174,6 +246,7 @@
 
 /* ── graph-workspace ─────────────────────────────── */
 .graph-workspace__center {
+    min-width: 220px;
     flex-direction: column;
 }
 
@@ -184,6 +257,8 @@
 }
 
 .graph-workspace__side {
+    /* 커밋 상세·작업 패널 최소 너비(Branch Explorer 상세도 이 클래스). 메시지가 글자 단위로 꺾이지 않는 폭. */
+    min-width: 260px;
     flex-direction: column;
     border-left-width: 1px;
     border-left-color: var(--git-border);
@@ -431,6 +506,8 @@
 .graph-detail__files-header {
     flex-shrink: 0;
     flex-direction: row;
+    /* 좁으면 경로/트리 전환을 다음 줄로 내린다(바뀐 파일 수와 겹치지 않게). */
+    flex-wrap: wrap;
     align-items: center;
     margin-top: 12px;
     padding-bottom: 4px;
@@ -440,8 +517,14 @@
 
 .graph-detail__summary {
     flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
     flex-direction: row;
     flex-wrap: wrap;
+}
+
+.graph-detail__files-header > .list-header__tools {
+    margin-left: auto;
 }
 
 .graph-detail__count {
@@ -693,7 +776,7 @@
     -unity-background-image-tint-color: var(--git-accent-text);
 }
 
-/* 원격·태그 이름 뒤의 종류 아이콘(구름·태그). 노트북과 같은 자리·크기이고 색은 이름표 글자색을 따른다. */
+/* 원격·태그 이름 뒤의 종류 아이콘(GitHub 표시·태그). 노트북과 같은 자리·크기이고 색은 이름표 글자색에 맞춘다. */
 .commit-graph-ref__remote-icon,
 .commit-graph-ref__tag-icon {
     display: none;
@@ -706,6 +789,17 @@
 .commit-graph-ref--remote > .commit-graph-ref__remote-icon,
 .commit-graph-ref--tag > .commit-graph-ref__tag-icon {
     display: flex;
+}
+
+.commit-graph-ref__remote-icon {
+    /* GitHub 표시는 꽉 찬 원이라 16px 이면 노트북·태그보다 커 보여 살짝 줄인다. */
+    width: 12px;
+    height: 12px;
+    align-self: center;
+    background-image: url("../Icons/GitHub.png");
+    -unity-background-scale-mode: scale-to-fit;
+    /* 가장 진한 글자색(어두운 테마는 흰색) — 흐린 색이면 테두리만 있는 이름표 안에서 묻힌다. */
+    -unity-background-image-tint-color: var(--git-text-strong);
 }
 
 /* 원격: 바탕 없이 테두리만(로컬과 구분). */

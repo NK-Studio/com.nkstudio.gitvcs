@@ -21,6 +21,12 @@ namespace GitVersionControl
         /// </summary>
         private const string SkipConnectKey = "GitVersionControl.SkipGitHubConnect";
 
+        /// <summary>
+        /// 배율 100% 에서 창 최소 크기. 너비는 칸 최소 너비 합이다 — 사이드바(.git-sidebar 180) + 내용(.git-window__content 480).
+        /// 높이는 작업 막대 + 목록 머리 줄과 몇 줄. 실제 minSize 는 UI 배율을 곱한다(<see cref="ApplyMinSize"/>).
+        /// </summary>
+        private static readonly Vector2 MinLayoutSize = new(660f, 360f);
+
         [SerializeField] private GitWindowState _state = new();
 
         private GitServices _services;
@@ -99,7 +105,12 @@ namespace GitVersionControl
             _layout = layout;
             ApplyTheme();
             GitVcsSettings settings = GitVcsSettings.instance;
-            _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
+            _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value =>
+            {
+                settings.GitWindowScale = value;
+                ApplyMinSize();
+            });
+            ApplyMinSize();
             _window = layout.Require<VisualElement>("git-window");
             _notReady = layout.Require<VisualElement>("not-ready");
             _notReadyMessage = layout.Require<Label>("not-ready-message");
@@ -148,6 +159,14 @@ namespace GitVersionControl
 
             SelectTab(Mathf.Clamp(_state.SelectedTab, 0, _views.Count - 1));
             OnRepositoryChanged();
+        }
+
+        /// <summary>
+        /// 창을 칸 최소 너비 합보다 좁게 줄이지 못하게 한다. 내용은 배율만큼 커지므로 최소 크기도 배율을 곱한다.
+        /// </summary>
+        private void ApplyMinSize()
+        {
+            minSize = MinLayoutSize * UiScaleController.Clamp(GitVcsSettings.instance.GitWindowScale);
         }
 
         private void BuildConnect()
@@ -238,7 +257,7 @@ namespace GitVersionControl
                 string error = GitTerminal.Open(repoRoot);
                 if (error != null)
                 {
-                    EditorUtility.DisplayDialog(GitText.Get("actionbar.terminalFailed"), error, GitText.Get("common.ok"));
+                    (_services?.Dialogs ?? new EditorDialogService()).Alert(GitText.Get("actionbar.terminalFailed"), error);
                 }
             });
             menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath));

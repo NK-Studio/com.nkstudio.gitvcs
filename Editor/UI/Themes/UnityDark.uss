@@ -6,6 +6,7 @@
     --git-header-bg: #313131;
     --git-list-bg: #313131;
     --git-text: #d2d2d2;
+    --git-text-strong: #ffffff;
     --git-text-muted: #9a9a9a;
     --git-border: #232323;
     --git-divider: rgba(255,255,255,0.1);

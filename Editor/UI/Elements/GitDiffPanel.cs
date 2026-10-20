@@ -63,6 +63,21 @@ namespace GitVersionControl
         private bool _showNewNumbers = true;
 
         private readonly ListView _list;
+
+        // ── 가로 스크롤 ──
+        // 세로 가상화(FixedHeight)를 그대로 두려고 ListView 의 가로 스크롤은 끄고, 코드 칸 안쪽(diff-row__track)만 translate 로 옮긴다.
+        // 줄 번호·+/- 칸은 그 바깥이라 제자리에 남는다. 나란히 보기의 두 칸은 같은 가로 위치를 함께 쓴다(GitHub·Fork 처럼).
+        private const float CodeSignWidth = 16f;
+        private const float CodeEndSlack = 24f;
+        private const float FallbackCharWidth = 7.2f;
+        private readonly VisualElement _horizontalBar;
+        private readonly Scroller _leftScroller;
+        private readonly Scroller _rightScroller;
+        private float _scrollX;
+        private float _maxScrollX;
+        private int _maxColumns;
+        private float _charWidth = FallbackCharWidth;
+        private bool _isSyncingScrollers;
         private ToolbarToggle _unifiedToggle;
         private ToolbarToggle _splitToggle;
         private Button _previousButton;
@@ -76,6 +91,7 @@ namespace GitVersionControl
         private bool _isImageMode;
 
         private ToolbarButton _closeButton;
+        private GitMergeEditor _merge;
         private ToolbarButton _reloadButton;
 
         /// <summary>
@@ -88,6 +104,23 @@ namespace GitVersionControl
         public void ShowCloseButton(bool isVisible)
         {
             _closeButton.SetVisible(isVisible);
+            _merge?.ShowCloseButton(isVisible);
+        }
+
+        /// <summary>
+        /// 충돌 파일을 고르면 diff 대신 병합 편집기(<see cref="GitMergeEditor"/>)를 덮어 보인다. Git 창 안의 diff 칸만 켠다(저장·해결에 작업 실행기가 든다).
+        /// </summary>
+        public void EnableMergeEditor(GitServices services)
+        {
+            if (_merge != null)
+            {
+                return;
+            }
+            _merge = new GitMergeEditor(services);
+            _merge.CloseRequested += () => CloseRequested?.Invoke();
+            _merge.ShowCloseButton(_closeButton.style.display.value != DisplayStyle.None);
+            _merge.Root.SetVisible(false);
+            Root.Add(_merge.Root);
         }
 
         /// <summary>
@@ -122,7 +155,23 @@ namespace GitVersionControl
                 horizontalScrollingEnabled = false,
             };
             _list.AddToClassList("git-diff__list");
+            // 가로 휠은 ListView 의 ScrollView 보다 먼저 받아(TrickleDown) 세로로 흘려보내지 않는다.
+            _list.RegisterCallback<WheelEvent>(OnListWheel, TrickleDown.TrickleDown);
+            _list.RegisterCallback<GeometryChangedEvent>(_ => UpdateHorizontalRange());
             Root.Add(_list);
+
+            // 목록 아래 가로 스크롤 막대. 목록 hierarchy 안에 넣어 목록이 숨으면(이미지·바이너리) 함께 숨는다.
+            // 나란히 보기는 칸마다 하나씩 보이지만 같은 위치를 함께 움직인다.
+            _horizontalBar = new VisualElement();
+            _horizontalBar.AddToClassList("git-diff__hscroll");
+            _leftScroller = new Scroller(0f, 1f, OnScrollerChanged, SliderDirection.Horizontal);
+            _leftScroller.AddToClassList("git-diff__hscroller");
+            _rightScroller = new Scroller(0f, 1f, OnScrollerChanged, SliderDirection.Horizontal);
+            _rightScroller.AddToClassList("git-diff__hscroller");
+            _horizontalBar.Add(_leftScroller);
+            _horizontalBar.Add(_rightScroller);
+            _horizontalBar.SetVisible(false);
+            _list.hierarchy.Add(_horizontalBar);
 
             // 이미지 파일이면 줄 목록 대신 이 뷰가 보인다.
             _imageView = new GitImageDiffView();
@@ -182,6 +231,18 @@ namespace GitVersionControl
 
         public void Reload()
         {
+            if (_merge != null)
+            {
+                bool conflicted = _merge.CanOpen(_target);
+                _merge.Root.SetVisible(conflicted);
+                if (conflicted)
+                {
+                    ++_loadVersion;
+                    HideLoading();
+                    _merge.Open(_target.RepoPath);
+                    return;
+                }
+            }
             if (_target == null)
             {
                 ShowEmpty();
@@ -483,6 +544,14 @@ namespace GitVersionControl
             UpdateGutter(isSplit);
             _rows = _document == null ? new List<GitDiffRow>() : isSplit ? GitDiff.ToSideBySide(_document.Lines) : _document.Lines.Select(line => new GitDiffRow(line, line)).ToList();
             _list.itemsSource = _rows;
+            _maxColumns = 0;
+            if (_document != null)
+            {
+                foreach (GitDiffLine line in _document.Lines)
+                {
+                    _maxColumns = Math.Max(_maxColumns, DisplayColumns(line.Text));
+                }
+            }
             if (rebuild)
             {
                 _list.Rebuild();
@@ -491,6 +560,122 @@ namespace GitVersionControl
             {
                 _list.RefreshItems();
             }
+            UpdateHorizontalRange();
+        }
+
+        /// <summary>
+        /// 모노스페이스 글꼴 기준 칸 수. 탭은 4칸, 한글·한자 같은 넓은 글자는 2칸으로 센다.
+        /// </summary>
+        private static int DisplayColumns(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return 0;
+            }
+            int columns = 0;
+            foreach (char c in text)
+            {
+                columns += c == '\t' ? 4 : IsWide(c) ? 2 : 1;
+            }
+            return columns;
+        }
+
+        private static bool IsWide(char c)
+        {
+            return (c >= 0x1100 && c <= 0x115F) || (c >= 0x2E80 && c <= 0xA4CF) || (c >= 0xAC00 && c <= 0xD7A3)
+                || (c >= 0xF900 && c <= 0xFAFF) || (c >= 0xFE30 && c <= 0xFE4F) || (c >= 0xFF00 && c <= 0xFF60) || (c >= 0xFFE0 && c <= 0xFFE6);
+        }
+
+        /// <summary>
+        /// 가장 긴 줄 폭과 지금 코드 칸 폭으로 가로 스크롤 범위를 다시 잡는다. 넘치는 줄이 없으면 막대를 숨긴다.
+        /// </summary>
+        private void UpdateHorizontalRange()
+        {
+            ScrollView scroll = _list.Q<ScrollView>();
+            float viewport = scroll?.contentViewport.resolvedStyle.width ?? float.NaN;
+            if (float.IsNaN(viewport) || viewport <= 0f)
+            {
+                return;
+            }
+            MeasureCharWidth();
+            bool isSplit = _shownSplit == true;
+            float codeWidth = isSplit
+                ? (viewport - 1f) * 0.5f - _numberWidth - CodeSignWidth
+                : viewport - (_showOldNumbers ? _numberWidth : 0f) - (_showNewNumbers ? _numberWidth : 0f) - CodeSignWidth;
+            float contentWidth = _maxColumns * _charWidth + CodeEndSlack;
+            _maxScrollX = Mathf.Max(0f, contentWidth - Mathf.Max(1f, codeWidth));
+
+            bool shown = _maxScrollX > 0f;
+            _horizontalBar.SetVisible(shown);
+            _rightScroller.SetVisible(isSplit);
+            // 세로 스크롤 막대가 차지한 폭만큼 오른쪽을 비워 칸 경계와 막대 경계를 맞춘다.
+            _horizontalBar.style.paddingRight = Mathf.Max(0f, _list.resolvedStyle.width - viewport);
+            float factor = contentWidth > 0f ? Mathf.Clamp01(codeWidth / contentWidth) : 1f;
+            foreach (Scroller scroller in new[] { _leftScroller, _rightScroller })
+            {
+                scroller.highValue = Mathf.Max(1f, _maxScrollX);
+                scroller.Adjust(factor);
+            }
+            SetScrollX(_scrollX);
+        }
+
+        /// <summary>
+        /// 줄에 쓰는 글꼴의 실제 글자 폭(모노스페이스라 한 글자 폭 × 칸 수가 줄 폭). 아직 그려진 줄이 없으면 전에 잰 값을 쓴다.
+        /// </summary>
+        private void MeasureCharWidth()
+        {
+            Label part = _list.Q<Label>(className: "diff-row__part");
+            if (part == null)
+            {
+                return;
+            }
+            const string sample = "MMMMMMMMMMMMMMMMMMMM";
+            float width = part.MeasureTextSize(sample, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x;
+            if (width > 0f && float.IsNaN(width) == false)
+            {
+                _charWidth = width / sample.Length;
+            }
+        }
+
+        private void OnListWheel(WheelEvent evt)
+        {
+            float horizontal = GraphViewport.HorizontalWheel(evt.delta, evt.shiftKey);
+            if (horizontal == 0f)
+            {
+                return;
+            }
+            if (_maxScrollX > 0f)
+            {
+                SetScrollX(_scrollX + horizontal * GraphViewport.WheelPanStep);
+            }
+            // 넘치는 줄이 없어도 가로 휠이 세로로 굴러가지 않게 막는다.
+            evt.StopPropagation();
+        }
+
+        private void OnScrollerChanged(float value)
+        {
+            if (_isSyncingScrollers == false)
+            {
+                SetScrollX(value);
+            }
+        }
+
+        /// <summary>
+        /// 가로 위치를 바꾸고 막대 둘과 보이는 줄의 코드 칸을 함께 옮긴다. translate 라 레이아웃을 다시 계산하지 않는다.
+        /// </summary>
+        private void SetScrollX(float value)
+        {
+            _scrollX = Mathf.Clamp(value, 0f, _maxScrollX);
+            _isSyncingScrollers = true;
+            _leftScroller.value = _scrollX;
+            _rightScroller.value = _scrollX;
+            _isSyncingScrollers = false;
+            _list.Query<VisualElement>(className: "diff-row__track").ForEach(ApplyScrollX);
+        }
+
+        private void ApplyScrollX(VisualElement track)
+        {
+            track.style.translate = new Translate(-_scrollX, 0f);
         }
 
         /// <summary>
@@ -581,6 +766,10 @@ namespace GitVersionControl
             if (isBinary)
             {
                 LoadBinaryAsync(version, _target);
+            }
+            if (_scrollToTop)
+            {
+                _scrollX = 0f;
             }
             ApplyLayout();
             if (_scrollToTop)
@@ -806,6 +995,10 @@ namespace GitVersionControl
         {
             VisualElement code = new();
             code.AddToClassList("diff-row__code");
+            // 세 조각을 담아 가로 스크롤 때 함께 옮기는 안쪽 띠. 바깥(code)이 넘치는 부분을 자른다.
+            VisualElement track = new();
+            track.AddToClassList("diff-row__track");
+            code.Add(track);
             for (int i = 0; i < 3; i++)
             {
                 Label part = new() { enableRichText = false };
@@ -818,16 +1011,18 @@ namespace GitVersionControl
                 {
                     part.style.unityFontDefinition = FontDefinition.FromFont(_monospace);
                 }
-                code.Add(part);
+                track.Add(part);
             }
             return code;
         }
 
-        private static void BindCode(VisualElement code, GitDiffLine line)
+        private void BindCode(VisualElement code, GitDiffLine line)
         {
-            Label before = (Label)code[0];
-            Label change = (Label)code[1];
-            Label after = (Label)code[2];
+            VisualElement track = code[0];
+            ApplyScrollX(track);
+            Label before = (Label)track[0];
+            Label change = (Label)track[1];
+            Label after = (Label)track[2];
             if (line == null)
             {
                 before.text = string.Empty;

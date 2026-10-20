@@ -17,7 +17,11 @@
 
 .git-window__content {
     flex-grow: 1;
-    min-width: 200px;
+    /*
+     * 칸 최소 너비(SplitPaneClamp 가 끌기·창 맞추기에서 읽는다). 탭 안 가로 분할의 두 칸 최소 합(가운데 220 + 오른쪽 260)이다.
+     * 바꾸면 GitWindow.MinLayoutSize 도 같이 맞춘다.
+     */
+    min-width: 480px;
 }
 
 .git-window__notice {
@@ -468,7 +472,9 @@
 }
 
 .git-sidebar {
-    min-width: 160px;
+    /* 칸 최소 너비. 탭 이름·브랜치 이름이 읽히는 폭. 넘치는 내용이 가운데 칸 위로 그려지지 않게 자른다. */
+    min-width: 180px;
+    overflow: hidden;
     flex-direction: column;
     background-color: var(--git-sidebar-bg);
     border-right-width: 1px;

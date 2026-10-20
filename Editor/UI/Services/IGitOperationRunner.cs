@@ -53,6 +53,12 @@ namespace GitVersionControl
         /// null 이면 다른 실패처럼 알린다. 창이 <see cref="GitAccountDialog"/> 를 넣는다.
         /// </summary>
         public Func<string, Task<bool>> AuthFailureHandler { get; set; }
+
+        /// <summary>
+        /// 작업이 로컬 변경이 덮어써진다며 실패했을 때(<see cref="GitLocalChanges.WouldOverwrite"/>) 오류 알림 대신 부른다(작업 이름, git 오류 글).
+        /// stash 해 두어 그 작업을 다시 해야 하면 true. null 이면 다른 실패처럼 알린다. 기본 묶음이 "Stash 하고 다시 ~" 팝업을 넣는다.
+        /// </summary>
+        public Func<string, string, Task<bool>> LocalChangesHandler { get; set; }
         public event Action StateChanged;
 
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
@@ -82,8 +88,19 @@ namespace GitVersionControl
                         authHandled = false;
                     }
                 }
+                // 로컬 변경 때문에 받지·합치지·전환하지 못했으면, 오류와 함께 "Stash 하고 다시" 를 권한다(고르면 stash 뒤 한 번 더).
+                bool localChangesHandled = false;
+                if (result.Success == false && showErrorDialog && authHandled == false && LocalChangesHandler != null && GitLocalChanges.WouldOverwrite(result.Message))
+                {
+                    localChangesHandled = true;
+                    if (await LocalChangesHandler(title, result.Message))
+                    {
+                        result = await operation();
+                        localChangesHandled = false;
+                    }
+                }
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
-                if (result.Success == false && showErrorDialog && authHandled == false)
+                if (result.Success == false && showErrorDialog && authHandled == false && localChangesHandled == false)
                 {
                     _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);
                 }

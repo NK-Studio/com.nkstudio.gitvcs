@@ -250,6 +250,7 @@
 }
 
 .workspace__table {
+    min-width: 220px;
     flex-direction: column;
 }
 
@@ -304,6 +305,7 @@
 }
 
 .workspace__side {
+    min-width: 220px;
     flex-direction: column;
     padding: 8px 10px;
     background-color: var(--git-sidebar-bg);
@@ -374,6 +376,7 @@
 }
 
 .branch-explorer__graph-pane {
+    min-width: 220px;
     flex-grow: 1;
     flex-basis: 0;
     min-height: 0;
@@ -785,4 +788,78 @@
     font-size: 11px;
     white-space: normal;
     color: var(--git-danger);
+}
+
+/* ── alert-dialog: 오류 알림(GitAlertDialog). Fork 의 Git Error 창처럼 왼쪽에 경고 삼각형, 오른쪽에 제목·안내·고정폭 글 상자 ─── */
+.branch-dialog.alert-dialog {
+    flex-direction: row;
+    align-items: flex-start;
+    width: 680px;
+    padding: 20px 20px 16px 20px;
+    border-radius: 12px;
+}
+
+.alert-dialog__icon {
+    width: 48px;
+    height: 44px;
+    flex-shrink: 0;
+    margin: 2px 18px 0 2px;
+    color: var(--git-warning);
+}
+
+.alert-dialog__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.alert-dialog__title {
+    margin: 0 0 4px 0;
+    padding: 0;
+    font-size: 14px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.alert-dialog__summary {
+    margin: 0 0 12px 0;
+    padding: 0;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.alert-dialog__details-title {
+    margin: 0 0 4px 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--git-text);
+}
+
+/* git 원문: 어두운 칸에 고정폭 글. 높이를 넘으면 스크롤한다(파일 목록이 긴 오류). */
+.alert-dialog__details {
+    min-height: 120px;
+    max-height: 260px;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+}
+
+.alert-dialog__details > .unity-scroll-view__content-viewport > .unity-scroll-view__content-container {
+    padding: 6px 8px;
+}
+
+.alert-dialog__details-text {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.alert-dialog .branch-dialog__buttons {
+    margin-top: 14px;
 }

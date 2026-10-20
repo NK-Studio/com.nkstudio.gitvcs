@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace GitVersionControl
 {
     /// <summary>
@@ -49,12 +51,35 @@ namespace GitVersionControl
         public static GitServices CreateDefault()
         {
             GitRepositoryState repository = new();
-            EditorDialogService dialogs = new();
+            // 알림은 Git 창 위 팝업으로(창이 없으면 운영체제 대화상자). 창이 나중에 PopupHost 를 넣으므로 그때그때 읽는다.
+            GitServices services = null;
+            PopupDialogService dialogs = new(new EditorDialogService(), () => services?.PopupHost);
             GitOperationRunner runner = new(repository, dialogs);
-            GitServices services = new(repository, new GitHistoryService(), new GitCommandService(),
+            services = new(repository, new GitHistoryService(), new GitCommandService(),
                 runner, dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
             runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
+            runner.LocalChangesHandler = (title, message) => OfferStashAndRetryAsync(services, title, message);
             return services;
+        }
+
+        /// <summary>
+        /// 로컬 변경이 덮어써져 실패한 작업(Pull·Merge·전환 등)의 오류를 알리면서 "Stash 하고 다시 ~" 를 권한다.
+        /// 고르고 stash 가 됐으면 true(실행기가 그 작업을 다시 한다). 그냥 닫았거나 stash 가 실패했으면 false.
+        /// </summary>
+        private static async Task<bool> OfferStashAndRetryAsync(GitServices services, string operation, string message)
+        {
+            string title = GitText.Format("runner.failed", operation);
+            if (await GitAlertDialog.ShowAsync(services.PopupHost, services.Dialogs, title, message, GitText.Format("runner.stashAndRetry", operation)) == false)
+            {
+                return false;
+            }
+            GitResult stash = await services.Commands.StashAsync();
+            if (stash.Success == false)
+            {
+                services.Dialogs.Alert(GitText.Format("runner.failed", GitText.Get("op.stash")), stash.Message);
+                return false;
+            }
+            return true;
         }
     }
 

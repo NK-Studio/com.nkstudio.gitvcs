@@ -7,6 +7,7 @@ namespace GitVersionControl
     /// Git 창 위쪽 안내 줄: 충돌로 멈춘 rebase·병합·cherry-pick·revert 가 있을 때(터미널에서 시작한 것도) 무엇이 진행 중인지,
     /// 충돌 파일이 몇 개인지 보이고 [이어가기]·[건너뛰기](rebase 만)·[취소] 를 둔다(<see cref="GitInProgress"/>).
     /// 이어가기는 충돌을 모두 풀어 stage 했을 때만 켠다 — 막는 까닭은 글과 툴팁으로 알린다.
+    /// stash pop·apply 충돌처럼 진행 중인 작업 없이 충돌만 남았으면 버튼 없이 충돌 개수만 알린다.
     /// </summary>
     public sealed class OperationBanner
     {
@@ -35,12 +36,25 @@ namespace GitVersionControl
         public void Render()
         {
             IGitRepositoryState repository = _services.Repository;
-            _kind = repository.IsRunning && repository.IsRepository ? repository.InProgressOperation : GitOperationKind.None;
-            _root.SetVisible(_kind != GitOperationKind.None);
+            bool active = repository.IsRunning && repository.IsRepository;
+            _kind = active ? repository.InProgressOperation : GitOperationKind.None;
             if (_kind == GitOperationKind.None)
             {
+                // stash pop·apply 처럼 진행 중인 작업(MERGE_HEAD 등) 없이 남은 충돌: 개수만 알린다. 이어가기·취소할 작업이 없으니 버튼은 숨긴다.
+                int leftover = active ? repository.Entries.Count(e => e.State == GitFileState.Conflicted) : 0;
+                _root.SetVisible(leftover > 0);
+                _continue.SetVisible(false);
+                _skip.SetVisible(false);
+                _abort.SetVisible(false);
+                if (leftover > 0)
+                {
+                    _text.text = GitText.Format("inprogress.bannerConflictsNoOp", leftover);
+                }
                 return;
             }
+            _root.SetVisible(true);
+            _continue.SetVisible(true);
+            _abort.SetVisible(true);
 
             string name = GitInProgress.DisplayName(_kind);
             string verb = GitInProgress.ContinueCommand(_kind)[0];

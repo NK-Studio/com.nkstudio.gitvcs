@@ -142,6 +142,25 @@
     overflow: hidden;
 }
 
+/* 코드 칸 안쪽 띠: 세 조각을 담고, 가로 스크롤 때 C# 이 translate 로 왼쪽으로 민다(바깥 diff-row__code 가 자른다). */
+.diff-row__track {
+    flex-direction: row;
+    flex-shrink: 0;
+    flex-grow: 1;
+}
+
+/* 줄 목록 아래 가로 스크롤 막대. 나란히 보기는 칸마다 하나(같은 위치를 함께 움직인다). */
+.git-diff__hscroll {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.git-diff__hscroller {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
 /* 앞·바뀐 부분·뒤 세 조각. 공백을 그대로 보이게 줄바꿈 없이 붙인다. */
 .diff-row__part {
     padding: 0;
@@ -567,4 +586,332 @@
     font-size: 12px;
     -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
     color: var(--git-text);
+}
+
+/* ── git-merge: 충돌 고치기(GitMergeEditor). diff 칸 위에 덮어 A(위 왼쪽)·B(위 오른쪽)·출력(아래)을 보인다 ───── */
+.git-merge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--git-bg);
+    color: var(--git-text);
+}
+
+.git-merge__header {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 30px;
+    padding: 0 6px 0 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+    background-color: var(--git-toolbar-bg);
+}
+
+.git-merge__warning {
+    margin: 0 6px 0 0;
+    padding: 0;
+    font-size: 13px;
+    color: var(--git-warning);
+}
+
+.git-merge__path {
+    flex-shrink: 1;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-merge__count {
+    flex-shrink: 0;
+    margin: 0 0 0 8px;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
+.git-merge__spacer {
+    flex-grow: 1;
+}
+
+.git-merge .git-merge__save {
+    height: 22px;
+    min-width: 64px;
+    margin: 0 0 0 8px;
+    padding: 0 12px;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-success);
+    background-color: rgba(63, 184, 92, 0.25);
+    color: var(--git-text-strong);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.git-merge .git-merge__save:hover:enabled {
+    background-color: rgba(63, 184, 92, 0.4);
+}
+
+.git-merge .git-merge__save:disabled {
+    opacity: 0.45;
+}
+
+.git-merge .git-merge__close {
+    width: 22px;
+    height: 22px;
+    margin: 0 0 0 6px;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 16px;
+    color: var(--git-text);
+}
+
+.git-merge .git-merge__close:hover {
+    background-color: var(--git-hover);
+}
+
+.git-merge__editor {
+    flex-grow: 1;
+}
+
+.git-merge__top {
+    flex-direction: row;
+    flex-grow: 1;
+    flex-basis: 0;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.git-merge__pane {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+.git-merge__pane--a {
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+}
+
+.git-merge__pane-header {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+    background-color: var(--git-header-bg);
+}
+
+.git-merge__all {
+    margin: 0 6px 0 0;
+}
+
+/* A·B 배지: 칸 색(A 청록·B 노랑)의 테두리 상자. */
+.git-merge__badge {
+    width: 20px;
+    height: 20px;
+    margin: 0 8px 0 0;
+    padding: 0;
+    border-width: 1px;
+    border-radius: 3px;
+    -unity-text-align: middle-center;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    font-size: 12px;
+}
+
+.git-merge__pane--a .git-merge__badge {
+    border-color: #2fa4c2;
+    color: #2fa4c2;
+}
+
+.git-merge__pane--b .git-merge__badge {
+    border-color: #d9a732;
+    color: #d9a732;
+}
+
+.git-merge__pane-title {
+    flex-shrink: 1;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-merge__output-title {
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.git-merge__position {
+    margin: 0 8px 0 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--git-accent-fg);
+}
+
+.git-merge .git-merge__nav,
+.git-merge .git-merge__reset {
+    height: 20px;
+    margin: 0 0 0 4px;
+    padding: 0 6px;
+    font-size: 10px;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: var(--git-accent);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-accent-fg);
+}
+
+.git-merge .git-merge__reset {
+    margin-left: 10px;
+    font-size: 11px;
+}
+
+.git-merge .git-merge__nav:hover,
+.git-merge .git-merge__reset:hover {
+    background-color: var(--git-hover);
+}
+
+.git-merge__list {
+    flex-grow: 1;
+    flex-basis: 0;
+    background-color: var(--git-diff-bg);
+}
+
+.git-merge__list .unity-list-view__empty-label {
+    display: none;
+}
+
+.git-merge__output {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+/* ── 줄 하나: [덩어리 체크] [번호] [줄 체크] [코드] ── */
+.merge-row {
+    flex-direction: row;
+    align-items: center;
+    height: 18px;
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.merge-row__hunk {
+    width: 16px;
+    margin: 0 2px 0 2px;
+    flex-shrink: 0;
+}
+
+.merge-row__number {
+    width: 40px;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0 4px 0 0;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--git-diff-number);
+}
+
+/* 줄 체크: 고른 줄은 초록 동그라미 안 ✓, 아직 안 고른 충돌 줄은 빈 동그라미. */
+.merge-row__check {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    margin: 0 6px 0 2px;
+    padding: 0;
+    border-radius: 7px;
+    font-size: 9px;
+    -unity-text-align: middle-center;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: #ffffff;
+}
+
+.merge-row__check--on {
+    background-color: var(--git-success);
+}
+
+.merge-row__check--off {
+    border-width: 1px;
+    border-color: var(--git-text-muted);
+}
+
+.merge-row__text {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    white-space: pre;
+    color: var(--git-diff-text);
+}
+
+.merge-row--a {
+    background-color: rgba(47, 164, 194, 0.22);
+    border-left-color: #2fa4c2;
+}
+
+.merge-row--b {
+    background-color: rgba(217, 167, 50, 0.24);
+    border-left-color: #d9a732;
+}
+
+.merge-row--current.merge-row--a {
+    background-color: rgba(47, 164, 194, 0.32);
+}
+
+.merge-row--current.merge-row--b {
+    background-color: rgba(217, 167, 50, 0.34);
+}
+
+.merge-row--placeholder .merge-row__text {
+    -unity-font-style: italic;
+    color: var(--git-text-muted);
+}
+
+/* 출력에서 아직 고르지 않은 충돌 자리: 경고색 테두리. */
+.merge-row--unresolved {
+    background-color: rgba(224, 160, 48, 0.08);
+    border-left-color: var(--git-warning);
+}
+
+.merge-row--unresolved .merge-row__text {
+    color: var(--git-warning);
+}
+
+/* ── 충돌 표시가 없는 충돌(바이너리·삭제/수정): 안내와 한쪽으로 해결하는 버튼 ── */
+.git-merge__binary {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.git-merge__binary-message {
+    max-width: 520px;
+    margin: 0 0 14px 0;
+    font-size: 12px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.git-merge__binary-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.git-merge .git-merge__binary-button {
+    height: 26px;
+    margin: 4px;
+    padding: 0 12px;
 }

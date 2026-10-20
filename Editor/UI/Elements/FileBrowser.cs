@@ -137,6 +137,13 @@ namespace GitVersionControl
             _tree.SelectionChanged += item => SelectionChanged?.Invoke(item);
             _tree.ActionClicked += item => _rowAction?.Invoke(item);
             _tree.PopulateMenuHead = PopulateMenuHead;
+            _tree.RowsChanged += () =>
+            {
+                if (_shownMode == FileViewMode.Tree)
+                {
+                    RowsChanged?.Invoke();
+                }
+            };
 
             if (switchHost != null)
             {
@@ -180,6 +187,15 @@ namespace GitVersionControl
             _binder.ActionEnabled = enabled;
             Refresh();
         }
+
+        /// <summary>
+        /// 지금 보기 방식으로 보이는 줄 수. 목록이면 파일 수, 트리면 펼친 폴더 줄까지 센다.
+        /// 줄 수에 맞춰 칸 높이를 정하는 곳(충돌 목록)이 쓴다.
+        /// </summary>
+        public int ShownRowCount => _shownMode == FileViewMode.Tree ? _tree.VisibleRowCount : _items.Count;
+
+        /// <summary>항목·보기 방식·트리 펼침이 바뀌어 <see cref="ShownRowCount"/> 가 바뀔 수 있을 때.</summary>
+        public event Action RowsChanged;
 
         public void SetItems(IEnumerable<FileListItem> items)
         {
@@ -254,6 +270,7 @@ namespace GitVersionControl
             else
             {
                 _list.SetItems(_items, item => item.RepoPath);
+                RowsChanged?.Invoke();
             }
         }
 

@@ -1404,8 +1404,8 @@ namespace GitVersionControl
             VisualElement local = new() { pickingMode = PickingMode.Ignore };
             local.AddToClassList("commit-graph-ref__local");
             pill.Add(local);
-            // 원격(구름)·태그 이름 뒤의 종류 아이콘. 노트북과 같은 자리라 이름을 뺀 좁은 칸에서도 무엇인지 알 수 있다.
-            ActionGlyph remote = new(ActionGlyphKind.Cloud);
+            // 원격(GitHub 표시)·태그 이름 뒤의 종류 아이콘. 노트북과 같은 자리라 이름을 뺀 좁은 칸에서도 무엇인지 알 수 있다. 원격 그림은 USS.
+            VisualElement remote = new();
             remote.AddToClassList("commit-graph-ref__remote-icon");
             pill.Add(remote);
             ActionGlyph tag = new(ActionGlyphKind.Tag);

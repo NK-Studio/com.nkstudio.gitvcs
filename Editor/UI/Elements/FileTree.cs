@@ -32,6 +32,7 @@ namespace GitVersionControl
 
         /// <summary>지금 목록에 있는 폴더 줄 id. 모두 펼침/접기 버튼의 글자를 정할 때 쓴다.</summary>
         private readonly List<int> _shownFolderIds = new();
+        private List<TreeViewItemData<FileTreeNode>> _rootItems = new();
         private bool _toggleRefreshQueued;
         private int _nextId;
 
@@ -138,6 +139,9 @@ namespace GitVersionControl
                 }
             };
             _tree.itemExpandedChanged += _ => QueueToggleRefresh();
+            _tree.itemExpandedChanged += _ => RowsChanged?.Invoke();
+            // 펼침 상태가 늦게 반영되는 버전도 있어, 실제로 그려진 내용 높이가 바뀔 때도 알린다.
+            _tree.Q<ScrollView>()?.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => RowsChanged?.Invoke());
 
             // GitKraken 처럼 트리 위에 "모두 펼치기 / 모두 접기" 글자 버튼 하나를 둔다. 다 펼쳐져 있으면 접기, 아니면 펼치기.
             _expandToggle = new Button(ToggleExpandAll);
@@ -159,7 +163,8 @@ namespace GitVersionControl
             List<int> selectedIds = _tree.selectedIds.ToList();
             List<FileTreeNode> roots = FileTreeBuilder.Build(items);
             _shownFolderIds.Clear();
-            _tree.SetRootItems(roots.Select(ToItemData).ToList());
+            _rootItems = roots.Select(ToItemData).ToList();
+            _tree.SetRootItems(_rootItems);
             _tree.Rebuild();
 
             _tree.ExpandAll();
@@ -175,7 +180,38 @@ namespace GitVersionControl
             List<int> stillPresent = selectedIds.Where(id => _tree.viewController.GetIndexForId(id) >= 0).ToList();
             _tree.SetSelectionByIdWithoutNotify(stillPresent);
             RefreshExpandToggle();
+            RowsChanged?.Invoke();
+            QueueToggleRefresh();
         }
+
+        /// <summary>
+        /// 지금 보이는 줄 수(펼친 폴더 줄 + 파일 줄). 위 "모두 펼치기/접기" 줄은 세지 않는다.
+        /// 펼침 상태로 센 값과 실제로 그려진 내용 높이로 잰 값 중 큰 쪽 — 펼침 직후 TreeView 가 아직 옛 상태를 줄 때가 있다.
+        /// </summary>
+        public int VisibleRowCount => Math.Max(CountRows(_rootItems), RenderedRowCount());
+
+        private int RenderedRowCount()
+        {
+            float height = _tree.Q<ScrollView>()?.contentContainer.layout.height ?? float.NaN;
+            return float.IsNaN(height) ? 0 : (int)Math.Round(height / RowHeight);
+        }
+
+        private int CountRows(IEnumerable<TreeViewItemData<FileTreeNode>> items)
+        {
+            int count = 0;
+            foreach (TreeViewItemData<FileTreeNode> item in items)
+            {
+                count++;
+                if (item.hasChildren && _tree.IsExpanded(item.id))
+                {
+                    count += CountRows(item.children);
+                }
+            }
+            return count;
+        }
+
+        /// <summary>항목이 바뀌거나 폴더를 펼치고 접어 보이는 줄 수가 바뀔 수 있을 때.</summary>
+        public event Action RowsChanged;
 
         public void Refresh()
         {
@@ -219,6 +255,7 @@ namespace GitVersionControl
             {
                 _toggleRefreshQueued = false;
                 RefreshExpandToggle();
+                RowsChanged?.Invoke();
             });
         }
 

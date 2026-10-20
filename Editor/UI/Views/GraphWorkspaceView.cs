@@ -84,6 +84,7 @@ namespace GitVersionControl
             _diff.Root.style.flexGrow = 1;
             _diff.ShowCloseButton(true);
             _diff.ShowReloadButton(false);
+            _diff.EnableMergeEditor(services);
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);

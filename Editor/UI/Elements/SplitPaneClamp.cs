@@ -14,6 +14,8 @@ namespace GitVersionControl
     ///    붙잡자마자 놓쳐서 경계선이 움직이지 않는다(2026-10-18 실측: 120% 에서 누른 직후 capture 가 풀림, 100% 에서는 정상).
     ///    그래서 끌기를 직접 한다 — 경계선을 누르면 Unity 처리기에 넘기지 않고, 패널 루트에서 이동·뗌을 받아(붙잡기 불필요)
     ///    분할의 로컬 좌표(배율이 반영된 좌표)로 바꿔 고정 칸 크기를 정한다.
+    /// 3) 칸 최소 크기: 칸 USS 의 min-width(세로 분할이면 min-height)를 그 칸의 최소로 쓴다. 없으면(0·auto) 아래 기본값.
+    ///    끌기·창 크기 맞추기·처음 크기 모두 이 최소 아래로 내려가지 않는다 — 커밋 상세가 한두 글자씩 세로로 꺾이던 원인.
     /// </summary>
     public sealed class SplitPaneClamp
     {
@@ -52,7 +54,8 @@ namespace GitVersionControl
         private SplitPaneClamp(TwoPaneSplitView split)
         {
             _split = split;
-            _preferred = split.fixedPaneInitialDimension;
+            // 처음(저장된) 크기가 최소보다 작으면 최소로 시작한다. 스타일이 아직 안 풀렸으면 Apply 의 Fit 이 다시 맞춘다.
+            _preferred = Mathf.Max(split.fixedPaneInitialDimension, MinFixedPane);
             _halfUntilDragged = split.ClassListContains(HalfModifier);
             // 안쪽 칸에 든 다른 분할의 경계선을 집지 않도록 이 분할의 직접 자식에서 찾는다.
             _dragLineAnchor = split.hierarchy.Children().FirstOrDefault(child => child.ClassListContains(DragLineAnchorClass));
@@ -99,10 +102,20 @@ namespace GitVersionControl
         /// 고정 칸이 앞(0)이면 경계선을 뒤로 끌수록 커지고, 뒤(1)면 앞으로 끌수록 커진다.
         /// 예: (380, +50, 0, 1000) → 430, (380, +50, 1, 1000) → 330.
         /// </summary>
-        public static float DraggedSize(float startSize, float pointerDelta, int fixedPaneIndex, float available)
+        public static float DraggedSize(float startSize, float pointerDelta, int fixedPaneIndex, float available,
+            float minFlexed = MinFlexedPane, float minFixed = MinFixedPane)
         {
             float size = fixedPaneIndex == 0 ? startSize + pointerDelta : startSize - pointerDelta;
-            return Fit(size, available, MinFlexedPane, MinFixedPane);
+            return Fit(size, available, minFlexed, minFixed);
+        }
+
+        /// <summary>
+        /// 칸 USS 의 최소 크기(<paramref name="styled"/>). 지정이 없으면(0·auto·NaN) <paramref name="fallback"/>.
+        /// 예: (260, 80) → 260, (0, 80) → 80.
+        /// </summary>
+        public static float PaneMin(float styled, float fallback)
+        {
+            return float.IsNaN(styled) || styled <= 0f ? fallback : styled;
         }
 
         private bool IsVertical => _split.orientation == TwoPaneSplitViewOrientation.Vertical;
@@ -116,6 +129,19 @@ namespace GitVersionControl
         private float CurrentFixedSize => IsVertical ? _split.fixedPane.resolvedStyle.height : _split.fixedPane.resolvedStyle.width;
 
         private float Available => IsVertical ? _split.layout.height : _split.layout.width;
+
+        private float MinFixed => PaneMin(StyledMin(_split.fixedPane), MinFixedPane);
+
+        private float MinFlexed => PaneMin(StyledMin(_split.flexedPane), MinFlexedPane);
+
+        private float StyledMin(VisualElement pane)
+        {
+            if (pane == null)
+            {
+                return 0f;
+            }
+            return IsVertical ? pane.resolvedStyle.minHeight.value : pane.resolvedStyle.minWidth.value;
+        }
 
         /// <summary>
         /// 패널 좌표의 포인터 위치를 분할 로컬 좌표(UI 배율이 반영된 크기 단위)의 끄는 축 값으로.
@@ -155,7 +181,7 @@ namespace GitVersionControl
                 return;
             }
             float delta = LocalAxis(evt.position) - _dragStartPointer;
-            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available));
+            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available, MinFlexed, MinFixed));
             evt.StopPropagation();
         }
 
@@ -207,7 +233,9 @@ namespace GitVersionControl
             {
                 _preferred = available * 0.5f;
             }
-            float target = Fit(_preferred, available, MinFlexedPane, MinFixedPane);
+            float minFixed = MinFixed;
+            _preferred = Mathf.Max(_preferred, minFixed);
+            float target = Fit(_preferred, available, MinFlexed, minFixed);
             if (Mathf.Abs(CurrentFixedSize - target) < 0.5f)
             {
                 return;

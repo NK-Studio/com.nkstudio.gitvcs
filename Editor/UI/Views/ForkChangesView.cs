@@ -22,6 +22,7 @@ namespace GitVersionControl
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
             _diff.ShowReloadButton(false);
+            _diff.EnableMergeEditor(services);
             Root.Require<VisualElement>("diff-host").Add(_diff.Root);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: false);
 

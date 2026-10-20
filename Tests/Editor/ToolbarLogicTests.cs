@@ -99,5 +99,20 @@ namespace GitVersionControl.Tests
         {
             Assert.AreEqual(expected, SplitPaneClamp.Fit(preferred, available, minFlexed: 120f, minFixed: 80f));
         }
+
+        [TestCase(260f, 80f, 260f)]
+        [TestCase(0f, 80f, 80f)]
+        [TestCase(float.NaN, 80f, 80f)]
+        public void Test_SplitPaneClamp_PaneMin_FallsBackWhenUnstyled(float styled, float fallback, float expected)
+        {
+            Assert.AreEqual(expected, SplitPaneClamp.PaneMin(styled, fallback));
+        }
+
+        [TestCase(380f, 300f, 1, 1000f, 260f)]
+        [TestCase(380f, -900f, 1, 1000f, 780f)]
+        public void Test_SplitPaneClamp_DraggedSize_RespectsPaneMins(float start, float delta, int fixedIndex, float available, float expected)
+        {
+            Assert.AreEqual(expected, SplitPaneClamp.DraggedSize(start, delta, fixedIndex, available, minFlexed: 220f, minFixed: 260f));
+        }
     }
 }
