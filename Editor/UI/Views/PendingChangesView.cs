@@ -18,8 +18,6 @@ namespace GitVersionControl
         private readonly Label _summary;
         private readonly TextField _message;
         private readonly VisualElement _authorNotice;
-        private readonly VisualElement _behindNotice;
-        private readonly Label _behindText;
         private readonly Button _commitButton;
         private string _template;
         private GitOperationKind _seenOperation;
@@ -39,8 +37,6 @@ namespace GitVersionControl
             _summary = Root.Require<Label>("summary");
             _message = Root.Require<TextField>("commit-message");
             _authorNotice = Root.Require<VisualElement>("author-notice");
-            _behindNotice = Root.Require<VisualElement>("behind-notice");
-            _behindText = Root.Require<Label>("behind-text");
             _commitButton = Root.Require<Button>("commit-button");
 
             _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services)
@@ -195,10 +191,6 @@ namespace GitVersionControl
             IGitRepositoryState repository = Services.Repository;
             bool hasAuthor = string.IsNullOrEmpty(repository.UserName) == false && string.IsNullOrEmpty(repository.UserEmail) == false;
             _authorNotice.SetVisible(hasAuthor == false);
-
-            int behind = repository.Branch?.Behind ?? 0;
-            _behindNotice.SetVisible(behind > 0);
-            _behindText.text = GitText.Format("pending.behind", behind);
 
             _commitButton.text = GitText.Format("pending.commitButton", selected);
             _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);

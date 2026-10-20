@@ -22,9 +22,6 @@
                 <ui:VisualElement name="author-notice" class="notice notice--warning">
                     <ui:Label text="@pending.noAuthor" class="notice__text" />
                 </ui:VisualElement>
-                <ui:VisualElement name="behind-notice" class="notice">
-                    <ui:Label name="behind-text" class="notice__text" />
-                </ui:VisualElement>
                 <ui:VisualElement class="pending-changes__commit-footer">
                     <ui:Button name="commit-button" class="pending-changes__commit-button" />
                 </ui:VisualElement>

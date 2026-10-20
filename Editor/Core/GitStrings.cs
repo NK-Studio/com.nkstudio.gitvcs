@@ -353,7 +353,6 @@ namespace GitVersionControl
             ["pending.summary"] = new[] { "변경 {0}개 (선택 {1})", "{0} changes ({1} selected)" },
             ["pending.commitTitle"] = new[] { "커밋 메시지", "Commit Message" },
             ["pending.noAuthor"] = new[] { "user.name / user.email 이 설정되지 않아 커밋할 수 없습니다.", "Cannot commit: user.name / user.email is not set." },
-            ["pending.behind"] = new[] { "원격에 받지 않은 커밋이 {0}개 있습니다. 씬·프리팹 충돌을 피하려면 먼저 수신 변경사항을 확인하세요.", "There are {0} commits on the remote you haven't pulled. Check Incoming Changes first to avoid scene/prefab conflicts." },
             ["pending.commitButton"] = new[] { "커밋 ({0})", "Commit ({0})" },
             ["pending.discard"] = new[] { "변경 되돌리기", "Discard Changes" },
             ["pending.discardWithMeta"] = new[] { "변경 되돌리기 (.meta 포함)", "Discard Changes (with .meta)" },
