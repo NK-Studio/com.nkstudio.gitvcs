@@ -148,6 +148,43 @@ namespace GitVersionControl.Tests
             Assert.Throws<InvalidDataException>(() => GitPsd.Decode(psd));
         }
 
+        [Test]
+        public void Test_TryReadSize_ReadsHeaderOnly()
+        {
+            byte[] psd = Build(300, 200, channels: 3);
+            Assert.IsTrue(GitPsd.TryReadSize(psd, out int width, out int height));
+            Assert.AreEqual(300, width);
+            Assert.AreEqual(200, height);
+            Assert.IsFalse(GitPsd.TryReadSize(new byte[26], out _, out _));
+        }
+
+        [Test]
+        public void Test_Downscale_KeepsAspect_AndIgnoresTransparentColor()
+        {
+            // 4×2: 왼쪽 2×2 는 빨강, 오른쪽 2×2 는 반은 투명(색은 초록이지만 무시돼야 한다)·반은 파랑.
+            Color32 red = new(255, 0, 0, 255);
+            Color32 clear = new(0, 255, 0, 0);
+            Color32 blue = new(0, 0, 255, 255);
+            Color32[] pixels = { red, red, clear, blue, red, red, blue, clear };
+
+            (Color32[] small, int width, int height) = GitPsd.Downscale(pixels, 4, 2, 2);
+
+            Assert.AreEqual(2, width);
+            Assert.AreEqual(1, height);
+            Assert.AreEqual(red, small[0]);
+            Assert.AreEqual(new Color32(0, 0, 255, 127), small[1]);
+        }
+
+        [Test]
+        public void Test_Downscale_SmallImage_Unchanged()
+        {
+            Color32[] pixels = new Color32[4];
+            (Color32[] small, int width, int height) = GitPsd.Downscale(pixels, 2, 2, 64);
+            Assert.AreSame(pixels, small);
+            Assert.AreEqual(2, width);
+            Assert.AreEqual(2, height);
+        }
+
         private delegate void Section(Writer writer);
 
         /// <summary>

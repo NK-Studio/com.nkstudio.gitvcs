@@ -62,7 +62,7 @@ namespace GitVersionControl
             Label badge = row.Require<Label>("badge");
             badge.RemoveFromClassList(BadgeHiddenModifier);
             StateBadge.Apply(badge, item.State);
-            row.Require<Image>("icon").image = _icons.GetIcon(item.ProjectPath, item.RepoPath);
+            _icons.BindIcon(row.Require<Image>("icon"), item.ProjectPath, item.RepoPath);
 
             Label path = row.Require<Label>("path");
             path.text = GitDisplay.Nfc(nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath)
@@ -112,7 +112,10 @@ namespace GitVersionControl
 
             row.Require<Label>("badge").AddToClassList(BadgeHiddenModifier);
             _folderIcon ??= EditorGUIUtility.IconContent("Folder Icon").image;
-            row.Require<Image>("icon").image = _folderIcon;
+            Image icon = row.Require<Image>("icon");
+            icon.image = _folderIcon;
+            // 이 줄이 전에 보이던 파일의 썸네일이 늦게 와도 폴더 아이콘을 덮지 않게(IFileIconProvider.BindIcon).
+            icon.userData = null;
 
             Label path = row.Require<Label>("path");
             path.text = GitDisplay.Nfc(folder.Name);

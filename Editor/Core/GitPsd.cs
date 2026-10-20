@@ -77,6 +77,67 @@ namespace GitVersionControl
             return new GitPsdImage { Width = width, Height = height, Pixels = pixels, LayerCount = document.Layers.Count };
         }
 
+        /// <summary>
+        /// 파일 머리(앞 26바이트)만 보고 크기를 읽는다. 큰 파일을 통째로 읽기 전에 거를 때 쓴다.
+        /// </summary>
+        public static bool TryReadSize(byte[] header, out int width, out int height)
+        {
+            width = 0;
+            height = 0;
+            if (header == null || header.Length < 26 || header[0] != '8' || header[1] != 'B' || header[2] != 'P' || header[3] != 'S')
+            {
+                return false;
+            }
+            height = (header[14] << 24) | (header[15] << 16) | (header[16] << 8) | header[17];
+            width = (header[18] << 24) | (header[19] << 16) | (header[20] << 8) | header[21];
+            return width > 0 && height > 0;
+        }
+
+        /// <summary>
+        /// 긴 변이 <paramref name="maxSize"/> 이하가 되게 줄인 썸네일(넓이 평균, 알파를 곱해 섞어 투명한 곳 색이 번지지 않는다).
+        /// 이미 작으면 그대로 준다. 픽셀 순서는 넣은 것과 같다.
+        /// </summary>
+        public static (Color32[] pixels, int width, int height) Downscale(Color32[] pixels, int width, int height, int maxSize)
+        {
+            int longest = Math.Max(width, height);
+            if (longest <= maxSize)
+            {
+                return (pixels, width, height);
+            }
+            int outWidth = Math.Max(1, (int)Math.Round((double)width * maxSize / longest));
+            int outHeight = Math.Max(1, (int)Math.Round((double)height * maxSize / longest));
+            Color32[] result = new Color32[outWidth * outHeight];
+            for (int y = 0; y < outHeight; y++)
+            {
+                int y0 = y * height / outHeight;
+                int y1 = Math.Max(y0 + 1, (y + 1) * height / outHeight);
+                for (int x = 0; x < outWidth; x++)
+                {
+                    int x0 = x * width / outWidth;
+                    int x1 = Math.Max(x0 + 1, (x + 1) * width / outWidth);
+                    long r = 0, g = 0, b = 0, a = 0;
+                    int count = 0;
+                    for (int sy = y0; sy < y1; sy++)
+                    {
+                        int row = sy * width;
+                        for (int sx = x0; sx < x1; sx++)
+                        {
+                            Color32 c = pixels[row + sx];
+                            r += c.r * c.a;
+                            g += c.g * c.a;
+                            b += c.b * c.a;
+                            a += c.a;
+                            count++;
+                        }
+                    }
+                    result[y * outWidth + x] = a == 0
+                        ? default
+                        : new Color32((byte)(r / a), (byte)(g / a), (byte)(b / a), (byte)(a / count));
+                }
+            }
+            return (result, outWidth, outHeight);
+        }
+
         // ── 문서 구조 ──────────────────────────────────────────
 
         private enum ColorMode
