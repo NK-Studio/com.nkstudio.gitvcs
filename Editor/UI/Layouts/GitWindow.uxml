@@ -60,13 +60,17 @@
             <ui:Button name="open-settings-button" text="@common.openVcsSettings" class="notice__action" />
         </ui:VisualElement>
 
-        <ui:TwoPaneSplitView name="body" fixed-pane-index="0" fixed-pane-initial-dimension="230" orientation="Horizontal" class="git-window__body">
-            <!-- 왼쪽: 위는 탭(뷰) 목록, 아래는 GitKraken·Fork 식 참조 트리(로컬·리모트·워크트리·스태시·서브모듈·태그). -->
-            <ui:VisualElement name="sidebar" class="git-sidebar">
-                <ui:VisualElement name="sidebar-views" class="git-sidebar__views" />
-                <ui:VisualElement name="sidebar-refs" class="git-sidebar__refs" />
-            </ui:VisualElement>
-            <ui:VisualElement name="content" class="git-window__content" />
-        </ui:TwoPaneSplitView>
+        <ui:VisualElement class="git-window__body">
+            <!-- 사이드바를 접었을 때만 보이는 아이콘 줄(GitKraken 에서 파일을 열면 왼쪽 패널이 아이콘만 남는 모양). SidebarRail 이 채운다. -->
+            <ui:VisualElement name="sidebar-rail" />
+            <ui:TwoPaneSplitView name="body" fixed-pane-index="0" fixed-pane-initial-dimension="230" orientation="Horizontal" class="git-window__split">
+                <!-- 왼쪽: 위는 탭(뷰) 목록, 아래는 GitKraken·Fork 식 참조 트리(로컬·리모트·워크트리·스태시·서브모듈·태그). -->
+                <ui:VisualElement name="sidebar" class="git-sidebar">
+                    <ui:VisualElement name="sidebar-views" class="git-sidebar__views" />
+                    <ui:VisualElement name="sidebar-refs" class="git-sidebar__refs" />
+                </ui:VisualElement>
+                <ui:VisualElement name="content" class="git-window__content" />
+            </ui:TwoPaneSplitView>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

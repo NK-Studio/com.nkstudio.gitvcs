@@ -29,6 +29,7 @@ namespace GitVersionControl
         private readonly Label _error;
         private readonly Dictionary<string, int> _idByKey = new();
         private readonly Dictionary<int, string> _keyById = new();
+        private readonly Dictionary<RefSection, int> _sectionCounts = new();
         private GitRefSet _refs = new();
         private int _nextId;
         private bool _rebuilding;
@@ -48,6 +49,11 @@ namespace GitVersionControl
         /// 브랜치 메뉴의 "Branch Explorer 에서 보기".
         /// </summary>
         public event Action<string> ShowInExplorerRequested;
+
+        /// <summary>
+        /// 참조를 다시 읽었을 때. 접힌 사이드바(<see cref="SidebarRail"/>)가 구역별 개수(<see cref="SectionCount"/>)를 새로 칠한다.
+        /// </summary>
+        public event Action Loaded;
 
         private string CurrentKey => $"{_services.Repository.HeadCommit}|{_services.Repository.UpstreamCommit}|{_services.Repository.Branch?.Name}|{_services.Repository.LastFetchTime}";
 
@@ -147,6 +153,31 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 구역의 항목 수(필터와 상관없이). 트리 구역 머리 줄의 개수와 같다.
+        /// </summary>
+        public int SectionCount(RefSection section)
+        {
+            return _sectionCounts.TryGetValue(section, out int count) ? count : 0;
+        }
+
+        /// <summary>
+        /// 접힌 사이드바에서 구역 아이콘을 눌렀을 때: 그 구역을 펼치고 머리 줄로 스크롤한다.
+        /// </summary>
+        public void RevealSection(RefSection section)
+        {
+            if (_idByKey.TryGetValue("section:" + section, out int id) == false)
+            {
+                return;
+            }
+            _tree.ExpandItem(id);
+            int index = _tree.viewController.GetIndexForId(id);
+            if (index >= 0)
+            {
+                _tree.ScrollToItem(index);
+            }
+        }
+
+        /// <summary>
         /// 태그·스태시·브랜치를 지우거나 만드는 작업은 HEAD 를 바꾸지 않아 키로는 알 수 없다. 작업이 끝날 때마다 다시 읽는다.
         /// </summary>
         private void OnRunnerStateChanged()
@@ -174,7 +205,13 @@ namespace GitVersionControl
             _refs = refs;
             _error.text = refs.Error ?? string.Empty;
             _error.SetVisible(string.IsNullOrEmpty(refs.Error) == false);
+            _sectionCounts.Clear();
+            foreach (RefNode section in RefTreeBuilder.Build(refs, null, _ => string.Empty))
+            {
+                _sectionCounts[section.Section] = section.LeafCount;
+            }
             Rebuild();
+            Loaded?.Invoke();
             if (_reloadQueued)
             {
                 _reloadQueued = false;
@@ -303,20 +340,28 @@ namespace GitVersionControl
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
         }
 
+        /// <summary>
+        /// 구역 머리 줄 아이콘. 접힌 사이드바(<see cref="SidebarRail"/>)도 같은 아이콘을 쓴다.
+        /// </summary>
+        public static ActionGlyphKind SectionIcon(RefSection section)
+        {
+            return section switch
+            {
+                RefSection.Local => ActionGlyphKind.Laptop,
+                RefSection.Remote => ActionGlyphKind.Cloud,
+                RefSection.Worktrees => ActionGlyphKind.Worktree,
+                RefSection.Stashes => ActionGlyphKind.Stash,
+                RefSection.Submodules => ActionGlyphKind.Submodule,
+                _ => ActionGlyphKind.Tag,
+            };
+        }
+
         private static ActionGlyphKind IconOf(RefNode node)
         {
             switch (node.Kind)
             {
                 case RefNodeKind.Section:
-                    return node.Section switch
-                    {
-                        RefSection.Local => ActionGlyphKind.Laptop,
-                        RefSection.Remote => ActionGlyphKind.Cloud,
-                        RefSection.Worktrees => ActionGlyphKind.Worktree,
-                        RefSection.Stashes => ActionGlyphKind.Stash,
-                        RefSection.Submodules => ActionGlyphKind.Submodule,
-                        _ => ActionGlyphKind.Tag,
-                    };
+                    return SectionIcon(node.Section);
                 case RefNodeKind.Folder:
                     return ActionGlyphKind.Folder;
                 case RefNodeKind.Remote:

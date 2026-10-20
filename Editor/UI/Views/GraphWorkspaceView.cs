@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor.UIElements;
@@ -39,6 +40,7 @@ namespace GitVersionControl
 
         private string _loadedKey;
         private bool _isLoading;
+        private bool _isDiffShown;
 
         /// <summary>
         /// 그래프를 다 읽기 전에 보여 달라고 한 커밋. 읽은 뒤 고른다.
@@ -49,6 +51,12 @@ namespace GitVersionControl
         /// 그래프를 다 읽기 전에 브랜치를 만들려고 한 커밋. 읽은 뒤 그 줄에 이름 입력란을 띄운다.
         /// </summary>
         private string _pendingBranchStart;
+
+        /// <summary>
+        /// 가운데에 파일 diff 를 열면 true(파일을 고를 때마다), × 로 닫고 그래프로 돌아오면 false.
+        /// 창은 GitKraken 처럼 diff 를 여는 동안 왼쪽 사이드바를 아이콘 줄로 접는다.
+        /// </summary>
+        public event Action<bool> DiffShownChanged;
 
         public override string Title => GitText.Get("tab.graph");
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
@@ -101,12 +109,7 @@ namespace GitVersionControl
             _staging.FileSelected += ShowDiff;
             // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
             _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
-            _diff.CloseRequested += () =>
-            {
-                _staging.ClearSelection();
-                _detail.ClearFileSelection();
-                ShowDiff(null);
-            };
+            _diff.CloseRequested += CloseDiff;
 
             ShowDiff(null);
             ShowWip();
@@ -296,15 +299,32 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 가운데의 diff 를 닫고 그래프로 돌아온다(× 와 같다). 고른 파일 표시도 지운다.
+        /// </summary>
+        public void CloseDiff()
+        {
+            _staging.ClearSelection();
+            _detail.ClearFileSelection();
+            ShowDiff(null);
+        }
+
+        /// <summary>
         /// 가운데를 diff 로 바꾼다. null 이면 그래프로 돌아간다.
         /// </summary>
         private void ShowDiff(GitDiffTarget target)
         {
+            bool wasShown = _isDiffShown;
+            _isDiffShown = target != null;
             _diffHost.SetVisible(target != null);
             _graphHost.SetVisible(target == null);
             if (target != null)
             {
                 _diff.SetTarget(target);
+                DiffShownChanged?.Invoke(true);
+            }
+            else if (wasShown)
+            {
+                DiffShownChanged?.Invoke(false);
             }
         }
 

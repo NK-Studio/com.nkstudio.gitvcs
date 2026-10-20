@@ -205,6 +205,7 @@ namespace GitVersionControl
             ["graph.wip"] = new[] { "// 작업 중", "// WIP" },
             ["graph.branchNamePlaceholder"] = new[] { "브랜치 이름 입력", "enter branch name" },
             ["refs.filterPlaceholder"] = new[] { "필터", "Filter" },
+            ["rail.expand"] = new[] { "왼쪽 패널 펼치기", "Expand left panel" },
             ["branchPicker.search"] = new[] { "검색", "Search" },
             ["branchPicker.empty"] = new[] { "일치하는 브랜치가 없습니다", "No matching branches" },
             ["branchPicker.tooltip"] = new[] { "브랜치를 검색해 전환합니다.", "Search and switch branches." },

@@ -35,6 +35,9 @@ namespace GitVersionControl
         private VisualElement _layout;
         private GitHubConnectPanel _connect;
         private RefSidebar _refs;
+        private TwoPaneSplitView _body;
+        private SidebarRail _rail;
+        private bool _isSidebarCollapsed;
 
         [MenuItem("Window/Version Control/Git")]
         public static void Open()
@@ -87,7 +90,12 @@ namespace GitVersionControl
             layout.Require<Button>("open-settings-button").clicked += () => SettingsService.OpenProjectSettings("Project/Version Control");
 
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
-            SplitPaneClamp.Attach(layout.Require<TwoPaneSplitView>("body"));
+            _body = layout.Require<TwoPaneSplitView>("body");
+            SplitPaneClamp.Attach(_body);
+            _isSidebarCollapsed = false;
+            _rail = new SidebarRail(layout.Require<VisualElement>("sidebar-rail"));
+            _rail.Root.SetVisible(false);
+            _rail.ExpandRequested += RestoreSidebar;
             _toolbar = new GitToolbar(layout, _services, this);
             _operationBanner = new OperationBanner(layout, _services);
             _toolbar.RefreshRequested += () =>
@@ -102,6 +110,22 @@ namespace GitVersionControl
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
+            foreach (RefSection section in RefTreeBuilder.Sections)
+            {
+                RefSection captured = section;
+                _rail.AddSection(section, RefSidebar.SectionIcon(section), () =>
+                {
+                    RestoreSidebar();
+                    _refs.RevealSection(captured);
+                });
+            }
+            _refs.Loaded += () =>
+            {
+                foreach (RefSection section in RefTreeBuilder.Sections)
+                {
+                    _rail.SetSectionCount(section, _refs.SectionCount(section));
+                }
+            };
 
             _services.Repository.Changed += OnRepositoryChanged;
             _services.Runner.StateChanged += OnRunnerStateChanged;
@@ -231,7 +255,10 @@ namespace GitVersionControl
                     AddView(new ForkChangesView(_services, _state.Staging), content, sidebar);
                     break;
                 case GitLayoutStyle.GitKraken:
-                    AddView(new GraphWorkspaceView(_services, _state.Staging, this), content, sidebar);
+                    GraphWorkspaceView graph = new(_services, _state.Staging, this);
+                    // GitKraken 처럼 파일 diff 를 여는 동안 왼쪽 사이드바를 아이콘 줄로 접고, × 로 닫으면 다시 편다.
+                    graph.DiffShownChanged += SetSidebarCollapsed;
+                    AddView(graph, content, sidebar);
                     break;
                 default:
                     AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
@@ -289,9 +316,65 @@ namespace GitVersionControl
 
             SidebarTab tab = new(GitUiAssets.Load("SidebarTab"), view.Title);
             tab.Clicked += () => SelectTab(index);
-            view.BadgeChanged += () => tab.SetBadge(view.Badge);
+            _rail.AddView(RailIcon(view), view.Title, () =>
+            {
+                SelectTab(index);
+                RestoreSidebar();
+            });
+            view.BadgeChanged += () =>
+            {
+                tab.SetBadge(view.Badge);
+                _rail.SetViewBadge(index, view.Badge);
+            };
             sidebar.Add(tab.Root);
             _tabs.Add(tab);
+        }
+
+        /// <summary>
+        /// 접힌 사이드바(<see cref="SidebarRail"/>)의 탭 아이콘. 임시 아이콘이다 — 새 아이콘으로 바꿀 때 여기만 고친다.
+        /// </summary>
+        private static ActionGlyphKind RailIcon(GitView view)
+        {
+            return view switch
+            {
+                GraphWorkspaceView => ActionGlyphKind.Hierarchy,
+                BranchExplorerView => ActionGlyphKind.Branch,
+                WorkspaceView => ActionGlyphKind.Folder,
+                IncomingChangesView => ActionGlyphKind.Pull,
+                ChangesetsView => ActionGlyphKind.PathList,
+                _ => ActionGlyphKind.Pencil,
+            };
+        }
+
+        /// <summary>
+        /// 접힌 줄에서 무엇을 누르든(펼치기·탭·구역) GitKraken 처럼 원래 화면으로 돌아온다: Graph 가운데의 diff 를 닫고 사이드바를 편다.
+        /// 그래서 diff 가 열려 있는 동안에는 늘 접혀 있다.
+        /// </summary>
+        private void RestoreSidebar()
+        {
+            _views.OfType<GraphWorkspaceView>().FirstOrDefault()?.CloseDiff();
+            SetSidebarCollapsed(false);
+        }
+
+        /// <summary>
+        /// 왼쪽 사이드바를 아이콘 줄로 접거나 다시 편다. 접어도 사이드바 폭(<see cref="SplitPaneClamp"/> 가 기억)은 그대로라 펴면 원래 폭으로 돌아온다.
+        /// </summary>
+        private void SetSidebarCollapsed(bool collapsed)
+        {
+            if (_body == null || _isSidebarCollapsed == collapsed)
+            {
+                return;
+            }
+            _isSidebarCollapsed = collapsed;
+            _rail.Root.SetVisible(collapsed);
+            if (collapsed)
+            {
+                _body.CollapseChild(0);
+            }
+            else
+            {
+                _body.UnCollapse();
+            }
         }
 
         public T SelectTab<T>() where T : GitView
@@ -320,6 +403,7 @@ namespace GitVersionControl
                     _views[i].Deactivate();
                 }
             }
+            _rail.SetSelectedView(index);
             _state.SelectedTab = index;
         }
 

@@ -7,6 +7,12 @@
 
 .git-window__body {
     flex-grow: 1;
+    flex-direction: row;
+}
+
+.git-window__split {
+    flex-grow: 1;
+    min-width: 0;
 }
 
 .git-window__content {
@@ -451,6 +457,69 @@
     background-color: var(--git-sidebar-bg);
     border-right-width: 1px;
     border-right-color: var(--git-border);
+}
+
+/* ── git-rail: 사이드바를 접었을 때 남는 아이콘 줄 ─────────────── */
+.git-rail {
+    flex-shrink: 0;
+    width: 36px;
+    padding: 6px 0;
+    flex-direction: column;
+    align-items: stretch;
+    background-color: var(--git-sidebar-bg);
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+}
+
+.git-rail__group {
+    padding: 4px 0;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.git-rail__item {
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 0;
+    margin: 1px 4px;
+    border-radius: 4px;
+    color: var(--git-text-muted);
+}
+
+.git-rail__item:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.git-rail__item--selected,
+.git-rail__item--selected:hover {
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+.git-rail__item--expand {
+    margin-bottom: 4px;
+}
+
+.git-rail__icon {
+    width: 18px;
+    height: 18px;
+}
+
+.git-rail__icon > .action-glyph {
+    flex-grow: 1;
+}
+
+.git-rail__badge {
+    font-size: 10px;
+    margin: 1px 0 0 0;
+    padding: 0;
+    -unity-text-align: middle-center;
+    color: var(--git-section-count);
+}
+
+.git-rail__badge--hidden {
+    display: none;
 }
 
 .git-sidebar__views {

@@ -109,6 +109,11 @@ namespace GitVersionControl
         /// 아래를 향한 작은 삼각형(채움). 눌러서 펼치는 버튼 뒤에 붙인다.
         /// </summary>
         Caret,
+
+        /// <summary>
+        /// 원 안의 오른쪽 꺾쇠. 접힌 사이드바(아이콘 줄)를 다시 펼치는 버튼. 임시 아이콘.
+        /// </summary>
+        Expand,
     }
 
     /// <summary>
@@ -300,6 +305,12 @@ namespace GitVersionControl
                     painter.LineTo(P(10f, 13f));
                     painter.ClosePath();
                     painter.Fill();
+                    break;
+                case ActionGlyphKind.Expand:
+                    painter.BeginPath();
+                    painter.Arc(P(10f, 10f), 7.5f * scale, 0f, 360f);
+                    painter.Stroke();
+                    Polyline(painter, P(8.5f, 6.5f), P(12f, 10f), P(8.5f, 13.5f));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);
