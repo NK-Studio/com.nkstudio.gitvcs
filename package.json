@@ -3,7 +3,7 @@
   "displayName": "Git Version Control",
   "version": "0.1.0",
   "unity": "6000.0",
-  "description": "Adds a \"Git\" entry to Project Settings > Version Control > Mode. Shows Git status overlays in the Project window and provides a Changes window to review, discard and commit changes. Runs the git CLI installed on the machine.",
+  "description": "Git integration that works with the default Version Control mode (Visible Meta Files); settings live in Project Settings > Git. Shows Git status overlays in the Project window and provides a Changes window to review, discard and commit changes. Runs the git CLI installed on the machine.",
   "license": "MIT",
   "keywords": [
     "git",

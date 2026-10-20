@@ -87,7 +87,7 @@ namespace GitVersionControl
             _window = layout.Require<VisualElement>("git-window");
             _notReady = layout.Require<VisualElement>("not-ready");
             _notReadyMessage = layout.Require<Label>("not-ready-message");
-            layout.Require<Button>("open-settings-button").clicked += () => SettingsService.OpenProjectSettings("Project/Version Control");
+            layout.Require<Button>("open-settings-button").clicked += () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath);
 
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
             _body = layout.Require<TwoPaneSplitView>("body");
@@ -225,7 +225,7 @@ namespace GitVersionControl
                     EditorUtility.DisplayDialog(GitText.Get("actionbar.terminalFailed"), error, GitText.Get("common.ok"));
                 }
             });
-            menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings("Project/Version Control"));
+            menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath));
         }
 
         /// <summary>

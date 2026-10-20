@@ -121,7 +121,7 @@ namespace GitVersionControl.Tests
         [Test]
         public void Test_SettingsPaths_MatchRegisteredProviders()
         {
-            Assert.AreEqual("Project/Version Control", GitMainToolbarMenu.ProjectSettingsPath);
+            Assert.AreEqual("Project/Git", GitMainToolbarMenu.ProjectSettingsPath);
             Assert.AreEqual("Preferences/Git", GitMainToolbarMenu.PreferencesPath);
             Assert.AreEqual("https://github.com/NK-Studio/com.nkstudio.gitvcs", GitMainToolbarMenu.HelpUrl);
         }

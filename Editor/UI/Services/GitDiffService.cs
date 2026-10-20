@@ -245,7 +245,7 @@ namespace GitVersionControl
             {
                 if (_dialogs.Confirm(GitText.Get("diff.toolNotFound"), GitText.Format("diff.toolNotFoundMessage", GitText.Get("diffEngine." + engine)), GitText.Get("common.openVcsSettings")))
                 {
-                    SettingsService.OpenProjectSettings("Project/Version Control");
+                    SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath);
                 }
                 return;
             }

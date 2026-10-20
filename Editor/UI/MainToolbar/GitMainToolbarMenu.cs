@@ -39,7 +39,7 @@ namespace GitVersionControl
     {
         public const string ButtonLabel = "Git";
         public const string HelpUrl = "https://github.com/NK-Studio/com.nkstudio.gitvcs";
-        public const string ProjectSettingsPath = "Project/Version Control";
+        public const string ProjectSettingsPath = GitIntegration.ProjectSettingsPath;
         public const string PreferencesPath = "Preferences/Git";
 
         /// <summary>

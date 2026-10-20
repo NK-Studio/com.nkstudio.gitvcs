@@ -6,8 +6,7 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
-    /// Project Settings > Version Control 에서 모드가 "Git" 일 때 모드 드롭다운 아래에 그려지는 UI.
-    /// Unity 의 ISettingsInspectorExtension 이 IMGUI 만 받으므로 이 화면만 IMGUI 로 그린다.
+    /// Project Settings > Git 화면(<see cref="GitIntegration"/>). Version Control 설정 화면에 붙던 시절의 IMGUI 를 그대로 쓴다.
     /// </summary>
     internal static class GitSettingsGUI
     {
@@ -74,7 +73,12 @@ namespace GitVersionControl
                 EditorGUILayout.LabelField(" ", s_versionText, EditorStyles.miniLabel);
             }
 
-            settings.ShowOverlays = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.overlays")), settings.ShowOverlays);
+            bool overlays = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.overlays")), settings.ShowOverlays);
+            if (overlays != settings.ShowOverlays)
+            {
+                settings.ShowOverlays = overlays;
+                EditorApplication.RepaintProjectWindow();
+            }
             settings.RefreshOnFocus = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.refreshOnFocus"), GitText.Get("settings.refreshOnFocusTooltip")), settings.RefreshOnFocus);
             bool watch = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.watchFileSystem"), GitText.Get("settings.watchFileSystemTooltip")), settings.WatchFileSystem);
             if (watch != settings.WatchFileSystem)

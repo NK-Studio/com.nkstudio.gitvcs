@@ -28,8 +28,8 @@ namespace GitVersionControl
             ["common.reveal"] = new[] { "탐색기에서 보기", "Reveal in File Browser" },
             ["common.noCommits"] = new[] { "아직 커밋이 없습니다.", "No commits yet." },
             ["common.openGitWindow"] = new[] { "Git 창 열기", "Open Git Window" },
-            ["common.openVcsSettings"] = new[] { "Version Control 설정 열기", "Open Version Control Settings" },
-            ["common.vcsSettings"] = new[] { "Version Control 설정", "Version Control Settings" },
+            ["common.openVcsSettings"] = new[] { "Git 설정 열기", "Open Git Settings" },
+            ["common.vcsSettings"] = new[] { "Git 설정", "Git Settings" },
             ["common.ffOnly"] = new[] { "fast-forward 만 합니다.", "Fast-forward only." },
             ["common.openBranchesTab"] = new[] { "사이드바에서 브랜치 찾기", "Find Branch in Sidebar" },
             ["common.language"] = new[] { "언어", "Language" },
@@ -103,7 +103,7 @@ namespace GitVersionControl
             ["diff.difftoolFailed"] = new[] { "git difftool 실행 실패", "git difftool failed" },
             ["diff.difftoolHint"] = new[] { "git config diff.tool 을 설정했는지 확인하세요(예: git config --global diff.tool vscode).", "Check that diff.tool is configured (e.g. git config --global diff.tool vscode)." },
             ["diff.toolNotFound"] = new[] { "비교 도구를 찾지 못했습니다", "Diff tool not found" },
-            ["diff.toolNotFoundMessage"] = new[] { "{0} 실행 파일을 찾지 못했습니다. Project Settings > Version Control 에서 경로를 지정하세요.", "Could not find {0}. Set its path in Project Settings > Version Control." },
+            ["diff.toolNotFoundMessage"] = new[] { "{0} 실행 파일을 찾지 못했습니다. Project Settings > Git 에서 경로를 지정하세요.", "Could not find {0}. Set its path in Project Settings > Git." },
             ["diff.toolStartFailed"] = new[] { "비교 도구를 실행하지 못했습니다", "Could not start the diff tool" },
             ["diff.prepareFailed"] = new[] { "비교할 파일을 준비하지 못했습니다", "Could not prepare files to compare" },
 
@@ -327,8 +327,8 @@ namespace GitVersionControl
             ["op.deleteRemoteBranch"] = new[] { "원격 '{0}' 삭제", "Delete remote '{0}'" },
 
             // ── 창·탭 ──
-            ["window.notGitMode"] = new[] { "Version Control 모드가 Git 이 아닙니다.", "Version Control mode is not Git." },
-            ["window.notRepository"] = new[] { "git 저장소가 아닙니다. Version Control 설정에서 git init 할 수 있습니다.", "This is not a git repository. You can run git init from the Version Control settings." },
+            ["window.notGitMode"] = new[] { "Git 연동을 시작하는 중입니다.", "Starting Git integration." },
+            ["window.notRepository"] = new[] { "git 저장소가 아닙니다. Git 설정에서 git init 할 수 있습니다.", "This is not a git repository. You can run git init from the Git settings." },
             ["tab.pending"] = new[] { "대기 중인 변경사항", "Pending Changes" },
             ["tab.incoming"] = new[] { "수신 변경사항", "Incoming Changes" },
             ["tab.changesets"] = new[] { "체인지 세트", "Changesets" },
@@ -575,7 +575,7 @@ namespace GitVersionControl
             // ── git 실행 ──
             ["command.startFailed"] = new[] { "git 을 실행하지 못했습니다: {0}", "Failed to start git: {0}" },
             ["command.timeout"] = new[] { "git {0} 이(가) {1}초 안에 끝나지 않았습니다.", "git {0} did not finish within {1} seconds." },
-            ["command.notFound"] = new[] { "git 을 찾을 수 없습니다({0}). Project Settings > Version Control 에서 경로를 지정하세요.\n{1}", "git was not found ({0}). Set its path in Project Settings > Version Control.\n{1}" },
+            ["command.notFound"] = new[] { "git 을 찾을 수 없습니다({0}). Project Settings > Git 에서 경로를 지정하세요.\n{1}", "git was not found ({0}). Set its path in Project Settings > Git.\n{1}" },
 
             // ── git 찾기 ──
             ["locator.missingFile"] = new[] { "설정한 경로에 파일이 없습니다: {0}", "No file at the configured path: {0}" },
@@ -589,7 +589,7 @@ namespace GitVersionControl
             ["locator.sourceLoginShell"] = new[] { "로그인 셸 PATH", "login shell PATH" },
             ["locator.sourceDefault"] = new[] { "기본 설치 위치", "default install location" },
 
-            // ── Project Settings > Version Control ──
+            // ── Project Settings > Git ──
             ["settings.gitExecutable"] = new[] { "Git 실행 파일", "Git Executable" },
             ["settings.gitExecutableTooltip"] = new[] { "비워 두거나 \"git\" 이면 에디터 PATH → 시스템 환경변수 PATH → 기본 설치 위치 순서로 찾습니다.", "Leave empty or \"git\" to search the editor PATH, then the system PATH, then default install locations." },
             ["settings.browse"] = new[] { "찾기", "Browse" },
@@ -655,10 +655,10 @@ namespace GitVersionControl
             ["mainToolbar.openWindow"] = new[] { "Git 창 열기…", "Open Git Window…" },
             ["mainToolbar.hide"] = new[] { "도구 막대에서 Git 숨기기", "Hide Git from Toolbar" },
             ["mainToolbar.settings"] = new[] { "설정", "Settings" },
-            ["mainToolbar.projectSettings"] = new[] { "Project Settings › Version Control", "Project Settings › Version Control" },
+            ["mainToolbar.projectSettings"] = new[] { "Project Settings › Git", "Project Settings › Git" },
             ["mainToolbar.preferences"] = new[] { "Preferences › Git", "Preferences › Git" },
             ["mainToolbar.help"] = new[] { "Git Version Control 더 알아보기", "Learn more about Git Version Control" },
-            ["mainToolbar.hidden"] = new[] { "도구 막대의 Git 버튼을 숨겼습니다. 다시 보이려면 Preferences > Git 또는 Project Settings > Version Control 에서 \"도구 막대에 Git 버튼 표시\" 를 켜세요.", "The Git button was hidden from the toolbar. To show it again, turn on \"Show Git Button in Toolbar\" in Preferences > Git or Project Settings > Version Control." },
+            ["mainToolbar.hidden"] = new[] { "도구 막대의 Git 버튼을 숨겼습니다. 다시 보이려면 Preferences > Git 또는 Project Settings > Git 에서 \"도구 막대에 Git 버튼 표시\" 를 켜세요.", "The Git button was hidden from the toolbar. To show it again, turn on \"Show Git Button in Toolbar\" in Preferences > Git or Project Settings > Git." },
             ["mainToolbar.attachFailed"] = new[] { "Git 버튼을 에디터 도구 막대에 붙이지 못했습니다(이 Unity 버전의 내부 구조가 다릅니다: {0}). Git 창은 Window > Version Control > Git 으로 열 수 있습니다.", "Could not add the Git button to the editor toolbar (this Unity version's internals differ: {0}). Open the Git window from Window > Version Control > Git." },
             ["settings.mainToolbar"] = new[] { "도구 막대에 Git 버튼 표시", "Show Git Button in Toolbar" },
             ["settings.mainToolbarTooltip"] = new[] { "에디터 맨 위 도구 막대에 Git 메뉴 버튼(현재 브랜치 표시)을 둡니다.", "Show a Git menu button (with the current branch) in the editor's main toolbar." },
@@ -737,7 +737,7 @@ namespace GitVersionControl
             ["rewrite.parentIsMerge"] = new[] { "부모가 병합 커밋이라 합칠 수 없습니다.", "Cannot squash into a merge commit." },
             ["rewrite.readFailed"] = new[] { "커밋 정보를 읽지 못했습니다.", "Could not read the commit." },
             ["rewrite.commitFailed"] = new[] { "새 커밋을 만들지 못했습니다. 저장소는 바뀌지 않았습니다.", "Could not create the new commits. The repository was not changed." },
-            ["rebase.conflictAborted"] = new[] { "rebase 중 충돌이 나서 취소했습니다. 브랜치·커밋·커밋하지 않은 변경 모두 시작 전 그대로입니다. 충돌을 Git 창에서 직접 풀려면 Version Control 설정의 'rebase 충돌 시 멈추기' 를 켜세요.\n\n{0}", "The rebase hit a conflict, so it was cancelled. Your branch, commits and uncommitted changes are exactly as before. To resolve conflicts yourself in the Git window, turn on 'Stop on Rebase Conflicts' in the Version Control settings.\n\n{0}" },
+            ["rebase.conflictAborted"] = new[] { "rebase 중 충돌이 나서 취소했습니다. 브랜치·커밋·커밋하지 않은 변경 모두 시작 전 그대로입니다. 충돌을 Git 창에서 직접 풀려면 Git 설정의 'rebase 충돌 시 멈추기' 를 켜세요.\n\n{0}", "The rebase hit a conflict, so it was cancelled. Your branch, commits and uncommitted changes are exactly as before. To resolve conflicts yourself in the Git window, turn on 'Stop on Rebase Conflicts' in the Git settings.\n\n{0}" },
             ["rebase.autostashConflict"] = new[] { "커밋은 다시 쌓았지만, 커밋하지 않은 변경을 되돌리다 겹치는 부분이 충돌했습니다.\n\n충돌 표시가 남은 파일(변경 목록의 '충돌')을 정리하세요. 원래 변경은 stash 의 'autostash' 항목에 그대로 보관돼 있으니, 정리를 마친 뒤 지우면 됩니다.", "The commits were replayed, but restoring your uncommitted changes conflicted where they overlap.\n\nClean up the files with conflict markers (shown as 'Conflicted' in the changes list). Your original changes are kept in the stash entry 'autostash'; drop it once you are done." },
             ["rebase.alreadyInProgress"] = new[] { "이미 진행 중인 rebase 가 있습니다. 먼저 Git 창 위쪽 안내 줄에서 이어가거나 취소하세요.", "A rebase is already in progress. Continue or abort it first from the bar at the top of the Git window." },
 
