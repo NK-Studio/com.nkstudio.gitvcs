@@ -105,6 +105,17 @@ namespace GitVersionControl.Tests
             AssertVector(new Vector2(400f, 300f), viewport.ToCanvas(new Vector2(1000f, 10f)));
         }
 
+        [TestCase(3f, 0.5f, false, 3f)]
+        [TestCase(-2f, 0f, false, -2f)]
+        [TestCase(0.5f, 3f, false, 0f)]
+        [TestCase(0f, 0f, false, 0f)]
+        [TestCase(0f, 3f, true, 3f)]
+        [TestCase(-4f, 0f, true, -4f)]
+        public void Test_HorizontalWheel_UsesSidewaysScrollOrShiftWheel(float deltaX, float deltaY, bool shift, float expected)
+        {
+            Assert.AreEqual(expected, GraphViewport.HorizontalWheel(new Vector2(deltaX, deltaY), shift), Tolerance);
+        }
+
         private static void AssertVector(Vector2 expected, Vector2 actual)
         {
             Assert.AreEqual(expected.x, actual.x, Tolerance, $"x: expected {expected}, actual {actual}");

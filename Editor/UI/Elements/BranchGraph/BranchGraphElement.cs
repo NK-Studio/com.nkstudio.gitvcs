@@ -636,7 +636,19 @@ namespace GitVersionControl
 
         private void OnWheel(WheelEvent evt)
         {
-            Viewport.ZoomAround(evt.localMousePosition, Viewport.Zoom * (1f - evt.delta.y * 0.05f));
+            // 가로 휠(트랙패드 좌우 스와이프·Shift+휠)은 좌우로 옮기고, 세로 휠은 예전처럼 확대·축소한다.
+            float horizontal = GraphViewport.HorizontalWheel(evt.delta, evt.shiftKey);
+            if (horizontal != 0f)
+            {
+                Viewport.PanBy(new Vector2(-horizontal * GraphViewport.WheelPanStep, 0f));
+                // 그래프가 마우스 밑에서 움직였으니 올려 둔 커밋을 다시 고른다.
+                _pointer = evt.localMousePosition;
+                SetHovered(HitTest(_pointer));
+            }
+            else
+            {
+                Viewport.ZoomAround(evt.localMousePosition, Viewport.Zoom * (1f - evt.delta.y * 0.05f));
+            }
             Refresh();
             ViewportChanged?.Invoke();
             evt.StopPropagation();
