@@ -76,6 +76,13 @@ namespace GitVersionControl
                     ForgetOwnAvatar();
                 }
             }
+            // AI 도구(Claude·OpenAI·Gemini)는 사람 사진이 없으니 바로 그 로고를 쓴다. 예전에 잘못 받아 둔 사진(공동 작성자 자리에 들어간
+            // 커밋 작성자 얼굴 등)이 캐시에 남아 있어도 쓰지 않는다.
+            Texture2D aiLogo = AiFallback(email);
+            if (aiLogo != null)
+            {
+                return aiLogo;
+            }
             if (_textures.TryGetValue(email, out Texture2D texture) && texture != null)
             {
                 return texture;

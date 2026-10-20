@@ -217,7 +217,8 @@ namespace GitVersionControl
                 label.AddToClassList("graph-detail__coauthor-name");
                 chip.Add(label);
                 chip.userData = (name, email);
-                BindAvatar(avatar, initials, name, email, _shown?.Hash);
+                // 커밋 해시는 넘기지 않는다 — GitHub 커밋 API 가 돌려주는 사진은 커밋 작성자의 것이라 공동 작성자 자리에 작성자 얼굴이 들어간다.
+                BindAvatar(avatar, initials, name, email, null);
                 _coAuthors.Add(chip);
             }
         }
@@ -271,7 +272,7 @@ namespace GitVersionControl
                 if (chip.userData is ValueTuple<string, string> author)
                 {
                     VisualElement avatar = chip[0];
-                    BindAvatar(avatar, (Label)avatar[0], author.Item1, author.Item2, _shown.Hash);
+                    BindAvatar(avatar, (Label)avatar[0], author.Item1, author.Item2, null);
                 }
             }
         }
