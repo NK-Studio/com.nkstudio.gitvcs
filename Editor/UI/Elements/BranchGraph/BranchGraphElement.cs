@@ -116,6 +116,9 @@ namespace GitVersionControl
             _centerPending |= firstGraph;
             _empty.text = graph == null || graph.Nodes.Count == 0 ? emptyMessage : string.Empty;
             _empty.SetVisible(string.IsNullOrEmpty(_empty.text) == false);
+            // 이미 크기가 잡힌 채로 그래프가 오면 GeometryChangedEvent 가 다시 오지 않으니 여기서 바로 HEAD 로 옮긴다.
+            // 아직 배치 전이면(크기 0) 배치가 끝난 뒤 OnGeometryChanged 가 한다.
+            TryCenterOnHead();
             Refresh();
         }
 
@@ -195,14 +198,23 @@ namespace GitVersionControl
 
         private void OnGeometryChanged()
         {
-            if (_centerPending && _graph != null && _graph.Nodes.Count > 0 && layout.width > 1f)
-            {
-                _centerPending = false;
-                GitGraphNode head = FindHead() ?? _graph.Nodes[_graph.Nodes.Count - 1];
-                Viewport.Focus(GraphStyle.WorldPosition(head), layout.size);
-                ViewportChanged?.Invoke();
-            }
+            TryCenterOnHead();
             Refresh();
+        }
+
+        /// <summary>
+        /// 처음 받은 그래프는 맨 처음 커밋이 아니라 HEAD(없으면 가장 최근 커밋)를 가운데에 두고 시작한다. 크기가 잡히기 전이면 미룬다.
+        /// </summary>
+        private void TryCenterOnHead()
+        {
+            if (_centerPending == false || _graph == null || _graph.Nodes.Count == 0 || float.IsNaN(layout.width) || layout.width <= 1f)
+            {
+                return;
+            }
+            _centerPending = false;
+            GitGraphNode head = FindHead() ?? _graph.Nodes[_graph.Nodes.Count - 1];
+            Viewport.Focus(GraphStyle.WorldPosition(head), layout.size);
+            ViewportChanged?.Invoke();
         }
 
         private bool IsVisibleX(float x, float margin)
