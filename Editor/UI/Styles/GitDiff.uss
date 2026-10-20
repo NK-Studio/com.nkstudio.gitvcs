@@ -355,13 +355,40 @@
     top: 0;
     bottom: 0;
     align-items: center;
-    cursor: resize-horizontal;
+    cursor: link;
 }
 
 .git-image-diff__swipe-line {
     width: 2px;
     flex-grow: 1;
     background-color: var(--git-accent);
+}
+
+/* 경계선 가운데의 동그라미 손잡이. 손잡이 칸(12px)보다 넓어 가운데에 맞춰 양옆으로 넘친다. */
+.git-image-diff__swipe-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    translate: -50% -50%;
+    border-width: 2px;
+    border-radius: 15px;
+    border-color: var(--git-accent);
+    background-color: #ffffff;
+    align-items: center;
+    justify-content: center;
+    /* 손잡이 칸보다 넓어 칸 밖으로 넘친 부분에서도 같은 커서가 보이게 따로 준다. */
+    cursor: link;
+}
+
+/* 아이콘은 흰색(Material Symbols "arrows_outward")이라 흰 손잡이 위에서 보이도록 어둡게 물들인다. */
+.git-image-diff__swipe-knob-arrows {
+    width: 20px;
+    height: 20px;
+    background-image: url("../Icons/SwipeArrows.png");
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: #1f1f1f;
 }
 
 /* ── 바이너리 파일 카드(이미지 밖, 또는 새로 만든·지운 이미지): Fork 처럼 상태·아이콘·확장자·크기 ─────────── */
@@ -439,4 +466,86 @@
     margin: 16px;
     color: var(--git-danger);
     white-space: normal;
+}
+
+/* ── 이미지 속성 칸(Show properties): 아래쪽에 이전·이후 판의 크기·형식·해상도를 줄 번호와 함께. 다른 값은 diff 색으로 ─── */
+.git-image-diff__properties {
+    flex-direction: row;
+    flex-shrink: 0;
+    overflow: hidden;
+    background-color: var(--git-diff-bg);
+}
+
+
+/* 속성 칸 위 경계. 잡기 쉽게 5px 높이로 두고 가운데 1px 선(…-line)만 보인다. */
+.git-image-diff__properties-splitter {
+    flex-shrink: 0;
+    height: 5px;
+    justify-content: center;
+    cursor: resize-vertical;
+    background-color: var(--git-diff-bg);
+}
+
+.git-image-diff__properties-splitter-line {
+    height: 1px;
+    background-color: var(--git-border);
+}
+
+.git-image-diff__properties-splitter:hover .git-image-diff__properties-splitter-line {
+    height: 2px;
+    background-color: var(--git-accent);
+}
+
+.git-image-diff__properties-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+    padding-bottom: 6px;
+}
+
+.git-image-diff__properties-gutter {
+    width: 1px;
+    background-color: var(--git-diff-split-border);
+}
+
+.git-image-diff__properties-header {
+    margin: 0;
+    padding: 3px 8px;
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+    background-color: var(--git-header-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.git-image-diff__property {
+    flex-direction: row;
+    height: 18px;
+    align-items: center;
+}
+
+.git-image-diff__property--before {
+    background-color: var(--git-diff-removed-line);
+}
+
+.git-image-diff__property--after {
+    background-color: var(--git-diff-added-line);
+}
+
+.git-image-diff__property-number {
+    width: 28px;
+    margin: 0;
+    padding: 0 6px 0 0;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--git-text-muted);
+}
+
+.git-image-diff__property-value {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    color: var(--git-text);
 }

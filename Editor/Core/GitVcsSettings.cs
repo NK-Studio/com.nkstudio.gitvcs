@@ -46,6 +46,8 @@ namespace GitVersionControl
         [SerializeField] private int _diffContextLines = 3;
         [SerializeField] private int _diffLayout = (int)DiffLayout.SideBySide;
         [SerializeField] private int _imageDiffMode = (int)ImageDiffMode.TwoUp;
+        [SerializeField] private bool _imageDiffShowProperties;
+        [SerializeField] private float _imageDiffPropertiesHeight = 90f;
         [SerializeField] private string _difftoolName = string.Empty;
         [SerializeField] private string _customDiffArguments = ExternalDiffTool.DefaultCustomArguments;
         [SerializeField] private List<string> _diffToolPaths = new();
@@ -65,13 +67,13 @@ namespace GitVersionControl
         /// </summary>
         public static event System.Action DiffOptionsChanged;
 
-        /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
-        public string GitExecutable
         /// <summary>
         /// "에셋과 .meta 를 한 줄로 묶어 보기"(<see cref="GroupMetaPairs"/>)를 바꿨을 때. 변경 목록이 다시 그린다.
         /// </summary>
         public static event System.Action MetaGroupingChanged;
 
+        /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
+        public string GitExecutable
         {
             get => string.IsNullOrWhiteSpace(_gitExecutable) ? "git" : _gitExecutable.Trim();
             set => SetAndSave(ref _gitExecutable, value);
@@ -135,8 +137,6 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 브랜치 만들기 창의 "만든 뒤 체크아웃" 을 마지막으로 고른 값(<see cref="GitBranchDialog"/>). 기본은 끔(Fork 와 같다).
-        /// <summary>
         /// 변경 목록에서 에셋과 그 .meta 를 한 줄("A.png +meta")로 묶어 보일지. 기본은 켬(Unity Version Control 과 같다).
         /// 켜면 그 줄의 Stage·Unstage·변경 버리기·체크는 짝까지 함께 하고, 한쪽만 하려면 우클릭의 "에셋만"·".meta 만" 을 쓴다.
         /// </summary>
@@ -159,6 +159,8 @@ namespace GitVersionControl
         /// </summary>
         public bool MovesMetaPairs => _groupMetaPairs || _stageMetaPairs;
 
+        /// <summary>
+        /// 브랜치 만들기 창의 "만든 뒤 체크아웃" 을 마지막으로 고른 값(<see cref="GitBranchDialog"/>). 기본은 끔(Fork 와 같다).
         /// </summary>
         public bool CheckoutNewBranch
         {
@@ -263,6 +265,24 @@ namespace GitVersionControl
                 int index = (int)value;
                 SetAndSave(ref _diffLayout, index);
             }
+        }
+
+        /// <summary>
+        /// 이미지 diff 아래에 양쪽 판의 속성(크기·형식·해상도)을 보일지. 마지막으로 고른 값을 다음 이미지에도 쓴다.
+        /// </summary>
+        public bool ImageDiffShowProperties
+        {
+            get => _imageDiffShowProperties;
+            set => SetAndSave(ref _imageDiffShowProperties, value);
+        }
+
+        /// <summary>
+        /// 이미지 diff 속성 칸의 높이(위 경계를 끌어 바꾼다).
+        /// </summary>
+        public float ImageDiffPropertiesHeight
+        {
+            get => _imageDiffPropertiesHeight;
+            set => SetAndSave(ref _imageDiffPropertiesHeight, value);
         }
 
         /// <summary>

@@ -23,6 +23,11 @@ namespace GitVersionControl
         /// </summary>
         public string Label;
 
+        /// <summary>
+        /// 파일 확장자(".png"). 속성 보기(Show properties)에 쓴다.
+        /// </summary>
+        public string Format;
+
         public bool Exists => Texture != null;
         public int Width => Texture != null ? Texture.width : 0;
         public int Height => Texture != null ? Texture.height : 0;

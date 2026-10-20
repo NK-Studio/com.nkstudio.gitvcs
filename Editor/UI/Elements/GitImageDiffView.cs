@@ -20,19 +20,22 @@ namespace GitVersionControl
         private const float MaxFitZoom = 8f;
         private const float WheelStep = 1.15f;
         private const float SwipeHandleWidth = 12f;
+        private const float MinPropertiesHeight = 40f;
+        private const float MinStageHeight = 80f;
 
         private static Texture2D _checker;
 
         private readonly ToolbarToggle[] _modeToggles = new ToolbarToggle[4];
         private readonly Slider _opacitySlider;
-        private readonly SliderInt _toleranceSlider;
         private readonly Label _zoomLabel;
-        private readonly Label _leftInfo;
-        private readonly Label _rightInfo;
+        private readonly VisualElement _info;
         private readonly Label _sizeChanged;
         private readonly Label _changedInfo;
         private readonly VisualElement _stage;
         private readonly VisualElement _modeControls;
+        private readonly ToolbarToggle _propertiesToggle;
+        private readonly VisualElement _properties;
+        private readonly VisualElement _propertiesSplitter;
 
         private GitImagePair _pair;
         private Color32[] _leftPixels;
@@ -94,10 +97,6 @@ namespace GitVersionControl
             _opacitySlider.RegisterValueChangedCallback(_ => ApplyTransform());
             _modeControls.Add(_opacitySlider);
 
-            _toleranceSlider = new SliderInt(GitText.Get("imageDiff.tolerance"), 0, 64) { value = 0, showInputField = true, tooltip = GitText.Get("imageDiff.toleranceTooltip") };
-            _toleranceSlider.AddToClassList("git-image-diff__slider");
-            _toleranceSlider.RegisterValueChangedCallback(_ => ComputeDiff());
-            _modeControls.Add(_toleranceSlider);
 
             VisualElement spacer = new();
             spacer.AddToClassList("spacer");
@@ -108,12 +107,20 @@ namespace GitVersionControl
             toolbar.Add(_zoomLabel);
             toolbar.Add(new ToolbarButton(Fit) { text = GitText.Get("imageDiff.fit"), tooltip = GitText.Get("imageDiff.zoomTooltip") });
             toolbar.Add(new ToolbarButton(() => ZoomAt(1f, ViewportCenter())) { text = "100%" });
+            _propertiesToggle = new ToolbarToggle { text = GitText.Get("imageDiff.showProperties"), tooltip = GitText.Get("imageDiff.showPropertiesTooltip") };
+            _propertiesToggle.SetValueWithoutNotify(GitVcsSettings.instance.ImageDiffShowProperties);
+            _propertiesToggle.RegisterValueChangedCallback(evt =>
+            {
+                GitVcsSettings.instance.ImageDiffShowProperties = evt.newValue;
+                RenderProperties();
+            });
+            toolbar.Add(_propertiesToggle);
             Root.Add(toolbar);
 
+            // 정보 줄: 크기 변경·바뀐 픽셀 수. 양쪽 판의 크기·형식·해상도는 "속성 보기" 칸이 보인다.
             VisualElement info = new();
+            _info = info;
             info.AddToClassList("git-diff__info");
-            _leftInfo = InfoLabel(info);
-            _rightInfo = InfoLabel(info);
             _sizeChanged = InfoLabel(info);
             _sizeChanged.AddToClassList("git-image-diff__size-changed");
             _sizeChanged.text = GitText.Get("imageDiff.sizeChanged");
@@ -123,6 +130,22 @@ namespace GitVersionControl
             _stage = new VisualElement();
             _stage.AddToClassList("git-image-diff__stage");
             Root.Add(_stage);
+
+            // 아래쪽 속성 칸(Unity Version Control 의 "Show properties"): 이전·이후 판의 크기·형식·해상도, 다른 값은 강조.
+            // 위 경계(가로 막대)를 위아래로 끌어 높이를 바꾼다. 높이는 설정에 남는다.
+            _propertiesSplitter = new VisualElement();
+            _propertiesSplitter.AddToClassList("git-image-diff__properties-splitter");
+            VisualElement splitterLine = new() { pickingMode = PickingMode.Ignore };
+            splitterLine.AddToClassList("git-image-diff__properties-splitter-line");
+            _propertiesSplitter.Add(splitterLine);
+            Root.Add(_propertiesSplitter);
+            HookPropertiesSplitter();
+            _properties = new VisualElement();
+            _properties.AddToClassList("git-image-diff__properties");
+            _properties.style.height = GitVcsSettings.instance.ImageDiffPropertiesHeight;
+            Root.Add(_properties);
+            _properties.SetVisible(false);
+            _propertiesSplitter.SetVisible(false);
 
             Root.RegisterCallback<DetachFromPanelEvent>(_ =>
             {
@@ -156,18 +179,16 @@ namespace GitVersionControl
             _isFit = true;
 
             _modeControls.SetVisible(IsSingle == false);
+            RenderProperties();
             if (IsSingle)
             {
-                // 새로 만들거나 지운 이미지: 비교 없이 있는 쪽 이미지만 보인다.
-                GitImageSide side = pair.Left.Exists ? pair.Left : pair.Right;
-                _leftInfo.text = GitText.Format("imageDiff.singleInfo", side.Label, side.Width, side.Height, GitImageDiff.FormatBytes(side.ByteSize));
-                _rightInfo.text = string.Empty;
+                // 새로 만들거나 지운 이미지: 비교 없이 있는 쪽 이미지만 보인다. 견줄 게 없어 정보 줄도 숨긴다.
+                _info.SetVisible(false);
                 _sizeChanged.SetVisible(false);
                 BuildStage();
                 return;
             }
-            _leftInfo.text = DescribeSide("imageDiff.before", pair.Left);
-            _rightInfo.text = DescribeSide("imageDiff.after", pair.Right);
+            _info.SetVisible(true);
             _sizeChanged.SetVisible(pair.Left.Width != pair.Right.Width || pair.Left.Height != pair.Right.Height);
 
             BuildStage();
@@ -193,20 +214,132 @@ namespace GitVersionControl
             }
             _stage.Clear();
             _viewports = Array.Empty<Viewport>();
-            _leftInfo.text = string.Empty;
-            _rightInfo.text = string.Empty;
+            _properties.Clear();
+            SetPropertiesOpen(false);
             _changedInfo.text = string.Empty;
             _sizeChanged.SetVisible(false);
         }
 
-        private static string DescribeSide(string titleKey, GitImageSide side)
+        /// <summary>
+        /// 속성 칸을 다시 채운다. 양쪽이 다 있으면 좌우 두 칸이고 서로 다른 값을 강조한다. 새로 만든·지운 이미지는 있는 쪽 한 칸.
+        /// </summary>
+        private void RenderProperties()
         {
-            string title = GitText.Get(titleKey);
+            _properties.Clear();
+            bool shown = _pair != null && GitVcsSettings.instance.ImageDiffShowProperties;
+            SetPropertiesOpen(shown);
+            if (shown == false)
+            {
+                return;
+            }
+            if (IsSingle)
+            {
+                _properties.Add(PropertyColumn(_pair.Left.Exists ? _pair.Left : _pair.Right, null, null));
+                return;
+            }
+            _properties.Add(PropertyColumn(_pair.Left, _pair.Right, "git-image-diff__property--before"));
+            VisualElement gutter = new();
+            gutter.AddToClassList("git-image-diff__properties-gutter");
+            _properties.Add(gutter);
+            _properties.Add(PropertyColumn(_pair.Right, _pair.Left, "git-image-diff__property--after"));
+        }
+
+        private void SetPropertiesOpen(bool open)
+        {
+            _properties.SetVisible(open);
+            _propertiesSplitter.SetVisible(open);
+        }
+
+        /// <summary>
+        /// 속성 칸 위 경계 끌기. 아래로 끌면 칸이 줄고 위로 끌면 는다. 이미지 칸이 <see cref="MinStageHeight"/> 아래로 줄지 않게 막는다.
+        /// </summary>
+        private void HookPropertiesSplitter()
+        {
+            float startY = 0f;
+            float startHeight = 0f;
+            _propertiesSplitter.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0)
+                {
+                    return;
+                }
+                startY = evt.position.y;
+                startHeight = _properties.resolvedStyle.height;
+                _propertiesSplitter.CapturePointer(evt.pointerId);
+                evt.StopPropagation();
+            });
+            _propertiesSplitter.RegisterCallback<PointerMoveEvent>(evt =>
+            {
+                if (_propertiesSplitter.HasPointerCapture(evt.pointerId) == false)
+                {
+                    return;
+                }
+                float available = _stage.resolvedStyle.height + _properties.resolvedStyle.height;
+                float max = Mathf.Max(MinPropertiesHeight, available - MinStageHeight);
+                float height = Mathf.Clamp(startHeight - (evt.position.y - startY), MinPropertiesHeight, max);
+                _properties.style.height = height;
+                evt.StopPropagation();
+            });
+            _propertiesSplitter.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (_propertiesSplitter.HasPointerCapture(evt.pointerId) == false)
+                {
+                    return;
+                }
+                _propertiesSplitter.ReleasePointer(evt.pointerId);
+                GitVcsSettings.instance.ImageDiffPropertiesHeight = _properties.resolvedStyle.height;
+                evt.StopPropagation();
+            });
+        }
+
+        /// <param name="other">견줄 반대쪽 판. 값이 다르면 그 줄에 <paramref name="changedModifier"/> 를 붙인다. null 이면 견주지 않는다.</param>
+        private static VisualElement PropertyColumn(GitImageSide side, GitImageSide other, string changedModifier)
+        {
+            VisualElement column = new();
+            column.AddToClassList("git-image-diff__properties-column");
+            Label header = new(side.Label);
+            header.AddToClassList("git-image-diff__properties-header");
+            column.Add(header);
             if (side.Exists == false)
             {
-                return GitText.Format("imageDiff.sideMissing", title, side.Label);
+                column.Add(PropertyLine(1, GitText.Get("imageDiff.none"), false, null));
+                return column;
             }
-            return GitText.Format("imageDiff.sideInfo", title, side.Label, side.Width, side.Height, GitImageDiff.FormatBytes(side.ByteSize));
+            string[] values = PropertyValues(side);
+            string[] others = other != null && other.Exists ? PropertyValues(other) : null;
+            for (int i = 0; i < values.Length; i++)
+            {
+                bool changed = others != null && values[i] != others[i];
+                column.Add(PropertyLine(i + 1, values[i], changed, changedModifier));
+            }
+            return column;
+        }
+
+        private static string[] PropertyValues(GitImageSide side)
+        {
+            return new[]
+            {
+                GitText.Format("imageDiff.propertySize", GitImageDiff.FormatBytes(side.ByteSize), side.ByteSize.ToString("N0", CultureInfo.InvariantCulture)),
+                GitText.Format("imageDiff.propertyFormat", string.IsNullOrEmpty(side.Format) ? "-" : side.Format.ToLowerInvariant()),
+                GitText.Format("imageDiff.propertyDimensions", side.Width, side.Height),
+            };
+        }
+
+        private static VisualElement PropertyLine(int number, string text, bool changed, string changedModifier)
+        {
+            VisualElement line = new();
+            line.AddToClassList("git-image-diff__property");
+            if (changed && changedModifier != null)
+            {
+                line.AddToClassList(changedModifier);
+            }
+            Label numberLabel = new(number.ToString(CultureInfo.InvariantCulture));
+            numberLabel.AddToClassList("git-image-diff__property-number");
+            line.Add(numberLabel);
+            Label value = new(text);
+            value.AddToClassList("git-image-diff__property-value");
+            line.Add(value);
+            return line;
         }
 
         // ── 보기 방식 ─────────────────────────────
@@ -228,7 +361,6 @@ namespace GitVersionControl
                 _modeToggles[i].SetValueWithoutNotify((int)mode == i);
             }
             _opacitySlider.SetVisible(mode == ImageDiffMode.Onion);
-            _toleranceSlider.SetVisible(mode == ImageDiffMode.Difference);
         }
 
         private int CanvasWidth => _pair == null ? 0 : Math.Max(_pair.Left.Width, _pair.Right.Width);
@@ -324,7 +456,7 @@ namespace GitVersionControl
         // ── 픽셀 차이 ─────────────────────────────
 
         /// <summary>
-        /// 차이는 무거울 수 있어(큰 텍스처) 백그라운드에서 계산한다. 그 사이 다른 파일을 열거나 허용 오차를 바꾸면 늦게 온 결과는 버린다.
+        /// 차이는 무거울 수 있어(큰 텍스처) 백그라운드에서 계산한다. 그 사이 다른 파일을 열면 늦게 온 결과는 버린다.
         /// </summary>
         private async void ComputeDiff()
         {
@@ -339,10 +471,9 @@ namespace GitVersionControl
             int leftHeight = _pair.Left.Height;
             int rightWidth = _pair.Right.Width;
             int rightHeight = _pair.Right.Height;
-            int tolerance = _toleranceSlider.value;
             _changedInfo.text = GitText.Get("imageDiff.computing");
 
-            GitImageDiffResult result = await Task.Run(() => GitImageDiff.Compare(left, leftWidth, leftHeight, right, rightWidth, rightHeight, tolerance));
+            GitImageDiffResult result = await Task.Run(() => GitImageDiff.Compare(left, leftWidth, leftHeight, right, rightWidth, rightHeight, tolerance: 0));
             if (version != _diffVersion)
             {
                 return;
@@ -655,6 +786,13 @@ namespace GitVersionControl
                 VisualElement line = new() { pickingMode = PickingMode.Ignore };
                 line.AddToClassList("git-image-diff__swipe-line");
                 _swipeHandle.Add(line);
+                // 가운데 동그라미 손잡이(양쪽 화살표, Icons/SwipeArrows.png). 누르면 손잡이 칸으로 올라가 같이 끈다.
+                VisualElement knob = new();
+                knob.AddToClassList("git-image-diff__swipe-knob");
+                VisualElement arrows = new() { pickingMode = PickingMode.Ignore };
+                arrows.AddToClassList("git-image-diff__swipe-knob-arrows");
+                knob.Add(arrows);
+                _swipeHandle.Add(knob);
                 _swipeHandle.RegisterCallback<PointerDownEvent>(evt =>
                 {
                     if (evt.button != 0)

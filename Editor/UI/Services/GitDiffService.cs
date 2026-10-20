@@ -104,8 +104,8 @@ namespace GitVersionControl
 
                 GitImagePair pair = new()
                 {
-                    Left = new GitImageSide { Label = leftLabel },
-                    Right = new GitImageSide { Label = rightLabel },
+                    Left = new GitImageSide { Label = leftLabel, Format = Path.GetExtension(target.LeftPath ?? target.RepoPath) },
+                    Right = new GitImageSide { Label = rightLabel, Format = Path.GetExtension(target.RepoPath) },
                 };
                 string loadError = LoadSide(pair.Left, left) ?? LoadSide(pair.Right, right);
                 if (loadError != null)

@@ -162,5 +162,37 @@ namespace GitVersionControl.Tests
         {
             Assert.AreEqual(expected, GitImageDiff.FormatBytes(bytes));
         }
+
+        [Test]
+        public void Test_InvertedDifference_SamePixel_White()
+        {
+            Color32 brown = new(140, 90, 50, 255);
+
+            Assert.AreEqual(new Color32(255, 255, 255, 255), GitImageDiff.InvertedDifference(brown, brown));
+        }
+
+        [Test]
+        public void Test_InvertedDifference_OnlyBefore_ComplementColor()
+        {
+            Color32 brown = new(140, 90, 50, 255);
+
+            Assert.AreEqual(new Color32(115, 165, 205, 255), GitImageDiff.InvertedDifference(brown, default));
+        }
+
+        [Test]
+        public void Test_InvertedDifference_Overlap_SignedAndAmplified()
+        {
+            // 갈색 → 분홍: 빨강·파랑은 늘어(음수) 흰쪽으로, 초록은 줄어(+26 × 8) 0 으로 — 자주색.
+            Color32 brown = new(197, 153, 89, 255);
+            Color32 pink = new(255, 127, 127, 255);
+
+            Assert.AreEqual(new Color32(255, 47, 255, 255), GitImageDiff.InvertedDifference(brown, pink));
+        }
+
+        [Test]
+        public void Test_InvertedDifference_BothTransparent_Transparent()
+        {
+            Assert.AreEqual(0, GitImageDiff.InvertedDifference(new Color32(255, 0, 0, 0), new Color32(0, 255, 0, 0)).a);
+        }
     }
 }

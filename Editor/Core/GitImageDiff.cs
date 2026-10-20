@@ -40,8 +40,8 @@ namespace GitVersionControl
         public int Height;
 
         /// <summary>
-        /// 캔버스 크기의 차이 이미지(Unity 순서: 아래 줄부터). 나머지는 이미지를 어두운 회색조로 깔고,
-        /// 바뀐 픽셀은 그 위에 <see cref="GitImageDiff.ChangedColor"/> 를 차이가 클수록 진하게 섞는다 — 바뀐 곳이 넓어도 윤곽이 남게.
+        /// 캔버스 크기의 차이 이미지(Unity 순서: 아래 줄부터, <see cref="GitImageDiff.InvertedDifference"/>):
+        /// 같은 곳은 흰색, 다른 곳은 차이를 뒤집은 색, 둘 다 투명한 곳은 투명(체커보드가 보인다).
         /// </summary>
         public Color32[] Mask;
 
@@ -62,11 +62,6 @@ namespace GitVersionControl
     /// </summary>
     public static class GitImageDiff
     {
-        /// <summary>
-        /// 바뀐 픽셀 강조색. 순수 마젠타(255,0,255)는 Unity 의 셰이더 깨짐 색과 같아 쓰지 않는다.
-        /// </summary>
-        public static readonly Color32 ChangedColor = new(255, 72, 72, 255);
-
         /// <summary>
         /// <c>Texture2D.LoadImage</c> 로 바로 읽는 형식.
         /// </summary>
@@ -158,12 +153,9 @@ namespace GitVersionControl
                     {
                         result.ChangedPixels++;
                         result.Changed[canvasRow + x] = true;
-                        result.Mask[canvasRow + x] = Highlighted(before, after, hasLeft, hasRight);
                     }
-                    else
-                    {
-                        result.Mask[canvasRow + x] = Faded(hasRight ? after : before);
-                    }
+                    // 한쪽에만 있는 픽셀은 없는 쪽을 투명으로 본다(default).
+                    result.Mask[canvasRow + x] = InvertedDifference(before, after);
                 }
             }
             return result;
@@ -182,39 +174,37 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 바뀐 픽셀: 이후(없으면 이전)의 어두운 회색조 위에 강조색을 차이 크기만큼 섞는다. 작은 차이도 알아보게 최소 40% 는 섞는다.
-        /// 차이는 알파를 곱한 색으로 잰다 — 거의 투명한 픽셀의 색 차이가 크게 보이지 않게.
+        /// 두 쪽 다 그려진 픽셀의 차이를 키우는 배율. 작은 색 차이도 또렷한 색으로 보이게 한다.
         /// </summary>
-        private static Color32 Highlighted(Color32 before, Color32 after, bool hasLeft, bool hasRight)
-        {
-            int magnitude = 255;
-            if (hasLeft && hasRight)
-            {
-                magnitude = Math.Max(Math.Max(Math.Abs(Premultiplied(before.r, before.a) - Premultiplied(after.r, after.a)),
-                                              Math.Abs(Premultiplied(before.g, before.a) - Premultiplied(after.g, after.a))),
-                                     Math.Max(Math.Abs(Premultiplied(before.b, before.a) - Premultiplied(after.b, after.a)),
-                                              Math.Abs(before.a - after.a)));
-            }
-            Color32 source = hasRight ? after : before;
-            Color32 baseColor = Faded(source);
-            baseColor.a = 255;
-            float t = 0.4f + 0.6f * magnitude / 255f;
-            return Color32.Lerp(baseColor, ChangedColor, t);
-        }
-
-        private static int Premultiplied(byte channel, byte alpha)
-        {
-            return channel * alpha / 255;
-        }
+        public const int OverlapGain = 8;
 
         /// <summary>
-        /// 바뀌지 않은 픽셀을 어둡고 흐린 회색조로. 강조색이 눈에 띄게 하면서 이미지 윤곽은 남긴다.
+        /// 차이 이미지 한 픽셀(알파를 곱한 색으로 잰다). 같으면 흰색, 둘 다 투명하면 투명.
+        /// <list type="bullet">
+        /// <item>두 쪽 다 그려졌으면 <c>255 − 8 × (이전 − 이후)</c>: 부호를 살려 어느 채널이 늘고 줄었는지 색으로 보인다(갈색 → 분홍이면 자주색).</item>
+        /// <item>한쪽에만 그려졌으면 <c>255 − |이전 − 이후|</c>: 있는 쪽 색의 보색(갈색이면 파랑) — 모양이 넓어지거나 줄어든 곳.</item>
+        /// </list>
         /// </summary>
-        private static Color32 Faded(Color32 color)
+        public static Color32 InvertedDifference(Color32 before, Color32 after)
         {
-            int luminance = (color.r * 299 + color.g * 587 + color.b * 114) / 1000;
-            byte gray = (byte)(48 + luminance * 80 / 255);
-            return new Color32(gray, gray, gray, (byte)(color.a / 2));
+            byte alpha = Math.Max(before.a, after.a);
+            if (alpha == 0)
+            {
+                return default;
+            }
+            bool overlap = before.a > 0 && after.a > 0;
+            return new Color32(
+                Channel(before.r, before.a, after.r, after.a, overlap),
+                Channel(before.g, before.a, after.g, after.a, overlap),
+                Channel(before.b, before.a, after.b, after.a, overlap),
+                alpha);
+
+            static byte Channel(byte a, byte alphaA, byte b, byte alphaB, bool overlap)
+            {
+                int difference = a * alphaA / 255 - b * alphaB / 255;
+                int value = overlap ? 255 - OverlapGain * difference : 255 - Math.Abs(difference);
+                return (byte)Math.Clamp(value, 0, 255);
+            }
         }
 
         /// <summary>
