@@ -65,7 +65,8 @@ namespace GitVersionControl
             row.Require<Image>("icon").image = _icons.GetIcon(item.ProjectPath, item.RepoPath);
 
             Label path = row.Require<Label>("path");
-            path.text = GitDisplay.Nfc(nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath);
+            path.text = GitDisplay.Nfc(nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath)
+                        + (item.MetaSource != null ? GitText.Get("file.metaSuffix") : string.Empty);
             path.tooltip = item.Tooltip;
 
             Label original = row.Require<Label>("original");

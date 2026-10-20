@@ -35,6 +35,7 @@ namespace GitVersionControl
         [SerializeField] private int _autoFetchMinutes = GitAutoFetch.DefaultIntervalMinutes;
         [SerializeField] private bool _stopOnRebaseConflict;
         [SerializeField] private bool _stageMetaPairs;
+        [SerializeField] private bool _groupMetaPairs = true;
         [SerializeField] private bool _checkoutNewBranch;
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
@@ -66,6 +67,11 @@ namespace GitVersionControl
 
         /// <summary>비워 두면 PATH 의 git 을 쓴다.</summary>
         public string GitExecutable
+        /// <summary>
+        /// "에셋과 .meta 를 한 줄로 묶어 보기"(<see cref="GroupMetaPairs"/>)를 바꿨을 때. 변경 목록이 다시 그린다.
+        /// </summary>
+        public static event System.Action MetaGroupingChanged;
+
         {
             get => string.IsNullOrWhiteSpace(_gitExecutable) ? "git" : _gitExecutable.Trim();
             set => SetAndSave(ref _gitExecutable, value);
@@ -130,6 +136,29 @@ namespace GitVersionControl
 
         /// <summary>
         /// 브랜치 만들기 창의 "만든 뒤 체크아웃" 을 마지막으로 고른 값(<see cref="GitBranchDialog"/>). 기본은 끔(Fork 와 같다).
+        /// <summary>
+        /// 변경 목록에서 에셋과 그 .meta 를 한 줄("A.png +meta")로 묶어 보일지. 기본은 켬(Unity Version Control 과 같다).
+        /// 켜면 그 줄의 Stage·Unstage·변경 버리기·체크는 짝까지 함께 하고, 한쪽만 하려면 우클릭의 "에셋만"·".meta 만" 을 쓴다.
+        /// </summary>
+        public bool GroupMetaPairs
+        {
+            get => _groupMetaPairs;
+            set
+            {
+                if (_groupMetaPairs == value)
+                {
+                    return;
+                }
+                SetAndSave(ref _groupMetaPairs, value);
+                MetaGroupingChanged?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Stage·Unstage·변경 버리기에 같은 목록의 .meta 짝을 더할지. 묶어 보기를 켰거나 "짝 함께 옮기기" 를 켰을 때.
+        /// </summary>
+        public bool MovesMetaPairs => _groupMetaPairs || _stageMetaPairs;
+
         /// </summary>
         public bool CheckoutNewBranch
         {

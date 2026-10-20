@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -18,6 +20,11 @@ namespace GitVersionControl
         /// <summary>원래 데이터. 체크·되돌리기처럼 원본이 필요한 곳에서 꺼내 쓴다.</summary>
         public object Source;
 
+        /// <summary>
+        /// 이 줄에 묶인 .meta 짝의 원래 데이터(<see cref="GitStaging.GroupMetaPairs"/>). 있으면 이름 뒤에 "+meta" 를 붙인다. 없으면 null.
+        /// </summary>
+        public object MetaSource;
+
         public string DisplayPath => ProjectPath ?? RepoPath;
 
         public static FileListItem From(GitStatusEntry entry)
@@ -31,6 +38,28 @@ namespace GitVersionControl
                 Tooltip = $"{entry.State}  [{entry.IndexCode}{entry.WorkTreeCode}]  {entry.RepoPath}",
                 Source = entry,
             };
+        }
+
+        /// <summary>
+        /// 에셋 줄에 .meta 짝을 묶는다(<paramref name="meta"/> 가 null 이면 <see cref="From(GitStatusEntry)"/> 와 같다).
+        /// </summary>
+        public static FileListItem From(GitStaging.MetaGroup group)
+        {
+            FileListItem item = From(group.Main);
+            if (group.Meta != null)
+            {
+                item.MetaSource = group.Meta;
+                item.Tooltip += $"\n+ {group.Meta.State}  [{group.Meta.IndexCode}{group.Meta.WorkTreeCode}]  {group.Meta.RepoPath}";
+            }
+            return item;
+        }
+
+        /// <summary>
+        /// 설정(<see cref="GitVcsSettings.GroupMetaPairs"/>)대로 변경 목록 줄을 만든다 — 켜면 에셋과 .meta 를 한 줄로.
+        /// </summary>
+        public static IEnumerable<FileListItem> FromStatus(IReadOnlyList<GitStatusEntry> entries)
+        {
+            return GitVcsSettings.instance.GroupMetaPairs ? GitStaging.GroupMetaPairs(entries).Select(From) : entries.Select(From);
         }
 
         public static FileListItem From(GitFileChange change)

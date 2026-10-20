@@ -48,6 +48,66 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 변경 목록 한 줄: 에셋과(있으면) 같은 목록의 그 .meta. <see cref="GroupMetaPairs"/> 가 만든다.
+        /// </summary>
+        public readonly struct MetaGroup
+        {
+            public readonly GitStatusEntry Main;
+
+            /// <summary>
+            /// 같은 목록에 있는 <see cref="Main"/> 의 .meta. 없으면 null.
+            /// </summary>
+            public readonly GitStatusEntry Meta;
+
+            public MetaGroup(GitStatusEntry main, GitStatusEntry meta)
+            {
+                Main = main;
+                Meta = meta;
+            }
+        }
+
+        /// <summary>
+        /// 에셋과 그 .meta 를 한 줄로 묶는다(Unity Version Control 의 "A.png +meta"). 순서는 그대로 두고, 에셋이 같은 목록에 있는 .meta 는 에셋 줄에 붙인다.
+        /// 에셋이 없는 .meta(폴더의 .meta, 에셋은 그대로이고 .meta 만 바뀐 것)와 .meta 가 없는 에셋은 혼자 한 줄이다.
+        /// </summary>
+        public static List<MetaGroup> GroupMetaPairs(IReadOnlyList<GitStatusEntry> entries)
+        {
+            HashSet<string> paths = new(System.StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, GitStatusEntry> metaByAsset = new(System.StringComparer.OrdinalIgnoreCase);
+            foreach (GitStatusEntry entry in entries)
+            {
+                paths.Add(entry.RepoPath);
+            }
+            foreach (GitStatusEntry entry in entries)
+            {
+                if (IsMeta(entry.RepoPath))
+                {
+                    string asset = entry.RepoPath.Substring(0, entry.RepoPath.Length - ".meta".Length);
+                    if (paths.Contains(asset))
+                    {
+                        metaByAsset[asset] = entry;
+                    }
+                }
+            }
+            List<MetaGroup> result = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                if (IsMeta(entry.RepoPath) && paths.Contains(entry.RepoPath.Substring(0, entry.RepoPath.Length - ".meta".Length)))
+                {
+                    continue;
+                }
+                metaByAsset.TryGetValue(entry.RepoPath, out GitStatusEntry meta);
+                result.Add(new MetaGroup(entry, meta));
+            }
+            return result;
+        }
+
+        private static bool IsMeta(string path)
+        {
+            return path.EndsWith(".meta", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// 고른 항목에 같은 목록의 .meta 짝을 더한다. Unity 에셋은 파일과 .meta 가 한 쌍이라, 한쪽만 stage 하면
         /// 다른 사람 프로젝트에서 GUID 가 어긋난다. 예: [A.cs] + 목록에 A.cs.meta → [A.cs, A.cs.meta].
         /// </summary>

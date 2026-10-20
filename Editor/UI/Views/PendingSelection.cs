@@ -52,6 +52,15 @@ namespace GitVersionControl
             Save();
         }
 
+        /// <summary>
+        /// 짝은 그대로 두고 이 항목만 체크·해제한다(묶인 줄 우클릭의 "에셋만"·".meta 만").
+        /// </summary>
+        public void SetCheckedOnly(GitStatusEntry entry, bool value)
+        {
+            Apply(entry.RepoPath, value);
+            Save();
+        }
+
         /// <summary>여러 항목을 한 번에(트리의 폴더 체크). .meta 짝도 함께 바뀐다.</summary>
         public void SetChecked(IEnumerable<GitStatusEntry> entries, bool value)
         {

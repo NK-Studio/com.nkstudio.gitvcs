@@ -95,7 +95,16 @@ namespace GitVersionControl
                     settings.AutoFetchMinutes);
             }
             settings.StopOnRebaseConflict = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stopOnRebaseConflict"), GitText.Get("settings.stopOnRebaseConflictTooltip")), settings.StopOnRebaseConflict);
-            settings.StageMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.StageMetaPairs);
+            settings.GroupMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.groupMetaPairs"), GitText.Get("settings.groupMetaPairsTooltip")), settings.GroupMetaPairs);
+            using (new EditorGUI.DisabledScope(settings.GroupMetaPairs))
+            {
+                // 묶어 보기를 켜면 짝은 늘 함께 옮기므로 켜진 채로 잠근다.
+                bool movesPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.MovesMetaPairs);
+                if (settings.GroupMetaPairs == false)
+                {
+                    settings.StageMetaPairs = movesPairs;
+                }
+            }
             settings.ShowAvatars = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.avatars"), GitText.Get("settings.avatarsTooltip")), settings.ShowAvatars);
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
             settings.MenuStyle = EnumPopup(GitText.Get("settings.menuStyle"), GitText.Get("settings.menuStyleTooltip"), settings.MenuStyle, "menuStyle.");

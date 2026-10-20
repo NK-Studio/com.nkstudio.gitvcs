@@ -45,10 +45,13 @@ namespace GitVersionControl
 
             _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services)
             {
-                IsChecked = item => _selection.IsChecked((GitStatusEntry)item.Source),
+                // 묶인 줄("A.png +meta")은 둘 중 하나라도 체크돼 있으면 체크로 보이고, 한쪽만이면 오른쪽에 "에셋만"·".meta 만" 을 적는다.
+                IsChecked = item => _selection.IsChecked((GitStatusEntry)item.Source)
+                                    || (item.MetaSource is GitStatusEntry meta && _selection.IsChecked(meta)),
                 DiffTargetOf = item => GitDiffTarget.ForWorkingTree((GitStatusEntry)item.Source),
             };
             _files.ToggleChanged += OnToggleChanged;
+            GitVcsSettings.MetaGroupingChanged += OnMetaGroupingChanged;
             _files.FolderContextMenuRequested += PopulateFolderMenu;
             _fileActions = new FileActionMenu(services, GitDiffSource.WorkingTree);
             _files.FileMenu = PopulateFileMenu;
@@ -58,7 +61,7 @@ namespace GitVersionControl
             _selectAll.RegisterValueChangedCallback(evt =>
             {
                 _selection.SetAll(evt.newValue);
-                _files.Refresh();
+                _files.SetItems(BuildItems());
                 UpdateCommitArea();
             });
 
@@ -112,7 +115,7 @@ namespace GitVersionControl
             // 보이지 않으면 파일 목록(수백 줄 트리)을 다시 만들지 않는다 — 탭을 열 때 만든다. 탭 옆 개수는 바로 바꾼다.
             if (IsActive)
             {
-                _files.SetItems(_selection.Rows.Select(FileListItem.From));
+                _files.SetItems(BuildItems());
                 UpdateCommitArea();
             }
             NotifyBadgeChanged();
@@ -120,7 +123,7 @@ namespace GitVersionControl
 
         protected override void OnActivated()
         {
-            _files.SetItems(_selection.Rows.Select(FileListItem.From));
+            _files.SetItems(BuildItems());
             UpdateCommitArea();
         }
 
@@ -131,14 +134,52 @@ namespace GitVersionControl
 
         public override void Dispose()
         {
+            GitVcsSettings.MetaGroupingChanged -= OnMetaGroupingChanged;
             _files.Dispose();
         }
 
         private void OnToggleChanged(IReadOnlyList<FileListItem> items, bool value)
         {
             _selection.SetChecked(items.Select(item => (GitStatusEntry)item.Source), value);
-            // .meta 짝도 바뀌었을 수 있으니 보이는 줄을 다시 채운다.
-            _files.Refresh();
+            // .meta 짝도 바뀌었을 수 있으니 줄(체크·"에셋만" 표시)을 다시 만든다.
+            _files.SetItems(BuildItems());
+            UpdateCommitArea();
+        }
+
+        /// <summary>
+        /// 줄을 만든다. 설정대로 에셋과 .meta 를 한 줄로 묶고(<see cref="FileListItem.FromStatus"/>), 한쪽만 체크된 줄에는 표시를 단다.
+        /// </summary>
+        private List<FileListItem> BuildItems()
+        {
+            List<FileListItem> items = FileListItem.FromStatus(_selection.Rows).ToList();
+            foreach (FileListItem item in items)
+            {
+                if (item.MetaSource is GitStatusEntry meta)
+                {
+                    bool asset = _selection.IsChecked((GitStatusEntry)item.Source);
+                    bool metaChecked = _selection.IsChecked(meta);
+                    item.Note = asset == metaChecked ? null : GitText.Get(asset ? "pending.assetOnly" : "pending.metaOnly");
+                }
+            }
+            return items;
+        }
+
+        private void OnMetaGroupingChanged()
+        {
+            if (IsActive)
+            {
+                _files.SetItems(BuildItems());
+            }
+        }
+
+        /// <summary>
+        /// 묶인 줄의 한쪽만 커밋에 넣는다(다른 쪽은 체크를 푼다).
+        /// </summary>
+        private void CheckOnly(GitStatusEntry keep, GitStatusEntry drop)
+        {
+            _selection.SetCheckedOnly(keep, true);
+            _selection.SetCheckedOnly(drop, false);
+            _files.SetItems(BuildItems());
             UpdateCommitArea();
         }
 
@@ -233,6 +274,16 @@ namespace GitVersionControl
             bool enabled = Services.Runner.IsBusy == false;
             menu.AppendAction(GitText.Get(pair != null ? "pending.discardWithMeta" : "pending.discard"), _ => Discard(targets),
                 enabled ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            if (item.MetaSource is GitStatusEntry meta)
+            {
+                // 묶인 줄에서 한쪽만: 커밋에 넣기 / 되돌리기.
+                menu.AppendAction(GitText.Get("pending.checkAssetOnly"), _ => CheckOnly(entry, meta));
+                menu.AppendAction(GitText.Get("pending.checkMetaOnly"), _ => CheckOnly(meta, entry));
+                menu.AppendAction(GitText.Get("pending.discardAssetOnly"), _ => Discard(new List<GitStatusEntry> { entry }),
+                    enabled ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction(GitText.Get("pending.discardMetaOnly"), _ => Discard(new List<GitStatusEntry> { meta }),
+                    enabled ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            }
 
             List<GitStatusEntry> checkedEntries = _selection.CheckedEntries();
             if (checkedEntries.Count > 1)

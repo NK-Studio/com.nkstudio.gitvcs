@@ -11,7 +11,8 @@ namespace GitVersionControl
     ///
     /// 한 번 누르면 그 파일의 diff 를 알리고(<see cref="FileSelected"/>), 더블클릭하면 반대쪽 목록으로 옮긴다(Stage·Unstage).
     /// Shift(범위)·Ctrl(하나씩)로 여러 파일을 고를 수 있다. 머리 줄 버튼·우클릭 메뉴는 고른 파일이 있으면 그 파일들만, 없으면 전부를 옮긴다.
-    /// 설정(<see cref="GitVcsSettings.StageMetaPairs"/>)을 켜면 .meta 짝도 같이 옮긴다(<see cref="GitStaging.WithMetaPairs"/>).
+    /// 기본은 에셋과 .meta 를 한 줄("A.png +meta")로 묶어 보이고 짝을 같이 옮긴다(<see cref="GitVcsSettings.GroupMetaPairs"/>). 한쪽만 옮기려면 우클릭의 "에셋만"·".meta 만".
+    /// 묶어 보기를 끄면 <see cref="GitVcsSettings.StageMetaPairs"/> 를 켰을 때만 짝을 같이 옮긴다(<see cref="GitStaging.WithMetaPairs"/>).
     /// </summary>
     public sealed class StagingLists : IDisposable
     {
@@ -149,6 +150,7 @@ namespace GitVersionControl
                 evt.originPanel.visualTree.UnregisterCallback<KeyUpEvent>(OnShiftKey, TrickleDown.TrickleDown);
             });
             Root.RegisterCallback<PointerMoveEvent>(evt => SetShiftHeld(evt.shiftKey), TrickleDown.TrickleDown);
+            GitVcsSettings.MetaGroupingChanged += OnMetaGroupingChanged;
 
             // 파일을 고르고 Delete(맥은 Backspace 도)를 누르면 그 파일들의 변경을 버릴지 Git 창 위 팝업으로 묻는다.
             Root.RegisterCallback<KeyDownEvent>(OnDeleteKey);
@@ -173,6 +175,14 @@ namespace GitVersionControl
             }
             evt.StopPropagation();
             Discard(selected.ToList(), staged);
+        }
+
+        /// <summary>
+        /// "에셋과 .meta 묶어 보기" 를 바꿨다. 같은 status 로 줄만 다시 만든다.
+        /// </summary>
+        private void OnMetaGroupingChanged()
+        {
+            SetEntries(_lastEntries);
         }
 
         private void OnShiftKey<T>(KeyboardEventBase<T> evt) where T : KeyboardEventBase<T>, new()
@@ -255,8 +265,8 @@ namespace GitVersionControl
         {
             _unstagedEntries = GitStaging.Unstaged(entries);
             _stagedEntries = GitStaging.Staged(entries);
-            _unstaged.SetItems(_unstagedEntries.Select(FileListItem.From));
-            _staged.SetItems(_stagedEntries.Select(FileListItem.From));
+            _unstaged.SetItems(FileListItem.FromStatus(_unstagedEntries));
+            _staged.SetItems(FileListItem.FromStatus(_stagedEntries));
 
             // 새로고침 뒤에도 같은 파일이 남아 있으면 선택을 이어 간다(목록 쪽이 경로로 되살린다). 사라졌으면 놓고 diff 도 비운다
             // (stage 해서 반대쪽으로 옮겨 간 파일의 diff 가 빈 채로 남지 않게).
@@ -297,6 +307,7 @@ namespace GitVersionControl
 
         public void Dispose()
         {
+            GitVcsSettings.MetaGroupingChanged -= OnMetaGroupingChanged;
             _unstaged.Dispose();
             _staged.Dispose();
         }
@@ -399,6 +410,21 @@ namespace GitVersionControl
             {
                 menu.AppendAction(GitText.Get("staging.discard"), _ => Discard(new[] { entry }), StatusOfIdle());
             }
+            if (item.MetaSource is GitStatusEntry meta)
+            {
+                // 묶인 줄에서 한쪽만: 에셋만 / .meta 만.
+                menu.AppendAction(GitText.Get("staging.stageAssetOnly"), _ => Stage(new[] { entry }, withPairs: false), StatusOfIdle());
+                menu.AppendAction(GitText.Get("staging.stageMetaOnly"), _ => Stage(new[] { meta }, withPairs: false), StatusOfIdle());
+                // 변경 버리기는 위와 같이 새 파일에는 없다.
+                if (entry.State != GitFileState.Untracked)
+                {
+                    menu.AppendAction(GitText.Get("staging.discardAssetOnly"), _ => Discard(new[] { entry }, withPairs: false), StatusOfIdle());
+                }
+                if (meta.State != GitFileState.Untracked)
+                {
+                    menu.AppendAction(GitText.Get("staging.discardMetaOnly"), _ => Discard(new[] { meta }, withPairs: false), StatusOfIdle());
+                }
+            }
             _unstagedMenu.AppendWorkingItems(menu, entry);
             _unstagedMenu.AppendCommonItems(menu, entry);
         }
@@ -409,6 +435,11 @@ namespace GitVersionControl
             List<GitStatusEntry> group = SelectionGroup(_selectedStaged, entry);
             menu.AppendAction(group.Count > 1 ? GitText.Format("staging.unstageSelected", group.Count) : GitText.Get("staging.unstage"),
                 _ => Unstage(group), StatusOfIdle());
+            if (group.Count == 1 && item.MetaSource is GitStatusEntry meta)
+            {
+                menu.AppendAction(GitText.Get("staging.unstageAssetOnly"), _ => Unstage(new[] { entry }, withPairs: false), StatusOfIdle());
+                menu.AppendAction(GitText.Get("staging.unstageMetaOnly"), _ => Unstage(new[] { meta }, withPairs: false), StatusOfIdle());
+            }
             menu.AppendSeparator();
             _stagedMenu.AppendCommonItems(menu, entry);
         }
@@ -441,7 +472,7 @@ namespace GitVersionControl
         /// </summary>
         private static List<GitStatusEntry> WithPairs(IEnumerable<GitStatusEntry> entries, IReadOnlyList<GitStatusEntry> sameSide)
         {
-            return GitVcsSettings.instance.StageMetaPairs ? GitStaging.WithMetaPairs(entries, sameSide) : entries.ToList();
+            return GitVcsSettings.instance.MovesMetaPairs ? GitStaging.WithMetaPairs(entries, sameSide) : entries.ToList();
         }
 
         private DropdownMenuAction.Status StatusOfIdle()
@@ -450,7 +481,8 @@ namespace GitVersionControl
         }
 
         /// <param name="entries">null 이면 전부.</param>
-        private void Stage(IEnumerable<GitStatusEntry> entries)
+        /// <param name="withPairs">false 면 .meta 짝을 더하지 않고 고른 그대로(우클릭 "에셋만"·".meta 만").</param>
+        private void Stage(IEnumerable<GitStatusEntry> entries, bool withPairs = true)
         {
             // 앞 작업의 결과가 보이기 전(버튼이 꺼진 동안) 더블클릭·hover 버튼·메뉴로 들어온 입력은 무시한다.
             // 빈 목록도 무시한다 — 경로 없는 git add -A 는 전부를 올린다.
@@ -464,7 +496,7 @@ namespace GitVersionControl
                 return;
             }
             // 별도 git 저장소 폴더가 끼어 있으면 묻는다. 기본은 빼고 나머지만 올린다(그대로 올리면 파일이 아니라 gitlink 가 올라간다).
-            List<GitStatusEntry> candidates = entries == null ? _unstagedEntries.ToList() : WithPairs(entries, _unstagedEntries);
+            List<GitStatusEntry> candidates = entries == null ? _unstagedEntries.ToList() : withPairs ? WithPairs(entries, _unstagedEntries) : entries.ToList();
             List<GitStatusEntry> embedded = candidates.Where(e => GitStaging.IsEmbeddedRepository(e, GitRepository.RepoRoot)).ToList();
             bool skipEmbedded = false;
             if (embedded.Count > 0)
@@ -498,7 +530,8 @@ namespace GitVersionControl
         }
 
         /// <param name="entries">null 이면 전부.</param>
-        private void Unstage(IEnumerable<GitStatusEntry> entries)
+        /// <param name="withPairs">false 면 .meta 짝을 더하지 않는다.</param>
+        private void Unstage(IEnumerable<GitStatusEntry> entries, bool withPairs = true)
         {
             // 빈 목록도 무시한다 — 경로 없는 restore·rm 이 엉뚱하게 돌지 않게.
             if (_services.Runner.IsBusy || (entries != null && entries.Any() == false))
@@ -510,7 +543,7 @@ namespace GitVersionControl
                 RunPredicted(GitText.Get("op.unstage"), _services.Commands.UnstageAllAsync, status => GitStaging.PredictUnstage(status, null));
                 return;
             }
-            List<GitStatusEntry> targets = WithPairs(entries, _stagedEntries);
+            List<GitStatusEntry> targets = withPairs ? WithPairs(entries, _stagedEntries) : entries.ToList();
             HashSet<string> paths = new(targets.Select(e => e.RepoPath));
             RunPredicted(GitText.Get("op.unstage"), () => _services.Commands.UnstageAsync(targets), status => GitStaging.PredictUnstage(status, paths));
         }
@@ -519,13 +552,14 @@ namespace GitVersionControl
         /// 변경을 버린다. 되돌릴 수 없으므로 Git 창 위 팝업(<see cref="GitConfirmDialog"/>)으로 한 번 더 묻는다.
         /// Unstaged 면 작업 트리 쪽만(stage 한 내용은 남는다), Staged 면 stage 한 것까지 마지막 커밋 상태로 되돌린다. 새 파일은 지운다.
         /// </summary>
-        private async void Discard(IEnumerable<GitStatusEntry> entries, bool staged = false)
+        private async void Discard(IEnumerable<GitStatusEntry> entries, bool staged = false, bool withPairs = true)
         {
             if (_services.Runner.IsBusy)
             {
                 return;
             }
-            List<GitStatusEntry> targets = WithPairs(entries, staged ? _stagedEntries : _unstagedEntries);
+            List<GitStatusEntry> sameSide = staged ? _stagedEntries : _unstagedEntries;
+            List<GitStatusEntry> targets = withPairs ? WithPairs(entries, sameSide) : entries.ToList();
             if (targets.Count == 0)
             {
                 return;
