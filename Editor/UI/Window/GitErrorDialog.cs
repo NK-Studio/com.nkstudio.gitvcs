@@ -7,7 +7,7 @@ namespace GitVersionControl
 {
     /// <summary>
     /// 작업 실패 알림. 운영체제 대화상자(<see cref="IDialogService.Alert"/>) 대신 Git 창 위에 덮어 띄운다(<see cref="GitConfirmDialog"/> 와 같은 막·카드).
-    /// 두 가지로 보인다(<see cref="ErrorDetailMode"/>): "쉬운 설명" 은 원인·해결 단계·복사할 명령(<see cref="GitErrorAdvice"/>),
+    /// 두 가지로 보인다(<see cref="ErrorDetailMode"/>): "쉬운 설명" 은 원인·해결 한 줄씩(<see cref="GitErrorAdvice"/>),
     /// "git 원문" 은 git 이 남긴 글 그대로. 제목 아래 전환 버튼으로 바꾸고, 고른 쪽을 기억한다. Enter·Esc·× 는 닫기.
     /// </summary>
     public sealed class GitErrorDialog
@@ -140,6 +140,7 @@ namespace GitVersionControl
             _body.scrollOffset = Vector2.zero;
         }
 
+        /// <summary>원인 한 줄(굵게)과 해결 한 줄.</summary>
         private void BuildFriendly()
         {
             Label cause = new(_advice.Cause);
@@ -147,53 +148,17 @@ namespace GitVersionControl
             cause.selection.isSelectable = true;
             _body.Add(cause);
 
-            // 알아보지 못한 오류는 원인 대신 git 이 남긴 앞쪽 몇 줄을 보인다.
+            // 알아보지 못한 오류는 git 이 남긴 앞쪽 몇 줄을 함께 보인다.
             if (_advice.Kind == GitErrorKind.Unknown)
             {
                 string preview = string.Join("\n", _message.Split('\n').Select(l => l.TrimEnd()).Where(l => l.Length > 0).Take(UnknownPreviewLines));
                 _body.Add(Raw(preview));
             }
 
-            if (_advice.Steps.Count > 0)
-            {
-                _body.Add(Heading(GitText.Get("error.howToFix")));
-                for (int i = 0; i < _advice.Steps.Count; i++)
-                {
-                    Label step = new($"{i + 1}. {_advice.Steps[i]}");
-                    step.AddToClassList("error-dialog__step");
-                    _body.Add(step);
-                }
-            }
-
-            if (_advice.Commands.Count > 0)
-            {
-                _body.Add(Heading(GitText.Get("error.commands")));
-                foreach (string command in _advice.Commands)
-                {
-                    VisualElement row = new();
-                    row.AddToClassList("error-dialog__command");
-                    Label text = new(command);
-                    text.AddToClassList("error-dialog__command-text");
-                    text.selection.isSelectable = true;
-                    row.Add(text);
-                    Button copy = null;
-                    copy = new Button(() => Copy(copy, command, GitText.Get("error.copy"))) { text = GitText.Get("error.copy") };
-                    copy.AddToClassList("error-dialog__copy");
-                    row.Add(copy);
-                    _body.Add(row);
-                }
-            }
-
-            Label hint = new(GitText.Get("error.rawHint"));
-            hint.AddToClassList("error-dialog__hint");
-            _body.Add(hint);
-        }
-
-        private static Label Heading(string text)
-        {
-            Label heading = new(text);
-            heading.AddToClassList("error-dialog__heading");
-            return heading;
+            Label fix = new(_advice.Fix);
+            fix.AddToClassList("error-dialog__fix");
+            fix.selection.isSelectable = true;
+            _body.Add(fix);
         }
 
         /// <summary>git 글을 고정폭 글꼴의 테두리 칸에. 골라서 복사할 수 있다.</summary>

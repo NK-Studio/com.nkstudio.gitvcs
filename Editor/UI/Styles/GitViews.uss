@@ -701,7 +701,7 @@
 
 /* ── error-dialog: 작업 실패 알림(GitErrorDialog). 막·카드·버튼은 branch-dialog·confirm-dialog 를 쓴다 ─── */
 .confirm-dialog.error-dialog {
-    width: 580px;
+    width: 520px;
 }
 
 .branch-dialog__badge.error-dialog__badge {
@@ -756,7 +756,7 @@
 }
 
 .error-dialog__cause {
-    margin: 0 0 4px 0;
+    margin: 0;
     padding: 0;
     font-size: 13px;
     white-space: normal;
@@ -764,64 +764,10 @@
     color: var(--git-text);
 }
 
-.error-dialog__heading {
-    margin: 10px 0 4px 0;
-    padding: 0;
-    font-size: 11px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    color: var(--git-text-muted);
-}
-
-.error-dialog__step {
-    margin: 0 0 3px 0;
+.error-dialog__fix {
+    margin: 6px 0 0 0;
     padding: 0;
     font-size: 12px;
-    white-space: normal;
-    color: var(--git-text);
-}
-
-.error-dialog__command {
-    flex-direction: row;
-    align-items: center;
-    margin: 0 0 4px 0;
-    padding: 4px 4px 4px 10px;
-    border-width: 1px;
-    border-radius: 6px;
-    border-color: var(--git-border);
-}
-
-.error-dialog__command-text {
-    flex-grow: 1;
-    flex-shrink: 1;
-    margin: 0;
-    padding: 0;
-    font-size: 12px;
-    white-space: normal;
-    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
-    color: var(--git-text);
-}
-
-.branch-dialog .error-dialog__copy {
-    height: 22px;
-    min-width: 56px;
-    margin: 0 0 0 8px;
-    padding: 0 8px;
-    font-size: 11px;
-    border-width: 1px;
-    border-radius: 4px;
-    border-color: var(--git-button-border);
-    background-color: var(--git-button-bg);
-    color: var(--git-text);
-}
-
-.branch-dialog .error-dialog__copy:hover {
-    background-color: var(--git-button-hover);
-}
-
-.error-dialog__hint {
-    margin: 10px 0 0 0;
-    padding: 0;
-    font-size: 11px;
     white-space: normal;
     color: var(--git-text-muted);
 }

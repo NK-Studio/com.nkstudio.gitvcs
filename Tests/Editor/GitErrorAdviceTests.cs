@@ -31,14 +31,13 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Explain_NoRemote_UsesRemoteNameAndBranch()
+        public void Test_Explain_NoRemote_UsesRemoteName()
         {
-            GitErrorAdvice advice = GitErrorAdvice.Explain("fatal: 'upstream' does not appear to be a git repository\nfatal: Could not read from remote repository.", "master");
+            GitErrorAdvice advice = GitErrorAdvice.Explain("fatal: 'upstream' does not appear to be a git repository\nfatal: Could not read from remote repository.");
 
             Assert.AreEqual("upstream", advice.Remote);
-            StringAssert.StartsWith("git remote add upstream ", advice.Commands[0]);
-            Assert.AreEqual("git push -u upstream master", advice.Commands[1]);
-            Assert.AreEqual(3, advice.Steps.Count);
+            StringAssert.Contains("upstream", advice.Cause);
+            Assert.IsFalse(string.IsNullOrEmpty(advice.Fix));
         }
 
         [Test]
@@ -46,8 +45,8 @@ namespace GitVersionControl.Tests
         {
             GitErrorAdvice advice = GitErrorAdvice.Explain("fatal: The current branch feature/a has no upstream branch.\n\n    git push --set-upstream origin feature/a\n", "ignored");
 
+            Assert.AreEqual("origin", advice.Remote);
             Assert.AreEqual("feature/a", advice.Branch);
-            CollectionAssert.AreEqual(new[] { "git push -u origin feature/a" }, advice.Commands);
         }
 
         [Test]
@@ -60,21 +59,22 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Explain_FileTooLarge_SuggestsLfsTrack()
+        public void Test_Explain_FileTooLarge_NamesFile()
         {
             GitErrorAdvice advice = GitErrorAdvice.Explain("remote: error: File Assets/Big.fbx is 120.50 MB; this exceeds GitHub's file size limit of 100.00 MB\nremote: error: GH001: Large files detected.");
 
-            CollectionAssert.AreEqual(new[] { "git lfs track \"Assets/Big.fbx\"" }, advice.Commands);
+            CollectionAssert.AreEqual(new[] { "Assets/Big.fbx" }, advice.Files);
+            StringAssert.Contains("Assets/Big.fbx", advice.Cause);
         }
 
         [Test]
-        public void Test_Explain_Unknown_HasCauseAndNoCommands()
+        public void Test_Explain_EveryKind_HasCauseAndFix()
         {
-            GitErrorAdvice advice = GitErrorAdvice.Explain("fatal: something nobody has seen before");
-
-            Assert.AreEqual(GitErrorKind.Unknown, advice.Kind);
-            Assert.IsFalse(string.IsNullOrEmpty(advice.Cause));
-            Assert.AreEqual(0, advice.Commands.Count);
+            foreach (GitErrorKind kind in (GitErrorKind[])System.Enum.GetValues(typeof(GitErrorKind)))
+            {
+                Assert.IsTrue(GitText.Get($"error.{kind}.cause") != $"error.{kind}.cause", $"{kind} cause");
+                Assert.IsTrue(GitText.Get($"error.{kind}.fix") != $"error.{kind}.fix", $"{kind} fix");
+            }
         }
     }
 }

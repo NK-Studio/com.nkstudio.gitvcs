@@ -26,7 +26,7 @@ namespace GitVersionControl
     }
 
     /// <summary>
-    /// git 오류 글을 사람이 읽을 해설(원인·해결 단계·복사할 명령)로 바꾼다. 오류 팝업의 "쉬운 설명" 이 쓴다(<see cref="GitErrorDialog"/>).
+    /// git 오류 글을 짧은 해설(원인 한 줄·해결 한 줄)로 바꾼다. 오류 팝업의 "쉬운 설명" 이 쓴다(<see cref="GitErrorDialog"/>).
     /// <see cref="GitAuth.IsAuthFailure"/> 처럼 소문자로 바꾼 글에 든 문구로 알아본다. 겹치는 문구가 있어 순서가 중요하다
     /// (보호된 브랜치·큰 파일 거절도 "[remote rejected]" 이고, 403 도 "unable to access" 다).
     /// </summary>
@@ -45,14 +45,11 @@ namespace GitVersionControl
 
         public GitErrorKind Kind { get; private set; }
 
-        /// <summary>무엇이 문제인지 한두 문장.</summary>
+        /// <summary>무엇이 문제인지 한 줄.</summary>
         public string Cause { get; private set; }
 
-        /// <summary>해 볼 일을 순서대로.</summary>
-        public IReadOnlyList<string> Steps { get; private set; }
-
-        /// <summary>복사해서 터미널에 붙일 명령. 없으면 비어 있다.</summary>
-        public IReadOnlyList<string> Commands { get; private set; }
+        /// <summary>어떻게 고치는지 한 줄.</summary>
+        public string Fix { get; private set; }
 
         /// <summary>오류 글에서 뽑은 원격 이름(없으면 null).</summary>
         public string Remote { get; private set; }
@@ -132,51 +129,31 @@ namespace GitVersionControl
         /// <summary>
         /// 오류 글의 해설. 알아볼 수 없어도 null 이 아니다(<see cref="GitErrorKind.Unknown"/> 의 일반 안내).
         /// </summary>
-        /// <param name="currentBranch">지금 브랜치. 명령에 넣는다(null 이면 자리 표시 글).</param>
+        /// <param name="currentBranch">지금 브랜치. 오류 글에 브랜치 이름이 없을 때 쓴다.</param>
         public static GitErrorAdvice Explain(string message, string currentBranch = null)
         {
             message ??= string.Empty;
             GitErrorAdvice advice = new() { Kind = Classify(message), Files = FindFiles(message) };
-            List<string> commands = new();
-            string branchOrPlaceholder = string.IsNullOrEmpty(currentBranch) ? GitText.Get("error.branchPlaceholder") : currentBranch;
             string key = "error." + advice.Kind;
             switch (advice.Kind)
             {
                 case GitErrorKind.NoRemote:
                     advice.Remote = MatchGroup(RemoteName, message, "remote") ?? "origin";
                     advice.Cause = GitText.Format(key + ".cause", advice.Remote);
-                    commands.Add($"git remote add {advice.Remote} {GitText.Get("error.urlPlaceholder")}");
-                    commands.Add($"git push -u {advice.Remote} {branchOrPlaceholder}");
                     break;
                 case GitErrorKind.NoUpstream:
                     advice.Remote = MatchGroup(SetUpstream, message, "remote") ?? "origin";
                     advice.Branch = MatchGroup(SetUpstream, message, "branch") ?? MatchGroup(NoUpstreamBranch, message, "branch") ?? currentBranch;
-                    advice.Cause = GitText.Format(key + ".cause", advice.Branch ?? branchOrPlaceholder);
-                    commands.Add($"git push -u {advice.Remote} {advice.Branch ?? branchOrPlaceholder}");
+                    advice.Cause = GitText.Format(key + ".cause", advice.Branch);
                     break;
                 case GitErrorKind.RemoteAhead:
                     advice.Branch = MatchGroup(RejectedBranch, message, "branch") ?? currentBranch;
-                    advice.Cause = GitText.Format(key + ".cause", advice.Branch ?? branchOrPlaceholder);
-                    break;
-                case GitErrorKind.SshKey:
-                    advice.Cause = GitText.Get(key + ".cause");
-                    commands.Add("ssh -T git@github.com");
-                    break;
-                case GitErrorKind.NoIdentity:
-                    advice.Cause = GitText.Get(key + ".cause");
-                    commands.Add($"git config user.name \"{GitText.Get("error.namePlaceholder")}\"");
-                    commands.Add($"git config user.email \"{GitText.Get("error.emailPlaceholder")}\"");
-                    break;
-                case GitErrorKind.FileTooLarge:
-                    advice.Cause = GitText.Format(key + ".cause", FileList(advice.Files));
-                    foreach (string file in advice.Files)
-                    {
-                        commands.Add($"git lfs track \"{file}\"");
-                    }
+                    advice.Cause = GitText.Format(key + ".cause", advice.Branch);
                     break;
                 case GitErrorKind.LocalChanges:
                 case GitErrorKind.UntrackedFiles:
                 case GitErrorKind.Conflict:
+                case GitErrorKind.FileTooLarge:
                     advice.Cause = GitText.Format(key + ".cause", FileList(advice.Files));
                     break;
                 case GitErrorKind.LockFile:
@@ -186,8 +163,7 @@ namespace GitVersionControl
                     advice.Cause = GitText.Get(key + ".cause");
                     break;
             }
-            advice.Steps = Enumerable.Range(1, 3).Select(i => $"{key}.step{i}").Where(GitText.Has).Select(GitText.Get).ToList();
-            advice.Commands = commands;
+            advice.Fix = GitText.Get(key + ".fix");
             return advice;
         }
 
