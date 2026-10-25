@@ -36,8 +36,9 @@
     color: var(--git-text);
 }
 
+/* diff 의 버튼(GitDiff.uss 의 버튼 한 벌)과 같은 22px. */
 .staging__button {
-    height: 24px;
+    height: 22px;
     margin: 0 0 0 6px;
     padding: 0 12px;
     font-size: 12px;
@@ -219,24 +220,24 @@
 /* 휴지통: 되돌릴 수 없는 작업이라 위험 색 테두리로 구분한다(GitKraken 과 같다). 그림은 흰 Material "delete" 를 글자색으로 물들인다. */
 .graph-workspace__discard-all {
     flex-shrink: 0;
-    width: 24px;
+    width: 22px;
     height: 22px;
     margin: 0;
     padding: 0;
     justify-content: center;
     align-items: center;
     border-width: 1px;
-    border-radius: 4px;
+    border-radius: var(--git-radius);
     border-color: var(--git-danger);
-    background-color: rgba(0, 0, 0, 0);
+    background-color: rgba(219, 92, 92, 0.18);
 }
 
 .graph-workspace__discard-all:hover {
-    background-color: rgba(219, 92, 92, 0.25);
+    background-color: rgba(219, 92, 92, 0.32);
 }
 
 .graph-workspace__discard-all:active {
-    background-color: rgba(219, 92, 92, 0.4);
+    background-color: rgba(219, 92, 92, 0.45);
 }
 
 .graph-workspace__discard-all:disabled {

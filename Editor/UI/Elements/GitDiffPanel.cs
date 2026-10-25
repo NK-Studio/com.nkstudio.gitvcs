@@ -110,6 +110,12 @@ namespace GitVersionControl
         /// </summary>
         private bool? _shownFileView;
         private bool _wrap;
+
+        /// <summary>
+        /// 줄 높이가 줄마다 다른지(긴 줄 접기, 또는 변경 묶음 보기의 높은 머리 줄). 그러면 목록은 가변 높이이고 ↑↓ 이동은 줄 높이로 위치를 셈하지 않는다.
+        /// </summary>
+        private bool _variableHeights;
+        private bool? _shownVariableHeights;
         private bool _showWhitespace;
 
         /// <summary>
@@ -561,6 +567,7 @@ namespace GitVersionControl
             toolbar.Add(external);
 
             _reloadButton = new ToolbarButton(Reload) { tooltip = GitText.Get("common.reload") };
+            _reloadButton.AddToClassList("git-diff__tool-button--icon");
             ToolbarIcons.SetRefreshIcon(_reloadButton);
             toolbar.Add(_reloadButton);
 
@@ -571,6 +578,7 @@ namespace GitVersionControl
             toolbar.Add(_stageFileButton);
 
             _closeButton = new ToolbarButton(() => CloseRequested?.Invoke()) { text = "×", tooltip = GitText.Get("common.close") };
+            _closeButton.AddToClassList("git-diff__close");
             _closeButton.SetVisible(false);
             toolbar.Add(_closeButton);
             return toolbar;
@@ -958,6 +966,10 @@ namespace GitVersionControl
             _wrap = settings.DiffWordWrap;
             Root.EnableInClassList("git-diff--wrap", _wrap);
             Root.EnableInClassList("git-diff--file-view", fileView);
+            // 변경 묶음(Hunk) 보기의 머리 줄은 [Discard Hunk][Stage Hunk] 가 다른 버튼과 같은 크기로 들어가게 높다(GitKraken 과 같다).
+            bool tallHunks = fileView == false && settings.DiffLayout == DiffLayout.Unified;
+            Root.EnableInClassList("git-diff--tall-hunks", tallHunks);
+            _variableHeights = _wrap || tallHunks;
             UpdateBar();
 
             // 보기(통합·나란히·파일)가 바뀌면 줄 목록이 달라져 고른 글의 줄 인덱스가 뜻을 잃는다.
@@ -969,18 +981,19 @@ namespace GitVersionControl
 
             // 줄 모양(통합·나란히, 고정·가변 높이)이 바뀔 때만 줄 요소를 새로 만든다. 같은 모양이면 보이는 줄만 다시 채워(RefreshItems)
             // 다른 파일을 고를 때마다 목록 전체가 지워졌다 다시 그려지며 깜빡이지 않게 한다.
-            bool rebuild = _shownSplit != isSplit || _shownWrap != _wrap;
+            bool rebuild = _shownSplit != isSplit || _shownWrap != _wrap || _shownVariableHeights != _variableHeights;
             if (rebuild)
             {
                 // makeItem·bindItem 은 바꾸는 즉시 목록을 다시 채운다. 하나씩 바꾸면 그 사이에 옛 모양 줄을 새 bind 로 채우다 깨지므로
                 // 먼저 목록을 비워 채울 줄을 없앤다.
                 _list.itemsSource = new List<GitDiffRow>();
-                // 접은 줄은 높이가 줄마다 달라 가변 높이로 둔다(고정 높이가 훨씬 빨라 접지 않을 때는 고정).
-                _list.virtualizationMethod = _wrap ? CollectionVirtualizationMethod.DynamicHeight : CollectionVirtualizationMethod.FixedHeight;
+                // 접은 줄·높은 머리 줄은 높이가 줄마다 달라 가변 높이로 둔다(고정 높이가 훨씬 빨라 파일 전체를 읽는 보기는 고정).
+                _list.virtualizationMethod = _variableHeights ? CollectionVirtualizationMethod.DynamicHeight : CollectionVirtualizationMethod.FixedHeight;
                 _list.makeItem = isSplit ? MakeSplitRow : MakeUnifiedRow;
                 _list.bindItem = isSplit ? BindSplitRow : BindUnifiedRow;
                 _shownSplit = isSplit;
                 _shownWrap = _wrap;
+                _shownVariableHeights = _variableHeights;
             }
             UpdateGutter(isSplit, fileView);
             // 파일 전체를 읽은 보기(통합·나란히)는 GitKraken 처럼 "@@ -1,161 +1,161 @@" 머리 줄 없이 1번 줄부터 보인다(파일 전체가 묶음 하나라 뜻이 없다).
@@ -1581,9 +1594,9 @@ namespace GitVersionControl
             }
             _lastJumpRow = target;
             ScrollView scroll = _list.Q<ScrollView>();
-            if (_wrap || scroll == null)
+            if (_variableHeights || scroll == null)
             {
-                // 접은 줄은 높이가 달라 위치를 셀 수 없다. 목록이 알아서 보이게 한다.
+                // 줄 높이가 달라(접은 줄·높은 머리 줄) 위치를 셀 수 없다. 목록이 알아서 보이게 한다.
                 _list.ScrollToItem(target);
                 return;
             }
@@ -1597,7 +1610,7 @@ namespace GitVersionControl
         private int FocusRow()
         {
             ScrollView scroll = _list.Q<ScrollView>();
-            if (_wrap || scroll == null)
+            if (_variableHeights || scroll == null)
             {
                 return _lastJumpRow;
             }

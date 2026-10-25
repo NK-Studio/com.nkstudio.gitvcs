@@ -182,6 +182,11 @@
 .git-theme--unity .staging .staging__button--unstage,
 .git-theme--unity .file-row .file-row__action--stage,
 .git-theme--unity .file-row .file-row__action--unstage,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
+.git-theme--unity .diff-row .diff-row__hunk-button--discard,
 .git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all {
     border-width: 1px;
     border-radius: 3px;
@@ -226,38 +231,53 @@
    - Stage: 회색 버튼에 차분한 초록을 섞은 바탕(--git-stage-*), Unstage·버리기: 차분한 빨강을 섞은 바탕(--git-unstage-*).
    - 마우스를 올리면 섞은 색이 한 단계 진해지고, 누르면 의미 색이 또렷한 바탕. 테두리는 Unity 버튼 테두리 그대로. */
 .git-theme--unity .staging .staging__button--stage,
-.git-theme--unity .file-row .file-row__action--stage {
+.git-theme--unity .file-row .file-row__action--stage,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage {
     background-color: var(--git-stage-bg);
     color: var(--git-action-text);
 }
 
 .git-theme--unity .staging .staging__button--unstage,
-.git-theme--unity .file-row .file-row__action--unstage {
+.git-theme--unity .file-row .file-row__action--unstage,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
+.git-theme--unity .diff-row .diff-row__hunk-button--discard {
     background-color: var(--git-unstage-bg);
     color: var(--git-action-text);
 }
 
 .git-theme--unity .staging .staging__button--stage:hover:enabled,
-.git-theme--unity .file-row .file-row__action--stage:hover:enabled {
+.git-theme--unity .file-row .file-row__action--stage:hover:enabled,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:hover:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage:hover:enabled {
     background-color: var(--git-stage-hover);
     color: var(--git-action-text);
 }
 
 .git-theme--unity .staging .staging__button--unstage:hover:enabled,
 .git-theme--unity .file-row .file-row__action--unstage:hover:enabled,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:hover:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:hover:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--discard:hover:enabled,
 .git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:hover:enabled {
     background-color: var(--git-unstage-hover);
     color: var(--git-action-text);
 }
 
 .git-theme--unity .staging .staging__button--stage:active:enabled,
-.git-theme--unity .file-row .file-row__action--stage:active:enabled {
+.git-theme--unity .file-row .file-row__action--stage:active:enabled,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage:active:enabled {
     background-color: var(--git-stage-pressed);
     color: #ffffff;
 }
 
 .git-theme--unity .staging .staging__button--unstage:active:enabled,
 .git-theme--unity .file-row .file-row__action--unstage:active:enabled,
+.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:active:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:active:enabled,
+.git-theme--unity .diff-row .diff-row__hunk-button--discard:active:enabled,
 .git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:active:enabled {
     background-color: var(--git-unstage-pressed);
     color: #ffffff;
