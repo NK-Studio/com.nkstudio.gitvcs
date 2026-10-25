@@ -7,6 +7,9 @@ namespace GitVersionControl
     /// 창 글꼴(IBM Plex Sans KR)과 코드 글꼴(Jetendard) 파일. 창 글꼴은 보통 USS(GitCommon.uss 의 -unity-font-definition)가 입히고,
     /// USS 가 닿지 않는 곳(창 바깥 호스트에 붙는 배율 표시 등)만 코드에서 이것을 쓴다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitFonts
     {
         public const string FontFolder = "Packages/com.nkstudio.gitvcs/Editor/UI/Fonts/";

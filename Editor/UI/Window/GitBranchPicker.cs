@@ -13,6 +13,9 @@ namespace GitVersionControl
     /// 따로 창을 띄우지 않고 Git 창 위에 덮어 띄운다(<see cref="GitServices.PopupHost"/>). 목록 밖을 누르거나 Esc 면 닫는다.
     /// 순서: 현재 브랜치 → 로컬(최근 커밋 순) → 원격. ↑·↓ 로 고르는 줄을 옮긴다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitBranchPicker
     {
         private const float RowHeight = 28f;

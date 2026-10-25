@@ -14,6 +14,9 @@ namespace GitVersionControl
     /// 저장소에 쓸 계정: Git Credential Manager·osxkeychain 계정은 그 저장소의 <c>credential.https://github.com.username</c> 에 이름을 적는다(이 도우미들은 이름으로 계정을 고른다).
     /// gh 의 도우미는 이름을 무시하고 늘 활성 계정을 돌려주므로, gh 계정·패키지 로그인은 토큰을 직접 넘긴다(<see cref="TokenOverride"/>).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitAuth
     {
         /// <summary>

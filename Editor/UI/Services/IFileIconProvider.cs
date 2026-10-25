@@ -27,6 +27,9 @@ namespace GitVersionControl
     /// 삭제됐거나 프로젝트 밖 파일(.gitignore 등)은 확장자로 정한다. 같은 경로는 다시 찾지 않도록 기억한다.
     /// Unity 가 임포트하지 않은 PSD·PSB(Assets 밖 아트 원본)는 합쳐진 이미지를 직접 읽어 작은 썸네일을 만든다(<see cref="BindIcon"/>).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class EditorFileIconProvider : IFileIconProvider
     {
         /// <summary>

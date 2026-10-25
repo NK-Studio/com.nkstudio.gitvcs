@@ -8,6 +8,9 @@ namespace GitVersionControl
     /// Preferences > Git: 사람마다 다른 개인 설정. 지금은 GitHub 계정 로그인(<see cref="GitHubAccount"/>)만 있다.
     /// 프로젝트 설정(Project Settings > Git)과 달리 이 PC 의 모든 프로젝트에 같이 적용된다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     internal static class GitPreferences
     {
         private const float AvatarSize = 40f;

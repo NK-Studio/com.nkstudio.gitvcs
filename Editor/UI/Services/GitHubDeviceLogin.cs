@@ -9,6 +9,9 @@ namespace GitVersionControl
     /// 브라우저는 자동으로 열지 않는다 — 사용자가 코드를 확인·복사한 뒤 "다음" 을 눌러야 연다(<see cref="OpenVerificationPage"/>).
     /// 규칙(응답 읽기·다음에 할 일)은 <see cref="GitHubDeviceFlow"/>, 받은 토큰 저장은 <see cref="GitHubAccount"/>.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitHubDeviceLogin
     {
         public enum Step

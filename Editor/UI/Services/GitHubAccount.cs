@@ -13,6 +13,9 @@ namespace GitVersionControl
     /// 트레이드오프: EditorPrefs 는 OS 사용자 영역(Windows 레지스트리·macOS plist)에 평문으로 남는다. 범위가 이 사용자 계정으로 한정되고
     /// 로그아웃하면 지우므로 받아들였다. 운영체제 비밀 저장소는 플랫폼마다 따로 만들어야 해서 쓰지 않았다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitHubAccount
     {
         /// <summary>

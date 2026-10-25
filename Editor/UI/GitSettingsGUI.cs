@@ -8,6 +8,9 @@ namespace GitVersionControl
     /// <summary>
     /// Project Settings > Git 화면(<see cref="GitIntegration"/>). Version Control 설정 화면에 붙던 시절의 IMGUI 를 그대로 쓴다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     internal static class GitSettingsGUI
     {
         private static string s_accountText;

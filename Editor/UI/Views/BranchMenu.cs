@@ -8,6 +8,9 @@ namespace GitVersionControl
     /// 브랜치 우클릭 메뉴. Branches 탭이 쓰고, Fork 스타일 커밋 메뉴(<see cref="CommitMenu"/>)도 그 커밋을 가리키는 브랜치마다 하위 메뉴로 넣는다.
     /// 구성은 설정(<see cref="GitVcsSettings.MenuStyle"/>)을 따른다. 흐름은 <see cref="BranchActions"/>·<see cref="CommitActions"/> 가 맡는다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class BranchMenu
     {
         public sealed class Hooks

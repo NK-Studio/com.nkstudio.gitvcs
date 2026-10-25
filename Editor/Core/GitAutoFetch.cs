@@ -22,6 +22,9 @@ namespace GitVersionControl
     /// 백그라운드라 조용히 돈다: 대화 상자·암호 프롬프트를 띄우지 않고, 실패하면 간격을 늘려 다시 해 본다(경고는 연속 실패의 처음 한 번만).
     /// 마지막 fetch 시각은 FETCH_HEAD 로 읽으므로 손으로 한 Fetch·터미널 fetch 도 타이머를 다시 맞춘다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitAutoFetch
     {
         public const int DefaultIntervalMinutes = 5;

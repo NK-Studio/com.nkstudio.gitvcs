@@ -29,6 +29,9 @@ namespace GitVersionControl
     /// 레이어로 합칠 때는 마스크·클리핑·조정 레이어·효과·Normal 외 블렌드 모드를 무시한다.
     /// 메인 스레드가 아니어도 부를 수 있다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitPsd
     {
         private static readonly string[] Extensions = { ".psd", ".psb" };

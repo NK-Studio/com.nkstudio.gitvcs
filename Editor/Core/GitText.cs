@@ -18,6 +18,9 @@ namespace GitVersionControl
     /// git 은 백그라운드 스레드에서도 메시지를 만들기 때문에, 현재 언어는 메인 스레드에서 정적 필드로 복사해 두고 그 값만 읽는다
     /// (ScriptableSingleton 을 다른 스레드에서 건드리지 않으려고).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitText
     {
         private static volatile int s_language = -1;

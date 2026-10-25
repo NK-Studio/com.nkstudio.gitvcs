@@ -32,6 +32,9 @@ namespace GitVersionControl
     /// 이벤트는 백그라운드 스레드에서 오므로 플래그만 세우고, 메인 스레드(<see cref="EditorApplication.update"/>)에서 모아 한 번 새로고침한다.
     /// 우리 git status 는 <c>GIT_OPTIONAL_LOCKS=0</c> 이라 index 를 쓰지 않으므로 새로고침이 다시 이벤트를 부르는 고리는 없다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitFileWatcher
     {
         /// <summary>

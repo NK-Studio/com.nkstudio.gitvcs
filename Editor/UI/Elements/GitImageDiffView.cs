@@ -13,6 +13,9 @@ namespace GitVersionControl
     /// 모든 방식이 같은 확대·이동 상태를 쓴다 — 휠은 커서 기준 확대, 드래그는 이동, 더블클릭은 맞춤.
     /// 확대는 transform 이 아니라 요소의 위치·크기를 직접 바꿔 그린다(체커보드 칸 크기와 스와이프 경계선 굵기가 배율을 따라 변하지 않게).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitImageDiffView
     {
         private const float MinZoom = 0.02f;

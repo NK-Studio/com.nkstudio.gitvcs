@@ -39,6 +39,9 @@ namespace GitVersionControl
     /// 이 프로젝트 저장소의 GitHub 계정: 지금 쓰는 계정 알아보기, 이 PC 의 계정 후보 모으기·접근 확인, 고른 계정 저장. 메인 스레드에서 쓴다.
     /// 규칙(무엇을 어디에 적는지)은 <see cref="GitAuth"/>.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitAccounts
     {
         private const int ToolTimeoutMs = 15_000;

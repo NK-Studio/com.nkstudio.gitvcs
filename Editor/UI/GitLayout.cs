@@ -26,6 +26,9 @@ namespace GitVersionControl
     /// <summary>
     /// 배치 고르기. 바꾸면 열린 Git 창이 UI 를 다시 만든다(탭 구성이 달라서 다시 칠하기로는 안 된다).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitLayout
     {
         public static event Action Changed;

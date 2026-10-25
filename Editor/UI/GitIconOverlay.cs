@@ -7,6 +7,9 @@ namespace GitVersionControl
     /// Project 창 아이콘 왼쪽 아래에 git 상태 배지를 그린다.
     /// 매 Repaint 마다 보이는 항목 수만큼 불리므로 <see cref="GitRepository"/> 캐시 조회 외의 일은 하지 않는다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     internal static class GitIconOverlay
     {
         private static readonly Color Outline = new(0f, 0f, 0f, 0.6f);

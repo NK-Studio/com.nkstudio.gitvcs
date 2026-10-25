@@ -3,6 +3,9 @@ namespace GitVersionControl
     /// <summary>
     /// 뷰가 생성자로 받는 의존성 묶음. 창(합성 루트)이 한 번 만들어 모든 탭에 같은 인스턴스를 나눠 준다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitServices
     {
         public readonly IGitRepositoryState Repository;

@@ -24,6 +24,9 @@ namespace GitVersionControl
     /// 줄은 가상화 ListView 가 그리고, 선·원은 그래프 칸(옆의 이름표 칸까지) 위에 겹친 요소가 Painter2D 로 그린다
     /// (보이는 줄만 그리고, 스크롤할 때마다 다시 그린다). 배치는 <see cref="VerticalGraphLayout"/>.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class CommitGraphList
     {
         /// <summary>

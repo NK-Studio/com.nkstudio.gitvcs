@@ -6,6 +6,9 @@ namespace GitVersionControl
     /// 번역 표. 키 → { 한국어, 영어 } (<see cref="GitLanguage"/> 순서). 형식 문자열은 string.Format 의 {0}, {1} 을 쓴다.
     /// 키 이름은 "화면.의미" 로 짓는다(같은 문구라도 화면이 다르면 나중에 따로 바뀔 수 있어서).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     internal static class GitStrings
     {
         public static readonly Dictionary<string, string[]> Table = new()

@@ -17,6 +17,9 @@ namespace GitVersionControl
     ///   그 PATH 에서 찾히는 <c>/usr/bin/git</c> 은 Xcode Command Line Tools 의 껍데기라, 도구가 없으면 설치 창을 띄우고 실패한다.
     ///   → Homebrew·MacPorts 와 로그인 셸의 PATH 를 먼저 보고, /usr/bin/git 은 Command Line Tools 가 설치돼 있을 때만 쓴다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitLocator
     {
         /// <summary>

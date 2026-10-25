@@ -25,6 +25,9 @@ namespace GitVersionControl
     /// 받을 곳은 <see cref="GitAvatarSources"/> 의 순서를 따르고, 모두 실패하면 머리글자로 남는다(그 결과도 7일 동안 기억해 다시 묻지 않는다).
     /// 네트워크 요청은 메인 스레드를 막지 않는 UnityWebRequest 로 한다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitHubAvatarProvider : IAvatarProvider
     {
         private const string UserAgent = "com.nkstudio.gitvcs";

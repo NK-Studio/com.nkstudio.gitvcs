@@ -14,6 +14,9 @@ namespace GitVersionControl
     /// 캐시는 에셋 임포트·에디터 포커스 복귀·커밋 뒤, 그리고 저장소 폴더의 바깥 변경(<see cref="GitFileWatcher"/>)·자동 fetch(<see cref="GitAutoFetch"/>) 때 백그라운드에서 다시 채운다.
     /// 상태는 static 이라 도메인 리로드 때 사라지고, <see cref="GitIntegration"/> 이 다시 <see cref="Start"/> 한다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitRepository
     {
         private const double DebounceSeconds = 0.3;

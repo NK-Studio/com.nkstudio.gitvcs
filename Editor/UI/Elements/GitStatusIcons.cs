@@ -10,6 +10,9 @@ namespace GitVersionControl
     /// 파일을 복사해 오지 않고 설치된 패키지에서 그때그때 읽는다. 패키지가 없으면 null 을 돌려주고, 그리는 쪽은 글자 배지로 대신한다.
     /// 다크 테마는 d_ 접두사, 고해상도 화면은 @2x 파일을 쓴다(패키지의 Images.cs 와 같은 규칙).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitStatusIcons
     {
         private const string ImageFolder = "Packages/com.unity.collab-proxy/Editor/Assets/Images/";

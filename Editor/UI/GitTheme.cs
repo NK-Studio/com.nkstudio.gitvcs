@@ -18,6 +18,9 @@ namespace GitVersionControl
     /// 테마마다 색·모서리 토큰만 담은 시트(Themes/{스타일}{Dark|Light}.uss) 하나를 창 루트에 붙이고,
     /// 모양 차이는 루트 클래스(git-theme--jetbrains 등)를 보고 Styles/GitThemes.uss 가 맡는다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitTheme
     {
         private const string ThemeFolder = "Packages/com.nkstudio.gitvcs/Editor/UI/Themes/";

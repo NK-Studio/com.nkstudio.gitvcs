@@ -41,6 +41,9 @@ namespace GitVersionControl
     /// 사용자·머신별 설정. git 경로는 머신마다 다르므로 저장소에 올라가지 않는 UserSettings 에 둔다.
     /// </summary>
     [FilePath("UserSettings/GitVersionControl.asset", FilePathAttribute.Location.ProjectFolder)]
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitVcsSettings : ScriptableSingleton<GitVcsSettings>
     {
         [SerializeField] private string _gitExecutable = "git";

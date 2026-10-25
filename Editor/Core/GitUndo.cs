@@ -238,6 +238,9 @@ namespace GitVersionControl
     /// 되돌리기·다시 하기 목록. 새 작업을 기록하면 다시 하기 목록은 비운다(편집기의 실행 취소와 같다).
     /// 스크립트를 다시 컴파일해도 남도록 에디터 세션(SessionState)에 둔다 — 에디터를 끄면 사라진다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitUndoJournal
     {
         /// <summary>
@@ -355,6 +358,9 @@ namespace GitVersionControl
     /// <summary>
     /// 되돌릴 수 있는 작업을 실행하며 기록하고(<c>*Async</c>), 기록을 되돌리거나 다시 한다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitUndo
     {
         private static GitUndoJournal s_journalOverride;
