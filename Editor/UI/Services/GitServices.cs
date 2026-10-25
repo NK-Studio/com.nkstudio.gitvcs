@@ -54,6 +54,7 @@ namespace GitVersionControl
             GitServices services = new(repository, new GitHistoryService(), new GitCommandService(),
                 runner, dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
             runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
+            runner.ErrorHandler = (title, message) => GitErrorDialog.ShowAsync(services, title, message);
             return services;
         }
     }

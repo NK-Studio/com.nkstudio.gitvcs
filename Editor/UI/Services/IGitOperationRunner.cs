@@ -53,6 +53,11 @@ namespace GitVersionControl
         /// null 이면 다른 실패처럼 알린다. 창이 <see cref="GitAccountDialog"/> 를 넣는다.
         /// </summary>
         public Func<string, Task<bool>> AuthFailureHandler { get; set; }
+
+        /// <summary>
+        /// 실패를 알릴 때(제목, git 오류 글) 부른다. null 이면 운영체제 대화상자로 알린다. 창이 <see cref="GitErrorDialog"/> 를 넣는다.
+        /// </summary>
+        public Func<string, string, Task> ErrorHandler { get; set; }
         public event Action StateChanged;
 
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
@@ -85,7 +90,14 @@ namespace GitVersionControl
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
                 if (result.Success == false && showErrorDialog && authHandled == false)
                 {
-                    _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);
+                    if (ErrorHandler != null)
+                    {
+                        await ErrorHandler(GitText.Format("runner.failed", title), result.Message);
+                    }
+                    else
+                    {
+                        _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);
+                    }
                 }
                 if (refreshAssets)
                 {
