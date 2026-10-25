@@ -279,6 +279,34 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 부분 패치를 작업 사본에 거꾸로 적용해 그 변경을 버린다(diff 의 "Discard Hunk"). 인덱스는 건드리지 않는다.
+        /// 패치는 Unstaged diff(인덱스 ↔ 작업 사본)에서 <see cref="GitPartialPatch.Build"/>(reverse: true)로 만든 것이어야 한다.
+        /// </summary>
+        public static async Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext)
+        {
+            if (string.IsNullOrEmpty(patch))
+            {
+                return new GitResult(0, string.Empty, string.Empty);
+            }
+            string patchFile = Path.Combine(Path.GetTempPath(), "gitvcs-" + Guid.NewGuid().ToString("N") + ".patch");
+            try
+            {
+                File.WriteAllText(patchFile, patch, new UTF8Encoding(false));
+                List<string> args = new() { "apply", "--reverse", "--whitespace=nowarn" };
+                if (zeroContext)
+                {
+                    args.Add("--unidiff-zero");
+                }
+                args.Add(patchFile);
+                return await GitRepository.RunAsync(args.ToArray());
+            }
+            finally
+            {
+                TryDelete(patchFile);
+            }
+        }
+
+        /// <summary>
         /// 부분 패치(<see cref="GitPartialPatch"/>)를 인덱스에만 적용한다(줄·hunk 단위 Stage·Unstage). 패치는 임시 파일로 넘긴다 —
         /// 표준 입력은 콘솔 코드 페이지로 글자가 바뀔 수 있어 한글 줄이 깨진다. 공백 경고는 끈다(사용자가 쓴 줄을 그대로 올리는 것이 목적).
         /// </summary>

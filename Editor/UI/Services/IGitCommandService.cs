@@ -97,6 +97,11 @@ namespace GitVersionControl
         /// <param name="zeroContext">문맥 줄 없이(-U0) 만든 diff 면 true — git apply 는 기본으로 문맥 없는 패치를 거부한다(<c>--unidiff-zero</c>).</param>
         /// <param name="intentToAddPath">아직 git 이 모르는(untracked) 파일이면 그 경로. 먼저 <c>git add -N</c> 으로 인덱스에 빈 항목을 만들어야 패치가 붙는다. 아니면 null.</param>
         Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath);
+
+        /// <summary>
+        /// diff 의 "Discard Hunk": 패치를 작업 사본에 거꾸로 적용해 그 변경을 되돌린다(<c>git apply --reverse</c>, 인덱스는 그대로). 되돌릴 수 없다.
+        /// </summary>
+        Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext);
         Task<GitResult> CommitStagedAsync(string message, bool amend);
         Task<string> LastCommitMessageAsync();
 
@@ -203,6 +208,8 @@ namespace GitVersionControl
         public Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries) => GitOperations.DiscardWorkTreeAsync(entries);
 
         public Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath) => GitOperations.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAddPath);
+
+        public Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext) => GitOperations.DiscardPatchFromWorkTreeAsync(patch, zeroContext);
 
         public Task<GitResult> CommitStagedAsync(string message, bool amend) => GitUndo.CommitStagedAsync(message, amend);
 

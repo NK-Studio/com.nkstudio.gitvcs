@@ -171,12 +171,21 @@ namespace GitVersionControl
         /// <summary>
         /// 거터의 "이 줄 스테이지" 버튼과 머리 줄의 "hunk 스테이지" 버튼을 켠다. Unstaged·Staged 출처의 diff 에서만 보인다.
         /// </summary>
-        public void EnablePartialStaging(IGitOperationRunner runner, IGitCommandService commands)
+        public void EnablePartialStaging(IGitOperationRunner runner, IGitCommandService commands, IDialogService dialogs)
         {
             _runner = runner;
             _commands = commands;
+            _dialogs = dialogs;
+            UpdateStageFileButton();
             _list.RefreshItems();
         }
+
+        private IDialogService _dialogs;
+
+        /// <summary>
+        /// "Discard Hunk" 를 보일지: 작업 사본의 변경(Unstaged)이고 git 이 이미 아는 파일일 때만. 새 파일(untracked)은 버릴 원본이 없다.
+        /// </summary>
+        private bool CanDiscard => CanPartialStage && _target.Source == GitDiffSource.Unstaged && _target.State != GitFileState.Untracked && _dialogs != null;
 
         /// <summary>
         /// 지금 보이는 diff 에서 줄·hunk 단위 Stage·Unstage 가 되는지. 공백을 무시한 diff 는 줄 내용이 인덱스와 달라 패치가 붙지 않으므로 뺀다.
@@ -512,6 +521,12 @@ namespace GitVersionControl
             ToolbarIcons.SetRefreshIcon(_reloadButton);
             toolbar.Add(_reloadButton);
 
+            // GitKraken 처럼 × 바로 옆에 이 파일 전체 Stage·Unstage. 부분 스테이징을 켠 패널의 Unstaged·Staged diff 에서만 보인다.
+            _stageFileButton = new ToolbarButton(StageWholeFileAsync);
+            _stageFileButton.AddToClassList("git-diff__stage-file");
+            _stageFileButton.SetVisible(false);
+            toolbar.Add(_stageFileButton);
+
             _closeButton = new ToolbarButton(() => CloseRequested?.Invoke()) { text = "×", tooltip = GitText.Get("common.close") };
             _closeButton.SetVisible(false);
             toolbar.Add(_closeButton);
@@ -652,6 +667,7 @@ namespace GitVersionControl
             {
                 return;
             }
+            UpdateStageFileButton();
             GitVcsSettings settings = GitVcsSettings.instance;
             bool hasTarget = _target != null;
             _bar.SetVisible(hasTarget);
@@ -917,10 +933,14 @@ namespace GitVersionControl
                 _shownWrap = _wrap;
             }
             UpdateGutter(isSplit, fileView);
-            _rows = _document == null ? new List<GitDiffRow>()
-                : fileView ? FileViewRows(_document.Lines)
-                : isSplit ? GitDiff.ToSideBySide(_document.Lines)
-                : _document.Lines.Select(line => new GitDiffRow(line, line)).ToList();
+            // 파일 전체를 읽은 보기(통합·나란히)는 GitKraken 처럼 "@@ -1,161 +1,161 @@" 머리 줄 없이 1번 줄부터 보인다(파일 전체가 묶음 하나라 뜻이 없다).
+            IReadOnlyList<GitDiffLine> lines = _document == null ? null
+                : _loadedContextLines >= GitDiffOptions.MaxContextLines ? _document.Lines.Where(line => line.Kind != GitDiffLineKind.Hunk).ToList()
+                : _document.Lines;
+            _rows = lines == null ? new List<GitDiffRow>()
+                : fileView ? FileViewRows(lines)
+                : isSplit ? GitDiff.ToSideBySide(lines)
+                : lines.Select(line => new GitDiffRow(line, line)).ToList();
             _list.itemsSource = _rows;
             if (rebuild)
             {
@@ -1260,21 +1280,38 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 머리 줄 오른쪽의 "hunk 스테이지" 버튼. userData 는 묶음 순번.
+        /// 머리 줄 오른쪽의 GitKraken 식 버튼 둘: [Discard Hunk](빨강, Unstaged 만) [Stage Hunk](초록, Staged 면 Unstage Hunk).
+        /// 묶음(<c>.diff-row__hunk-actions</c>)의 userData 가 묶음 순번이다.
         /// </summary>
-        private Button HunkButton()
+        private VisualElement HunkActions()
         {
-            Button button = new();
-            button.AddToClassList("diff-row__hunk-button");
-            button.clicked += () =>
+            VisualElement actions = new();
+            actions.AddToClassList("diff-row__hunk-actions");
+            Button discard = new();
+            discard.AddToClassList("diff-row__hunk-button");
+            discard.AddToClassList("diff-row__hunk-button--discard");
+            discard.clicked += () =>
             {
-                int hunkIndex = LineIndexOf(button);
+                int hunkIndex = LineIndexOf(actions);
+                if (hunkIndex >= 0 && _document != null)
+                {
+                    DiscardLinesAsync(GitPartialPatch.ChangedLinesOfHunk(_document.Lines, hunkIndex));
+                }
+            };
+            actions.Add(discard);
+            Button stage = new();
+            stage.AddToClassList("diff-row__hunk-button");
+            stage.AddToClassList("diff-row__hunk-button--stage");
+            stage.clicked += () =>
+            {
+                int hunkIndex = LineIndexOf(actions);
                 if (hunkIndex >= 0 && _document != null)
                 {
                     ApplyLinesAsync(GitPartialPatch.ChangedLinesOfHunk(_document.Lines, hunkIndex));
                 }
             };
-            return button;
+            actions.Add(stage);
+            return actions;
         }
 
         /// <summary>
@@ -1282,7 +1319,7 @@ namespace GitVersionControl
         /// 바뀐 줄이 아니면 버튼만 숨기며, 머리 줄이 아니면 hunk 버튼을 숨긴다.
         /// </summary>
         /// <returns>이 줄이 고른 줄인지.</returns>
-        private bool BindStageControls(VisualElement element, VisualElement gutter, Button hunk, GitDiffLine line)
+        private bool BindStageControls(VisualElement element, VisualElement gutter, VisualElement hunk, GitDiffLine line)
         {
             int index = -1;
             bool canStage = CanPartialStage;
@@ -1306,13 +1343,20 @@ namespace GitVersionControl
                 : GitText.Get(IsUnstage ? "diff.unstageLine" : "diff.stageLine");
             if (hunk != null)
             {
-                // GitKraken 처럼 늘 띄우지 않고, 변경 묶음(Hunk) 보기에서 그 머리 줄에 마우스를 올릴 때만 보인다(USS 의 :hover).
-                // 파일 전체를 읽은 보기(통합·나란히)는 머리 줄이 파일 전체 하나뿐이라 "hunk 스테이지" 가 곧 파일 전체 Stage 라 숨긴다.
+                // GitKraken 처럼 변경 묶음(Hunk) 보기에서는 머리 줄마다 늘 보인다. 파일 전체를 읽은 보기(통합·나란히)는 머리 줄이 파일 전체 하나라
+                // "hunk 스테이지" 가 곧 파일 전체 Stage 라서 숨긴다(GitKraken 도 그 보기에서는 머리 줄 버튼이 없다).
                 bool isHunk = enabled && line.Kind == GitDiffLineKind.Hunk && _loadedContextLines < GitDiffOptions.MaxContextLines;
-                hunk.style.display = isHunk ? StyleKeyword.Null : DisplayStyle.None;
+                hunk.style.display = isHunk ? DisplayStyle.Flex : DisplayStyle.None;
                 hunk.userData = isHunk ? line.HunkIndex : -1;
-                hunk.text = GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
-                hunk.tooltip = GitText.Get(IsUnstage ? "diff.unstageHunkTooltip" : "diff.stageHunkTooltip");
+                Button discardHunk = (Button)hunk[0];
+                Button stageHunk = (Button)hunk[1];
+                // 버리기는 작업 사본의 변경(Unstaged)에만 있다. git 이 아직 모르는 새 파일은 버릴 원본이 없다(파일 지우기는 파일 메뉴에서).
+                discardHunk.style.display = isHunk && CanDiscard ? DisplayStyle.Flex : DisplayStyle.None;
+                discardHunk.text = GitText.Get("diff.discardHunk");
+                discardHunk.tooltip = GitText.Get("diff.discardHunkTooltip");
+                stageHunk.EnableInClassList("diff-row__hunk-button--unstage", IsUnstage);
+                stageHunk.text = GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
+                stageHunk.tooltip = GitText.Get(IsUnstage ? "diff.unstageHunkTooltip" : "diff.stageHunkTooltip");
             }
             return selected;
         }
@@ -1342,6 +1386,83 @@ namespace GitVersionControl
             await _runner.RunAsync(GitText.Get(reverse ? "op.unstageLines" : "op.stageLines"),
                 () => _commands.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAdd), refreshAssets: false, workingTreeOnly: true);
             // 새로고침으로 목록이 바뀌며 뷰가 이미 다시 읽었을 수 있다. 같은 파일을 아직 보고 있으면 한 번 더 맞춘다.
+            if (_target == target)
+            {
+                Reload();
+            }
+        }
+
+        /// <summary>
+        /// "Discard Hunk": 고른 줄의 변경을 작업 사본에서 되돌린다(<c>git apply --reverse</c>, 인덱스는 그대로).
+        /// Stage 와 달리 되돌릴 수 없어(작업 사본의 글이 사라진다) 기존 "변경 버리기" 처럼 한 번 묻는다.
+        /// </summary>
+        private async void DiscardLinesAsync(ICollection<int> lines)
+        {
+            if (CanDiscard == false || _runner.IsBusy)
+            {
+                return;
+            }
+            GitDiffTarget target = _target;
+            // 작업 사본(새 판)에 거꾸로 적용할 패치라 Unstage 와 같은 규칙(reverse)으로 만든다: 고르지 않은 '+' 는 작업 사본에 있으니 문맥, '-' 는 뺀다.
+            string patch = GitPartialPatch.Build(_document.Lines, lines, target.RepoPath, reverse: true);
+            if (patch == null)
+            {
+                return;
+            }
+            if (_dialogs.Confirm(GitText.Get("diff.discardHunkTitle"), GitText.Format("diff.discardHunkMessage", GitDisplay.Nfc(target.RepoPath)), GitText.Get("staging.discardAlertOk")) == false)
+            {
+                return;
+            }
+            bool zeroContext = _loadedContextLines == 0;
+            ClearSelection();
+            await _runner.RunAsync(GitText.Get("op.discardHunk"),
+                () => _commands.DiscardPatchFromWorkTreeAsync(patch, zeroContext), refreshAssets: true, workingTreeOnly: true);
+            if (_target == target)
+            {
+                Reload();
+            }
+        }
+
+        // ── 머리 줄의 "Stage this change"(파일 전체 Stage·Unstage, GitKraken 과 같다) ──
+
+        private ToolbarButton _stageFileButton;
+
+        private void UpdateStageFileButton()
+        {
+            if (_stageFileButton == null)
+            {
+                return;
+            }
+            bool shown = _runner != null && _target != null && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged);
+            _stageFileButton.SetVisible(shown);
+            if (shown == false)
+            {
+                return;
+            }
+            _stageFileButton.EnableInClassList("git-diff__stage-file--unstage", IsUnstage);
+            _stageFileButton.text = GitText.Get(IsUnstage ? "diff.unstageFile" : "diff.stageFile");
+            _stageFileButton.tooltip = GitText.Get(IsUnstage ? "diff.unstageFileTooltip" : "diff.stageFileTooltip");
+        }
+
+        /// <summary>
+        /// 이 파일 전체를 올리거나(Unstaged) 내린다(Staged). 목록의 Stage·Unstage 와 같은 명령이다.
+        /// </summary>
+        private async void StageWholeFileAsync()
+        {
+            if (_runner == null || _runner.IsBusy || _target == null)
+            {
+                return;
+            }
+            GitDiffTarget target = _target;
+            GitStatusEntry entry = GitRepository.Entries.FirstOrDefault(e => e.RepoPath == target.RepoPath);
+            if (entry == null)
+            {
+                return;
+            }
+            bool unstage = target.Source == GitDiffSource.Staged;
+            GitStatusEntry[] entries = { entry };
+            await _runner.RunAsync(GitText.Get(unstage ? "op.unstage" : "op.stage"),
+                () => unstage ? _commands.UnstageAsync(entries) : _commands.StageAsync(entries), refreshAssets: false, workingTreeOnly: true);
             if (_target == target)
             {
                 Reload();
@@ -1464,7 +1585,7 @@ namespace GitVersionControl
             sign.AddToClassList("diff-row__sign");
             row.Add(sign);
             row.Add(CodeElement());
-            row.Add(HunkButton());
+            row.Add(HunkActions());
             RegisterSelection(row);
             return row;
         }
@@ -1473,7 +1594,7 @@ namespace GitVersionControl
         {
             GitDiffLine line = _rows[index].Left;
             SetKindClasses(row, "diff-row", line);
-            row.EnableInClassList("diff-row--selected", BindStageControls(row, row[0], (Button)row[5], line));
+            row.EnableInClassList("diff-row--selected", BindStageControls(row, row[0], row[5], line));
             ApplyNumberColumn(row[1], _showOldNumbers);
             ApplyNumberColumn(row[2], _showNewNumbers);
             ((Label)row[1]).text = line.OldNumber > 0 ? line.OldNumber.ToString() : string.Empty;
@@ -1495,7 +1616,7 @@ namespace GitVersionControl
             row.AddToClassList("diff-row");
             row.Add(SideElement("diff-side--left"));
             row.Add(SideElement("diff-side--right"));
-            row.Add(HunkButton());
+            row.Add(HunkActions());
             return row;
         }
 
@@ -1518,12 +1639,12 @@ namespace GitVersionControl
         {
             GitDiffRow diffRow = _rows[index];
             // 머리 줄은 양쪽에 같은 줄이 들어가므로 hunk 버튼은 줄 하나에 하나만(오른쪽 끝) 둔다. 고른 표시는 줄 전체에 한다 — 한쪽을 골라도 짝이 같이 올라간다.
-            bool leftSelected = BindSide(row[0], diffRow.Left, isLeft: true, hunk: (Button)row[2]);
+            bool leftSelected = BindSide(row[0], diffRow.Left, isLeft: true, hunk: row[2]);
             bool rightSelected = BindSide(row[1], diffRow.Right, isLeft: false, hunk: null);
             row.EnableInClassList("diff-row--selected", leftSelected || rightSelected);
         }
 
-        private bool BindSide(VisualElement side, GitDiffLine line, bool isLeft, Button hunk)
+        private bool BindSide(VisualElement side, GitDiffLine line, bool isLeft, VisualElement hunk)
         {
             side.EnableInClassList("diff-side--empty", line == null);
             SetKindClasses(side, "diff-side", line);

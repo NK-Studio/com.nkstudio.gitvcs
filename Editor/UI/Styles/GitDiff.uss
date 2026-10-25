@@ -484,21 +484,65 @@
     border-left-color: var(--git-accent);
 }
 
-.diff-row__hunk-button {
+/* 변경 묶음(Hunk) 보기의 머리 줄 오른쪽: GitKraken 처럼 [Discard Hunk](빨강) [Stage Hunk](초록)를 늘 보인다.
+   파일 전체를 보는 통합·나란히 보기에는 코드가 숨긴다(GitKraken 도 없다). 머리 줄 아래에는 얇은 선을 그어 묶음 시작을 가른다. */
+.diff-row__hunk-actions {
     position: absolute;
-    right: 6px;
-    top: 1px;
-    height: 16px;
-    padding: 0 8px;
-    margin: 0;
-    font-size: 10px;
-    border-radius: 3px;
+    right: 8px;
+    top: 0;
+    bottom: 0;
+    flex-direction: row;
+    align-items: center;
     display: none;
 }
 
-/* 머리 줄에 마우스를 올렸을 때만 보인다(GitKraken 은 이 버튼을 늘 띄우지 않는다). 코드가 hunk 보기의 머리 줄에서만 인라인 display 를 비워 둔다. */
-.diff-row:hover > .diff-row__hunk-button {
-    display: flex;
+.diff-row__hunk-button {
+    height: 16px;
+    padding: 0 8px;
+    margin: 0 0 0 6px;
+    font-size: 11px;
+    border-width: 1px;
+    border-radius: 3px;
+    background-color: var(--git-bg);
+}
+
+.diff-row__hunk-button--discard {
+    border-color: var(--git-danger);
+    color: var(--git-danger);
+}
+
+.diff-row__hunk-button--stage {
+    border-color: var(--git-success);
+    color: var(--git-success);
+}
+
+.diff-row__hunk-button--stage.diff-row__hunk-button--unstage {
+    border-color: var(--git-danger);
+    color: var(--git-danger);
+}
+
+.diff-row__hunk-button:hover {
+    background-color: var(--git-hover);
+}
+
+.diff-row--hunk {
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+/* 머리 줄 오른쪽의 "이 변경 스테이지"(파일 전체). GitKraken 처럼 초록 테두리, Staged 쪽은 빨강(언스테이지). */
+.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file {
+    margin: 2px 4px;
+    padding: 0 8px;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: var(--git-success);
+    color: var(--git-success);
+}
+
+.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file--unstage {
+    border-color: var(--git-danger);
+    color: var(--git-danger);
 }
 
 /* ── 이미지 diff (GitImageDiffView) ─────────────────── */
