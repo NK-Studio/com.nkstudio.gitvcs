@@ -1306,8 +1306,10 @@ namespace GitVersionControl
                 : GitText.Get(IsUnstage ? "diff.unstageLine" : "diff.stageLine");
             if (hunk != null)
             {
-                bool isHunk = enabled && line.Kind == GitDiffLineKind.Hunk;
-                hunk.style.display = isHunk ? DisplayStyle.Flex : DisplayStyle.None;
+                // GitKraken 처럼 늘 띄우지 않고, 변경 묶음(Hunk) 보기에서 그 머리 줄에 마우스를 올릴 때만 보인다(USS 의 :hover).
+                // 파일 전체를 읽은 보기(통합·나란히)는 머리 줄이 파일 전체 하나뿐이라 "hunk 스테이지" 가 곧 파일 전체 Stage 라 숨긴다.
+                bool isHunk = enabled && line.Kind == GitDiffLineKind.Hunk && _loadedContextLines < GitDiffOptions.MaxContextLines;
+                hunk.style.display = isHunk ? StyleKeyword.Null : DisplayStyle.None;
                 hunk.userData = isHunk ? line.HunkIndex : -1;
                 hunk.text = GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
                 hunk.tooltip = GitText.Get(IsUnstage ? "diff.unstageHunkTooltip" : "diff.stageHunkTooltip");

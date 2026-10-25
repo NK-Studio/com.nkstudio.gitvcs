@@ -496,6 +496,11 @@
     display: none;
 }
 
+/* 머리 줄에 마우스를 올렸을 때만 보인다(GitKraken 은 이 버튼을 늘 띄우지 않는다). 코드가 hunk 보기의 머리 줄에서만 인라인 display 를 비워 둔다. */
+.diff-row:hover > .diff-row__hunk-button {
+    display: flex;
+}
+
 /* ── 이미지 diff (GitImageDiffView) ─────────────────── */
 .git-image-diff {
     flex-grow: 1;
