@@ -279,6 +279,56 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 부분 패치(<see cref="GitPartialPatch"/>)를 인덱스에만 적용한다(줄·hunk 단위 Stage·Unstage). 패치는 임시 파일로 넘긴다 —
+        /// 표준 입력은 콘솔 코드 페이지로 글자가 바뀔 수 있어 한글 줄이 깨진다. 공백 경고는 끈다(사용자가 쓴 줄을 그대로 올리는 것이 목적).
+        /// </summary>
+        /// <param name="reverse">true 면 Unstage(<c>--reverse</c>).</param>
+        /// <param name="zeroContext">문맥 줄 없는 diff(-U0)에서 만든 패치면 true(<c>--unidiff-zero</c>).</param>
+        /// <param name="intentToAddPath">untracked 파일이면 그 경로. <c>git add -N</c> 으로 인덱스에 빈 항목을 만든 뒤 적용하고, 실패하면 그 항목을 도로 뺀다.</param>
+        public static async Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath)
+        {
+            if (string.IsNullOrEmpty(patch))
+            {
+                return new GitResult(0, string.Empty, string.Empty);
+            }
+            if (intentToAddPath != null)
+            {
+                GitResult add = await RunWithPaths(new[] { "add", "--intent-to-add" }, new List<string> { intentToAddPath });
+                if (add.Success == false)
+                {
+                    return add;
+                }
+            }
+
+            string patchFile = Path.Combine(Path.GetTempPath(), "gitvcs-" + Guid.NewGuid().ToString("N") + ".patch");
+            try
+            {
+                File.WriteAllText(patchFile, patch, new UTF8Encoding(false));
+                List<string> args = new() { "apply", "--cached", "--whitespace=nowarn" };
+                if (reverse)
+                {
+                    args.Add("--reverse");
+                }
+                if (zeroContext)
+                {
+                    args.Add("--unidiff-zero");
+                }
+                args.Add(patchFile);
+                GitResult result = await GitRepository.RunAsync(args.ToArray());
+                if (result.Success == false && intentToAddPath != null)
+                {
+                    // 빈 항목만 남으면 untracked 였던 파일이 "추가됨" 으로 보인다. 원래대로 돌린다(이 실패는 알리지 않는다 — 원래 오류가 더 중요하다).
+                    await RunWithPaths(new[] { "rm", "--cached", "--quiet" }, new List<string> { intentToAddPath });
+                }
+                return result;
+            }
+            finally
+            {
+                TryDelete(patchFile);
+            }
+        }
+
+        /// <summary>
         /// 작업 트리 쪽 변경만 버린다(인덱스에 올린 내용은 남는다). untracked 파일은 지운다.
         /// </summary>
         public static async Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries)

@@ -89,6 +89,14 @@ namespace GitVersionControl
         Task<GitResult> StageAllAsync();
         Task<GitResult> UnstageAllAsync();
         Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries);
+
+        /// <summary>
+        /// diff 뷰어에서 고른 줄·hunk 만 인덱스에 올리거나(<c>git apply --cached</c>) 내린다(<paramref name="reverse"/>, <c>--reverse</c>).
+        /// 패치는 <see cref="GitPartialPatch"/> 가 만든다. 작업 트리 파일은 건드리지 않는다.
+        /// </summary>
+        /// <param name="zeroContext">문맥 줄 없이(-U0) 만든 diff 면 true — git apply 는 기본으로 문맥 없는 패치를 거부한다(<c>--unidiff-zero</c>).</param>
+        /// <param name="intentToAddPath">아직 git 이 모르는(untracked) 파일이면 그 경로. 먼저 <c>git add -N</c> 으로 인덱스에 빈 항목을 만들어야 패치가 붙는다. 아니면 null.</param>
+        Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath);
         Task<GitResult> CommitStagedAsync(string message, bool amend);
         Task<string> LastCommitMessageAsync();
 
@@ -193,6 +201,8 @@ namespace GitVersionControl
         public Task<GitResult> UnstageAllAsync() => GitOperations.UnstageAllAsync();
 
         public Task<GitResult> DiscardWorkTreeAsync(IReadOnlyCollection<GitStatusEntry> entries) => GitOperations.DiscardWorkTreeAsync(entries);
+
+        public Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath) => GitOperations.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAddPath);
 
         public Task<GitResult> CommitStagedAsync(string message, bool amend) => GitUndo.CommitStagedAsync(message, amend);
 

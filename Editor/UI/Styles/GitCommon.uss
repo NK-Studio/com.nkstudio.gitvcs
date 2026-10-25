@@ -102,6 +102,33 @@
     -unity-background-scale-mode: scale-to-fit;
 }
 
+/* GitKraken 식 그림 배지: 수정 = 연필(그림 자체 색), 추가·untracked = +, 삭제 = −(흰 그림을 상태 색으로 물들인다). 바탕은 칠하지 않는다. */
+.state-badge--glyph-modified,
+.state-badge--glyph-added,
+.state-badge--glyph-deleted {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    margin: 0 1px;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.state-badge--glyph-modified {
+    background-image: url("../Icons/Modified.png");
+}
+
+.state-badge--glyph-added {
+    background-image: url("../Icons/Added.png");
+    -unity-background-image-tint-color: var(--git-state-added);
+}
+
+.state-badge--glyph-deleted {
+    background-image: url("../Icons/Deleted.png");
+    -unity-background-image-tint-color: var(--git-state-deleted);
+}
+
 .state-badge--modified { background-color: var(--git-state-modified); }
 .state-badge--added { background-color: var(--git-state-added); }
 .state-badge--deleted { background-color: var(--git-state-deleted); }

@@ -84,6 +84,8 @@ namespace GitVersionControl
             _diff.Root.style.flexGrow = 1;
             _diff.ShowCloseButton(true);
             _diff.ShowReloadButton(false);
+            // GitKraken 처럼 diff 의 거터 + 버튼·hunk 버튼으로 줄 단위 Stage·Unstage.
+            _diff.EnablePartialStaging(services.Runner, services.Commands);
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);

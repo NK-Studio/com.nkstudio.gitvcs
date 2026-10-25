@@ -14,20 +14,45 @@ namespace GitVersionControl
         private const string IconModifier = Block + "--icon";
         private static readonly GitFileState[] AllStates = (GitFileState[])Enum.GetValues(typeof(GitFileState));
 
+        /// <summary>
+        /// GitKraken 처럼 그림으로 보이는 상태: 수정 = 연필, 추가·untracked = +, 삭제 = −(<c>.state-badge--glyph-*</c>, 그림은 USS 가 넣는다).
+        /// 나머지(이름 변경·충돌)는 UVCS 아이콘이나 글자 배지 그대로.
+        /// </summary>
+        private static string GlyphModifierOf(GitFileState state)
+        {
+            return state switch
+            {
+                GitFileState.Modified => Block + "--glyph-modified",
+                GitFileState.Added => Block + "--glyph-added",
+                GitFileState.Untracked => Block + "--glyph-added",
+                GitFileState.Deleted => Block + "--glyph-deleted",
+                _ => null,
+            };
+        }
+
+        private static readonly string[] GlyphModifiers = { Block + "--glyph-modified", Block + "--glyph-added", Block + "--glyph-deleted" };
+
         public static void Apply(VisualElement badge, GitFileState state)
         {
-            Texture2D icon = GitStatusIcons.Get(state);
+            string glyph = GlyphModifierOf(state);
+            Texture2D icon = glyph == null ? GitStatusIcons.Get(state) : null;
             bool useIcon = icon != null;
+            bool useLetter = glyph == null && useIcon == false;
 
             badge.EnableInClassList(IconModifier, useIcon);
+            foreach (string modifier in GlyphModifiers)
+            {
+                badge.EnableInClassList(modifier, modifier == glyph);
+            }
             foreach (GitFileState each in AllStates)
             {
-                badge.EnableInClassList(ModifierOf(each), useIcon == false && each == state);
+                badge.EnableInClassList(ModifierOf(each), useLetter && each == state);
             }
-            badge.style.backgroundImage = useIcon ? new StyleBackground(icon) : new StyleBackground(StyleKeyword.None);
+            // 그림 배지는 USS 의 background-image 를 쓰므로 인라인 값을 비워 둔다(인라인이 USS 를 덮는다).
+            badge.style.backgroundImage = useIcon ? new StyleBackground(icon) : new StyleBackground(StyleKeyword.Null);
             if (badge is TextElement text)
             {
-                text.text = useIcon ? string.Empty : GitDisplay.StateLetter(state);
+                text.text = useLetter ? GitDisplay.StateLetter(state) : string.Empty;
             }
             badge.tooltip = GitText.Get("state." + state);
         }

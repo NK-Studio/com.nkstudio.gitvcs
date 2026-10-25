@@ -201,6 +201,73 @@
     color: var(--git-text-muted);
 }
 
+/* ── 부분 스테이징(GitKraken 식) ──────────────────────
+   바뀐 줄 위에 마우스를 올리면 줄 번호 칸 왼쪽에 + 버튼이 뜬다(Stage 는 초록, Unstage 는 빨강). 고른 줄은 왼쪽에 강조 선이 생기고 버튼이 계속 보인다.
+   변경 묶음 머리 줄의 오른쪽에는 "hunk 스테이지" 버튼이 늘 보인다. */
+/* + 버튼만의 칸. 줄 번호를 가리지 않도록 GitKraken 처럼 번호 왼쪽에 따로 둔다. 부분 스테이징이 안 되는 diff(커밋 비교 등)에서는 코드가 숨긴다. */
+.diff-row__gutter {
+    width: 24px;
+    min-width: 24px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--git-diff-gutter);
+}
+
+.diff-row__stage {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin: 0;
+    border-width: 0;
+    border-radius: 3px;
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-text-align: middle-center;
+    color: #ffffff;
+    /* 목록의 Stage 버튼 색(--git-stage-bg)은 회색빛이라 작은 칸에서는 눈에 안 띈다. GitKraken 처럼 선명한 초록·빨강으로. */
+    background-color: var(--git-success);
+    visibility: hidden;
+}
+
+.diff-row__stage--unstage {
+    background-color: var(--git-danger);
+}
+
+.diff-row__stage:hover {
+    opacity: 0.8;
+}
+
+.diff-row--added:hover .diff-row__stage,
+.diff-row--removed:hover .diff-row__stage,
+.diff-row:hover > .diff-side--added .diff-row__stage,
+.diff-row:hover > .diff-side--removed .diff-row__stage,
+.diff-row--selected .diff-row__stage {
+    visibility: visible;
+}
+
+/* 고른 줄의 왼쪽 강조 선. 폭은 늘 잡아 두어(투명) 고를 때 줄이 밀리지 않는다. */
+.diff-row {
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.diff-row--selected {
+    border-left-color: var(--git-accent);
+}
+
+.diff-row__hunk-button {
+    position: absolute;
+    right: 6px;
+    top: 1px;
+    height: 16px;
+    padding: 0 8px;
+    margin: 0;
+    font-size: 10px;
+    border-radius: 3px;
+    display: none;
+}
+
 /* ── 이미지 diff (GitImageDiffView) ─────────────────── */
 .git-image-diff {
     flex-grow: 1;

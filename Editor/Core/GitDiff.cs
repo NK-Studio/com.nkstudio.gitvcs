@@ -227,6 +227,17 @@ namespace GitVersionControl
         /// </summary>
         public int ChangeStart;
         public int ChangeLength;
+
+        /// <summary>
+        /// 줄 끝이 CRLF 였는지(<see cref="Text"/> 에서는 뗀다). 부분 스테이징 패치(<see cref="GitPartialPatch"/>)가 git 에 돌려줄 때 그대로 붙여야
+        /// 인덱스의 내용과 글자 하나까지 맞는다.
+        /// </summary>
+        public bool HasCarriageReturn;
+
+        /// <summary>
+        /// 이 줄이 든 변경 묶음(hunk)의 순번(0부터). 머리 줄 자신도 자기 묶음의 번호를 가진다. 묶음 밖이면 -1.
+        /// </summary>
+        public int HunkIndex = -1;
     }
 
     /// <summary>
@@ -357,13 +368,19 @@ namespace GitVersionControl
             int oldNumber = 0;
             int newNumber = 0;
             bool inHunk = false;
-            string[] lines = output.Replace("\r\n", "\n").Split('\n');
+            // CRLF 파일의 '\r' 은 줄 끝 표시(HasCarriageReturn)로 따로 남긴다 — 화면에는 안 보이지만 패치로 돌려줄 때 필요하다.
+            string[] lines = output.Split('\n');
             // 출력 끝의 줄바꿈 뒤 빈 조각은 내용이 아니다.
             int count = lines.Length > 0 && lines[^1].Length == 0 ? lines.Length - 1 : lines.Length;
 
             for (int i = 0; i < count; i++)
             {
                 string line = lines[i];
+                bool hasCarriageReturn = line.Length > 0 && line[^1] == '\r';
+                if (hasCarriageReturn)
+                {
+                    line = line.Substring(0, line.Length - 1);
+                }
                 if (line.StartsWith("diff --git ", StringComparison.Ordinal))
                 {
                     inHunk = false;
@@ -377,7 +394,7 @@ namespace GitVersionControl
                     }
                     inHunk = true;
                     document.HunkCount++;
-                    document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Hunk, Text = line });
+                    document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Hunk, Text = line, HunkIndex = document.HunkCount - 1 });
                     continue;
                 }
                 if (inHunk == false)
@@ -388,10 +405,11 @@ namespace GitVersionControl
                     }
                     continue;
                 }
+                int hunkIndex = document.HunkCount - 1;
                 if (line.Length == 0)
                 {
                     // 일부 도구는 빈 문맥 줄의 앞 공백을 지운다. 빈 문맥 줄로 본다.
-                    document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Context, OldNumber = oldNumber++, NewNumber = newNumber++, Text = string.Empty });
+                    document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Context, OldNumber = oldNumber++, NewNumber = newNumber++, Text = string.Empty, HasCarriageReturn = hasCarriageReturn, HunkIndex = hunkIndex });
                     continue;
                 }
                 char marker = line[0];
@@ -399,18 +417,18 @@ namespace GitVersionControl
                 switch (marker)
                 {
                     case ' ':
-                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Context, OldNumber = oldNumber++, NewNumber = newNumber++, Text = text });
+                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Context, OldNumber = oldNumber++, NewNumber = newNumber++, Text = text, HasCarriageReturn = hasCarriageReturn, HunkIndex = hunkIndex });
                         break;
                     case '-':
                         document.Removed++;
-                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Removed, OldNumber = oldNumber++, Text = text });
+                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Removed, OldNumber = oldNumber++, Text = text, HasCarriageReturn = hasCarriageReturn, HunkIndex = hunkIndex });
                         break;
                     case '+':
                         document.Added++;
-                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Added, NewNumber = newNumber++, Text = text });
+                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.Added, NewNumber = newNumber++, Text = text, HasCarriageReturn = hasCarriageReturn, HunkIndex = hunkIndex });
                         break;
                     case '\\':
-                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.NoNewline, Text = line });
+                        document.Lines.Add(new GitDiffLine { Kind = GitDiffLineKind.NoNewline, Text = line, HunkIndex = hunkIndex });
                         break;
                     default:
                         // hunk 가 끝나고 다음 파일 머리가 시작됐다.

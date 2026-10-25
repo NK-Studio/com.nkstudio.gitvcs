@@ -78,6 +78,26 @@ namespace GitVersionControl
         private ToolbarButton _closeButton;
         private ToolbarButton _reloadButton;
 
+        // ── 부분 스테이징(GitKraken 식 거터 + 버튼) ──
+
+        /// <summary>
+        /// 줄·hunk 단위 Stage·Unstage 를 돌릴 곳. <see cref="EnablePartialStaging"/> 로 넣은 패널(Fork·GitKraken 레이아웃)에서만 버튼이 보인다.
+        /// </summary>
+        private IGitOperationRunner _runner;
+        private IGitCommandService _commands;
+
+        /// <summary>
+        /// 고른 줄(<see cref="_document"/>.Lines 의 인덱스). 끌기·Shift+클릭으로 모은 뒤 거터 버튼 한 번으로 같이 올린다. 문서가 바뀌면 비운다.
+        /// </summary>
+        private readonly HashSet<int> _selectedLines = new();
+        private int _selectionAnchor = -1;
+        private bool _dragSelecting;
+
+        /// <summary>
+        /// 줄 → 줄 목록 인덱스. 나란히 보기의 줄 요소는 줄만 알고 목록 인덱스는 모른다.
+        /// </summary>
+        private readonly Dictionary<GitDiffLine, int> _lineIndexes = new();
+
         /// <summary>
         /// 닫기(×)를 눌렀을 때. <see cref="ShowCloseButton"/> 로 버튼을 켠 곳(GitKraken 레이아웃의 가운데)만 쓴다.
         /// </summary>
@@ -98,6 +118,28 @@ namespace GitVersionControl
             _reloadButton.SetVisible(isVisible);
         }
         public GitDiffTarget Target => _target;
+
+        /// <summary>
+        /// 거터의 "이 줄 스테이지" 버튼과 머리 줄의 "hunk 스테이지" 버튼을 켠다. Unstaged·Staged 출처의 diff 에서만 보인다.
+        /// </summary>
+        public void EnablePartialStaging(IGitOperationRunner runner, IGitCommandService commands)
+        {
+            _runner = runner;
+            _commands = commands;
+            _list.RefreshItems();
+        }
+
+        /// <summary>
+        /// 지금 보이는 diff 에서 줄·hunk 단위 Stage·Unstage 가 되는지. 공백을 무시한 diff 는 줄 내용이 인덱스와 달라 패치가 붙지 않으므로 뺀다.
+        /// </summary>
+        private bool CanPartialStage => _runner != null && _document != null && _target != null && _isImageMode == false && _document.IsBinary == false
+            && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged)
+            && GitVcsSettings.instance.DiffOptions.Whitespace == DiffWhitespace.Show;
+
+        /// <summary>
+        /// Staged 목록의 diff 면 버튼은 내리기(Unstage)다.
+        /// </summary>
+        private bool IsUnstage => _target != null && _target.Source == GitDiffSource.Staged;
 
         public GitDiffPanel(IGitDiffService service)
         {
@@ -122,6 +164,9 @@ namespace GitVersionControl
                 horizontalScrollingEnabled = false,
             };
             _list.AddToClassList("git-diff__list");
+            // 줄 끌어 고르기는 줄 요소의 PointerDown·PointerEnter 로 하고, 버튼을 떼거나 목록 밖으로 나가면 끝낸다.
+            _list.RegisterCallback<PointerUpEvent>(_ => _dragSelecting = false, TrickleDown.TrickleDown);
+            _list.RegisterCallback<PointerLeaveEvent>(_ => _dragSelecting = false);
             Root.Add(_list);
 
             // 이미지 파일이면 줄 목록 대신 이 뷰가 보인다.
@@ -195,7 +240,7 @@ namespace GitVersionControl
             ++_loadVersion;
             HideLoading();
             _shownKey = null;
-            _document = null;
+            SetDocument(null);
             _title.text = string.Empty;
             _addedStat.text = string.Empty;
             _removedStat.text = string.Empty;
@@ -549,7 +594,7 @@ namespace GitVersionControl
             if (isImage)
             {
                 ShowBinary(false);
-                _document = null;
+                SetDocument(null);
                 ApplyLayout();
                 LoadImagesAsync(version);
                 return;
@@ -563,7 +608,7 @@ namespace GitVersionControl
             }
 
             HideLoading();
-            _document = document;
+            SetDocument(document);
             _addedStat.text = document != null ? $"+{document.Added}" : string.Empty;
             _removedStat.text = document != null ? $"−{document.Removed}" : string.Empty;
             if (error != null)
@@ -643,7 +688,7 @@ namespace GitVersionControl
                 // 늦어지면 옛 파일 내용을 비우고(다른 파일 내용이 남아 헷갈리지 않게) "불러오는 중" 을 겹쳐 띄운다.
                 _notice.SetVisible(false);
                 ShowBinary(false);
-                _document = null;
+                SetDocument(null);
                 ApplyLayout();
                 _loading.SetVisible(true);
             }).StartingIn(LoadingDelayMs);
@@ -654,6 +699,227 @@ namespace GitVersionControl
             _loadingDelay?.Pause();
             _loadingDelay = null;
             _loading.SetVisible(false);
+        }
+
+        /// <summary>
+        /// 보일 문서를 바꾼다. 줄 인덱스 표를 다시 만들고 고른 줄은 비운다(줄이 바뀌었으니 옛 인덱스는 뜻이 없다). 부르는 쪽이 ApplyLayout 으로 다시 그린다.
+        /// </summary>
+        private void SetDocument(GitDiffDocument document)
+        {
+            _document = document;
+            _lineIndexes.Clear();
+            if (document != null)
+            {
+                for (int i = 0; i < document.Lines.Count; i++)
+                {
+                    _lineIndexes[document.Lines[i]] = i;
+                }
+            }
+            _selectedLines.Clear();
+            _selectionAnchor = -1;
+            _dragSelecting = false;
+        }
+
+        // ── 부분 스테이징 ───────────────────────────
+
+        /// <summary>
+        /// 줄 요소에 끌기·Shift+클릭 고르기를 단다. 요소의 userData 는 그 줄의 목록 인덱스(없으면 -1)로 bind 때 넣는다.
+        /// </summary>
+        private void RegisterSelection(VisualElement element)
+        {
+            element.RegisterCallback<PointerDownEvent>(evt => OnRowPointerDown(element, evt));
+            element.RegisterCallback<PointerEnterEvent>(_ => OnRowPointerEnter(element));
+        }
+
+        private static int LineIndexOf(VisualElement element)
+        {
+            return element.userData is int index ? index : -1;
+        }
+
+        private void OnRowPointerDown(VisualElement element, PointerDownEvent evt)
+        {
+            // 버튼 자체를 누른 것은 버튼이 처리한다. 오른쪽 버튼은 메뉴 몫.
+            if (evt.button != 0 || CanPartialStage == false || evt.target is Button)
+            {
+                return;
+            }
+            int index = LineIndexOf(element);
+            if (index < 0 || GitPartialPatch.IsChange(_document.Lines[index]) == false)
+            {
+                ClearSelection();
+                return;
+            }
+            if (evt.shiftKey && _selectionAnchor >= 0)
+            {
+                SelectRange(_selectionAnchor, index);
+            }
+            else
+            {
+                _selectedLines.Clear();
+                _selectedLines.Add(index);
+                _selectionAnchor = index;
+            }
+            _dragSelecting = true;
+            _list.RefreshItems();
+        }
+
+        private void OnRowPointerEnter(VisualElement element)
+        {
+            if (_dragSelecting == false || CanPartialStage == false || _selectionAnchor < 0)
+            {
+                return;
+            }
+            int index = LineIndexOf(element);
+            if (index >= 0)
+            {
+                SelectRange(_selectionAnchor, index);
+                _list.RefreshItems();
+            }
+        }
+
+        /// <summary>
+        /// 두 인덱스 사이의 바뀐 줄('+'·'-')을 모두 고른다. 묶음 여러 개에 걸쳐도 된다 — 패치가 묶음마다 나눠 만든다.
+        /// </summary>
+        private void SelectRange(int from, int to)
+        {
+            _selectedLines.Clear();
+            int first = Math.Min(from, to);
+            int last = Math.Max(from, to);
+            for (int i = first; i <= last && i < _document.Lines.Count; i++)
+            {
+                if (GitPartialPatch.IsChange(_document.Lines[i]))
+                {
+                    _selectedLines.Add(i);
+                }
+            }
+        }
+
+        private void ClearSelection()
+        {
+            if (_selectedLines.Count == 0 && _selectionAnchor < 0)
+            {
+                return;
+            }
+            _selectedLines.Clear();
+            _selectionAnchor = -1;
+            _list.RefreshItems();
+        }
+
+        /// <summary>
+        /// 줄 번호 왼쪽의 버튼 칸(GitKraken 의 거터). 안에 + 버튼 하나. 부분 스테이징이 안 되는 diff 에서는 bind 가 칸째 숨긴다.
+        /// </summary>
+        private VisualElement GutterElement()
+        {
+            VisualElement gutter = new();
+            gutter.AddToClassList("diff-row__gutter");
+            gutter.Add(StageButton());
+            return gutter;
+        }
+
+        /// <summary>
+        /// 거터의 + 버튼(GitKraken 의 "Stage this line"). 마우스를 올린 바뀐 줄과 고른 줄에서만 보인다(USS).
+        /// </summary>
+        private Button StageButton()
+        {
+            Button button = new();
+            button.AddToClassList("diff-row__stage");
+            button.clicked += () =>
+            {
+                int index = LineIndexOf(button);
+                if (index < 0)
+                {
+                    return;
+                }
+                // 고른 줄 중 하나를 누르면 고른 줄을 모두, 아니면 그 줄 하나만.
+                ApplyLinesAsync(_selectedLines.Contains(index) ? new List<int>(_selectedLines) : new List<int> { index });
+            };
+            return button;
+        }
+
+        /// <summary>
+        /// 머리 줄 오른쪽의 "hunk 스테이지" 버튼. userData 는 묶음 순번.
+        /// </summary>
+        private Button HunkButton()
+        {
+            Button button = new();
+            button.AddToClassList("diff-row__hunk-button");
+            button.clicked += () =>
+            {
+                int hunkIndex = LineIndexOf(button);
+                if (hunkIndex >= 0 && _document != null)
+                {
+                    ApplyLinesAsync(GitPartialPatch.ChangedLinesOfHunk(_document.Lines, hunkIndex));
+                }
+            };
+            return button;
+        }
+
+        /// <summary>
+        /// 줄 요소의 거터(버튼 칸)·머리 줄 버튼을 이 줄에 맞춘다. 부분 스테이징이 안 되면 거터 칸을 숨겨 자리를 내주지 않고,
+        /// 바뀐 줄이 아니면 버튼만 숨기며, 머리 줄이 아니면 hunk 버튼을 숨긴다.
+        /// </summary>
+        /// <returns>이 줄이 고른 줄인지.</returns>
+        private bool BindStageControls(VisualElement element, VisualElement gutter, Button hunk, GitDiffLine line)
+        {
+            int index = -1;
+            bool canStage = CanPartialStage;
+            bool enabled = canStage && line != null && _lineIndexes.TryGetValue(line, out index);
+            if (enabled == false)
+            {
+                index = -1;
+            }
+            element.userData = index;
+            bool isChange = enabled && GitPartialPatch.IsChange(line);
+            bool selected = isChange && _selectedLines.Contains(index);
+            gutter.style.display = canStage ? DisplayStyle.Flex : DisplayStyle.None;
+            Button stage = (Button)gutter[0];
+            stage.userData = index;
+            // 인라인 visibility 가 USS 의 :hover 규칙보다 세다. 바뀐 줄이면 인라인 값을 지워 USS 가 정하게 둔다.
+            stage.style.visibility = isChange ? StyleKeyword.Null : Visibility.Hidden;
+            stage.EnableInClassList("diff-row__stage--unstage", IsUnstage);
+            stage.text = IsUnstage ? "−" : "+";
+            stage.tooltip = selected && _selectedLines.Count > 1
+                ? GitText.Format(IsUnstage ? "diff.unstageSelectedLines" : "diff.stageSelectedLines", _selectedLines.Count)
+                : GitText.Get(IsUnstage ? "diff.unstageLine" : "diff.stageLine");
+            if (hunk != null)
+            {
+                bool isHunk = enabled && line.Kind == GitDiffLineKind.Hunk;
+                hunk.style.display = isHunk ? DisplayStyle.Flex : DisplayStyle.None;
+                hunk.userData = isHunk ? line.HunkIndex : -1;
+                hunk.text = GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
+                hunk.tooltip = GitText.Get(IsUnstage ? "diff.unstageHunkTooltip" : "diff.stageHunkTooltip");
+            }
+            return selected;
+        }
+
+        /// <summary>
+        /// 고른 줄만 든 패치를 만들어 인덱스에 적용한다(Unstaged 면 올리고, Staged 면 내린다). 실패하면 runner 가 오류 팝업을 띄운다.
+        /// 되돌릴 수 있는 일(다시 Stage·Unstage 하면 된다)이라 묻지 않는다. 끝나면 diff 를 다시 읽어 남은 변경만 보인다.
+        /// </summary>
+        private async void ApplyLinesAsync(ICollection<int> lines)
+        {
+            if (CanPartialStage == false || _runner.IsBusy)
+            {
+                return;
+            }
+            GitDiffTarget target = _target;
+            bool reverse = IsUnstage;
+            string patch = GitPartialPatch.Build(_document.Lines, lines, target.RepoPath, reverse);
+            if (patch == null)
+            {
+                return;
+            }
+            GitDiffOptions options = GitVcsSettings.instance.DiffOptions;
+            // git 이 모르는 파일은 인덱스에 항목이 없어 패치가 붙을 곳이 없다. add -N 으로 빈 항목을 먼저 만든다.
+            string intentToAdd = reverse == false && target.State == GitFileState.Untracked ? target.RepoPath : null;
+            ClearSelection();
+            await _runner.RunAsync(GitText.Get(reverse ? "op.unstageLines" : "op.stageLines"),
+                () => _commands.ApplyPatchToIndexAsync(patch, reverse, options.ContextLines == 0, intentToAdd), refreshAssets: false, workingTreeOnly: true);
+            // 새로고침으로 목록이 바뀌며 뷰가 이미 다시 읽었을 수 있다. 같은 파일을 아직 보고 있으면 한 번 더 맞춘다.
+            if (_target == target)
+            {
+                Reload();
+            }
         }
 
         private static string DescribeRevisions(GitDiffTarget target)
@@ -707,12 +973,15 @@ namespace GitVersionControl
         {
             VisualElement row = new();
             row.AddToClassList("diff-row");
+            row.Add(GutterElement());
             row.Add(NumberLabel());
             row.Add(NumberLabel());
             Label sign = new();
             sign.AddToClassList("diff-row__sign");
             row.Add(sign);
             row.Add(CodeElement());
+            row.Add(HunkButton());
+            RegisterSelection(row);
             return row;
         }
 
@@ -720,17 +989,18 @@ namespace GitVersionControl
         {
             GitDiffLine line = _rows[index].Left;
             SetKindClasses(row, "diff-row", line);
-            ApplyNumberColumn(row[0], _showOldNumbers);
-            ApplyNumberColumn(row[1], _showNewNumbers);
-            ((Label)row[0]).text = line.OldNumber > 0 ? line.OldNumber.ToString() : string.Empty;
-            ((Label)row[1]).text = line.NewNumber > 0 ? line.NewNumber.ToString() : string.Empty;
-            ((Label)row[2]).text = line.Kind switch
+            row.EnableInClassList("diff-row--selected", BindStageControls(row, row[0], (Button)row[5], line));
+            ApplyNumberColumn(row[1], _showOldNumbers);
+            ApplyNumberColumn(row[2], _showNewNumbers);
+            ((Label)row[1]).text = line.OldNumber > 0 ? line.OldNumber.ToString() : string.Empty;
+            ((Label)row[2]).text = line.NewNumber > 0 ? line.NewNumber.ToString() : string.Empty;
+            ((Label)row[3]).text = line.Kind switch
             {
                 GitDiffLineKind.Added => "+",
                 GitDiffLineKind.Removed => "−",
                 _ => string.Empty,
             };
-            BindCode(row[3], line);
+            BindCode(row[4], line);
         }
 
         // ── 나란히 보기 ───────────────────────────
@@ -741,6 +1011,7 @@ namespace GitVersionControl
             row.AddToClassList("diff-row");
             row.Add(SideElement("diff-side--left"));
             row.Add(SideElement("diff-side--right"));
+            row.Add(HunkButton());
             return row;
         }
 
@@ -749,34 +1020,39 @@ namespace GitVersionControl
             VisualElement side = new();
             side.AddToClassList("diff-side");
             side.AddToClassList(modifier);
+            side.Add(GutterElement());
             side.Add(NumberLabel());
             Label sign = new();
             sign.AddToClassList("diff-row__sign");
             side.Add(sign);
             side.Add(CodeElement());
+            RegisterSelection(side);
             return side;
         }
 
         private void BindSplitRow(VisualElement row, int index)
         {
             GitDiffRow diffRow = _rows[index];
-            BindSide(row[0], diffRow.Left, isLeft: true);
-            BindSide(row[1], diffRow.Right, isLeft: false);
+            // 머리 줄은 양쪽에 같은 줄이 들어가므로 hunk 버튼은 줄 하나에 하나만(오른쪽 끝) 둔다. 고른 표시는 줄 전체에 한다 — 한쪽을 골라도 짝이 같이 올라간다.
+            bool leftSelected = BindSide(row[0], diffRow.Left, isLeft: true, hunk: (Button)row[2]);
+            bool rightSelected = BindSide(row[1], diffRow.Right, isLeft: false, hunk: null);
+            row.EnableInClassList("diff-row--selected", leftSelected || rightSelected);
         }
 
-        private void BindSide(VisualElement side, GitDiffLine line, bool isLeft)
+        private bool BindSide(VisualElement side, GitDiffLine line, bool isLeft, Button hunk)
         {
             side.EnableInClassList("diff-side--empty", line == null);
             SetKindClasses(side, "diff-side", line);
-            Label number = (Label)side[0];
-            Label sign = (Label)side[1];
+            bool selected = BindStageControls(side, side[0], hunk, line);
+            Label number = (Label)side[1];
+            Label sign = (Label)side[2];
             ApplyNumberColumn(number, true);
             if (line == null)
             {
                 number.text = string.Empty;
                 sign.text = string.Empty;
-                BindCode(side[2], null);
-                return;
+                BindCode(side[3], null);
+                return false;
             }
             int lineNumber = isLeft ? line.OldNumber : line.NewNumber;
             number.text = lineNumber > 0 ? lineNumber.ToString() : string.Empty;
@@ -786,7 +1062,8 @@ namespace GitVersionControl
                 GitDiffLineKind.Removed => "−",
                 _ => string.Empty,
             };
-            BindCode(side[2], line);
+            BindCode(side[3], line);
+            return selected;
         }
 
         // ── 공용 ─────────────────────────────────
