@@ -269,6 +269,8 @@ namespace GitVersionControl
         /// <summary>탭 목록. 새 탭은 여기 한 줄 추가로 끝난다.</summary>
         private void CreateViews(VisualElement content, VisualElement sidebar)
         {
+            // 파일 히스토리는 GitKraken 레이아웃에서만 창 안(Graph 탭 가운데)에 크게 보이고, 나머지 레이아웃은 따로 뜨는 창이다.
+            _services.FileHistory = null;
             switch (GitLayout.Style)
             {
                 case GitLayoutStyle.Fork:
@@ -278,6 +280,7 @@ namespace GitVersionControl
                     GraphWorkspaceView graph = new(_services, _state.Staging, this);
                     // GitKraken 처럼 파일 diff 를 여는 동안 왼쪽 사이드바를 아이콘 줄로 접고, × 로 닫으면 다시 편다.
                     graph.DiffShownChanged += SetSidebarCollapsed;
+                    _services.FileHistory = graph;
                     AddView(graph, content, sidebar);
                     break;
                 default:

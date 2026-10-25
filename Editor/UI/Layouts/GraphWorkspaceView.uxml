@@ -29,5 +29,8 @@
                 <ui:VisualElement name="detail-host" class="graph-workspace__fill graph-workspace__detail" />
             </ui:VisualElement>
         </ui:TwoPaneSplitView>
+
+        <!-- GitKraken 의 File History: 열면 위의 그래프·작업 패널을 통째로 덮는다(FileHistoryPanel). -->
+        <ui:VisualElement name="history-host" class="graph-workspace__fill" />
     </ui:VisualElement>
 </ui:UXML>

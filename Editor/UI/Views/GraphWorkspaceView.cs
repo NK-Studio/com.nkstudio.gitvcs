@@ -11,7 +11,7 @@ namespace GitVersionControl
     /// 가운데: 세로 커밋 그래프(<see cref="CommitGraphList"/>). 오른쪽 파일을 고르면 그 자리에 diff 가 열리고 × 로 그래프로 돌아온다.
     /// 오른쪽: 맨 위 "작업 중" 줄을 고르면 Unstaged·Staged·커밋(푸시) 패널, 커밋 줄을 고르면 그 커밋의 메시지·바뀐 파일.
     /// </summary>
-    public sealed class GraphWorkspaceView : GitView, ICommitRevealer
+    public sealed class GraphWorkspaceView : GitView, ICommitRevealer, IFileHistoryPresenter
     {
         /// <summary>
         /// 한 번에 읽을 커밋 수. 세로 목록은 가상화라 그리기 부담은 적고, git log·그래프 배치(작업 스레드)가 커밋 수에 비례한다.
@@ -41,6 +41,14 @@ namespace GitVersionControl
         private string _loadedKey;
         private bool _isLoading;
         private bool _isDiffShown;
+
+        /// <summary>
+        /// 그래프·작업 패널(가운데 split)과 그것을 통째로 덮는 파일 히스토리(GitKraken 의 File History).
+        /// </summary>
+        private readonly VisualElement _split;
+        private readonly VisualElement _historyHost;
+        private readonly FileHistoryPanel _history;
+        private bool _isHistoryShown;
 
         /// <summary>
         /// 그래프를 다 읽기 전에 보여 달라고 한 커밋. 읽은 뒤 고른다.
@@ -113,8 +121,63 @@ namespace GitVersionControl
             _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
             _diff.CloseRequested += CloseDiff;
 
+            // 파일 히스토리는 따로 창을 띄우지 않고 가운데를 덮어 크게 보인다. diff 막대의 "히스토리" 도 여기로 온다.
+            _split = Root.Require<VisualElement>("split");
+            _historyHost = Root.Require<VisualElement>("history-host");
+            _history = new FileHistoryPanel(services);
+            _history.Root.style.flexGrow = 1;
+            _history.CloseRequested += CloseFileHistory;
+            _historyHost.Add(_history.Root);
+            _historyHost.SetVisible(false);
+            _diff.FileHistoryPresenter = TryShowFileHistory;
+            _history.Diff.FileHistoryPresenter = TryShowFileHistory;
+
             ShowDiff(null);
             ShowWip();
+        }
+
+        /// <summary>
+        /// 파일 히스토리를 가운데에 크게 연다(GitKraken 의 File History). 다른 탭에서 불렀으면 Graph 탭으로 옮겨 연다.
+        /// 여는 동안은 diff 처럼 왼쪽 사이드바를 아이콘 줄로 접는다.
+        /// </summary>
+        public bool TryShowFileHistory(string repoPath)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+            {
+                return false;
+            }
+            if (IsActive == false)
+            {
+                _navigator?.SelectTab<GraphWorkspaceView>();
+            }
+            bool wasCollapsed = _isDiffShown || _isHistoryShown;
+            _isHistoryShown = true;
+            _split.SetVisible(false);
+            _historyHost.SetVisible(true);
+            _history.Show(repoPath);
+            if (wasCollapsed == false)
+            {
+                DiffShownChanged?.Invoke(true);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 파일 히스토리를 닫고 그래프로 돌아온다(× 또는 Esc). 가운데에 diff 가 열려 있었으면 그 diff 로 돌아온다.
+        /// </summary>
+        public void CloseFileHistory()
+        {
+            if (_isHistoryShown == false)
+            {
+                return;
+            }
+            _isHistoryShown = false;
+            _historyHost.SetVisible(false);
+            _split.SetVisible(true);
+            if (_isDiffShown == false)
+            {
+                DiffShownChanged?.Invoke(false);
+            }
         }
 
         protected override void OnActivated()
@@ -305,6 +368,7 @@ namespace GitVersionControl
         /// </summary>
         public void CloseDiff()
         {
+            CloseFileHistory();
             _staging.ClearSelection();
             _detail.ClearFileSelection();
             ShowDiff(null);
@@ -324,8 +388,9 @@ namespace GitVersionControl
                 _diff.SetTarget(target);
                 DiffShownChanged?.Invoke(true);
             }
-            else if (wasShown)
+            else if (wasShown && _isHistoryShown == false)
             {
+                // 히스토리가 덮고 있는 동안은 사이드바를 접어 둔 채로 둔다(히스토리를 닫을 때 편다).
                 DiffShownChanged?.Invoke(false);
             }
         }

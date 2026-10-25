@@ -30,6 +30,24 @@ namespace GitVersionControl
         /// </summary>
         public UnityEngine.UIElements.VisualElement PopupHost { get; set; }
 
+        /// <summary>
+        /// GitKraken 레이아웃에서 파일 히스토리를 Git 창 가운데에 크게 띄우는 곳. 창이 Graph 탭을 만들 때 넣는다.
+        /// null 이면(Fork·Unity VCS 레이아웃, Git 창 밖) 따로 뜨는 히스토리 창을 쓴다.
+        /// </summary>
+        public IFileHistoryPresenter FileHistory { get; set; }
+
+        /// <summary>
+        /// 파일 히스토리를 연다. GitKraken 레이아웃이면 창 안에 크게, 아니면 따로 뜨는 창으로.
+        /// </summary>
+        public void OpenFileHistory(string repoPath)
+        {
+            if (FileHistory != null && FileHistory.TryShowFileHistory(repoPath))
+            {
+                return;
+            }
+            GitFileHistoryWindow.Open(repoPath, this);
+        }
+
         public GitServices(IGitRepositoryState repository, IGitHistoryService history, IGitCommandService commands,
             IGitOperationRunner runner, IDialogService dialogs, IAssetNavigator assets, IFileIconProvider icons, FileViewPreference fileView, IAvatarProvider avatars, IGitDiffService diff)
         {
@@ -86,6 +104,15 @@ namespace GitVersionControl
         /// <param name="revealGraph">true 면 Graph 탭을 열어서 받는다(도구 막대·사이드바). false 면 Graph 탭을 보고 있을 때만 받는다(탭 안 우클릭 메뉴).</param>
         /// <returns>그래프에서 이름을 받기 시작했으면 true. false 면 부른 쪽이 대화상자로 묻는다.</returns>
         bool TryBeginCreateBranch(string startPoint, bool revealGraph);
+    }
+
+    /// <summary>
+    /// 파일 히스토리를 창 안에 보이는 곳(GitKraken 레이아웃의 Graph 탭).
+    /// </summary>
+    public interface IFileHistoryPresenter
+    {
+        /// <returns>창 안에 띄웠으면 true. false 면 부른 쪽이 따로 뜨는 창을 연다.</returns>
+        bool TryShowFileHistory(string repoPath);
     }
 
     /// <summary>

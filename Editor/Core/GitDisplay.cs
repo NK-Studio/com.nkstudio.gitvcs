@@ -57,6 +57,40 @@ namespace GitVersionControl
             return date == DateTime.MinValue ? string.Empty : date.ToString("yyyy-MM-dd HH:mm");
         }
 
+        /// <summary>
+        /// GitKraken 의 "한 시간 전" 같은 상대 시간. 1분 안은 "방금", 그다음 분·시간·일·달·년 중 가장 큰 단위 하나만.
+        /// 달은 30일, 해는 365일로 센다(정확한 날짜는 옆의 툴팁이 맡는다). 미래 시각(시계 차이)은 "방금" 으로 본다.
+        /// </summary>
+        public static string RelativeTime(DateTime date, DateTime now)
+        {
+            if (date == DateTime.MinValue)
+            {
+                return string.Empty;
+            }
+            TimeSpan age = now - date;
+            if (age.TotalMinutes < 1)
+            {
+                return GitText.Get("time.justNow");
+            }
+            if (age.TotalHours < 1)
+            {
+                return GitText.Format("time.minutesAgo", (int)age.TotalMinutes);
+            }
+            if (age.TotalDays < 1)
+            {
+                return GitText.Format("time.hoursAgo", (int)age.TotalHours);
+            }
+            if (age.TotalDays < 30)
+            {
+                return GitText.Format("time.daysAgo", (int)age.TotalDays);
+            }
+            if (age.TotalDays < 365)
+            {
+                return GitText.Format("time.monthsAgo", (int)(age.TotalDays / 30));
+            }
+            return GitText.Format("time.yearsAgo", (int)(age.TotalDays / 365));
+        }
+
         public static string StateLetter(GitFileState state)
         {
             switch (state)

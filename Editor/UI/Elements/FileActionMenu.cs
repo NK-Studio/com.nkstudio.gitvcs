@@ -104,7 +104,7 @@ namespace GitVersionControl
             bool exists = entry.State != GitFileState.Deleted && File.Exists(FullPath(entry.RepoPath));
             bool hasHistory = entry.State != GitFileState.Untracked && entry.State != GitFileState.Added;
 
-            menu.AppendAction(GitText.Get("menu.fileHistory"), _ => GitFileHistoryWindow.Open(entry.RepoPath, _services), StatusOf(hasHistory));
+            menu.AppendAction(GitText.Get("menu.fileHistory"), _ => _services.OpenFileHistory(entry.RepoPath), StatusOf(hasHistory));
             menu.AppendAction(GitText.Get("menu.fileBlame"), _ => GitBlameWindow.Open(entry.RepoPath), StatusOf(hasHistory && exists));
             menu.AppendSeparator();
 

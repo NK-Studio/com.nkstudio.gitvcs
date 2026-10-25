@@ -813,12 +813,22 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// diff 막대의 "히스토리" 를 창 안에 보일 곳(GitKraken 레이아웃). true 를 돌려주면 따로 창을 띄우지 않는다. null 이면 늘 창으로.
+        /// </summary>
+        public Func<string, bool> FileHistoryPresenter { get; set; }
+
         private void OpenHistory()
         {
-            if (_target != null)
+            if (_target == null)
             {
-                GitFileHistoryWindow.Open(_target.RepoPath, _service);
+                return;
             }
+            if (FileHistoryPresenter != null && FileHistoryPresenter(_target.RepoPath))
+            {
+                return;
+            }
+            GitFileHistoryWindow.Open(_target.RepoPath, _service);
         }
 
         private void SetFileView(bool fileView)
