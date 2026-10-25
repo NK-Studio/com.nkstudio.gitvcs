@@ -81,6 +81,7 @@
     --git-diff-added-sign: #73bd79;
     --git-diff-removed-sign: #f75464;
     --git-diff-split-border: #26282c;
+    --git-diff-text-selection: rgba(33,66,131,0.95);
 }
 
 /* 양쪽 사이드 패널(왼쪽 사이드바, 오른쪽 작업 패널)은 가운데보다 한 단계 밝은 바탕. 안쪽 목록·머리 줄·입력 칸도 같은 바탕을 쓰고, 호버·눌림은 한 단계씩 올린다. */

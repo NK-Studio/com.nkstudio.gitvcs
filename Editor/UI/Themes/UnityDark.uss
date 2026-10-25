@@ -89,4 +89,5 @@
     --git-diff-added-sign: #3fb950;
     --git-diff-removed-sign: #f85149;
     --git-diff-split-border: rgba(255,255,255,0.08);
+    --git-diff-text-selection: rgba(38,110,210,0.55);
 }

@@ -104,6 +104,11 @@ namespace GitVersionControl
         /// 지금 목록이 긴 줄 접기(가변 높이) 모양인지. 바뀔 때만 줄 요소를 새로 만든다.
         /// </summary>
         private bool? _shownWrap;
+
+        /// <summary>
+        /// 지금 목록이 파일 보기인지. 바뀌면 줄 목록이 달라지므로 고른 글을 비운다.
+        /// </summary>
+        private bool? _shownFileView;
         private bool _wrap;
         private bool _showWhitespace;
 
@@ -146,6 +151,34 @@ namespace GitVersionControl
         /// 줄 → 줄 목록 인덱스. 나란히 보기의 줄 요소는 줄만 알고 목록 인덱스는 모른다.
         /// </summary>
         private readonly Dictionary<GitDiffLine, int> _lineIndexes = new();
+
+        // ── 코드 글 고르기·복사(편집기·GitKraken 처럼 끌어 고르고 Ctrl+C) ──
+
+        /// <summary>
+        /// 고른 글의 시작점(닻)과 끝점. 줄은 목록(<see cref="_rows"/>) 인덱스, 위치는 원래 줄 글(<see cref="GitDiffLine.Text"/>, 탭 그대로)의 글자 위치.
+        /// 줄 요소는 스크롤하면 다른 줄에 다시 쓰이므로 고른 범위는 요소가 아니라 여기에 둔다. 닻 줄이 -1 이면 고른 글이 없다.
+        /// </summary>
+        private int _textAnchorRow = -1;
+        private int _textAnchorOffset;
+        private int _textFocusRow = -1;
+        private int _textFocusOffset;
+
+        /// <summary>
+        /// 나란히 보기에서 글을 고르는 쪽(true = 오른쪽·새 판). 한 번에 한쪽만 고른다. 통합·파일 보기는 양쪽이 같은 줄이라 늘 false.
+        /// </summary>
+        private bool _textRight;
+        private bool _textDragging;
+
+        /// <summary>
+        /// 고른 글 배경. 테마 토큰(<c>--git-diff-text-selection</c>)을 GitDiff.uss 가 <c>--diff-text-selection</c> 으로 넘긴다. 리치 텍스트 &lt;mark&gt; 로 칠한다.
+        /// </summary>
+        private Color _textSelectionColor = new(0.22f, 0.47f, 0.82f, 0.45f);
+        private static readonly CustomStyleProperty<Color> TextSelectionProperty = new("--diff-text-selection");
+
+        /// <summary>
+        /// 화면에서 탭 하나가 차지하는 글자 수(<see cref="ExpandTabs"/>·공백 보이기의 "→   " 와 같다).
+        /// </summary>
+        private const int TabDisplayWidth = 4;
 
         /// <summary>
         /// 닫기(×)를 눌렀을 때. <see cref="ShowCloseButton"/> 로 버튼을 켠 곳(GitKraken 레이아웃의 가운데)만 쓴다.
@@ -238,7 +271,17 @@ namespace GitVersionControl
             // 줄 끌어 고르기는 줄 요소의 PointerDown·PointerEnter 로 하고, 버튼을 떼거나 목록 밖으로 나가면 끝낸다.
             _list.RegisterCallback<PointerUpEvent>(_ => _dragSelecting = false, TrickleDown.TrickleDown);
             _list.RegisterCallback<PointerLeaveEvent>(_ => _dragSelecting = false);
+            // 코드 글 고르기: 누르기는 코드 칸(CodeElement)이 받고, 끌기·떼기는 포인터를 잡은 목록이 받는다(줄 요소는 스크롤하면 바뀐다).
+            _list.focusable = true;
+            _list.RegisterCallback<PointerMoveEvent>(OnTextPointerMove);
+            _list.RegisterCallback<PointerUpEvent>(OnTextPointerUp);
+            _list.RegisterCallback<PointerCaptureOutEvent>(_ => _textDragging = false);
+            _list.RegisterCallback<KeyDownEvent>(OnTextKeyDown, TrickleDown.TrickleDown);
+            _list.RegisterCallback<ValidateCommandEvent>(OnValidateTextCommand);
+            _list.RegisterCallback<ExecuteCommandEvent>(OnExecuteTextCommand);
+            _list.AddManipulator(new ContextualMenuManipulator(OnTextContextMenu));
             Root.Add(_list);
+            Root.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
 
             // 이미지 파일이면 줄 목록 대신 이 뷰가 보인다.
             _imageView = new GitImageDiffView();
@@ -917,6 +960,13 @@ namespace GitVersionControl
             Root.EnableInClassList("git-diff--file-view", fileView);
             UpdateBar();
 
+            // 보기(통합·나란히·파일)가 바뀌면 줄 목록이 달라져 고른 글의 줄 인덱스가 뜻을 잃는다.
+            if (_shownSplit != isSplit || _shownFileView != fileView)
+            {
+                ResetTextSelection();
+            }
+            _shownFileView = fileView;
+
             // 줄 모양(통합·나란히, 고정·가변 높이)이 바뀔 때만 줄 요소를 새로 만든다. 같은 모양이면 보이는 줄만 다시 채워(RefreshItems)
             // 다른 파일을 고를 때마다 목록 전체가 지워졌다 다시 그려지며 깜빡이지 않게 한다.
             bool rebuild = _shownSplit != isSplit || _shownWrap != _wrap;
@@ -1161,12 +1211,14 @@ namespace GitVersionControl
             _selectionAnchor = -1;
             _dragSelecting = false;
             _lastJumpRow = -1;
+            ResetTextSelection();
         }
 
         // ── 부분 스테이징 ───────────────────────────
 
         /// <summary>
         /// 줄 요소에 끌기·Shift+클릭 고르기를 단다. 요소의 userData 는 그 줄의 목록 인덱스(없으면 -1)로 bind 때 넣는다.
+        /// GitKraken 처럼 줄 고르기는 거터·줄 번호 쪽에서 시작한다 — 코드 칸을 누르면 코드 칸이 이벤트를 막고 글 고르기를 한다(<see cref="OnCodePointerDown"/>).
         /// </summary>
         private void RegisterSelection(VisualElement element)
         {
@@ -1182,7 +1234,13 @@ namespace GitVersionControl
         private void OnRowPointerDown(VisualElement element, PointerDownEvent evt)
         {
             // 버튼 자체를 누른 것은 버튼이 처리한다. 오른쪽 버튼은 메뉴 몫.
-            if (evt.button != 0 || CanPartialStage == false || evt.target is Button)
+            if (evt.button != 0 || evt.target is Button)
+            {
+                return;
+            }
+            // 줄 번호 쪽을 누르면 고른 글은 푼다(두 가지가 한꺼번에 칠해지면 무엇을 올리는지 헷갈린다).
+            ClearTextSelection();
+            if (CanPartialStage == false)
             {
                 return;
             }
@@ -1572,6 +1630,539 @@ namespace GitVersionControl
             return starts;
         }
 
+        // ── 코드 글 고르기·복사 ────────────────────
+
+        private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
+        {
+            if (evt.customStyle.TryGetValue(TextSelectionProperty, out Color color))
+            {
+                _textSelectionColor = color;
+                RefreshTextSelection();
+            }
+        }
+
+        private bool HasTextSelection => _textAnchorRow >= 0 && (_textAnchorRow != _textFocusRow || _textAnchorOffset != _textFocusOffset);
+
+        /// <summary>
+        /// 고른 글을 다시 그리지 않고 비운다(곧 목록을 다시 채울 때).
+        /// </summary>
+        private void ResetTextSelection()
+        {
+            _textAnchorRow = -1;
+            _textFocusRow = -1;
+            _textAnchorOffset = 0;
+            _textFocusOffset = 0;
+            _textDragging = false;
+        }
+
+        private void ClearTextSelection()
+        {
+            if (_textAnchorRow < 0)
+            {
+                return;
+            }
+            bool hadSelection = HasTextSelection;
+            ResetTextSelection();
+            if (hadSelection)
+            {
+                RefreshTextSelection();
+            }
+        }
+
+        /// <summary>
+        /// 닻·끝점을 앞뒤 순서로 맞춘 고른 범위.
+        /// </summary>
+        private (int startRow, int startOffset, int endRow, int endOffset) TextRange()
+        {
+            bool anchorFirst = _textAnchorRow < _textFocusRow || (_textAnchorRow == _textFocusRow && _textAnchorOffset <= _textFocusOffset);
+            return anchorFirst
+                ? (_textAnchorRow, _textAnchorOffset, _textFocusRow, _textFocusOffset)
+                : (_textFocusRow, _textFocusOffset, _textAnchorRow, _textAnchorOffset);
+        }
+
+        /// <summary>
+        /// 목록 줄 <paramref name="row"/> 의 한쪽에서 고른 글 범위. 고른 글이 없으면 시작이 -1.
+        /// </summary>
+        /// <returns>시작·끝(원래 줄 글의 위치)과, 고른 범위가 다음 줄로 이어지는지.</returns>
+        private (int start, int end, bool selectsLineEnd) TextSelectionIn(int row, bool isRight, int length)
+        {
+            if (HasTextSelection == false || isRight != _textRight)
+            {
+                return (-1, -1, false);
+            }
+            (int startRow, int startOffset, int endRow, int endOffset) = TextRange();
+            if (row < startRow || row > endRow)
+            {
+                return (-1, -1, false);
+            }
+            int start = row == startRow ? Math.Min(startOffset, length) : 0;
+            int end = row == endRow ? Math.Min(endOffset, length) : length;
+            return (start, end, row < endRow);
+        }
+
+        /// <summary>
+        /// 나란히 보기의 오른쪽(새 판) 코드 칸인지.
+        /// </summary>
+        private static bool IsRightCode(VisualElement code)
+        {
+            return code.parent != null && code.parent.ClassListContains("diff-side--right");
+        }
+
+        private static int RowOf(VisualElement code)
+        {
+            return code.userData is int row ? row : -1;
+        }
+
+        /// <summary>
+        /// 글을 고르는 쪽(<see cref="_textRight"/>)의 줄. 나란히 보기에서 그쪽이 빈 줄이면 null.
+        /// </summary>
+        private GitDiffLine TextLineAt(int row)
+        {
+            if (row < 0 || row >= _rows.Count)
+            {
+                return null;
+            }
+            return _textRight ? _rows[row].Right : _rows[row].Left;
+        }
+
+        /// <summary>
+        /// 코드 칸을 눌렀을 때: 글 고르기를 시작한다(두 번 누르면 낱말, 세 번이면 줄, Shift 면 고른 범위를 늘린다).
+        /// 줄 요소의 줄 고르기(<see cref="OnRowPointerDown"/>)로 넘어가지 않게 막는다 — 줄 고르기는 거터·줄 번호 쪽에서 한다.
+        /// </summary>
+        private void OnCodePointerDown(VisualElement code, PointerDownEvent evt)
+        {
+            if (evt.button != 0)
+            {
+                return;
+            }
+            int row = RowOf(code);
+            if (row < 0 || row >= _rows.Count)
+            {
+                return;
+            }
+            evt.StopPropagation();
+            // 줄 고르기(부분 스테이징)는 푼다. 글 고르기와 함께 칠해지면 헷갈린다.
+            ClearSelection();
+            bool isRight = IsRightCode(code);
+            bool extend = evt.shiftKey && _textAnchorRow >= 0 && isRight == _textRight;
+            _textRight = isRight;
+            GitDiffLine line = TextLineAt(row);
+            int offset = OffsetAt(code, line, evt.position);
+            if (extend)
+            {
+                _textFocusRow = row;
+                _textFocusOffset = offset;
+            }
+            else if (evt.clickCount == 2 && line != null)
+            {
+                (int start, int end) = WordAt(line.Text ?? string.Empty, offset);
+                SetTextSelection(row, start, row, end);
+            }
+            else if (evt.clickCount >= 3)
+            {
+                // 줄 전체와 줄바꿈까지(편집기와 같다). 마지막 줄이면 줄 끝까지.
+                bool hasNext = row + 1 < _rows.Count;
+                SetTextSelection(row, 0, hasNext ? row + 1 : row, hasNext ? 0 : (line?.Text ?? string.Empty).Length);
+            }
+            else
+            {
+                SetTextSelection(row, offset, row, offset);
+            }
+            _textDragging = evt.clickCount == 1;
+            if (_textDragging)
+            {
+                _list.CapturePointer(evt.pointerId);
+            }
+            _list.Focus();
+            RefreshTextSelection();
+        }
+
+        private void SetTextSelection(int anchorRow, int anchorOffset, int focusRow, int focusOffset)
+        {
+            _textAnchorRow = anchorRow;
+            _textAnchorOffset = anchorOffset;
+            _textFocusRow = focusRow;
+            _textFocusOffset = focusOffset;
+        }
+
+        private void OnTextPointerMove(PointerMoveEvent evt)
+        {
+            if (_textDragging == false)
+            {
+                return;
+            }
+            // 창이 포커스를 잃는 사이 버튼 떼기를 놓쳤으면(왼쪽 버튼이 눌려 있지 않으면) 끌기를 끝낸다.
+            if ((evt.pressedButtons & 1) == 0)
+            {
+                _textDragging = false;
+                if (_list.HasPointerCapture(evt.pointerId))
+                {
+                    _list.ReleasePointer(evt.pointerId);
+                }
+                return;
+            }
+            VisualElement code = CodeAt(evt.position);
+            if (code == null)
+            {
+                return;
+            }
+            int row = RowOf(code);
+            if (row < 0 || row >= _rows.Count)
+            {
+                return;
+            }
+            int offset = OffsetAt(code, TextLineAt(row), evt.position);
+            if (row == _textFocusRow && offset == _textFocusOffset)
+            {
+                return;
+            }
+            _textFocusRow = row;
+            _textFocusOffset = offset;
+            RefreshTextSelection();
+        }
+
+        private void OnTextPointerUp(PointerUpEvent evt)
+        {
+            if (_textDragging == false)
+            {
+                return;
+            }
+            _textDragging = false;
+            if (_list.HasPointerCapture(evt.pointerId))
+            {
+                _list.ReleasePointer(evt.pointerId);
+            }
+        }
+
+        /// <summary>
+        /// 화면 위치의 줄에서 글을 고르는 쪽의 코드 칸. 목록 밖(위·아래)으로 끌면 목록을 그만큼 굴리고 맨 위·아래 줄을 쓴다.
+        /// 나란히 보기에서 다른 쪽으로 넘어가도 처음 고른 쪽의 코드 칸을 돌려준다(위치는 그 칸 끝으로 붙는다).
+        /// </summary>
+        private VisualElement CodeAt(Vector2 position)
+        {
+            ScrollView scroll = _list.Q<ScrollView>();
+            if (scroll == null || _list.panel == null)
+            {
+                return null;
+            }
+            Rect view = scroll.contentViewport.worldBound;
+            if (position.y < view.yMin)
+            {
+                scroll.scrollOffset -= new Vector2(0, view.yMin - position.y);
+            }
+            else if (position.y > view.yMax)
+            {
+                scroll.scrollOffset += new Vector2(0, position.y - view.yMax);
+            }
+            Vector2 inside = new(Mathf.Clamp(position.x, view.xMin + 1, view.xMax - 1), Mathf.Clamp(position.y, view.yMin + 1, view.yMax - 1));
+            VisualElement row = _list.panel.Pick(inside);
+            while (row != null && row != _list && row.ClassListContains("diff-row") == false)
+            {
+                row = row.parent;
+            }
+            if (row == null || row == _list)
+            {
+                return null;
+            }
+            // 통합 보기: 거터·옛 번호·새 번호·부호·코드. 나란히 보기: 왼쪽·오른쪽(각각 거터·번호·부호·코드).
+            return _shownSplit == true ? row[_textRight ? 1 : 0][3] : row[4];
+        }
+
+        /// <summary>
+        /// 화면 위치에 가장 가까운 글자 경계(원래 줄 글의 위치). 코드 칸 왼쪽이면 0, 글 끝 너머면 줄 길이.
+        /// 글자 자리는 TextCore 가 그린 그대로 묻는다(<see cref="ITextSelection.GetCursorPositionFromStringIndex"/>) — 한글처럼 폭이 다른 글자·접은 줄도 맞는다.
+        /// </summary>
+        private int OffsetAt(VisualElement code, GitDiffLine line, Vector2 position)
+        {
+            if (line == null)
+            {
+                return 0;
+            }
+            string raw = line.Text ?? string.Empty;
+            // 위치가 든 조각: 오른쪽 끝이 위치보다 오른쪽인 첫 조각(없으면 마지막 조각).
+            int part = -1;
+            for (int i = 0; i < 3; i++)
+            {
+                (int from, int to) = PartRange(line, i);
+                if (to <= from)
+                {
+                    continue;
+                }
+                part = i;
+                if (position.x < code[i].worldBound.xMax)
+                {
+                    break;
+                }
+            }
+            if (part < 0)
+            {
+                return 0;
+            }
+            (int partStart, int partEnd) = PartRange(line, part);
+            Label label = (Label)code[part];
+            int display = DisplayIndexAt(label, label.WorldToLocal(position), DisplayLength(raw, partStart, partEnd));
+            return RawOffset(raw, partStart, partEnd, display);
+        }
+
+        /// <summary>
+        /// 라벨 안 위치에 가장 가까운 글자 경계(화면 글자 순번, 태그는 세지 않는다). 경계의 자리는 글자 순서대로 줄(y)·x 가 커지므로 둘로 나눠 찾는다.
+        /// 커서 자리의 y 는 그 줄의 아래 끝이다.
+        /// </summary>
+        private static int DisplayIndexAt(Label label, Vector2 local, int count)
+        {
+            ITextSelection selection = label.selection;
+            // 위치가 든 줄: 아래 끝이 위치보다 아래인 첫 경계의 줄(없으면 마지막 줄).
+            int probe = LowerBound(0, count, i => selection.GetCursorPositionFromStringIndex(i).y >= local.y);
+            float lineY = selection.GetCursorPositionFromStringIndex(Math.Min(probe, count)).y;
+            int lineStart = LowerBound(0, count, i => selection.GetCursorPositionFromStringIndex(i).y >= lineY - 0.5f);
+            int lineEnd = LowerBound(lineStart, count, i => selection.GetCursorPositionFromStringIndex(i).y > lineY + 0.5f) - 1;
+            lineEnd = Math.Max(lineStart, Math.Min(lineEnd, count));
+            // 그 줄에서 x 가 위치 이상인 첫 경계와 바로 앞 경계 중 가까운 쪽.
+            int index = LowerBound(lineStart, lineEnd, i =>selection.GetCursorPositionFromStringIndex(i).x >= local.x);
+            if (index > lineEnd)
+            {
+                return lineEnd;
+            }
+            if (index > lineStart)
+            {
+                float right = selection.GetCursorPositionFromStringIndex(index).x - local.x;
+                float left = local.x - selection.GetCursorPositionFromStringIndex(index - 1).x;
+                if (left < right)
+                {
+                    return index - 1;
+                }
+            }
+            return index;
+        }
+
+        /// <summary>
+        /// [from, to] 에서 <paramref name="predicate"/> 가 참인 첫 값. 모두 거짓이면 to + 1. 술어는 앞쪽이 거짓, 뒤쪽이 참이어야 한다.
+        /// </summary>
+        private static int LowerBound(int from, int to, Func<int, bool> predicate)
+        {
+            int low = from;
+            int high = to + 1;
+            while (low < high)
+            {
+                int middle = low + (high - low) / 2;
+                if (predicate(middle))
+                {
+                    high = middle;
+                }
+                else
+                {
+                    low = middle + 1;
+                }
+            }
+            return low;
+        }
+
+        /// <summary>
+        /// 원래 줄 글 [from, to) 가 화면에서 차지하는 글자 수. 탭만 <see cref="TabDisplayWidth"/> 칸이다(공백 보이기의 · 도 한 칸).
+        /// </summary>
+        private static int DisplayLength(string raw, int from, int to)
+        {
+            int length = 0;
+            for (int i = from; i < to; i++)
+            {
+                length += raw[i] == '\t' ? TabDisplayWidth : 1;
+            }
+            return length;
+        }
+
+        /// <summary>
+        /// 화면 글자 순번을 원래 줄 글의 위치로 바꾼다. 탭 가운데를 누르면 가까운 쪽 끝으로 붙는다.
+        /// </summary>
+        private static int RawOffset(string raw, int from, int to, int display)
+        {
+            int column = 0;
+            for (int i = from; i < to; i++)
+            {
+                int width = raw[i] == '\t' ? TabDisplayWidth : 1;
+                if (display < column + (width + 1) / 2)
+                {
+                    return i;
+                }
+                column += width;
+            }
+            return to;
+        }
+
+        /// <summary>
+        /// 두 번 눌러 고를 낱말: 위치의 글자와 같은 갈래(낱말 글자·공백·그 밖의 기호 하나)로 이어진 범위.
+        /// </summary>
+        private static (int start, int end) WordAt(string text, int offset)
+        {
+            if (text.Length == 0)
+            {
+                return (0, 0);
+            }
+            int at = Math.Min(offset, text.Length - 1);
+            int kind = CharKind(text[at]);
+            if (kind == 2)
+            {
+                return (at, at + 1);
+            }
+            int start = at;
+            int end = at + 1;
+            while (start > 0 && CharKind(text[start - 1]) == kind)
+            {
+                start--;
+            }
+            while (end < text.Length && CharKind(text[end]) == kind)
+            {
+                end++;
+            }
+            return (start, end);
+        }
+
+        /// <summary>
+        /// 0 낱말 글자(글자·숫자·_), 1 공백·탭, 2 그 밖.
+        /// </summary>
+        private static int CharKind(char c)
+        {
+            if (char.IsLetterOrDigit(c) || c == '_')
+            {
+                return 0;
+            }
+            return c == ' ' || c == '\t' ? 1 : 2;
+        }
+
+        /// <summary>
+        /// 지금 보이는 줄 요소의 코드 칸만 다시 칠한다(목록 전체를 다시 bind 하지 않는다 — 끄는 동안 자주 부른다).
+        /// </summary>
+        private void RefreshTextSelection()
+        {
+            _list.Query<VisualElement>(className: "diff-row__code").ForEach(code =>
+            {
+                int row = RowOf(code);
+                if (row < 0 || row >= _rows.Count)
+                {
+                    return;
+                }
+                BindCode(code, IsRightCode(code) ? _rows[row].Right : _rows[row].Left, row);
+            });
+        }
+
+        /// <summary>
+        /// 고른 글. 원래 줄 글 그대로(탭은 탭, 공백 표시·+/− 부호·줄 번호 없이)이고 줄 사이는 그 줄의 줄바꿈(CRLF 면 CRLF)이다.
+        /// 나란히 보기에서 고른 쪽이 빈 줄은 건너뛴다.
+        /// </summary>
+        private string SelectedText()
+        {
+            (int startRow, int startOffset, int endRow, int endOffset) = TextRange();
+            StringBuilder builder = new();
+            GitDiffLine previous = null;
+            for (int row = startRow; row <= endRow && row < _rows.Count; row++)
+            {
+                GitDiffLine line = TextLineAt(row);
+                if (line == null)
+                {
+                    continue;
+                }
+                if (previous != null)
+                {
+                    builder.Append(previous.HasCarriageReturn ? "\r\n" : "\n");
+                }
+                string raw = line.Text ?? string.Empty;
+                int start = row == startRow ? Math.Min(startOffset, raw.Length) : 0;
+                int end = row == endRow ? Math.Min(endOffset, raw.Length) : raw.Length;
+                builder.Append(raw, start, Math.Max(0, end - start));
+                previous = line;
+            }
+            return builder.ToString();
+        }
+
+        private void CopySelection()
+        {
+            if (HasTextSelection)
+            {
+                EditorGUIUtility.systemCopyBuffer = SelectedText();
+            }
+        }
+
+        /// <summary>
+        /// 글을 고르는 쪽의 줄 전체를 고른다.
+        /// </summary>
+        private void SelectAllText()
+        {
+            if (_rows.Count == 0)
+            {
+                return;
+            }
+            ClearSelection();
+            int last = _rows.Count - 1;
+            SetTextSelection(0, 0, last, (TextLineAt(last)?.Text ?? string.Empty).Length);
+            RefreshTextSelection();
+        }
+
+        /// <summary>
+        /// Ctrl+C(맥은 Cmd+C) 복사, Ctrl+A 모두 고르기, Esc 풀기. 에디터는 같은 단축키를 Copy·SelectAll 명령으로도 보내므로 둘 다 받는다(두 번 해도 같다).
+        /// </summary>
+        private void OnTextKeyDown(KeyDownEvent evt)
+        {
+            if (evt.actionKey && evt.keyCode == KeyCode.C && HasTextSelection)
+            {
+                CopySelection();
+                evt.StopPropagation();
+            }
+            else if (evt.actionKey && evt.keyCode == KeyCode.A && _rows.Count > 0)
+            {
+                SelectAllText();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == KeyCode.Escape && HasTextSelection)
+            {
+                ClearTextSelection();
+                evt.StopPropagation();
+            }
+        }
+
+        private void OnValidateTextCommand(ValidateCommandEvent evt)
+        {
+            if ((evt.commandName == "Copy" && HasTextSelection) || (evt.commandName == "SelectAll" && _rows.Count > 0))
+            {
+                evt.StopPropagation();
+            }
+        }
+
+        private void OnExecuteTextCommand(ExecuteCommandEvent evt)
+        {
+            if (evt.commandName == "Copy" && HasTextSelection)
+            {
+                CopySelection();
+                evt.StopPropagation();
+            }
+            else if (evt.commandName == "SelectAll" && _rows.Count > 0)
+            {
+                SelectAllText();
+                evt.StopPropagation();
+            }
+        }
+
+        /// <summary>
+        /// 오른쪽 버튼 메뉴: 복사·모두 선택. 나란히 보기에서 고른 글이 없으면 누른 쪽을 고를 쪽으로 삼는다(모두 선택이 그쪽을 고른다).
+        /// </summary>
+        private void OnTextContextMenu(ContextualMenuPopulateEvent evt)
+        {
+            if (_target == null || _isImageMode || _rows.Count == 0)
+            {
+                return;
+            }
+            if (HasTextSelection == false && evt.target is VisualElement target)
+            {
+                VisualElement side = target;
+                while (side != null && side != _list && side.ClassListContains("diff-side") == false)
+                {
+                    side = side.parent;
+                }
+                _textRight = side != null && side.ClassListContains("diff-side--right");
+            }
+            _list.Focus();
+            evt.menu.AppendAction(GitText.Get("diff.copy"), _ => CopySelection(), HasTextSelection ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            evt.menu.AppendAction(GitText.Get("diff.selectAll"), _ => SelectAllText());
+        }
+
         // ── 통합 보기 ─────────────────────────────
 
         private VisualElement MakeUnifiedRow()
@@ -1605,7 +2196,7 @@ namespace GitVersionControl
                 GitDiffLineKind.Removed => "−",
                 _ => string.Empty,
             };
-            BindCode(row[4], line);
+            BindCode(row[4], line, index);
         }
 
         // ── 나란히 보기 ───────────────────────────
@@ -1639,12 +2230,12 @@ namespace GitVersionControl
         {
             GitDiffRow diffRow = _rows[index];
             // 머리 줄은 양쪽에 같은 줄이 들어가므로 hunk 버튼은 줄 하나에 하나만(오른쪽 끝) 둔다. 고른 표시는 줄 전체에 한다 — 한쪽을 골라도 짝이 같이 올라간다.
-            bool leftSelected = BindSide(row[0], diffRow.Left, isLeft: true, hunk: row[2]);
-            bool rightSelected = BindSide(row[1], diffRow.Right, isLeft: false, hunk: null);
+            bool leftSelected = BindSide(row[0], diffRow.Left, index, isLeft: true, hunk: row[2]);
+            bool rightSelected = BindSide(row[1], diffRow.Right, index, isLeft: false, hunk: null);
             row.EnableInClassList("diff-row--selected", leftSelected || rightSelected);
         }
 
-        private bool BindSide(VisualElement side, GitDiffLine line, bool isLeft, VisualElement hunk)
+        private bool BindSide(VisualElement side, GitDiffLine line, int rowIndex, bool isLeft, VisualElement hunk)
         {
             side.EnableInClassList("diff-side--empty", line == null);
             SetKindClasses(side, "diff-side", line);
@@ -1656,7 +2247,7 @@ namespace GitVersionControl
             {
                 number.text = string.Empty;
                 sign.text = string.Empty;
-                BindCode(side[3], null);
+                BindCode(side[3], null, rowIndex);
                 return false;
             }
             int lineNumber = isLeft ? line.OldNumber : line.NewNumber;
@@ -1667,7 +2258,7 @@ namespace GitVersionControl
                 GitDiffLineKind.Removed => "−",
                 _ => string.Empty,
             };
-            BindCode(side[3], line);
+            BindCode(side[3], line, rowIndex);
             return selected;
         }
 
@@ -1682,12 +2273,14 @@ namespace GitVersionControl
 
         /// <summary>
         /// 코드 한 줄: 앞·바뀐 부분·뒤 세 조각. 바뀐 부분만 진한 배경(<c>.diff-row__change</c>)을 받는다.
-        /// 리치 텍스트로 칠하지 않는 이유: 코드의 &lt;·&gt; 가 태그로 해석되지 않게 막을 깔끔한 방법이 없다.
+        /// 보통은 리치 텍스트를 끈다. 공백 보이기·고른 글이 있을 때만 켜고 코드는 &lt;noparse&gt; 로 감싼다.
+        /// userData 는 그 줄의 목록 인덱스(<see cref="BindCode"/> 가 넣는다). 누르면 글 고르기를 시작한다.
         /// </summary>
         private VisualElement CodeElement()
         {
             VisualElement code = new();
             code.AddToClassList("diff-row__code");
+            code.RegisterCallback<PointerDownEvent>(evt => OnCodePointerDown(code, evt));
             for (int i = 0; i < 3; i++)
             {
                 Label part = new() { enableRichText = false };
@@ -1705,37 +2298,102 @@ namespace GitVersionControl
             return code;
         }
 
-        private void BindCode(VisualElement code, GitDiffLine line)
+        private void BindCode(VisualElement code, GitDiffLine line, int rowIndex)
         {
-            Label before = (Label)code[0];
-            Label change = (Label)code[1];
-            Label after = (Label)code[2];
-            // 공백 보이기는 흐린 · → 를 리치 텍스트로 칠한다. 코드의 < > 는 Render 가 <noparse> 로 감싸 태그로 읽히지 않게 한다.
-            before.enableRichText = _showWhitespace;
-            change.enableRichText = _showWhitespace;
-            after.enableRichText = _showWhitespace;
+            code.userData = rowIndex;
             if (line == null)
             {
-                before.text = string.Empty;
-                change.text = string.Empty;
-                after.text = string.Empty;
+                for (int i = 0; i < 3; i++)
+                {
+                    Label part = (Label)code[i];
+                    part.enableRichText = false;
+                    part.text = string.Empty;
+                }
                 return;
             }
             string raw = line.Text ?? string.Empty;
-            // 접어 보기는 한 조각이어야 줄 끝에서 접힌다(세 조각이면 조각마다 따로 접혀 어긋난다). 그래서 줄 안 강조는 접지 않을 때만.
-            if (line.ChangeLength <= 0 || _wrap)
-            {
-                before.text = Render(raw);
-                change.text = string.Empty;
-                after.text = string.Empty;
-                return;
-            }
+            (int selectStart, int selectEnd, bool selectsLineEnd) = TextSelectionIn(rowIndex, IsRightCode(code), raw.Length);
+            int lastPart = IsSplitIntoParts(line) ? 2 : 0;
             // 탭을 펼치기 전 위치로 자른 뒤 각 조각을 펼친다(펼친 뒤에는 위치가 달라진다).
-            int start = Math.Min(line.ChangeStart, raw.Length);
-            int length = Math.Min(line.ChangeLength, raw.Length - start);
-            before.text = Render(raw.Substring(0, start));
-            change.text = Render(raw.Substring(start, length));
-            after.text = Render(raw.Substring(start + length));
+            for (int i = 0; i < 3; i++)
+            {
+                (int from, int to) = PartRange(line, i);
+                // 줄 끝 너머까지 고른 표시(빈칸 하나)는 마지막 조각에 붙인다.
+                bool isLast = i == lastPart;
+                int localStart = selectStart < 0 ? -1 : Math.Clamp(selectStart - from, 0, to - from);
+                int localEnd = selectStart < 0 ? -1 : Math.Clamp(selectEnd - from, 0, to - from);
+                bool marked = selectStart >= 0 && (localEnd > localStart || (selectsLineEnd && isLast));
+                Label part = (Label)code[i];
+                // 공백 보이기는 흐린 · → 를, 고른 글은 <mark> 를 리치 텍스트로 칠한다. 코드의 < > 는 <noparse> 로 감싸 태그로 읽히지 않게 한다.
+                part.enableRichText = _showWhitespace || marked;
+                string text = raw.Substring(from, to - from);
+                part.text = marked ? RenderSelected(text, localStart, localEnd, selectsLineEnd && isLast) : Render(text);
+            }
+        }
+
+        /// <summary>
+        /// 이 줄을 세 조각(앞·바뀐 부분·뒤)으로 나눠 그리는지. 아니면 첫 조각 하나에 다 그린다.
+        /// 접어 보기는 한 조각이어야 줄 끝에서 접힌다(세 조각이면 조각마다 따로 접혀 어긋난다). 그래서 줄 안 강조는 접지 않을 때만 조각을 나눈다.
+        /// </summary>
+        private bool IsSplitIntoParts(GitDiffLine line)
+        {
+            return line.ChangeLength > 0 && _wrap == false;
+        }
+
+        /// <summary>
+        /// 코드 칸의 조각 <paramref name="part"/>(0 앞·1 바뀐 부분·2 뒤)가 그리는 원래 줄 글의 범위 [from, to).
+        /// </summary>
+        private (int from, int to) PartRange(GitDiffLine line, int part)
+        {
+            int length = (line.Text ?? string.Empty).Length;
+            if (IsSplitIntoParts(line) == false)
+            {
+                return part == 0 ? (0, length) : (length, length);
+            }
+            int start = Math.Min(line.ChangeStart, length);
+            int end = start + Math.Min(line.ChangeLength, length - start);
+            return part switch
+            {
+                0 => (0, start),
+                1 => (start, end),
+                _ => (end, length),
+            };
+        }
+
+        /// <summary>
+        /// 고른 부분 [<paramref name="selectStart"/>, <paramref name="selectEnd"/>)을 &lt;mark&gt; 로 칠한 코드 글. 나머지는 <see cref="Render"/> 와 같게 그린다.
+        /// </summary>
+        /// <param name="selectsLineEnd">고른 범위가 다음 줄로 이어진다. 줄바꿈 자리를 빈칸 하나로 칠한다(빈 줄도 고른 것이 보이게).</param>
+        private string RenderSelected(string text, int selectStart, int selectEnd, bool selectsLineEnd)
+        {
+            StringBuilder builder = new(text.Length * 2 + 32);
+            builder.Append(RenderRich(text.Substring(0, selectStart)));
+            builder.Append("<mark=#").Append(ColorUtility.ToHtmlStringRGBA(_textSelectionColor)).Append('>');
+            builder.Append(RenderRich(text.Substring(selectStart, selectEnd - selectStart)));
+            if (selectsLineEnd)
+            {
+                builder.Append(' ');
+            }
+            builder.Append("</mark>");
+            builder.Append(RenderRich(text.Substring(selectEnd)));
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// 리치 텍스트를 켠 조각에 넣을 코드 글. 공백 보이기면 <see cref="Render"/> 가 이미 &lt;noparse&gt; 로 감싼다.
+        /// </summary>
+        private string RenderRich(string text)
+        {
+            if (text.Length == 0)
+            {
+                return string.Empty;
+            }
+            if (_showWhitespace)
+            {
+                return Render(text);
+            }
+            // 코드에 </noparse> 가 그대로 있으면 감싼 구간이 거기서 끝난다. 사이에 폭 없는 공백을 넣어 끊는다.
+            return "<noparse>" + ExpandTabs(text).Replace("</noparse>", "</no​parse>") + "</noparse>";
         }
 
         /// <summary>

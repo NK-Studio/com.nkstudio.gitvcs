@@ -7,6 +7,8 @@
     flex-grow: 1;
     background-color: var(--git-bg);
     color: var(--git-text);
+    /* 코드에서 끌어 고른 글의 배경. 코드(GitDiffPanel)가 읽어 리치 텍스트 <mark> 색으로 쓴다. */
+    --diff-text-selection: var(--git-diff-text-selection);
 }
 
 .git-diff__toolbar {
@@ -328,12 +330,14 @@
     color: var(--git-diff-number);
 }
 
+/* 코드 칸은 편집기처럼 끌어 글을 고른다(I 모양 커서). 줄 고르기(부분 스테이징)는 거터·줄 번호 쪽에서 한다. */
 .diff-row__code {
     flex-direction: row;
     flex-grow: 1;
     flex-shrink: 1;
     min-width: 0;
     overflow: hidden;
+    cursor: text;
 }
 
 /* 앞·바뀐 부분·뒤 세 조각. 공백을 그대로 보이게 줄바꿈 없이 붙인다. */
