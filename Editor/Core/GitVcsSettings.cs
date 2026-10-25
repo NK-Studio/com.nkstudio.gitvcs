@@ -66,6 +66,9 @@ namespace GitVersionControl
         [SerializeField] private int _diffWhitespace;
         [SerializeField] private int _diffContextLines = 3;
         [SerializeField] private int _diffLayout = (int)DiffLayout.SideBySide;
+        [SerializeField] private bool _diffFileView;
+        [SerializeField] private bool _diffShowWhitespace;
+        [SerializeField] private bool _diffWordWrap;
         [SerializeField] private int _imageDiffMode = (int)ImageDiffMode.TwoUp;
         [SerializeField] private bool _imageDiffShowProperties;
         [SerializeField] private float _imageDiffPropertiesHeight = 90f;
@@ -306,6 +309,33 @@ namespace GitVersionControl
                 int index = (int)value;
                 SetAndSave(ref _diffLayout, index);
             }
+        }
+
+        /// <summary>
+        /// diff 대신 바뀐 뒤 파일 전체를 본다(GitKraken 의 File View). 끄면 <see cref="DiffLayout"/> 대로 diff 를 본다.
+        /// </summary>
+        public bool DiffFileView
+        {
+            get => _diffFileView;
+            set => SetAndSave(ref _diffFileView, value);
+        }
+
+        /// <summary>
+        /// 코드 줄의 공백·탭을 흐린 · → 로 보인다.
+        /// </summary>
+        public bool DiffShowWhitespace
+        {
+            get => _diffShowWhitespace;
+            set => SetAndSave(ref _diffShowWhitespace, value);
+        }
+
+        /// <summary>
+        /// 긴 줄을 창 폭에서 접어 보인다. 끄면 넘치는 부분이 잘린다.
+        /// </summary>
+        public bool DiffWordWrap
+        {
+            get => _diffWordWrap;
+            set => SetAndSave(ref _diffWordWrap, value);
         }
 
         /// <summary>

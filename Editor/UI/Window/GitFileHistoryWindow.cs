@@ -25,9 +25,17 @@ namespace GitVersionControl
 
         public static void Open(string repoPath, GitServices services)
         {
+            Open(repoPath, services.Diff);
+        }
+
+        /// <summary>
+        /// diff 보기의 "히스토리" 버튼처럼 diff 서비스만 가진 곳에서 연다.
+        /// </summary>
+        public static void Open(string repoPath, IGitDiffService diffService)
+        {
             GitFileHistoryWindow window = CreateInstance<GitFileHistoryWindow>();
             window._repoPath = repoPath;
-            window._diffService = services.Diff;
+            window._diffService = diffService;
             window.titleContent = TitleWithIcon(GitText.Format("history.windowTitle", System.IO.Path.GetFileName(repoPath)));
             window.Show();
             window.Load();

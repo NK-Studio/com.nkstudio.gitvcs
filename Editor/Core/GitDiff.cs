@@ -41,10 +41,25 @@ namespace GitVersionControl
         IgnoreAll,
     }
 
+    /// <summary>
+    /// 내장 diff 의 보기 방식(GitKraken 의 Hunk·Inline·Split). 설정 파일에 숫자로 저장되므로 끝에만 추가한다.
+    /// </summary>
     public enum DiffLayout
     {
+        /// <summary>
+        /// 바뀐 묶음(hunk)만, 설정의 문맥 줄 수만큼. GitKraken 의 Hunk View.
+        /// </summary>
         Unified,
+
+        /// <summary>
+        /// 파일 전체를 나란히(왼쪽 옛 판, 오른쪽 새 판). GitKraken 의 Split View.
+        /// </summary>
         SideBySide,
+
+        /// <summary>
+        /// 파일 전체를 한 줄 목록으로, 바뀐 줄은 제자리에. GitKraken 의 Inline View.
+        /// </summary>
+        Inline,
     }
 
     /// <summary>

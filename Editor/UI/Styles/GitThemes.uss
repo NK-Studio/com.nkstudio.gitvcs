@@ -108,8 +108,7 @@
 /* 일반 버튼(작업 막대·목록 전환처럼 자기 모양이 있는 버튼은 제외하고 이름으로 고른다). */
 .git-theme--jetbrains .notice__action,
 .git-theme--jetbrains .commit-detail__close,
-.git-theme--jetbrains .branch-explorer__overlay-button,
-.git-theme--jetbrains .git-diff__nav {
+.git-theme--jetbrains .branch-explorer__overlay-button {
     background-color: var(--git-button-bg);
     border-color: var(--git-button-border);
     border-width: 1px;
@@ -119,8 +118,7 @@
 
 .git-theme--jetbrains .notice__action:hover,
 .git-theme--jetbrains .commit-detail__close:hover,
-.git-theme--jetbrains .branch-explorer__overlay-button:hover,
-.git-theme--jetbrains .git-diff__nav:hover {
+.git-theme--jetbrains .branch-explorer__overlay-button:hover {
     background-color: var(--git-button-hover);
 }
 

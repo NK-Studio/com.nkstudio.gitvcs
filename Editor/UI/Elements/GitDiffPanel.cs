@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -63,10 +64,57 @@ namespace GitVersionControl
         private bool _showNewNumbers = true;
 
         private readonly ListView _list;
-        private ToolbarToggle _unifiedToggle;
-        private ToolbarToggle _splitToggle;
         private Button _previousButton;
         private Button _nextButton;
+
+        // ── GitKraken 식 diff 막대(이 파일 편집 | Unstaged · 파일/Diff 보기 | Blame·히스토리 · ↑↓ · 보기 방식 · 공백·줄 바꿈) ──
+        private VisualElement _bar;
+        private Button _editButton;
+        private Button _sideChip;
+        private Button _fileViewButton;
+        private Button _diffViewButton;
+        private Button _blameButton;
+        private Button _historyButton;
+        private Button _hunkLayoutButton;
+        private Button _inlineLayoutButton;
+        private Button _splitLayoutButton;
+        private Button _whitespaceButton;
+        private Button _wrapButton;
+
+        /// <summary>
+        /// 텍스트 diff 에만 뜻이 있는 막대 묶음(파일/Diff 보기·변경 이동·보기 방식·공백·줄 바꿈). 이미지·바이너리면 숨긴다.
+        /// </summary>
+        private readonly List<VisualElement> _textOnlyControls = new();
+
+        /// <summary>
+        /// 막대가 좁을 때 줄이는 단계. 이 패널은 Git 창의 좁은 가운데 칸에도 들어간다.
+        /// Compact: 가운데 맞춤을 풀고 "이 파일 편집" 을 아이콘만. Narrow: Blame·히스토리 숨김(파일 목록 메뉴에도 있다). Tiny: 공백·줄 바꿈 숨김.
+        /// </summary>
+        private const float CompactBarWidth = 820f;
+        private const float NarrowBarWidth = 690f;
+        private const float TinyBarWidth = 560f;
+
+        /// <summary>
+        /// 지금 읽어 둔 diff 의 문맥 줄 수. 보기 방식을 바꿨을 때 다시 읽어야 하는지(변경 묶음 ↔ 파일 전체) 가른다.
+        /// </summary>
+        private int _loadedContextLines = -1;
+
+        /// <summary>
+        /// 지금 목록이 긴 줄 접기(가변 높이) 모양인지. 바뀔 때만 줄 요소를 새로 만든다.
+        /// </summary>
+        private bool? _shownWrap;
+        private bool _wrap;
+        private bool _showWhitespace;
+
+        /// <summary>
+        /// ↑↓ 로 마지막에 간 줄(목록 인덱스). 끝 근처에서 더 내려가지 못해 화면 맨 위가 그 줄이 아닐 때도 다음 변경으로 이어 가게 한다.
+        /// </summary>
+        private int _lastJumpRow = -1;
+
+        /// <summary>
+        /// ↑↓ 로 간 변경 위에 남겨 둘 줄 수(바로 위 문맥이 보이게).
+        /// </summary>
+        private const int JumpMargin = 3;
         private readonly GitImageDiffView _imageView;
         private readonly VisualElement _binaryView;
         private readonly VisualElement _lfsView;
@@ -134,7 +182,20 @@ namespace GitVersionControl
         /// </summary>
         private bool CanPartialStage => _runner != null && _document != null && _target != null && _isImageMode == false && _document.IsBinary == false
             && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged)
-            && GitVcsSettings.instance.DiffOptions.Whitespace == DiffWhitespace.Show;
+            && GitVcsSettings.instance.DiffOptions.Whitespace == DiffWhitespace.Show
+            // 파일 보기는 지운 줄·머리 줄을 숨겨 고를 수 있는 줄이 반쪽이다. GitKraken 처럼 Diff 보기에서만 줄을 올린다.
+            && GitVcsSettings.instance.DiffFileView == false;
+
+        /// <summary>
+        /// 이번에 git 에 넘길 diff 옵션. 변경 묶음(Hunk) 보기만 설정의 문맥 줄 수를 쓰고, 통합·나란히·파일 보기는 GitKraken 처럼 파일 전체를 읽는다.
+        /// </summary>
+        private static GitDiffOptions EffectiveOptions()
+        {
+            GitVcsSettings settings = GitVcsSettings.instance;
+            GitDiffOptions options = settings.DiffOptions;
+            bool wholeFile = settings.DiffFileView || settings.DiffLayout != DiffLayout.Unified;
+            return wholeFile ? new GitDiffOptions(options.Algorithm, options.Whitespace, GitDiffOptions.MaxContextLines) : options;
+        }
 
         /// <summary>
         /// Staged 목록의 diff 면 버튼은 내리기(Unstage)다.
@@ -150,7 +211,7 @@ namespace GitVersionControl
             Root.AddToClassList("git-diff");
 
             Root.Add(BuildToolbar());
-            Root.Add(BuildInfoBar());
+            Root.Add(BuildBar());
 
             _notice = new Label();
             _notice.AddToClassList("git-diff__notice");
@@ -341,14 +402,11 @@ namespace GitVersionControl
         {
             _isImageMode = isImage;
             _list.SetVisible(isImage == false);
-            _unifiedToggle.SetVisible(isImage == false);
-            _splitToggle.SetVisible(isImage == false);
-            _previousButton.SetVisible(isImage == false);
-            _nextButton.SetVisible(isImage == false);
             _addedStat.SetVisible(isImage == false);
             _removedStat.SetVisible(isImage == false);
             _imageView.Root.SetVisible(false);
             _lfsView.SetVisible(false);
+            UpdateBar();
         }
 
         /// <summary>
@@ -419,14 +477,20 @@ namespace GitVersionControl
             _title = new Label();
             _title.AddToClassList("git-diff__title");
             toolbar.Add(_title);
-            toolbar.Add(Spacer());
 
-            _unifiedToggle = new ToolbarToggle { text = GitText.Get("diff.unified") };
-            _splitToggle = new ToolbarToggle { text = GitText.Get("diff.sideBySide") };
-            _unifiedToggle.RegisterValueChangedCallback(evt => SetLayout(evt.newValue ? DiffLayout.Unified : DiffLayout.SideBySide));
-            _splitToggle.RegisterValueChangedCallback(evt => SetLayout(evt.newValue ? DiffLayout.SideBySide : DiffLayout.Unified));
-            toolbar.Add(_unifiedToggle);
-            toolbar.Add(_splitToggle);
+            // 더한·지운 줄 수와 비교하는 두 판. GitKraken 처럼 파일 이름 줄에 같이 둔다.
+            _addedStat = new Label();
+            _addedStat.AddToClassList("git-diff__stat");
+            _addedStat.AddToClassList("git-diff__stat--added");
+            toolbar.Add(_addedStat);
+            _removedStat = new Label();
+            _removedStat.AddToClassList("git-diff__stat");
+            _removedStat.AddToClassList("git-diff__stat--removed");
+            toolbar.Add(_removedStat);
+            _revisions = new Label();
+            _revisions.AddToClassList("git-diff__revisions");
+            toolbar.Add(_revisions);
+            toolbar.Add(Spacer());
 
             // 알고리즘·공백·문맥 줄 수는 설정(Project Settings > Git)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
             ToolbarButton external = new(() =>
@@ -453,33 +517,339 @@ namespace GitVersionControl
             return toolbar;
         }
 
-        private VisualElement BuildInfoBar()
+        /// <summary>
+        /// GitKraken 의 diff 막대. 왼쪽 "이 파일 편집", 가운데 지금 보는 쪽(Unstaged·Staged)과 파일/Diff 보기, 오른쪽 Blame·히스토리, 변경 이동, 보기 방식 셋, 공백·줄 바꿈.
+        /// 가운데 묶음이 늘 가운데 오도록 왼쪽·오른쪽 묶음이 남는 폭을 반씩 나눠 가진다.
+        /// </summary>
+        private VisualElement BuildBar()
         {
-            VisualElement info = new();
-            info.AddToClassList("git-diff__info");
+            _bar = new VisualElement();
+            _bar.AddToClassList("git-diff__bar");
 
-            _addedStat = new Label();
-            _addedStat.AddToClassList("git-diff__stat");
-            _addedStat.AddToClassList("git-diff__stat--added");
-            info.Add(_addedStat);
+            VisualElement left = BarGroup("git-diff__bar-side");
+            _editButton = BarButton(OpenInEditor, GitText.Get("diff.editFileTooltip"), "edit", GitText.Get("diff.editFile"));
+            _editButton.AddToClassList("git-diff__bar-button--outlined");
+            left.Add(_editButton);
+            _bar.Add(left);
 
-            _removedStat = new Label();
-            _removedStat.AddToClassList("git-diff__stat");
-            _removedStat.AddToClassList("git-diff__stat--removed");
-            info.Add(_removedStat);
+            VisualElement center = BarGroup("git-diff__bar-center");
+            _sideChip = new Button(SwitchSide);
+            _sideChip.AddToClassList("git-diff__chip");
+            center.Add(_sideChip);
+            _fileViewButton = BarButton(() => SetFileView(true), GitText.Get("diff.fileViewTooltip"), null, GitText.Get("diff.fileView"));
+            _diffViewButton = BarButton(() => SetFileView(false), GitText.Get("diff.diffViewTooltip"), null, GitText.Get("diff.diffView"));
+            VisualElement viewSegment = Segment(_fileViewButton, _diffViewButton);
+            center.Add(viewSegment);
+            _textOnlyControls.Add(viewSegment);
+            _bar.Add(center);
 
-            _revisions = new Label();
-            _revisions.AddToClassList("git-diff__revisions");
-            info.Add(_revisions);
-            info.Add(Spacer());
+            VisualElement right = BarGroup("git-diff__bar-side");
+            right.AddToClassList("git-diff__bar-side--right");
+            _blameButton = BarButton(OpenBlame, GitText.Get("diff.blameTooltip"), null, GitText.Get("diff.blame"));
+            _historyButton = BarButton(OpenHistory, GitText.Get("diff.historyTooltip"), null, GitText.Get("diff.history"));
+            VisualElement fileTools = Segment(_blameButton, _historyButton);
+            fileTools.AddToClassList("git-diff__segment--file-tools");
+            right.Add(fileTools);
 
-            _previousButton = new Button(() => JumpToHunk(-1)) { text = "▲", tooltip = GitText.Get("diff.previousChange") };
-            _previousButton.AddToClassList("git-diff__nav");
-            info.Add(_previousButton);
-            _nextButton = new Button(() => JumpToHunk(1)) { text = "▼", tooltip = GitText.Get("diff.nextChange") };
-            _nextButton.AddToClassList("git-diff__nav");
-            info.Add(_nextButton);
-            return info;
+            _previousButton = BarButton(() => JumpToChange(-1), GitText.Get("diff.previousChange"), "up", null);
+            _nextButton = BarButton(() => JumpToChange(1), GitText.Get("diff.nextChange"), "down", null);
+            VisualElement navigation = Segment(_previousButton, _nextButton);
+            right.Add(navigation);
+            _textOnlyControls.Add(navigation);
+
+            _hunkLayoutButton = BarButton(() => SetLayout(DiffLayout.Unified), GitText.Get("diff.viewHunk"), "hunk", null);
+            _inlineLayoutButton = BarButton(() => SetLayout(DiffLayout.Inline), GitText.Get("diff.viewInline"), "inline", null);
+            _splitLayoutButton = BarButton(() => SetLayout(DiffLayout.SideBySide), GitText.Get("diff.viewSplit"), "split", null);
+            VisualElement layouts = Segment(_hunkLayoutButton, _inlineLayoutButton, _splitLayoutButton);
+            right.Add(layouts);
+            _textOnlyControls.Add(layouts);
+
+            _whitespaceButton = BarButton(ToggleWhitespace, GitText.Get("diff.showWhitespace"), "whitespace", null);
+            _wrapButton = BarButton(ToggleWrap, GitText.Get("diff.wordWrap"), "wrap", null);
+            VisualElement display = Segment(_whitespaceButton, _wrapButton);
+            display.AddToClassList("git-diff__segment--display");
+            right.Add(display);
+            _textOnlyControls.Add(display);
+            _bar.Add(right);
+
+            // 좁은 칸(Git 창 가운데)에서는 단계적으로 줄인다(CompactBarWidth 참고).
+            _bar.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                float width = evt.newRect.width;
+                _bar.EnableInClassList("git-diff__bar--compact", width < CompactBarWidth);
+                _bar.EnableInClassList("git-diff__bar--narrow", width < NarrowBarWidth);
+                _bar.EnableInClassList("git-diff__bar--tiny", width < TinyBarWidth);
+            });
+            return _bar;
+        }
+
+        private static VisualElement BarGroup(string className)
+        {
+            VisualElement group = new();
+            group.AddToClassList("git-diff__bar-group");
+            group.AddToClassList(className);
+            return group;
+        }
+
+        /// <summary>
+        /// 막대 버튼. 아이콘(<c>Icons/Diff*.png</c>, USS 가 테마 색으로 물들인다)과 글자 중 하나 또는 둘 다.
+        /// </summary>
+        /// <param name="icon">아이콘 이름(<c>.git-diff__bar-icon--{icon}</c>). 없으면 null.</param>
+        /// <param name="text">글자. 없으면 null. 좁은 막대에서는 아이콘이 있는 버튼만 글자를 숨긴다.</param>
+        private static Button BarButton(Action onClick, string tooltip, string icon, string text)
+        {
+            Button button = new(onClick) { tooltip = tooltip };
+            button.AddToClassList("git-diff__bar-button");
+            if (icon != null)
+            {
+                VisualElement image = new() { pickingMode = PickingMode.Ignore };
+                image.AddToClassList("git-diff__bar-icon");
+                image.AddToClassList("git-diff__bar-icon--" + icon);
+                button.Add(image);
+            }
+            if (text != null)
+            {
+                Label label = new(text) { pickingMode = PickingMode.Ignore };
+                label.AddToClassList("git-diff__bar-text");
+                label.EnableInClassList("git-diff__bar-text--with-icon", icon != null);
+                button.Add(label);
+            }
+            button.EnableInClassList("git-diff__bar-button--icon-only", text == null);
+            return button;
+        }
+
+        /// <summary>
+        /// 붙어 있는 버튼 묶음(GitKraken 의 [File View|Diff View]·[↑|↓] 처럼 한 테두리 안에 칸으로 나뉜다).
+        /// USS 의 :first-child 를 쓸 수 없어 맨 앞 칸에 수식어를 단다.
+        /// </summary>
+        private static VisualElement Segment(params Button[] buttons)
+        {
+            VisualElement segment = new();
+            segment.AddToClassList("git-diff__segment");
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                buttons[i].AddToClassList("git-diff__segment-button");
+                buttons[i].EnableInClassList("git-diff__segment-button--first", i == 0);
+                segment.Add(buttons[i]);
+            }
+            return segment;
+        }
+
+        private static void SetChecked(Button button, bool isChecked)
+        {
+            button.EnableInClassList("git-diff__bar-button--checked", isChecked);
+        }
+
+        /// <summary>
+        /// 막대 버튼들을 지금 파일·설정에 맞춘다(눌린 칸, 쓸 수 있는지, 보일지).
+        /// </summary>
+        private void UpdateBar()
+        {
+            if (_bar == null)
+            {
+                return;
+            }
+            GitVcsSettings settings = GitVcsSettings.instance;
+            bool hasTarget = _target != null;
+            _bar.SetVisible(hasTarget);
+            if (hasTarget == false)
+            {
+                return;
+            }
+            bool isText = _isImageMode == false;
+            foreach (VisualElement control in _textOnlyControls)
+            {
+                control.SetVisible(isText);
+            }
+
+            bool fileView = settings.DiffFileView;
+            SetChecked(_fileViewButton, fileView);
+            SetChecked(_diffViewButton, fileView == false);
+            DiffLayout layout = settings.DiffLayout;
+            SetChecked(_hunkLayoutButton, fileView == false && layout == DiffLayout.Unified);
+            SetChecked(_inlineLayoutButton, fileView == false && layout == DiffLayout.Inline);
+            SetChecked(_splitLayoutButton, fileView == false && layout == DiffLayout.SideBySide);
+            // 파일 보기는 diff 가 아니라 보기 방식이 뜻이 없다(GitKraken 도 끈다).
+            _hunkLayoutButton.SetEnabled(fileView == false);
+            _inlineLayoutButton.SetEnabled(fileView == false);
+            _splitLayoutButton.SetEnabled(fileView == false);
+            SetChecked(_whitespaceButton, settings.DiffShowWhitespace);
+            SetChecked(_wrapButton, settings.DiffWordWrap);
+
+            bool exists = System.IO.File.Exists(FullPathOf(_target));
+            _editButton.SetEnabled(exists);
+            _editButton.tooltip = GitText.Get(exists ? "diff.editFileTooltip" : "diff.editFileMissing");
+
+            bool hasHistory = HasCommittedVersion(_target);
+            _blameButton.SetEnabled(hasHistory && isText);
+            _historyButton.SetEnabled(hasHistory);
+            _blameButton.tooltip = GitText.Get(hasHistory ? "diff.blameTooltip" : "diff.noCommittedVersion");
+            _historyButton.tooltip = GitText.Get(hasHistory ? "diff.historyTooltip" : "diff.noCommittedVersion");
+
+            UpdateSideChip();
+        }
+
+        /// <summary>
+        /// 가운데 칩: 지금 보는 쪽(Unstaged·Staged·작업 사본). 같은 파일이 양쪽에 다 바뀌어 있으면(일부만 stage 한 파일) 눌러서 다른 쪽으로 바꾼다.
+        /// 커밋·범위 비교에서는 뜻이 없어 숨긴다.
+        /// </summary>
+        private void UpdateSideChip()
+        {
+            string current = _target.Source switch
+            {
+                GitDiffSource.Unstaged => GitText.Get("diff.sideUnstaged"),
+                GitDiffSource.Staged => GitText.Get("diff.sideStaged"),
+                GitDiffSource.WorkingTree => GitText.Get("diff.sideWorkingTree"),
+                _ => null,
+            };
+            _sideChip.SetVisible(current != null);
+            if (current == null)
+            {
+                return;
+            }
+            _sideChip.text = current;
+            _sideChip.EnableInClassList("git-diff__chip--staged", _target.Source == GitDiffSource.Staged);
+            GitDiffTarget other = OtherSideOf(_target);
+            _sideChip.SetEnabled(other != null);
+            _sideChip.EnableInClassList("git-diff__chip--switchable", other != null);
+            _sideChip.tooltip = other != null
+                ? GitText.Format("diff.sideSwitchTooltip", current, GitText.Get(other.Source == GitDiffSource.Staged ? "diff.sideStaged" : "diff.sideUnstaged"))
+                : GitText.Format("diff.sideTooltip", current);
+        }
+
+        /// <summary>
+        /// 같은 파일의 반대쪽(Unstaged ↔ Staged) diff 대상. 반대쪽에 변경이 없으면 null.
+        /// </summary>
+        private static GitDiffTarget OtherSideOf(GitDiffTarget target)
+        {
+            if (target.Source != GitDiffSource.Unstaged && target.Source != GitDiffSource.Staged)
+            {
+                return null;
+            }
+            GitStatusEntry entry = GitRepository.Entries.FirstOrDefault(e => e.RepoPath == target.RepoPath);
+            if (entry == null)
+            {
+                return null;
+            }
+            bool toStaged = target.Source == GitDiffSource.Unstaged;
+            List<GitStatusEntry> side = toStaged ? GitStaging.Staged(new[] { entry }) : GitStaging.Unstaged(new[] { entry });
+            return side.Count > 0 ? GitDiffTarget.ForStaging(side[0], toStaged) : null;
+        }
+
+        private void SwitchSide()
+        {
+            GitDiffTarget other = _target == null ? null : OtherSideOf(_target);
+            if (other != null)
+            {
+                SetTarget(other);
+            }
+        }
+
+        private static string FullPathOf(GitDiffTarget target)
+        {
+            string root = GitRepository.RepoRoot ?? GitRepository.ProjectRoot;
+            return System.IO.Path.GetFullPath(System.IO.Path.Combine(root, target.RepoPath));
+        }
+
+        /// <summary>
+        /// 커밋된 판이 있는지(Blame·히스토리가 뜻이 있는지). 작업 중인 새 파일(untracked·새로 추가)은 없다.
+        /// </summary>
+        private static bool HasCommittedVersion(GitDiffTarget target)
+        {
+            bool isWorkInProgress = target.Source == GitDiffSource.WorkingTree || target.Source == GitDiffSource.Unstaged || target.Source == GitDiffSource.Staged;
+            return isWorkInProgress == false || (target.State != GitFileState.Untracked && target.State != GitFileState.Added);
+        }
+
+        /// <summary>
+        /// "이 파일 편집": 작업 사본 파일을 코드 편집기로 연다. ↑↓ 로 간 변경(없으면 첫 변경)의 새 판 줄로 간다.
+        /// Unity 에셋이면 Project 창에서 연 것과 같게(스크립트는 설정의 외부 편집기), 아니면 외부 편집기·OS 기본 프로그램으로.
+        /// </summary>
+        private void OpenInEditor()
+        {
+            if (_target == null)
+            {
+                return;
+            }
+            string fullPath = FullPathOf(_target);
+            if (System.IO.File.Exists(fullPath) == false)
+            {
+                return;
+            }
+            int line = LineToOpen();
+            string projectPath = GitStatusParser.ToProjectPath(_target.RepoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject);
+            UnityEngine.Object asset = string.IsNullOrEmpty(projectPath) ? null : AssetDatabase.LoadMainAssetAtPath(GitDisplay.AssetPathOf(projectPath));
+            if (asset != null && AssetDatabase.OpenAsset(asset, line))
+            {
+                return;
+            }
+            if (UnityEditorInternal.InternalEditorUtility.OpenFileAtLineExternal(fullPath, line) == false)
+            {
+                EditorUtility.OpenWithDefaultApp(fullPath);
+            }
+        }
+
+        /// <summary>
+        /// 편집기에서 열 줄(새 판 기준, 1부터). 지운 줄이면 그 아래 첫 남은 줄. 없으면 1.
+        /// </summary>
+        private int LineToOpen()
+        {
+            int start = _lastJumpRow >= 0 ? _lastJumpRow : ChangeStartRows().DefaultIfEmpty(0).First();
+            for (int index = Math.Max(0, start); index < _rows.Count; index++)
+            {
+                GitDiffLine line = _rows[index].Right ?? _rows[index].Left;
+                if (line != null && line.NewNumber > 0)
+                {
+                    return line.NewNumber;
+                }
+            }
+            return 1;
+        }
+
+        private void OpenBlame()
+        {
+            if (_target != null)
+            {
+                GitBlameWindow.Open(_target.RepoPath);
+            }
+        }
+
+        private void OpenHistory()
+        {
+            if (_target != null)
+            {
+                GitFileHistoryWindow.Open(_target.RepoPath, _service);
+            }
+        }
+
+        private void SetFileView(bool fileView)
+        {
+            GitVcsSettings.instance.DiffFileView = fileView;
+            ReloadOrRelayout();
+        }
+
+        private void ToggleWhitespace()
+        {
+            GitVcsSettings.instance.DiffShowWhitespace = GitVcsSettings.instance.DiffShowWhitespace == false;
+            ApplyLayout();
+        }
+
+        private void ToggleWrap()
+        {
+            GitVcsSettings.instance.DiffWordWrap = GitVcsSettings.instance.DiffWordWrap == false;
+            ApplyLayout();
+        }
+
+        /// <summary>
+        /// 보기를 바꾼 뒤: 읽어 둔 diff 의 문맥 줄 수로 충분하면(같은 범위) 다시 그리기만, 아니면(변경 묶음 ↔ 파일 전체) git 을 다시 부른다.
+        /// </summary>
+        private void ReloadOrRelayout()
+        {
+            if (_target != null && _isImageMode == false && _document != null && EffectiveOptions().ContextLines != _loadedContextLines)
+            {
+                Reload();
+                return;
+            }
+            ApplyLayout();
         }
 
         private void OnDiffOptionsChanged()
@@ -501,7 +871,7 @@ namespace GitVersionControl
         private void SetLayout(DiffLayout layout)
         {
             GitVcsSettings.instance.DiffLayout = layout;
-            ApplyLayout();
+            ReloadOrRelayout();
         }
 
         /// <summary>
@@ -509,24 +879,35 @@ namespace GitVersionControl
         /// </summary>
         private void ApplyLayout()
         {
-            bool isSplit = GitVcsSettings.instance.DiffLayout == DiffLayout.SideBySide;
-            _unifiedToggle.SetValueWithoutNotify(isSplit == false);
-            _splitToggle.SetValueWithoutNotify(isSplit);
+            GitVcsSettings settings = GitVcsSettings.instance;
+            bool fileView = settings.DiffFileView;
+            bool isSplit = fileView == false && settings.DiffLayout == DiffLayout.SideBySide;
+            _showWhitespace = settings.DiffShowWhitespace;
+            _wrap = settings.DiffWordWrap;
+            Root.EnableInClassList("git-diff--wrap", _wrap);
+            Root.EnableInClassList("git-diff--file-view", fileView);
+            UpdateBar();
 
-            // 줄 모양(통합·나란히)이 바뀔 때만 줄 요소를 새로 만든다. 같은 모양이면 보이는 줄만 다시 채워(RefreshItems)
+            // 줄 모양(통합·나란히, 고정·가변 높이)이 바뀔 때만 줄 요소를 새로 만든다. 같은 모양이면 보이는 줄만 다시 채워(RefreshItems)
             // 다른 파일을 고를 때마다 목록 전체가 지워졌다 다시 그려지며 깜빡이지 않게 한다.
-            bool rebuild = _shownSplit != isSplit;
+            bool rebuild = _shownSplit != isSplit || _shownWrap != _wrap;
             if (rebuild)
             {
                 // makeItem·bindItem 은 바꾸는 즉시 목록을 다시 채운다. 하나씩 바꾸면 그 사이에 옛 모양 줄을 새 bind 로 채우다 깨지므로
                 // 먼저 목록을 비워 채울 줄을 없앤다.
                 _list.itemsSource = new List<GitDiffRow>();
+                // 접은 줄은 높이가 줄마다 달라 가변 높이로 둔다(고정 높이가 훨씬 빨라 접지 않을 때는 고정).
+                _list.virtualizationMethod = _wrap ? CollectionVirtualizationMethod.DynamicHeight : CollectionVirtualizationMethod.FixedHeight;
                 _list.makeItem = isSplit ? MakeSplitRow : MakeUnifiedRow;
                 _list.bindItem = isSplit ? BindSplitRow : BindUnifiedRow;
                 _shownSplit = isSplit;
+                _shownWrap = _wrap;
             }
-            UpdateGutter(isSplit);
-            _rows = _document == null ? new List<GitDiffRow>() : isSplit ? GitDiff.ToSideBySide(_document.Lines) : _document.Lines.Select(line => new GitDiffRow(line, line)).ToList();
+            UpdateGutter(isSplit, fileView);
+            _rows = _document == null ? new List<GitDiffRow>()
+                : fileView ? FileViewRows(_document.Lines)
+                : isSplit ? GitDiff.ToSideBySide(_document.Lines)
+                : _document.Lines.Select(line => new GitDiffRow(line, line)).ToList();
             _list.itemsSource = _rows;
             if (rebuild)
             {
@@ -542,7 +923,7 @@ namespace GitVersionControl
         /// 줄 번호 칸 폭을 이 파일의 가장 큰 번호 자릿수에 맞춘다(고정 폭이면 짧은 파일에 왼쪽 여백이 크게 남는다).
         /// 통합 보기에서 한쪽 번호가 하나도 없으면(새 파일·지운 파일) 그 칸은 숨긴다 — Fork 처럼 번호 칸이 하나만 남는다.
         /// </summary>
-        private void UpdateGutter(bool isSplit)
+        private void UpdateGutter(bool isSplit, bool fileView)
         {
             if (_document == null)
             {
@@ -559,8 +940,34 @@ namespace GitVersionControl
             }
             int digits = Math.Max(MinNumberDigits, maxNumber.ToString().Length);
             _numberWidth = digits * NumberDigitWidth + NumberPadding;
+            if (fileView)
+            {
+                // 파일 보기는 한 판(새 판, 지운 파일이면 옛 판)만 보이므로 번호 칸도 하나.
+                _showOldNumbers = anyNew == false;
+                _showNewNumbers = anyNew;
+                return;
+            }
             _showOldNumbers = isSplit || anyOld || anyNew == false;
             _showNewNumbers = isSplit || anyNew || anyOld == false;
+        }
+
+        /// <summary>
+        /// 파일 보기(GitKraken 의 File View)의 줄: 바뀐 뒤 파일 전체(문맥·더한 줄). 지운 파일이면 바뀌기 전 파일 전체(문맥·지운 줄).
+        /// 머리 줄·"파일 끝 개행 없음" 표시는 뺀다. 더한 줄은 줄 배경으로 그대로 표시된다.
+        /// </summary>
+        private static List<GitDiffRow> FileViewRows(IReadOnlyList<GitDiffLine> lines)
+        {
+            bool hasNewSide = lines.Any(line => line.NewNumber > 0);
+            GitDiffLineKind changed = hasNewSide ? GitDiffLineKind.Added : GitDiffLineKind.Removed;
+            List<GitDiffRow> rows = new();
+            foreach (GitDiffLine line in lines)
+            {
+                if (line.Kind == GitDiffLineKind.Context || line.Kind == changed)
+                {
+                    rows.Add(new GitDiffRow(line, line));
+                }
+            }
+            return rows;
         }
 
         private void ApplyNumberColumn(VisualElement number, bool shown)
@@ -600,12 +1007,14 @@ namespace GitVersionControl
                 return;
             }
 
-            (GitDiffDocument document, string error) = await _service.LoadAsync(_target, GitVcsSettings.instance.DiffOptions);
+            GitDiffOptions options = EffectiveOptions();
+            (GitDiffDocument document, string error) = await _service.LoadAsync(_target, options);
             if (version != _loadVersion)
             {
                 // 기다리는 동안 다른 파일을 열었거나 옵션을 바꿨다.
                 return;
             }
+            _loadedContextLines = options.ContextLines;
 
             HideLoading();
             SetDocument(document);
@@ -718,6 +1127,7 @@ namespace GitVersionControl
             _selectedLines.Clear();
             _selectionAnchor = -1;
             _dragSelecting = false;
+            _lastJumpRow = -1;
         }
 
         // ── 부분 스테이징 ───────────────────────────
@@ -909,12 +1319,13 @@ namespace GitVersionControl
             {
                 return;
             }
-            GitDiffOptions options = GitVcsSettings.instance.DiffOptions;
+            // 문맥 줄 없이(-U0) 읽은 diff 에서 만든 패치는 git apply 가 따로 허락해야 받는다.
+            bool zeroContext = _loadedContextLines == 0;
             // git 이 모르는 파일은 인덱스에 항목이 없어 패치가 붙을 곳이 없다. add -N 으로 빈 항목을 먼저 만든다.
             string intentToAdd = reverse == false && target.State == GitFileState.Untracked ? target.RepoPath : null;
             ClearSelection();
             await _runner.RunAsync(GitText.Get(reverse ? "op.unstageLines" : "op.stageLines"),
-                () => _commands.ApplyPatchToIndexAsync(patch, reverse, options.ContextLines == 0, intentToAdd), refreshAssets: false, workingTreeOnly: true);
+                () => _commands.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAdd), refreshAssets: false, workingTreeOnly: true);
             // 새로고침으로 목록이 바뀌며 뷰가 이미 다시 읽었을 수 있다. 같은 파일을 아직 보고 있으면 한 번 더 맞춘다.
             if (_target == target)
             {
@@ -946,25 +1357,83 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 앞(-1)·뒤(+1)의 다음 변경 묶음 머리 줄로 스크롤한다.
+        /// 앞(-1)·뒤(+1)의 다음 변경(이어진 더한·지운 줄 덩어리의 첫 줄)으로 간다. 파일 전체를 보는 통합·나란히 보기에는 머리 줄이 하나뿐이라
+        /// 머리 줄이 아니라 바뀐 덩어리 단위로 움직인다(GitKraken 의 ↑↓ 와 같다). 간 줄은 화면 위쪽(<see cref="JumpMargin"/> 줄 아래)에 둔다.
         /// </summary>
-        private void JumpToHunk(int direction)
+        private void JumpToChange(int direction)
         {
-            if (_rows.Count == 0)
+            List<int> starts = ChangeStartRows();
+            if (starts.Count == 0)
             {
                 return;
             }
-            ScrollView scroll = _list.Q<ScrollView>();
-            int first = scroll == null ? 0 : Mathf.FloorToInt(scroll.scrollOffset.y / RowHeight);
-            for (int index = first + direction; index >= 0 && index < _rows.Count; index += direction)
+            int focus = FocusRow();
+            int target = -1;
+            foreach (int row in starts)
             {
-                GitDiffLine line = _rows[index].Left ?? _rows[index].Right;
-                if (line != null && line.Kind == GitDiffLineKind.Hunk)
+                if (direction > 0 && row > focus)
                 {
-                    _list.ScrollToItem(index);
-                    return;
+                    target = row;
+                    break;
+                }
+                if (direction < 0 && row < focus)
+                {
+                    target = row;
                 }
             }
+            if (target < 0)
+            {
+                return;
+            }
+            _lastJumpRow = target;
+            ScrollView scroll = _list.Q<ScrollView>();
+            if (_wrap || scroll == null)
+            {
+                // 접은 줄은 높이가 달라 위치를 셀 수 없다. 목록이 알아서 보이게 한다.
+                _list.ScrollToItem(target);
+                return;
+            }
+            scroll.scrollOffset = new Vector2(scroll.scrollOffset.x, Mathf.Max(0, (target - JumpMargin) * RowHeight));
+        }
+
+        /// <summary>
+        /// 이동의 기준 줄: 화면 맨 위에서 <see cref="JumpMargin"/> 줄 아래. 방금 ↑↓ 로 간 줄이 아직 화면 안이면 그 줄(파일 끝 근처에서는 더 내려가지 못해
+        /// 화면 위치로 셈하면 같은 변경에 머문다). 맨 위에 있고 아직 움직인 적 없으면 -1(첫 변경부터).
+        /// </summary>
+        private int FocusRow()
+        {
+            ScrollView scroll = _list.Q<ScrollView>();
+            if (_wrap || scroll == null)
+            {
+                return _lastJumpRow;
+            }
+            float offset = scroll.scrollOffset.y;
+            int firstVisible = Mathf.FloorToInt(offset / RowHeight);
+            int visibleRows = Mathf.Max(1, Mathf.FloorToInt(scroll.contentViewport.layout.height / RowHeight));
+            if (_lastJumpRow >= firstVisible && _lastJumpRow < firstVisible + visibleRows)
+            {
+                return _lastJumpRow;
+            }
+            return offset < RowHeight * 0.5f ? -1 : firstVisible + JumpMargin;
+        }
+
+        /// <summary>
+        /// 바뀐 덩어리마다 첫 줄의 목록 인덱스.
+        /// </summary>
+        private List<int> ChangeStartRows()
+        {
+            List<int> starts = new();
+            bool previous = false;
+            for (int index = 0; index < _rows.Count; index++)
+            {
+                bool isChange = GitPartialPatch.IsChange(_rows[index].Left) || GitPartialPatch.IsChange(_rows[index].Right);
+                if (isChange && previous == false)
+                {
+                    starts.Add(index);
+                }
+                previous = isChange;
+            }
+            return starts;
         }
 
         // ── 통합 보기 ─────────────────────────────
@@ -1100,11 +1569,15 @@ namespace GitVersionControl
             return code;
         }
 
-        private static void BindCode(VisualElement code, GitDiffLine line)
+        private void BindCode(VisualElement code, GitDiffLine line)
         {
             Label before = (Label)code[0];
             Label change = (Label)code[1];
             Label after = (Label)code[2];
+            // 공백 보이기는 흐린 · → 를 리치 텍스트로 칠한다. 코드의 < > 는 Render 가 <noparse> 로 감싸 태그로 읽히지 않게 한다.
+            before.enableRichText = _showWhitespace;
+            change.enableRichText = _showWhitespace;
+            after.enableRichText = _showWhitespace;
             if (line == null)
             {
                 before.text = string.Empty;
@@ -1113,9 +1586,10 @@ namespace GitVersionControl
                 return;
             }
             string raw = line.Text ?? string.Empty;
-            if (line.ChangeLength <= 0)
+            // 접어 보기는 한 조각이어야 줄 끝에서 접힌다(세 조각이면 조각마다 따로 접혀 어긋난다). 그래서 줄 안 강조는 접지 않을 때만.
+            if (line.ChangeLength <= 0 || _wrap)
             {
-                before.text = ExpandTabs(raw);
+                before.text = Render(raw);
                 change.text = string.Empty;
                 after.text = string.Empty;
                 return;
@@ -1123,10 +1597,48 @@ namespace GitVersionControl
             // 탭을 펼치기 전 위치로 자른 뒤 각 조각을 펼친다(펼친 뒤에는 위치가 달라진다).
             int start = Math.Min(line.ChangeStart, raw.Length);
             int length = Math.Min(line.ChangeLength, raw.Length - start);
-            before.text = ExpandTabs(raw.Substring(0, start));
-            change.text = ExpandTabs(raw.Substring(start, length));
-            after.text = ExpandTabs(raw.Substring(start + length));
+            before.text = Render(raw.Substring(0, start));
+            change.text = Render(raw.Substring(start, length));
+            after.text = Render(raw.Substring(start + length));
         }
+
+        /// <summary>
+        /// 화면에 쓸 코드 글. 탭은 4칸으로 펼친다. 공백 보이기면 공백은 흐린 ·, 탭은 흐린 → 와 남은 칸으로 바꾸고 나머지는 <c>&lt;noparse&gt;</c> 로 감싼다.
+        /// </summary>
+        private string Render(string text)
+        {
+            if (_showWhitespace == false)
+            {
+                return ExpandTabs(text);
+            }
+            StringBuilder builder = new(text.Length * 2);
+            int runStart = 0;
+            for (int i = 0; i <= text.Length; i++)
+            {
+                bool isWhitespace = i < text.Length && (text[i] == ' ' || text[i] == '\t');
+                if (i < text.Length && isWhitespace == false)
+                {
+                    continue;
+                }
+                if (i > runStart)
+                {
+                    // 코드에 </noparse> 가 그대로 있으면 감싼 구간이 거기서 끝난다. 사이에 폭 없는 공백을 넣어 끊는다.
+                    builder.Append("<noparse>").Append(text, runStart, i - runStart).Replace("</noparse>", "</no​parse>", builder.Length - (i - runStart), i - runStart).Append("</noparse>");
+                }
+                if (i < text.Length)
+                {
+                    builder.Append(WhitespaceOpen).Append(text[i] == ' ' ? "·" : "→   ").Append(WhitespaceClose);
+                }
+                runStart = i + 1;
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// 공백 표시의 흐림. 글자색은 테마를 따르고 투명도만 낮춘다.
+        /// </summary>
+        private const string WhitespaceOpen = "<alpha=#50>";
+        private const string WhitespaceClose = "<alpha=#FF>";
 
         /// <summary>
         /// 탭 폭 4. 조각마다 따로 펼치므로 열을 정확히 맞추지는 않는다(줄 안 강조가 있는 줄만 해당).
