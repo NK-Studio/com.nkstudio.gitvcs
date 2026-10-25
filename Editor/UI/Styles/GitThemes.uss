@@ -184,6 +184,7 @@
 .git-theme--unity .file-row .file-row__action--unstage,
 .git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
 .git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
+.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save,
 .git-theme--unity .diff-row .diff-row__hunk-button--stage,
 .git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
 .git-theme--unity .diff-row .diff-row__hunk-button--discard,
@@ -233,6 +234,7 @@
 .git-theme--unity .staging .staging__button--stage,
 .git-theme--unity .file-row .file-row__action--stage,
 .git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
+.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save,
 .git-theme--unity .diff-row .diff-row__hunk-button--stage {
     background-color: var(--git-stage-bg);
     color: var(--git-action-text);
@@ -250,6 +252,7 @@
 .git-theme--unity .staging .staging__button--stage:hover:enabled,
 .git-theme--unity .file-row .file-row__action--stage:hover:enabled,
 .git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:hover:enabled,
+.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:hover:enabled,
 .git-theme--unity .diff-row .diff-row__hunk-button--stage:hover:enabled {
     background-color: var(--git-stage-hover);
     color: var(--git-action-text);
@@ -268,9 +271,15 @@
 .git-theme--unity .staging .staging__button--stage:active:enabled,
 .git-theme--unity .file-row .file-row__action--stage:active:enabled,
 .git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active:enabled,
+.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:active:enabled,
 .git-theme--unity .diff-row .diff-row__hunk-button--stage:active:enabled {
     background-color: var(--git-stage-pressed);
     color: #ffffff;
+}
+
+/* 저장할 편집이 없으면 저장 버튼은 흐리게(위 기본 규칙의 opacity: 1 보다 세게). */
+.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:disabled {
+    opacity: 0.4;
 }
 
 .git-theme--unity .staging .staging__button--unstage:active:enabled,

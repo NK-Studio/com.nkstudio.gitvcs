@@ -630,6 +630,22 @@
     white-space: normal;
 }
 
+/* 되돌릴 수 없는 확인(버리기·덮어쓰기)은 강조색 대신 빨강 채움. 세 갈래에서 버리기가 다른 쪽이면 무채색 버튼에 빨강 테두리. */
+.branch-dialog .branch-dialog__create.confirm-dialog__button--danger {
+    background-color: var(--git-danger);
+    border-color: var(--git-danger);
+    color: #ffffff;
+}
+
+.branch-dialog .branch-dialog__create.confirm-dialog__button--danger:hover:enabled {
+    background-color: var(--git-danger);
+    opacity: 0.85;
+}
+
+.branch-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline {
+    border-color: var(--git-danger);
+}
+
 /* 안내 글: 아이콘 아래 제목 시작선(배지 44 + 간격 14)에 맞춰 들이고 줄바꿈을 그대로 보인다. */
 .confirm-dialog__message {
     margin: 0 0 6px 58px;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -376,11 +377,9 @@ namespace GitVersionControl
                     Reload();
                     return;
                 }
-                // 다른 파일로 가려면 저장 안 된 편집을 먼저 묻는다. 취소하면 지금 파일에 머문다.
-                if (TryLeaveEdit() == false)
-                {
-                    return;
-                }
+                // 다른 파일로 가려면 저장 안 된 편집을 먼저 묻는다(Git 창 위 팝업). 저장·버리기면 그 뒤에 이 파일로 가고, 취소하면 지금 파일에 머문다.
+                LeaveEdit(() => SetTarget(target));
+                return;
             }
             _target = target;
             Reload();
@@ -625,11 +624,8 @@ namespace GitVersionControl
 
             _closeButton = new ToolbarButton(() =>
             {
-                // 저장 안 된 편집이 있으면 먼저 묻는다. 취소하면 닫지 않는다.
-                if (TryLeaveEdit())
-                {
-                    CloseRequested?.Invoke();
-                }
+                // 저장 안 된 편집이 있으면 먼저 묻는다(Git 창 위 팝업). 취소하면 닫지 않는다.
+                LeaveEdit(() => CloseRequested?.Invoke());
             }) { text = "×", tooltip = GitText.Get("common.close") };
             _closeButton.AddToClassList("git-diff__close");
             _closeButton.SetVisible(false);
@@ -668,7 +664,7 @@ namespace GitVersionControl
             _editingLabel = new Label(GitText.Get("diff.editing")) { pickingMode = PickingMode.Ignore };
             _editingLabel.AddToClassList("git-diff__editing-label");
             _editingGroup.Add(_editingLabel);
-            _saveButton = BarButton(() => SaveEdit(), GitText.Get("diff.editSaveTooltip"), null, GitText.Get("diff.editSave"));
+            _saveButton = BarButton(() => _ = SaveEditAsync(), GitText.Get("diff.editSaveTooltip"), null, GitText.Get("diff.editSave"));
             _saveButton.AddToClassList("git-diff__bar-button--outlined");
             _saveButton.AddToClassList("git-diff__edit-save");
             _editingGroup.Add(_saveButton);
@@ -962,6 +958,23 @@ namespace GitVersionControl
         private IDialogService Dialogs => _dialogs ?? (_fallbackDialogs ??= new EditorDialogService());
 
         /// <summary>
+        /// 편집 확인 팝업(<see cref="GitConfirmDialog"/>)을 덮어 띄울 곳(Git 창). null 을 돌려주거나 없으면 운영체제 대화상자로 묻는다(따로 뜬 diff 창 등).
+        /// </summary>
+        public Func<VisualElement> PopupHostProvider { get; set; }
+
+        private VisualElement PopupHost => PopupHostProvider?.Invoke();
+
+        /// <summary>
+        /// 편집을 끝낼지 묻는 팝업이 떠 있는 동안 true. 같은 질문이 겹쳐 뜨지 않게 한다.
+        /// </summary>
+        private bool _isPrompting;
+
+        /// <summary>
+        /// 저장 중(디스크가 바뀌었다는 팝업을 기다리는 중 포함)이면 true. Ctrl+S 를 거듭 눌러도 한 번만 쓴다.
+        /// </summary>
+        private bool _isSaving;
+
+        /// <summary>
         /// 작업 사본의 변경을 보는 diff 인지(Unstaged·작업 트리). 이때만 보이는 내용이 디스크의 파일과 같아 이 자리에서 고칠 수 있다.
         /// </summary>
         private static bool IsEditableSource(GitDiffTarget target)
@@ -979,7 +992,7 @@ namespace GitVersionControl
         /// "이 파일 편집": GitKraken 처럼 이 자리를 편집할 수 있는 파일 보기로 바꾼다. 작업 사본의 글 파일이 아니면 외부 편집기에서 연다.
         /// UTF-8·UTF-16 으로 풀리지 않는 파일은 고치면 깨지므로 외부 편집기를 권한다.
         /// </summary>
-        private void BeginEdit()
+        private async void BeginEdit()
         {
             if (_isEditing)
             {
@@ -991,7 +1004,8 @@ namespace GitVersionControl
                 OpenInEditor();
                 return;
             }
-            string path = FullPathOf(_target);
+            GitDiffTarget target = _target;
+            string path = FullPathOf(target);
             byte[] bytes;
             try
             {
@@ -999,13 +1013,14 @@ namespace GitVersionControl
             }
             catch (Exception exception)
             {
-                Dialogs.Alert(GitText.Get("diff.editUnsupportedTitle"), exception.Message);
+                await GitConfirmDialog.AlertAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"), exception.Message);
                 return;
             }
             GitTextFile file = GitTextFile.TryDecode(bytes);
             if (file == null)
             {
-                if (Dialogs.Confirm(GitText.Get("diff.editUnsupportedTitle"), GitText.Format("diff.editUnsupportedMessage", GitDisplay.Nfc(_target.RepoPath)), GitText.Get("diff.openInExternalEditor")))
+                if (await GitConfirmDialog.ConfirmAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"),
+                        GitText.Format("diff.editUnsupportedMessage", GitDisplay.Nfc(target.RepoPath)), GitText.Get("diff.openInExternalEditor")))
                 {
                     OpenInEditor();
                 }
@@ -1014,7 +1029,7 @@ namespace GitVersionControl
             if (_editor == null)
             {
                 _editor = new GitCodeEditor();
-                _editor.SaveRequested += () => SaveEdit();
+                _editor.SaveRequested += () => _ = SaveEditAsync();
                 _editor.CancelRequested += CancelEdit;
                 _editor.Changed += UpdateEditingState;
                 _editor.ExtraMenuItems = menu => menu.AppendAction(GitText.Get("diff.openInExternalEditor"), _ => OpenInEditor());
@@ -1038,42 +1053,93 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 편집을 끝내도 되는지 묻고 끝낸다. 저장 안 된 편집이 있으면 [저장][버리기][취소] 로 묻는다.
+        /// 편집을 끝내고 <paramref name="proceed"/> 를 한다. 저장 안 된 편집이 없으면 바로 끝내고 바로 부른다.
+        /// 있으면 Git 창 위 팝업으로 [저장][버리기][취소] 를 묻고, 저장(성공)·버리기면 편집을 끝낸 뒤 부른다. 취소하면 부르지 않고 편집을 이어 간다.
         /// </summary>
-        /// <returns>편집이 끝났으면(또는 편집 중이 아니었으면) true. 사용자가 취소했거나 저장하지 못했으면 false.</returns>
-        public bool TryLeaveEdit()
+        /// <returns>편집 중이 아니었거나 묻지 않고 끝냈으면 true(<paramref name="proceed"/> 를 이미 불렀다). 물으러 갔으면 false.</returns>
+        public bool LeaveEdit(Action proceed)
         {
-            if (_isEditing == false)
+            if (_isEditing == false || _editor.IsDirty == false)
             {
+                if (_isEditing)
+                {
+                    EndEdit();
+                }
+                proceed?.Invoke();
                 return true;
             }
-            if (_editor.IsDirty)
-            {
-                int choice = Dialogs.Choose(GitText.Get("diff.editUnsavedTitle"), GitText.Format("diff.editUnsavedMessage", GitDisplay.Nfc(_editRepoPath)),
-                    GitText.Get("diff.editSave"), GitText.Get("diff.editDiscard"));
-                if (choice == 1 || (choice == 0 && SaveEdit() == false))
-                {
-                    _editor.FocusEditor();
-                    return false;
-                }
-            }
-            EndEdit();
-            return true;
+            AskToLeaveEdit(proceed);
+            return false;
         }
 
-        /// <summary>
-        /// Esc·취소: 저장 안 된 편집이 있으면 버릴지 묻고 diff 로 돌아간다.
-        /// </summary>
-        private void CancelEdit()
+        private async void AskToLeaveEdit(Action proceed)
         {
-            if (_isEditing == false)
+            if (_isPrompting)
             {
                 return;
             }
-            if (_editor.IsDirty && Dialogs.Confirm(GitText.Get("diff.editUnsavedTitle"), GitText.Format("diff.editDiscardMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editDiscard")) == false)
+            _isPrompting = true;
+            int choice;
+            try
+            {
+                choice = await GitConfirmDialog.ChooseAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
+                    GitText.Format("diff.editUnsavedMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editSave"), GitText.Get("diff.editDiscard"), altDanger: true);
+                // 0 = 저장, 2 = 버리기, 1 = 취소. 저장하지 못했으면(취소·실패) 편집을 이어 간다.
+                if (choice == 0 && await SaveEditAsync() == false)
+                {
+                    choice = 1;
+                }
+            }
+            finally
+            {
+                _isPrompting = false;
+            }
+            if (_isEditing == false)
+            {
+                // 기다리는 동안 다른 길로 편집이 끝났다(다시 읽기 등). 할 일만 한다.
+                proceed?.Invoke();
+                return;
+            }
+            if (choice == 1)
             {
                 _editor.FocusEditor();
                 return;
+            }
+            EndEdit();
+            proceed?.Invoke();
+        }
+
+        /// <summary>
+        /// Esc·취소: 저장 안 된 편집이 있으면 Git 창 위 팝업으로 버릴지 묻고 diff 로 돌아간다.
+        /// </summary>
+        private async void CancelEdit()
+        {
+            if (_isEditing == false || _isPrompting)
+            {
+                return;
+            }
+            if (_editor.IsDirty)
+            {
+                _isPrompting = true;
+                bool discard;
+                try
+                {
+                    discard = await GitConfirmDialog.ConfirmAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
+                        GitText.Format("diff.editDiscardMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editDiscard"), okDanger: true);
+                }
+                finally
+                {
+                    _isPrompting = false;
+                }
+                if (_isEditing == false)
+                {
+                    return;
+                }
+                if (discard == false)
+                {
+                    _editor.FocusEditor();
+                    return;
+                }
             }
             EndEdit();
         }
@@ -1099,12 +1165,25 @@ namespace GitVersionControl
         /// 원래 인코딩·BOM·줄 끝으로 쓰고(<see cref="GitTextFile.Encode"/>), Unity 에셋이면 다시 가져오고, git 상태와 diff 를 새로 읽는다.
         /// </summary>
         /// <returns>썼으면 true.</returns>
-        private bool SaveEdit()
+        private async Task<bool> SaveEditAsync()
         {
-            if (_isEditing == false)
+            if (_isEditing == false || _isSaving)
             {
                 return false;
             }
+            _isSaving = true;
+            try
+            {
+                return await WriteEditAsync();
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+
+        private async Task<bool> WriteEditAsync()
+        {
             byte[] onDisk = null;
             try
             {
@@ -1119,8 +1198,12 @@ namespace GitVersionControl
             }
             if (onDisk == null || onDisk.AsSpan().SequenceEqual(_editBytes) == false)
             {
-                int choice = Dialogs.Choose(GitText.Get("diff.editChangedOnDiskTitle"), GitText.Format("diff.editChangedOnDiskMessage", GitDisplay.Nfc(_editRepoPath)),
-                    GitText.Get("diff.editOverwrite"), GitText.Get("diff.editReloadFromDisk"));
+                int choice = await GitConfirmDialog.ChooseAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editChangedOnDiskTitle"),
+                    GitText.Format("diff.editChangedOnDiskMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editOverwrite"), GitText.Get("diff.editReloadFromDisk"), okDanger: true);
+                if (_isEditing == false)
+                {
+                    return false;
+                }
                 if (choice == 1)
                 {
                     _editor.FocusEditor();
@@ -1139,7 +1222,8 @@ namespace GitVersionControl
             }
             catch (Exception exception)
             {
-                Dialogs.Alert(GitText.Get("diff.editSaveFailedTitle"), GitText.Format("diff.editSaveFailedMessage", GitDisplay.Nfc(_editRepoPath), exception.Message));
+                await GitConfirmDialog.AlertAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editSaveFailedTitle"),
+                    GitText.Format("diff.editSaveFailedMessage", GitDisplay.Nfc(_editRepoPath), exception.Message));
                 return false;
             }
             // 다음 저장은 방금 쓴 판과 비교하고, 줄 끝도 방금 쓴 판을 기준으로 맞춘다.
@@ -1282,11 +1366,12 @@ namespace GitVersionControl
         {
             if (_isEditing)
             {
-                // 편집이 곧 파일 보기다. Diff 보기로 가면 편집을 끝낸다(저장 안 된 편집은 먼저 묻는다).
-                if (fileView || TryLeaveEdit() == false)
+                // 편집이 곧 파일 보기다. Diff 보기로 가면 편집을 끝낸다(저장 안 된 편집은 먼저 묻고, 저장·버리기 뒤에 Diff 보기로 간다).
+                if (fileView == false)
                 {
-                    return;
+                    LeaveEdit(() => SetFileView(false));
                 }
+                return;
             }
             GitVcsSettings.instance.DiffFileView = fileView;
             ReloadOrRelayout();

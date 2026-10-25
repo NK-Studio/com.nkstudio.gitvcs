@@ -94,6 +94,8 @@ namespace GitVersionControl
             _diff.ShowReloadButton(false);
             // GitKraken 처럼 diff 의 거터 + 버튼·hunk 버튼으로 줄 단위 Stage·Unstage.
             _diff.EnablePartialStaging(services.Runner, services.Commands, services.Dialogs);
+            // "이 파일 편집" 의 저장 확인은 운영체제 대화상자 대신 Git 창 위 팝업으로.
+            _diff.PopupHostProvider = () => services.PopupHost;
             _diffHost.Add(_diff.Root);
             _staging = new StagingLists(Root.Require<VisualElement>("staging-host"), services);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: true);
@@ -386,9 +388,10 @@ namespace GitVersionControl
         /// </summary>
         private void ShowDiff(GitDiffTarget target)
         {
-            // diff 에서 파일을 고치는 중이면 닫기 전에 저장 안 된 편집을 묻는다. 취소하면 diff 를 그대로 둔다.
-            if (target == null && _isDiffShown && _diff.TryLeaveEdit() == false)
+            // diff 에서 파일을 고치는 중이면 닫기 전에 저장 안 된 편집을 묻는다(Git 창 위 팝업). 저장·버리기 뒤에 닫고, 취소하면 diff 를 그대로 둔다.
+            if (target == null && _isDiffShown && _diff.IsEditing)
             {
+                _diff.LeaveEdit(() => ShowDiff(null));
                 return;
             }
             bool wasShown = _isDiffShown;

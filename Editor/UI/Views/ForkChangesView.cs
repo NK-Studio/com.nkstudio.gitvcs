@@ -24,6 +24,8 @@ namespace GitVersionControl
             _diff.ShowReloadButton(false);
             // GitKraken 처럼 diff 의 거터 + 버튼·hunk 버튼으로 줄 단위 Stage·Unstage.
             _diff.EnablePartialStaging(services.Runner, services.Commands, services.Dialogs);
+            // "이 파일 편집" 의 저장 확인은 운영체제 대화상자 대신 Git 창 위 팝업으로.
+            _diff.PopupHostProvider = () => services.PopupHost;
             Root.Require<VisualElement>("diff-host").Add(_diff.Root);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: false);
 
