@@ -39,6 +39,11 @@ namespace GitVersionControl
 
             // ── 위쪽 작업 막대 ──
             ["actionbar.repository"] = new[] { "저장소", "repository" },
+            ["actionbar.submodule"] = new[] { "서브모듈", "submodule" },
+            ["actionbar.repositoryTooltip"] = new[] { "프로젝트 저장소와 서브모듈 중에서 열 저장소를 고릅니다.", "Choose the project repository or one of its submodules to open." },
+            ["actionbar.noSubmodules"] = new[] { "서브모듈 없음", "No submodules" },
+            ["repoPicker.project"] = new[] { "프로젝트 저장소", "Project repository" },
+            ["actionbar.submoduleNotInitialized"] = new[] { " (받지 않음)", " (not initialized)" },
             ["actionbar.branch"] = new[] { "브랜치", "branch" },
             ["actionbar.undo"] = new[] { "실행 취소", "Undo" },
             ["actionbar.redo"] = new[] { "다시 실행", "Redo" },
@@ -461,6 +466,7 @@ namespace GitVersionControl
             ["refs.newTag"] = new[] { "HEAD 에 새 태그…", "New Tag at HEAD…" },
             ["refs.fetch"] = new[] { "Fetch", "Fetch" },
             ["refs.stashNow"] = new[] { "지금 변경을 Stash", "Stash Changes Now" },
+            ["refs.openSubmodule"] = new[] { "열기", "Open" },
             ["refs.submoduleUpdate"] = new[] { "Update (받기·체크아웃)", "Update (init & checkout)" },
             ["refs.submoduleUpdateAll"] = new[] { "모든 서브모듈 Update", "Update All Submodules" },
             ["refs.openFolder"] = new[] { "폴더 열기", "Open Folder" },

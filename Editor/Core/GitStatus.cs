@@ -47,7 +47,8 @@ namespace GitVersionControl
     /// </summary>
     public static class GitStatusParser
     {
-        public static List<GitStatusEntry> Parse(string output, string projectPrefix, out GitBranchInfo branch)
+        /// <param name="repoInProject">저장소가 Unity 프로젝트 안의 하위 폴더일 때(서브모듈) 그 경로("Packages/x/"). 프로젝트 밖이면 null.</param>
+        public static List<GitStatusEntry> Parse(string output, string projectPrefix, out GitBranchInfo branch, string repoInProject = "")
         {
             branch = new GitBranchInfo();
             List<GitStatusEntry> entries = new();
@@ -83,7 +84,7 @@ namespace GitVersionControl
                 {
                     entry.OriginalRepoPath = records[++i];
                 }
-                entry.ProjectPath = ToProjectPath(entry.RepoPath, projectPrefix);
+                entry.ProjectPath = ToProjectPath(entry.RepoPath, projectPrefix, repoInProject);
                 entries.Add(entry);
             }
             return entries;
@@ -119,15 +120,23 @@ namespace GitVersionControl
         /// 저장소 루트와 Unity 프로젝트 루트가 다를 수 있다(모노레포의 하위 폴더 등).
         /// <paramref name="projectPrefix"/> 는 <c>git rev-parse --show-prefix</c> 결과("" 또는 "client/unity/").
         /// </summary>
-        public static string ToProjectPath(string repoPath, string projectPrefix)
+        /// <param name="repoInProject">
+        /// 저장소가 Unity 프로젝트 안의 하위 폴더일 때(서브모듈을 열었을 때) 프로젝트에서 저장소까지의 경로("Packages/x/"). 그 앞에 붙인다.
+        /// 저장소가 프로젝트 밖이면 null — 프로젝트 경로가 없다.
+        /// </param>
+        public static string ToProjectPath(string repoPath, string projectPrefix, string repoInProject = "")
         {
+            if (repoInProject == null)
+            {
+                return null;
+            }
             if (string.IsNullOrEmpty(projectPrefix))
             {
-                return repoPath;
+                return repoInProject + repoPath;
             }
             if (repoPath.StartsWith(projectPrefix, StringComparison.Ordinal))
             {
-                return repoPath.Substring(projectPrefix.Length);
+                return repoInProject + repoPath.Substring(projectPrefix.Length);
             }
             return null;
         }

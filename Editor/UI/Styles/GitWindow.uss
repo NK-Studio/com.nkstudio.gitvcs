@@ -324,6 +324,34 @@
     color: var(--git-text-muted);
 }
 
+/* ── repo-picker: 작업 막대 저장소 이름 아래에 펼치는 저장소 고르기(GitRepositoryPicker). 막·상자·줄은 branch-picker 를 쓴다 ── */
+.branch-picker.repo-picker {
+    padding: 6px 0;
+}
+
+/* 이름 뒤에 흐린 글씨로 프로젝트 저장소 / 서브모듈 경로. */
+.repo-picker__detail {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 0 0 10px;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
+/* 받지 않은 서브모듈: 흐리게, 고를 수 없음. */
+.repo-picker__row--disabled {
+    opacity: 0.45;
+    cursor: arrow;
+}
+
+/* 프로젝트 저장소와 서브모듈 사이 구분선. */
+.repo-picker__divider {
+    height: 1px;
+    margin: 4px 10px;
+    background-color: var(--git-divider);
+}
+
 /* 버튼 묶음 사이 세로 구분선. */
 .git-actionbar__group {
     flex-direction: row;

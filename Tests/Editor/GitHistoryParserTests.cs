@@ -120,7 +120,7 @@ namespace GitVersionControl.Tests
 
             foreach (GitFileChange change in changes)
             {
-                Assert.AreEqual(GitStatusParser.ToProjectPath(change.RepoPath, GitRepository.ProjectPrefix), change.ProjectPath);
+                Assert.AreEqual(GitStatusParser.ToProjectPath(change.RepoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject), change.ProjectPath);
             }
         }
 

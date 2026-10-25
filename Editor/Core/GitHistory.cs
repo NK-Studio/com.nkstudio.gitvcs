@@ -253,7 +253,7 @@ namespace GitVersionControl
                     change.OriginalRepoPath = tokens[i++];
                 }
                 change.RepoPath = tokens[i++];
-                change.ProjectPath = GitStatusParser.ToProjectPath(change.RepoPath, GitRepository.ProjectPrefix);
+                change.ProjectPath = GitStatusParser.ToProjectPath(change.RepoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject);
                 changes.Add(change);
             }
             return changes;

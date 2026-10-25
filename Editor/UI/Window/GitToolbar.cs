@@ -19,7 +19,8 @@ namespace GitVersionControl
 
         private readonly GitServices _services;
         private readonly VisualElement _bar;
-        private readonly Label _repoName;
+        private readonly Label _repoCaption;
+        private readonly Button _repoButton;
         private readonly Button _branchButton;
         private readonly Label _status;
         private readonly ActionButton _undo;
@@ -43,7 +44,8 @@ namespace GitVersionControl
         {
             _services = services;
             _bar = root.Require<VisualElement>("action-bar");
-            _repoName = root.Require<Label>("repo-name");
+            _repoCaption = root.Require<Label>("repo-caption");
+            _repoButton = root.Require<Button>("repo-button");
             _branchButton = root.Require<Button>("branch-button");
             _status = root.Require<Label>("status-label");
             // 실행 취소·다시 실행은 Material Symbols 그림(Icons/Undo.png·Redo.png)을 쓴다. 색은 USS 가 글자색으로 물들인다.
@@ -60,16 +62,19 @@ namespace GitVersionControl
 
             IGitOperationRunner runner = services.Runner;
             IGitCommandService commands = services.Commands;
+            // 저장소 이름도 ▾ 를 붙여 누르면 프로젝트 저장소와 서브모듈 중에서 고른다(Fork 처럼 서브모듈을 연다).
+            VisualElement repoContext = _repoButton.parent;
+            VisualElement repoRow = WrapWithCaret(_repoButton, out ActionGlyph repoCaret);
+            void OpenRepositoryPicker()
+            {
+                GitRepositoryPicker.Show(services, repoContext, open => repoRow.EnableInClassList("git-actionbar__branch-row--open", open));
+            }
+            _repoButton.clicked += OpenRepositoryPicker;
+            repoCaret.RegisterCallback<ClickEvent>(_ => OpenRepositoryPicker());
             // GitKraken 처럼 브랜치 이름을 누르면 그 아래에 검색해 고르는 목록을 펼친다. 띄울 곳이 없으면 예전처럼 사이드바 참조 트리로 간다.
             // 이름 뒤 ▾ 는 버튼 안이 아니라 옆에 둔다 — 글자 요소(Button)에 자식을 넣으면 글자 폭을 재지 않아 이름이 사라진다.
-            VisualElement branchRow = new();
-            branchRow.AddToClassList("git-actionbar__branch-row");
             VisualElement branchContext = _branchButton.parent;
-            branchContext.Insert(branchContext.IndexOf(_branchButton), branchRow);
-            branchRow.Add(_branchButton);
-            ActionGlyph caret = new(ActionGlyphKind.Caret) { pickingMode = PickingMode.Position };
-            caret.AddToClassList("git-actionbar__caret");
-            branchRow.Add(caret);
+            VisualElement branchRow = WrapWithCaret(_branchButton, out ActionGlyph caret);
             void OpenBranchPicker()
             {
                 if (GitBranchPicker.Show(services, branchContext, open => branchRow.EnableInClassList("git-actionbar__branch-row--open", open)) == false)
@@ -124,12 +129,30 @@ namespace GitVersionControl
             Render();
         }
 
+        /// <summary>
+        /// 이름 버튼을 ▾ 와 한 줄로 감싼다. ▾ 는 버튼 안이 아니라 옆에 둔다 — 글자 요소(Button)에 자식을 넣으면 글자 폭을 재지 않아 이름이 사라진다.
+        /// </summary>
+        private static VisualElement WrapWithCaret(Button button, out ActionGlyph caret)
+        {
+            VisualElement row = new();
+            row.AddToClassList("git-actionbar__branch-row");
+            VisualElement context = button.parent;
+            context.Insert(context.IndexOf(button), row);
+            row.Add(button);
+            caret = new ActionGlyph(ActionGlyphKind.Caret) { pickingMode = PickingMode.Position };
+            caret.AddToClassList("git-actionbar__caret");
+            row.Add(caret);
+            return row;
+        }
+
         public void Render()
         {
             IGitRepositoryState repository = _services.Repository;
             GitBranchInfo branch = repository.Branch;
-            _repoName.text = string.IsNullOrEmpty(GitRepository.RepoRoot) ? "-" : Path.GetFileName(GitRepository.RepoRoot.TrimEnd('/'));
-            _repoName.tooltip = GitRepository.RepoRoot;
+            _repoButton.text = string.IsNullOrEmpty(GitRepository.RepoRoot) ? "-" : Path.GetFileName(GitRepository.RepoRoot.TrimEnd('/'));
+            _repoButton.tooltip = GitRepository.RepoRoot;
+            // 서브모듈을 열었으면 칸 이름도 "서브모듈" 로 바꿔, 프로젝트 저장소가 아님을 바로 알게 한다.
+            _repoCaption.text = GitText.Get(GitRepository.OpenedRoot == null ? "actionbar.repository" : "actionbar.submodule");
             _branchButton.text = branch == null ? "-" : branch.Detached ? "HEAD (detached)" : GitDisplay.Nfc(branch.Name);
             _branchButton.tooltip = GitDisplay.FormatBranch(branch);
             _status.text = _services.Runner.StatusText;

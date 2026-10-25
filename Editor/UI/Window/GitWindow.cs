@@ -74,6 +74,9 @@ namespace GitVersionControl
             // 로그인하면 연결 화면에서 본체로, 로그아웃하면 다시 연결 화면으로 바꾼다.
             GitHubAccount.Changed -= Rebuild;
             GitHubAccount.Changed += Rebuild;
+            // 서브모듈을 열거나 돌아오면 탭을 다시 만든다 — 지난 저장소의 커밋 목록·선택·diff 가 남지 않게.
+            GitRepository.RepositorySwitched -= Rebuild;
+            GitRepository.RepositorySwitched += Rebuild;
             Build();
         }
 
@@ -169,6 +172,7 @@ namespace GitVersionControl
             GitTheme.Changed -= ApplyTheme;
             GitLayout.Changed -= Rebuild;
             GitHubAccount.Changed -= Rebuild;
+            GitRepository.RepositorySwitched -= Rebuild;
             TearDown();
         }
 

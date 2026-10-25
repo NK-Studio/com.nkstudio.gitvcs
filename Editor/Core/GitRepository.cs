@@ -8,7 +8,7 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 현재 Unity 프로젝트가 속한 git 저장소의 상태 캐시.
+    /// 현재 Unity 프로젝트가 속한 git 저장소의 상태 캐시. Git 창에서 서브모듈을 열면(<see cref="OpenRepository"/>) 그 저장소를 대신 본다.
     ///
     /// Project 창 오버레이는 매 프레임 수백 번 그려지므로 git 을 직접 부르지 않고 이 캐시만 읽는다.
     /// 캐시는 에셋 임포트·에디터 포커스 복귀·커밋 뒤, 그리고 저장소 폴더의 바깥 변경(<see cref="GitFileWatcher"/>)·자동 fetch(<see cref="GitAutoFetch"/>) 때 백그라운드에서 다시 채운다.
@@ -36,6 +36,25 @@ namespace GitVersionControl
 
         /// <summary>저장소 루트에서 Unity 프로젝트 루트까지의 상대 경로("" 또는 "client/unity/").</summary>
         public static string ProjectPrefix { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// 연 저장소가 Unity 프로젝트 안의 하위 폴더일 때(서브모듈) 프로젝트에서 그 저장소까지의 경로("Packages/x/"). 프로젝트 저장소면 "".
+        /// 프로젝트 밖의 저장소면 null — 파일에 프로젝트 경로가 없다.
+        /// </summary>
+        public static string RepoInProject { get; private set; } = string.Empty;
+
+        /// <summary>Unity 프로젝트가 속한 저장소의 루트. 서브모듈을 연 동안에도 그대로라, 돌아갈 곳과 서브모듈 목록을 여기서 찾는다.</summary>
+        public static string MainRepoRoot { get; private set; }
+
+        /// <summary>
+        /// 프로젝트 저장소 대신 연 저장소(서브모듈)의 루트. null 이면 프로젝트 저장소를 보고 있다(<see cref="OpenRepository"/>).
+        /// </summary>
+        public static string OpenedRoot => s_openedRoot;
+
+        /// <summary>
+        /// 연 저장소가 바뀌었을 때(<see cref="OpenRepository"/>). 창은 탭을 다시 만든다 — 지난 저장소의 목록·선택이 남지 않게.
+        /// </summary>
+        public static event Action RepositorySwitched;
 
         public static GitBranchInfo Branch { get; private set; }
 
@@ -107,8 +126,12 @@ namespace GitVersionControl
         /// <summary>새 상태가 반영된 뒤 메인 스레드에서 호출된다.</summary>
         public static event Action Changed;
 
+        /// <summary>연 서브모듈. 스크립트를 다시 컴파일해도 그대로 보도록 에디터 세션에 둔다(에디터를 다시 켜면 프로젝트 저장소로).</summary>
+        private const string OpenedRootKey = "GitVersionControl.OpenedRepository";
+
         private static string s_repoRoot;
         private static string s_gitDir;
+        private static string s_openedRoot;
         private static TestScope s_testScope;
 
         private static List<GitStatusEntry> s_entries = new();
@@ -135,6 +158,8 @@ namespace GitVersionControl
                 return;
             }
             IsRunning = true;
+            string opened = SessionState.GetString(OpenedRootKey, string.Empty);
+            s_openedRoot = opened.Length > 0 ? opened : null;
             EditorApplication.focusChanged += OnFocusChanged;
             EditorApplication.update += OnUpdate;
             GitAutoFetch.Start();
@@ -154,8 +179,33 @@ namespace GitVersionControl
             s_refreshPending = false;
             HeadCommit = null;
             UpstreamCommit = null;
-            Apply(false, null, string.Empty, null, new List<GitStatusEntry>(), null);
+            Apply(false, null, string.Empty, string.Empty, null, new List<GitStatusEntry>(), null);
             CompleteRefreshes(int.MaxValue);
+        }
+
+        /// <summary>
+        /// Git 창이 볼 저장소를 바꾼다(Fork 처럼 서브모듈을 연다). null 이나 프로젝트 저장소 루트면 프로젝트 저장소로 돌아간다.
+        /// 지난 저장소의 상태를 비우고 곧바로 새로 읽는다. 모든 git 작업·파일 감시·자동 fetch 가 연 저장소를 따른다.
+        /// </summary>
+        public static void OpenRepository(string root)
+        {
+            string normalized = string.IsNullOrEmpty(root) ? null : root.Replace('\\', '/').TrimEnd('/');
+            if (normalized != null && string.Equals(normalized, MainRepoRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = null;
+            }
+            if (string.Equals(normalized, s_openedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            s_openedRoot = normalized;
+            SessionState.SetString(OpenedRootKey, normalized ?? string.Empty);
+            HeadCommit = null;
+            UpstreamCommit = null;
+            GitDir = null;
+            Apply(false, null, string.Empty, string.Empty, null, new List<GitStatusEntry>(), null);
+            RequestRefresh(immediate: true);
+            RepositorySwitched?.Invoke();
         }
 
         /// <summary>
@@ -297,14 +347,29 @@ namespace GitVersionControl
             string projectRoot = ProjectRoot;
             string repoRoot = RepoRoot;
             string prefix = ProjectPrefix;
+            string repoInProject = RepoInProject;
+            string openedRoot = s_openedRoot;
 
             try
             {
                 // git 호출을 한 번의 백그라운드 작업으로 묶는다. await 뒤는 Unity 동기화 컨텍스트 덕에 메인 스레드다.
-                RefreshResult result = await Task.Run(() => full ? Query(gitPath, projectRoot) : QueryWorkingTree(gitPath, projectRoot, repoRoot, prefix));
-                if (IsRunning == false)
+                RefreshResult result = await Task.Run(() => full
+                    ? Query(gitPath, projectRoot, openedRoot)
+                    : QueryWorkingTree(gitPath, projectRoot, openedRoot, repoRoot, prefix, repoInProject));
+                // 읽는 사이에 다른 저장소를 열었으면 지난 저장소의 결과다. 버린다(새 저장소의 새로고침이 이미 예약돼 있다).
+                if (IsRunning == false || string.Equals(openedRoot, s_openedRoot, StringComparison.OrdinalIgnoreCase) == false)
                 {
                     return;
+                }
+                if (result.OpenedRootMissing)
+                {
+                    // 연 서브모듈 폴더가 없어졌다(지웠거나 init 전). 프로젝트 저장소로 돌아간다.
+                    OpenRepository(null);
+                    return;
+                }
+                if (result.MainRepoRoot != null)
+                {
+                    MainRepoRoot = result.MainRepoRoot;
                 }
                 LastRefreshWasWorkingTreeOnly = result.WorkingTreeOnly;
                 if (result.WorkingTreeOnly == false)
@@ -315,7 +380,7 @@ namespace GitVersionControl
                     HeadCommit = result.HeadCommit;
                     UpstreamCommit = result.UpstreamCommit;
                 }
-                Apply(result.IsRepository, result.RepoRoot, result.Prefix, result.Branch, result.Entries, result.Error);
+                Apply(result.IsRepository, result.RepoRoot, result.Prefix, result.RepoInProject, result.Branch, result.Entries, result.Error);
             }
             catch (Exception e)
             {
@@ -338,6 +403,13 @@ namespace GitVersionControl
             public bool IsRepository;
             public string RepoRoot;
             public string Prefix = string.Empty;
+            public string RepoInProject = string.Empty;
+
+            /// <summary>프로젝트가 속한 저장소의 루트. 작업 트리만 읽었으면 null(지난 값 그대로).</summary>
+            public string MainRepoRoot;
+
+            /// <summary>연 서브모듈이 git 저장소로 읽히지 않는다(폴더가 없거나 init 전).</summary>
+            public bool OpenedRootMissing;
             public GitBranchInfo Branch;
             public List<GitStatusEntry> Entries = new();
             public string UserName = string.Empty;
@@ -348,13 +420,24 @@ namespace GitVersionControl
             public string Error;
         }
 
-        private static RefreshResult Query(string gitPath, string projectRoot)
+        /// <param name="openedRoot">연 서브모듈의 루트. null 이면 프로젝트가 속한 저장소를 읽는다.</param>
+        private static RefreshResult Query(string gitPath, string projectRoot, string openedRoot)
         {
             RefreshResult result = new();
 
-            GitResult revParse = GitCommand.Run(gitPath, projectRoot, new[] { "rev-parse", "--show-toplevel", "--show-prefix", "--absolute-git-dir" });
+            if (openedRoot != null && Directory.Exists(openedRoot) == false)
+            {
+                result.OpenedRootMissing = true;
+                return result;
+            }
+            GitResult revParse = GitCommand.Run(gitPath, openedRoot ?? projectRoot, new[] { "rev-parse", "--show-toplevel", "--show-prefix", "--absolute-git-dir" });
             if (revParse.Success == false)
             {
+                if (openedRoot != null)
+                {
+                    result.OpenedRootMissing = true;
+                    return result;
+                }
                 // "not a git repository" 는 오류가 아니라 정상 상태(아직 init 전)다.
                 if (revParse.Message.IndexOf("not a git repository", StringComparison.OrdinalIgnoreCase) < 0)
                 {
@@ -368,6 +451,19 @@ namespace GitVersionControl
             result.RepoRoot = lines[0].Trim();
             result.Prefix = lines.Length > 1 ? lines[1].Trim() : string.Empty;
             result.GitDir = lines.Length > 2 ? lines[2].Trim() : null;
+            if (openedRoot != null)
+            {
+                // 서브모듈은 프로젝트 "안" 에 있다: 프로젝트 경로 = 프로젝트에서 서브모듈까지 + 서브모듈 안 경로.
+                result.Prefix = string.Empty;
+                result.RepoInProject = RepoInProjectOf(projectRoot, result.RepoRoot);
+                // 서브모듈을 연 채로 스크립트를 다시 컴파일하면 프로젝트 저장소 루트를 아직 모른다(돌아갈 곳·서브모듈 목록에 쓴다).
+                GitResult main = GitCommand.Run(gitPath, projectRoot, new[] { "rev-parse", "--show-toplevel" });
+                result.MainRepoRoot = main.Success ? main.Output.Trim() : null;
+            }
+            else
+            {
+                result.MainRepoRoot = result.RepoRoot;
+            }
 
             GitResult status = GitCommand.Run(gitPath, result.RepoRoot,
                 new[] { "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all" });
@@ -377,7 +473,7 @@ namespace GitVersionControl
                 return result;
             }
 
-            result.Entries = GitStatusParser.Parse(status.Output, result.Prefix, out result.Branch);
+            result.Entries = GitStatusParser.Parse(status.Output, result.Prefix, out result.Branch, result.RepoInProject);
             result.UserName = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.name" }).Output.Trim();
             result.UserEmail = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.email" }).Output.Trim();
             result.HeadCommit = RevParse(gitPath, result.RepoRoot, "HEAD");
@@ -392,13 +488,13 @@ namespace GitVersionControl
         /// 작업 트리만 다시 읽는다(git status 하나). 저장소 루트·접두는 지난 전체 새로고침 값을 쓴다.
         /// status 가 실패하면(저장소가 지워지는 등) 전체 새로고침으로 넘어간다.
         /// </summary>
-        private static RefreshResult QueryWorkingTree(string gitPath, string projectRoot, string repoRoot, string prefix)
+        private static RefreshResult QueryWorkingTree(string gitPath, string projectRoot, string openedRoot, string repoRoot, string prefix, string repoInProject)
         {
             GitResult status = GitCommand.Run(gitPath, repoRoot,
                 new[] { "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all" });
             if (status.Success == false)
             {
-                return Query(gitPath, projectRoot);
+                return Query(gitPath, projectRoot, openedRoot);
             }
             RefreshResult result = new()
             {
@@ -406,9 +502,20 @@ namespace GitVersionControl
                 IsRepository = true,
                 RepoRoot = repoRoot,
                 Prefix = prefix,
+                RepoInProject = repoInProject,
             };
-            result.Entries = GitStatusParser.Parse(status.Output, prefix, out result.Branch);
+            result.Entries = GitStatusParser.Parse(status.Output, prefix, out result.Branch, repoInProject);
             return result;
+        }
+
+        /// <summary>
+        /// 프로젝트 루트에서 저장소 루트까지("Packages/x/"). 저장소가 프로젝트 밖이면 null.
+        /// </summary>
+        public static string RepoInProjectOf(string projectRoot, string repoRoot)
+        {
+            string project = projectRoot.Replace('\\', '/').TrimEnd('/') + "/";
+            string repo = repoRoot.Replace('\\', '/').TrimEnd('/') + "/";
+            return repo.StartsWith(project, StringComparison.OrdinalIgnoreCase) ? repo.Substring(project.Length) : null;
         }
 
         /// <summary>커밋이 없거나 참조가 없으면 null.</summary>
@@ -428,11 +535,12 @@ namespace GitVersionControl
             GitFileWatcher.Sync(IsRunning && IsRepository && GitVcsSettings.instance.WatchFileSystem, RepoRoot, GitDir, ProjectPrefix);
         }
 
-        private static void Apply(bool isRepository, string repoRoot, string prefix, GitBranchInfo branch, List<GitStatusEntry> entries, string error)
+        private static void Apply(bool isRepository, string repoRoot, string prefix, string repoInProject, GitBranchInfo branch, List<GitStatusEntry> entries, string error)
         {
             IsRepository = isRepository;
             RepoRoot = repoRoot;
             ProjectPrefix = prefix;
+            RepoInProject = repoInProject;
             Branch = branch;
             LastError = error;
             LastRefreshTime = DateTime.Now;

@@ -626,7 +626,7 @@ namespace GitVersionControl
 
         private static string ProjectPathOf(string repoPath)
         {
-            return GitStatusParser.ToProjectPath(repoPath, GitRepository.ProjectPrefix);
+            return GitStatusParser.ToProjectPath(repoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject);
         }
 
         private static string FullPath(string repoPath)

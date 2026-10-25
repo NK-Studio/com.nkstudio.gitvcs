@@ -191,6 +191,25 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(expected, GitStatusParser.ToProjectPath(repoPath, prefix));
         }
 
+        // 서브모듈을 열었을 때: 저장소가 프로젝트 안의 하위 폴더라 그 경로를 앞에 붙인다. 프로젝트 밖이면(null) 프로젝트 경로가 없다.
+        [TestCase("Editor/a.cs", "Packages/pkg/", "Packages/pkg/Editor/a.cs")]
+        [TestCase("Editor/a.cs", "", "Editor/a.cs")]
+        [TestCase("Editor/a.cs", null, null)]
+        public void Test_ToProjectPath_RepoInProject(string repoPath, string repoInProject, string expected)
+        {
+            Assert.AreEqual(expected, GitStatusParser.ToProjectPath(repoPath, string.Empty, repoInProject));
+        }
+
+        [TestCase("E:/p", "E:/p/Packages/pkg", "Packages/pkg/")]
+        [TestCase("E:\\p\\", "e:/P/Packages/pkg/", "Packages/pkg/")]
+        [TestCase("E:/p", "E:/p", "")]
+        [TestCase("E:/p", "E:/other/pkg", null)]
+        [TestCase("E:/p", "E:/pkg", null)]
+        public void Test_RepoInProjectOf(string projectRoot, string repoRoot, string expected)
+        {
+            Assert.AreEqual(expected, GitRepository.RepoInProjectOf(projectRoot, repoRoot));
+        }
+
         private static void AssertEntry(GitStatusEntry entry, string repoPath, GitFileState state, char indexCode, char workTreeCode)
         {
             Assert.AreEqual(repoPath, entry.RepoPath);

@@ -402,8 +402,9 @@ namespace GitVersionControl
                 case RefNodeKind.Worktree:
                     _actions.OpenFolder(node.Worktree.Path);
                     break;
-                case RefNodeKind.Submodule:
-                    _actions.OpenFolder(RefActions.SubmoduleFullPath(node.Submodule));
+                case RefNodeKind.Submodule when node.Submodule.State != GitSubmoduleState.NotInitialized:
+                    // Fork 처럼 두 번 누르면 그 서브모듈 저장소를 Git 창에서 연다.
+                    GitRepository.OpenRepository(RefActions.SubmoduleFullPath(node.Submodule));
                     break;
             }
         }
@@ -436,6 +437,9 @@ namespace GitVersionControl
                     PopulateWorktreeMenu(menu, node.Worktree, writable);
                     break;
                 case RefNodeKind.Submodule:
+                    menu.AppendAction(GitText.Get("refs.openSubmodule"), action => GitRepository.OpenRepository(RefActions.SubmoduleFullPath(node.Submodule)),
+                        node.Submodule.State == GitSubmoduleState.NotInitialized ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+                    menu.AppendSeparator();
                     menu.AppendAction(GitText.Get("refs.submoduleUpdate"), action => _ = _actions.UpdateSubmoduleAsync(node.Submodule.Path), writable);
                     menu.AppendSeparator();
                     menu.AppendAction(GitText.Get("refs.openFolder"), action => _actions.OpenFolder(RefActions.SubmoduleFullPath(node.Submodule)));
