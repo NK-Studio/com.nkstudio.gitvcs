@@ -163,7 +163,8 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 파일 히스토리를 닫고 그래프로 돌아온다(× 또는 Esc). 가운데에 diff 가 열려 있었으면 그 diff 로 돌아온다.
+        /// 파일 히스토리를 닫고 그래프로 돌아온다(× 또는 Esc). GitKraken 처럼 히스토리를 열기 전에 가운데에 diff 가 열려 있었어도
+        /// 그 diff 로 돌아가지 않고 그래프로 돌아가며, 접어 둔 왼쪽 사이드바를 다시 편다.
         /// </summary>
         public void CloseFileHistory()
         {
@@ -174,10 +175,11 @@ namespace GitVersionControl
             _isHistoryShown = false;
             _historyHost.SetVisible(false);
             _split.SetVisible(true);
-            if (_isDiffShown == false)
-            {
-                DiffShownChanged?.Invoke(false);
-            }
+            _staging.ClearSelection();
+            _detail.ClearFileSelection();
+            ShowDiff(null);
+            // 히스토리만 열었던 경우(diff 없이)에도 사이드바를 편다. 이미 펴져 있으면 창이 아무것도 하지 않는다.
+            DiffShownChanged?.Invoke(false);
         }
 
         protected override void OnActivated()
@@ -368,7 +370,12 @@ namespace GitVersionControl
         /// </summary>
         public void CloseDiff()
         {
-            CloseFileHistory();
+            if (_isHistoryShown)
+            {
+                // 히스토리를 닫으면 그 아래 diff 도 같이 닫힌다.
+                CloseFileHistory();
+                return;
+            }
             _staging.ClearSelection();
             _detail.ClearFileSelection();
             ShowDiff(null);
