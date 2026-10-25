@@ -22,6 +22,22 @@ namespace GitVersionControl
     }
 
     /// <summary>
+    /// 작업 실패 팝업(<see cref="GitErrorDialog"/>)이 무엇을 먼저 보일지.
+    /// </summary>
+    public enum ErrorDetailMode
+    {
+        /// <summary>
+        /// 원인과 해결 방법을 쉽게 풀어 보인다(<see cref="GitErrorAdvice"/>).
+        /// </summary>
+        Friendly,
+
+        /// <summary>
+        /// git 이 남긴 글을 그대로 보인다.
+        /// </summary>
+        Developer,
+    }
+
+    /// <summary>
     /// 사용자·머신별 설정. git 경로는 머신마다 다르므로 저장소에 올라가지 않는 UserSettings 에 둔다.
     /// </summary>
     [FilePath("UserSettings/GitVersionControl.asset", FilePathAttribute.Location.ProjectFolder)]
@@ -59,6 +75,7 @@ namespace GitVersionControl
         [SerializeField] private int _layout;
         [SerializeField] private bool _showInMainToolbar = true;
         [SerializeField] private int _menuStyle;
+        [SerializeField] private int _errorDetailMode;
         [SerializeField] private float _graphRefsColumnWidth;
         [SerializeField] private float _graphColumnWidth;
         [SerializeField] private float _graphMessageColumnWidth;
@@ -427,6 +444,17 @@ namespace GitVersionControl
             {
                 int index = (int)value;
                 SetAndSave(ref _menuStyle, index);
+            }
+        }
+
+        /// <summary>오류 팝업이 먼저 보일 내용. 팝업에서 바꾸면 기억해 다음에도 그대로 연다.</summary>
+        public ErrorDetailMode ErrorDetailMode
+        {
+            get => (ErrorDetailMode)_errorDetailMode;
+            set
+            {
+                int index = (int)value;
+                SetAndSave(ref _errorDetailMode, index);
             }
         }
 

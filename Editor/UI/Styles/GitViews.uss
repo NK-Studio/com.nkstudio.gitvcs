@@ -701,7 +701,7 @@
 
 /* ── error-dialog: 작업 실패 알림(GitErrorDialog). 막·카드·버튼은 branch-dialog·confirm-dialog 를 쓴다 ─── */
 .confirm-dialog.error-dialog {
-    width: 520px;
+    width: 580px;
 }
 
 .branch-dialog__badge.error-dialog__badge {
@@ -717,21 +717,131 @@
     color: rgb(255, 255, 255);
 }
 
-.error-dialog__scroll {
-    max-height: 240px;
+/* 쉬운 설명 | git 원문 전환. 제목 시작선에 맞춰 들인 두 칸짜리 버튼. */
+.error-dialog__modes {
+    flex-direction: row;
+    align-self: flex-start;
+    margin: 0 0 10px 58px;
+    border-width: 1px;
+    border-radius: 6px;
+    border-color: var(--git-button-border);
+    overflow: hidden;
+}
+
+.branch-dialog .error-dialog__mode {
+    height: 24px;
+    margin: 0;
+    padding: 0 12px;
+    font-size: 12px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--git-button-bg);
+    color: var(--git-text-muted);
+}
+
+.branch-dialog .error-dialog__mode:hover {
+    background-color: var(--git-button-hover);
+}
+
+.branch-dialog .error-dialog__mode--on,
+.branch-dialog .error-dialog__mode--on:hover {
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+}
+
+.error-dialog__body {
+    max-height: 320px;
     margin: 0 0 6px 58px;
+}
+
+.error-dialog__cause {
+    margin: 0 0 4px 0;
+    padding: 0;
+    font-size: 13px;
+    white-space: normal;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text);
+}
+
+.error-dialog__heading {
+    margin: 10px 0 4px 0;
+    padding: 0;
+    font-size: 11px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text-muted);
+}
+
+.error-dialog__step {
+    margin: 0 0 3px 0;
+    padding: 0;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.error-dialog__command {
+    flex-direction: row;
+    align-items: center;
+    margin: 0 0 4px 0;
+    padding: 4px 4px 4px 10px;
     border-width: 1px;
     border-radius: 6px;
     border-color: var(--git-border);
 }
 
-.error-dialog__message {
+.error-dialog__command-text {
+    flex-grow: 1;
+    flex-shrink: 1;
     margin: 0;
-    padding: 8px 10px;
+    padding: 0;
     font-size: 12px;
     white-space: normal;
     -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
     color: var(--git-text);
+}
+
+.branch-dialog .error-dialog__copy {
+    height: 22px;
+    min-width: 56px;
+    margin: 0 0 0 8px;
+    padding: 0 8px;
+    font-size: 11px;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-button-border);
+    background-color: var(--git-button-bg);
+    color: var(--git-text);
+}
+
+.branch-dialog .error-dialog__copy:hover {
+    background-color: var(--git-button-hover);
+}
+
+.error-dialog__hint {
+    margin: 10px 0 0 0;
+    padding: 0;
+    font-size: 11px;
+    white-space: normal;
+    color: var(--git-text-muted);
+}
+
+.error-dialog__raw {
+    margin: 4px 0 0 0;
+    padding: 8px 10px;
+    font-size: 12px;
+    white-space: normal;
+    border-width: 1px;
+    border-radius: 6px;
+    border-color: var(--git-border);
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    color: var(--git-text);
+}
+
+/* 전체 복사(왼쪽 끝)와 확인(오른쪽) 사이를 벌린다. */
+.error-dialog .branch-dialog__buttons .branch-dialog__cancel {
+    margin-left: 0;
+    margin-right: auto;
 }
 
 /* ── account-dialog: 이 저장소의 GitHub 계정 고르기(GitAccountDialog). 막·카드·버튼은 branch-dialog·confirm-dialog 를 쓴다 ─── */

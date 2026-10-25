@@ -74,6 +74,12 @@ namespace GitVersionControl
             return index < texts.Length && string.IsNullOrEmpty(texts[index]) == false ? texts[index] : texts[0];
         }
 
+        /// <summary>번역 표에 있는 키인지. 개수가 정해지지 않은 문구(해결 단계 1·2·3)를 있는 만큼만 꺼낼 때 쓴다.</summary>
+        public static bool Has(string key)
+        {
+            return string.IsNullOrEmpty(key) == false && GitStrings.Table.ContainsKey(key);
+        }
+
         public static string Format(string key, params object[] args)
         {
             return string.Format(Get(key), args);
