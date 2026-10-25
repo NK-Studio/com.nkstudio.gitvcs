@@ -386,6 +386,11 @@ namespace GitVersionControl
         /// </summary>
         private void ShowDiff(GitDiffTarget target)
         {
+            // diff 에서 파일을 고치는 중이면 닫기 전에 저장 안 된 편집을 묻는다. 취소하면 diff 를 그대로 둔다.
+            if (target == null && _isDiffShown && _diff.TryLeaveEdit() == false)
+            {
+                return;
+            }
             bool wasShown = _isDiffShown;
             _isDiffShown = target != null;
             _diffHost.SetVisible(target != null);

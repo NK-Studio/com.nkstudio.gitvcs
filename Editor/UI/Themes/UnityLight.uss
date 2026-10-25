@@ -90,4 +90,14 @@
     --git-diff-removed-sign: #cf222e;
     --git-diff-split-border: rgba(0,0,0,0.1);
     --git-diff-text-selection: rgba(9,105,218,0.28);
+    /* diff 의 "이 파일 편집" 코드 편집기: 문법 색(키워드·문자열·숫자·주석·키), 지금 줄, 들여쓰기 안내선, 커서, 지금 줄 번호. */
+    --git-code-keyword: #0000ff;
+    --git-code-string: #a31515;
+    --git-code-number: #098658;
+    --git-code-comment: #008000;
+    --git-code-key: #0451a5;
+    --git-editor-current-line: rgba(0,0,0,0.05);
+    --git-editor-indent-guide: rgba(0,0,0,0.11);
+    --git-editor-caret: #000000;
+    --git-editor-number-current: #2f2f2f;
 }

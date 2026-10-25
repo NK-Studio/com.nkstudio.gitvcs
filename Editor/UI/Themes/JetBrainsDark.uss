@@ -82,6 +82,16 @@
     --git-diff-removed-sign: #f75464;
     --git-diff-split-border: #26282c;
     --git-diff-text-selection: rgba(33,66,131,0.95);
+    /* diff 의 "이 파일 편집" 코드 편집기: 문법 색(키워드·문자열·숫자·주석·키), 지금 줄, 들여쓰기 안내선, 커서, 지금 줄 번호. */
+    --git-code-keyword: #cf8e6d;
+    --git-code-string: #6aab73;
+    --git-code-number: #2aacb8;
+    --git-code-comment: #7a7e85;
+    --git-code-key: #c77dbb;
+    --git-editor-current-line: rgba(255,255,255,0.045);
+    --git-editor-indent-guide: rgba(255,255,255,0.09);
+    --git-editor-caret: #cecfd2;
+    --git-editor-number-current: #a1a3ab;
 }
 
 /* 양쪽 사이드 패널(왼쪽 사이드바, 오른쪽 작업 패널)은 가운데보다 한 단계 밝은 바탕. 안쪽 목록·머리 줄·입력 칸도 같은 바탕을 쓰고, 호버·눌림은 한 단계씩 올린다. */

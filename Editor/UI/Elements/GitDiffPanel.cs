@@ -186,10 +186,36 @@ namespace GitVersionControl
         /// </summary>
         private const int TabDisplayWidth = 4;
 
+        // ── 이 파일 편집(GitKraken 의 editable File View) ──
+
+        /// <summary>
+        /// 작업 사본 파일을 이 자리에서 고치는 편집기. 처음 편집할 때 만든다. 편집 중에는 줄 목록 대신 보인다.
+        /// </summary>
+        private GitCodeEditor _editor;
+        private bool _isEditing;
+
+        /// <summary>
+        /// 편집 중인 파일의 전체 경로, 마지막으로 읽거나 쓴 바이트(저장할 때 다른 곳에서 바뀌었는지 비교), 인코딩·줄 끝.
+        /// </summary>
+        private string _editPath;
+        private string _editRepoPath;
+        private byte[] _editBytes;
+        private GitTextFile _editFile;
+
+        private VisualElement _editingGroup;
+        private Label _editingLabel;
+        private Button _saveButton;
+        private IDialogService _fallbackDialogs;
+
         /// <summary>
         /// 닫기(×)를 눌렀을 때. <see cref="ShowCloseButton"/> 로 버튼을 켠 곳(GitKraken 레이아웃의 가운데)만 쓴다.
         /// </summary>
         public event Action CloseRequested;
+
+        /// <summary>
+        /// 지금 이 자리에서 파일을 고치는 중인지.
+        /// </summary>
+        public bool IsEditing => _isEditing;
 
         public VisualElement Root { get; }
 
@@ -341,6 +367,21 @@ namespace GitVersionControl
         /// </summary>
         public void SetTarget(GitDiffTarget target)
         {
+            if (_isEditing)
+            {
+                // 같은 작업 사본 파일을 다시 고른 것(새로고침 뒤 목록이 다시 고른 것 등)이면 편집을 그대로 둔다.
+                if (target != null && IsEditableSource(target) && target.RepoPath == _editRepoPath)
+                {
+                    _target = target;
+                    Reload();
+                    return;
+                }
+                // 다른 파일로 가려면 저장 안 된 편집을 먼저 묻는다. 취소하면 지금 파일에 머문다.
+                if (TryLeaveEdit() == false)
+                {
+                    return;
+                }
+            }
             _target = target;
             Reload();
         }
@@ -389,6 +430,10 @@ namespace GitVersionControl
             if (shown == false)
             {
                 _binaryView.Clear();
+            }
+            if (_isEditing)
+            {
+                ApplyEditVisibility();
             }
         }
 
@@ -465,6 +510,7 @@ namespace GitVersionControl
             _removedStat.SetVisible(isImage == false);
             _imageView.Root.SetVisible(false);
             _lfsView.SetVisible(false);
+            ApplyEditVisibility();
             UpdateBar();
         }
 
@@ -577,7 +623,14 @@ namespace GitVersionControl
             _stageFileButton.SetVisible(false);
             toolbar.Add(_stageFileButton);
 
-            _closeButton = new ToolbarButton(() => CloseRequested?.Invoke()) { text = "×", tooltip = GitText.Get("common.close") };
+            _closeButton = new ToolbarButton(() =>
+            {
+                // 저장 안 된 편집이 있으면 먼저 묻는다. 취소하면 닫지 않는다.
+                if (TryLeaveEdit())
+                {
+                    CloseRequested?.Invoke();
+                }
+            }) { text = "×", tooltip = GitText.Get("common.close") };
             _closeButton.AddToClassList("git-diff__close");
             _closeButton.SetVisible(false);
             toolbar.Add(_closeButton);
@@ -594,9 +647,42 @@ namespace GitVersionControl
             _bar.AddToClassList("git-diff__bar");
 
             VisualElement left = BarGroup("git-diff__bar-side");
-            _editButton = BarButton(OpenInEditor, GitText.Get("diff.editFileTooltip"), "edit", GitText.Get("diff.editFile"));
+            _editButton = BarButton(BeginEdit, GitText.Get("diff.editFileTooltip"), "edit", GitText.Get("diff.editFile"));
             _editButton.AddToClassList("git-diff__bar-button--outlined");
+            // 오른쪽 클릭하면 예전처럼 외부 편집기에서 연다.
+            _editButton.AddManipulator(new ContextualMenuManipulator(evt =>
+            {
+                evt.menu.AppendAction(GitText.Get("diff.openInExternalEditor"), _ => OpenInEditor(),
+                    _target != null && System.IO.File.Exists(FullPathOf(_target)) ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+                evt.StopPropagation();
+            }));
             left.Add(_editButton);
+
+            // 편집 중에는 "이 파일 편집" 자리에 GitKraken 처럼 "편집 중" 표시와 [저장][취소][외부 편집기].
+            _editingGroup = new VisualElement();
+            _editingGroup.AddToClassList("git-diff__editing");
+            VisualElement pencil = new() { pickingMode = PickingMode.Ignore };
+            pencil.AddToClassList("git-diff__bar-icon");
+            pencil.AddToClassList("git-diff__bar-icon--edit");
+            _editingGroup.Add(pencil);
+            _editingLabel = new Label(GitText.Get("diff.editing")) { pickingMode = PickingMode.Ignore };
+            _editingLabel.AddToClassList("git-diff__editing-label");
+            _editingGroup.Add(_editingLabel);
+            _saveButton = BarButton(() => SaveEdit(), GitText.Get("diff.editSaveTooltip"), null, GitText.Get("diff.editSave"));
+            _saveButton.AddToClassList("git-diff__bar-button--outlined");
+            _saveButton.AddToClassList("git-diff__edit-save");
+            _editingGroup.Add(_saveButton);
+            Button cancel = BarButton(CancelEdit, GitText.Get("diff.editCancelTooltip"), null, GitText.Get("common.cancel"));
+            cancel.AddToClassList("git-diff__bar-button--outlined");
+            cancel.AddToClassList("git-diff__edit-action");
+            _editingGroup.Add(cancel);
+            Button external = BarButton(OpenInEditor, GitText.Get("diff.openInExternalEditorTooltip"), null, GitText.Get("diff.openInExternalEditorShort"));
+            external.AddToClassList("git-diff__bar-button--outlined");
+            external.AddToClassList("git-diff__edit-action");
+            external.AddToClassList("git-diff__edit-external");
+            _editingGroup.Add(external);
+            _editingGroup.SetVisible(false);
+            left.Add(_editingGroup);
             _bar.Add(left);
 
             VisualElement center = BarGroup("git-diff__bar-center");
@@ -729,7 +815,19 @@ namespace GitVersionControl
             bool isText = _isImageMode == false;
             foreach (VisualElement control in _textOnlyControls)
             {
-                control.SetVisible(isText);
+                // 편집 중에는 diff 에만 뜻이 있는 묶음(변경 이동·보기 방식·공백·줄 바꿈)을 숨기고 파일/Diff 보기만 둔다.
+                control.SetVisible(isText && (_isEditing == false || control == _fileViewButton.parent));
+            }
+            _editButton.SetVisible(_isEditing == false);
+            _editingGroup.SetVisible(_isEditing);
+            if (_isEditing)
+            {
+                // GitKraken 처럼 편집은 파일 보기의 한 모습이다(설정의 보기는 바꾸지 않는다).
+                SetChecked(_fileViewButton, true);
+                SetChecked(_diffViewButton, false);
+                UpdateEditingState();
+                UpdateSideChip();
+                return;
             }
 
             bool fileView = settings.DiffFileView;
@@ -748,7 +846,8 @@ namespace GitVersionControl
 
             bool exists = System.IO.File.Exists(FullPathOf(_target));
             _editButton.SetEnabled(exists);
-            _editButton.tooltip = GitText.Get(exists ? "diff.editFileTooltip" : "diff.editFileMissing");
+            // 작업 사본의 글 diff 면 이 자리에서 고치고, 커밋·Staged 등이면 예전처럼 외부 편집기에서 연다.
+            _editButton.tooltip = GitText.Get(exists == false ? "diff.editFileMissing" : CanEditInPlace ? "diff.editFileTooltip" : "diff.editFileNotWorkingCopy");
 
             bool hasHistory = HasCommittedVersion(_target);
             _blameButton.SetEnabled(hasHistory && isText);
@@ -845,7 +944,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            int line = LineToOpen();
+            int line = _isEditing ? _editor.Caret.Line + 1 : LineToOpen();
             string projectPath = GitStatusParser.ToProjectPath(_target.RepoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject);
             UnityEngine.Object asset = string.IsNullOrEmpty(projectPath) ? null : AssetDatabase.LoadMainAssetAtPath(GitDisplay.AssetPathOf(projectPath));
             if (asset != null && AssetDatabase.OpenAsset(asset, line))
@@ -856,6 +955,284 @@ namespace GitVersionControl
             {
                 EditorUtility.OpenWithDefaultApp(fullPath);
             }
+        }
+
+        // ── 이 파일 편집(이 자리에서 고치기) ─────────────
+
+        private IDialogService Dialogs => _dialogs ?? (_fallbackDialogs ??= new EditorDialogService());
+
+        /// <summary>
+        /// 작업 사본의 변경을 보는 diff 인지(Unstaged·작업 트리). 이때만 보이는 내용이 디스크의 파일과 같아 이 자리에서 고칠 수 있다.
+        /// </summary>
+        private static bool IsEditableSource(GitDiffTarget target)
+        {
+            return target.Source == GitDiffSource.Unstaged || target.Source == GitDiffSource.WorkingTree;
+        }
+
+        /// <summary>
+        /// "이 파일 편집" 이 이 자리에서 고치는지(아니면 외부 편집기에서 연다). 작업 사본의 글 파일이어야 한다.
+        /// </summary>
+        private bool CanEditInPlace => _target != null && IsEditableSource(_target) && _isImageMode == false
+            && (_document == null || _document.IsBinary == false) && System.IO.File.Exists(FullPathOf(_target));
+
+        /// <summary>
+        /// "이 파일 편집": GitKraken 처럼 이 자리를 편집할 수 있는 파일 보기로 바꾼다. 작업 사본의 글 파일이 아니면 외부 편집기에서 연다.
+        /// UTF-8·UTF-16 으로 풀리지 않는 파일은 고치면 깨지므로 외부 편집기를 권한다.
+        /// </summary>
+        private void BeginEdit()
+        {
+            if (_isEditing)
+            {
+                _editor?.FocusEditor();
+                return;
+            }
+            if (CanEditInPlace == false)
+            {
+                OpenInEditor();
+                return;
+            }
+            string path = FullPathOf(_target);
+            byte[] bytes;
+            try
+            {
+                bytes = System.IO.File.ReadAllBytes(path);
+            }
+            catch (Exception exception)
+            {
+                Dialogs.Alert(GitText.Get("diff.editUnsupportedTitle"), exception.Message);
+                return;
+            }
+            GitTextFile file = GitTextFile.TryDecode(bytes);
+            if (file == null)
+            {
+                if (Dialogs.Confirm(GitText.Get("diff.editUnsupportedTitle"), GitText.Format("diff.editUnsupportedMessage", GitDisplay.Nfc(_target.RepoPath)), GitText.Get("diff.openInExternalEditor")))
+                {
+                    OpenInEditor();
+                }
+                return;
+            }
+            if (_editor == null)
+            {
+                _editor = new GitCodeEditor();
+                _editor.SaveRequested += () => SaveEdit();
+                _editor.CancelRequested += CancelEdit;
+                _editor.Changed += UpdateEditingState;
+                _editor.ExtraMenuItems = menu => menu.AppendAction(GitText.Get("diff.openInExternalEditor"), _ => OpenInEditor());
+                _editor.SetVisible(false);
+                // 줄 목록 바로 뒤(이미지·바이너리 보기 앞)에 넣어 같은 자리를 차지한다.
+                Root.Insert(Root.IndexOf(_list) + 1, _editor);
+            }
+            int line = LineToOpen();
+            _editor.Load(file.Text, GitSyntax.LanguageOf(_target.RepoPath), line);
+            _editPath = path;
+            _editRepoPath = _target.RepoPath;
+            _editBytes = bytes;
+            _editFile = file;
+            _isEditing = true;
+            ClearSelection();
+            ClearTextSelection();
+            _editor.SetChangedLines(ChangedNewLines());
+            ApplyEditVisibility();
+            UpdateBar();
+            _editor.schedule.Execute(_editor.FocusEditor);
+        }
+
+        /// <summary>
+        /// 편집을 끝내도 되는지 묻고 끝낸다. 저장 안 된 편집이 있으면 [저장][버리기][취소] 로 묻는다.
+        /// </summary>
+        /// <returns>편집이 끝났으면(또는 편집 중이 아니었으면) true. 사용자가 취소했거나 저장하지 못했으면 false.</returns>
+        public bool TryLeaveEdit()
+        {
+            if (_isEditing == false)
+            {
+                return true;
+            }
+            if (_editor.IsDirty)
+            {
+                int choice = Dialogs.Choose(GitText.Get("diff.editUnsavedTitle"), GitText.Format("diff.editUnsavedMessage", GitDisplay.Nfc(_editRepoPath)),
+                    GitText.Get("diff.editSave"), GitText.Get("diff.editDiscard"));
+                if (choice == 1 || (choice == 0 && SaveEdit() == false))
+                {
+                    _editor.FocusEditor();
+                    return false;
+                }
+            }
+            EndEdit();
+            return true;
+        }
+
+        /// <summary>
+        /// Esc·취소: 저장 안 된 편집이 있으면 버릴지 묻고 diff 로 돌아간다.
+        /// </summary>
+        private void CancelEdit()
+        {
+            if (_isEditing == false)
+            {
+                return;
+            }
+            if (_editor.IsDirty && Dialogs.Confirm(GitText.Get("diff.editUnsavedTitle"), GitText.Format("diff.editDiscardMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editDiscard")) == false)
+            {
+                _editor.FocusEditor();
+                return;
+            }
+            EndEdit();
+        }
+
+        private void EndEdit()
+        {
+            _isEditing = false;
+            _editPath = null;
+            _editRepoPath = null;
+            _editBytes = null;
+            _editFile = null;
+            ApplyEditVisibility();
+            // 줄 목록을 되돌린다(안내 문구·바이너리 카드는 이어서 다시 읽으며 맞춘다).
+            _list.SetVisible(_isImageMode == false && (_document == null || _document.IsBinary == false));
+            UpdateBar();
+            // 편집하는 동안 바뀐 파일(저장)을 diff 에 보인다.
+            Reload();
+            _list.Focus();
+        }
+
+        /// <summary>
+        /// 편집기를 파일에 쓴다. 편집을 시작한(마지막으로 저장한) 뒤 다른 곳에서 파일이 바뀌었으면 덮어쓰기 전에 묻는다.
+        /// 원래 인코딩·BOM·줄 끝으로 쓰고(<see cref="GitTextFile.Encode"/>), Unity 에셋이면 다시 가져오고, git 상태와 diff 를 새로 읽는다.
+        /// </summary>
+        /// <returns>썼으면 true.</returns>
+        private bool SaveEdit()
+        {
+            if (_isEditing == false)
+            {
+                return false;
+            }
+            byte[] onDisk = null;
+            try
+            {
+                if (System.IO.File.Exists(_editPath))
+                {
+                    onDisk = System.IO.File.ReadAllBytes(_editPath);
+                }
+            }
+            catch (Exception)
+            {
+                // 읽지 못하면 바뀐 것으로 보고 묻는다.
+            }
+            if (onDisk == null || onDisk.AsSpan().SequenceEqual(_editBytes) == false)
+            {
+                int choice = Dialogs.Choose(GitText.Get("diff.editChangedOnDiskTitle"), GitText.Format("diff.editChangedOnDiskMessage", GitDisplay.Nfc(_editRepoPath)),
+                    GitText.Get("diff.editOverwrite"), GitText.Get("diff.editReloadFromDisk"));
+                if (choice == 1)
+                {
+                    _editor.FocusEditor();
+                    return false;
+                }
+                if (choice == 2)
+                {
+                    ReloadEditFromDisk(onDisk);
+                    return false;
+                }
+            }
+            byte[] bytes = _editFile.Encode(_editor.Text);
+            try
+            {
+                System.IO.File.WriteAllBytes(_editPath, bytes);
+            }
+            catch (Exception exception)
+            {
+                Dialogs.Alert(GitText.Get("diff.editSaveFailedTitle"), GitText.Format("diff.editSaveFailedMessage", GitDisplay.Nfc(_editRepoPath), exception.Message));
+                return false;
+            }
+            // 다음 저장은 방금 쓴 판과 비교하고, 줄 끝도 방금 쓴 판을 기준으로 맞춘다.
+            _editBytes = bytes;
+            _editFile = GitTextFile.TryDecode(bytes) ?? _editFile;
+            _editor.MarkSaved();
+            ImportIfAsset(_editRepoPath);
+            GitRepository.RequestRefresh(immediate: true, workingTreeOnly: true);
+            Reload();
+            return true;
+        }
+
+        /// <summary>
+        /// 디스크의 지금 파일로 편집기를 다시 채운다(편집은 버린다). 읽을 수 없거나 글 파일이 아니게 되었으면 편집을 끝낸다.
+        /// </summary>
+        private void ReloadEditFromDisk(byte[] bytes)
+        {
+            GitTextFile file = bytes == null ? null : GitTextFile.TryDecode(bytes);
+            if (file == null)
+            {
+                EndEdit();
+                return;
+            }
+            _editBytes = bytes;
+            _editFile = file;
+            _editor.Load(file.Text, GitSyntax.LanguageOf(_editRepoPath), _editor.Caret.Line + 1);
+            UpdateEditingState();
+            Reload();
+        }
+
+        /// <summary>
+        /// 저장한 파일이 Unity 프로젝트 안의 에셋(또는 .meta)이면 다시 가져와 Unity 가 바뀐 내용을 보게 한다.
+        /// </summary>
+        private static void ImportIfAsset(string repoPath)
+        {
+            string projectPath = GitStatusParser.ToProjectPath(repoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject);
+            string assetPath = GitDisplay.AssetPathOf(projectPath);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return;
+            }
+            bool isAsset = assetPath.StartsWith("Assets/", StringComparison.Ordinal) || assetPath.StartsWith("Packages/", StringComparison.Ordinal);
+            if (isAsset && string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(assetPath)) == false)
+            {
+                AssetDatabase.ImportAsset(assetPath);
+            }
+        }
+
+        /// <summary>
+        /// 편집 중이면 줄 목록·안내·바이너리 카드 대신 편집기를 보이고, 아니면 편집기를 숨긴다(줄 목록은 다른 곳이 정한다).
+        /// </summary>
+        private void ApplyEditVisibility()
+        {
+            Root.EnableInClassList("git-diff--editing", _isEditing);
+            if (_editor == null)
+            {
+                return;
+            }
+            _editor.SetVisible(_isEditing);
+            if (_isEditing)
+            {
+                _list.SetVisible(false);
+                _notice.SetVisible(false);
+                _binaryView.SetVisible(false);
+                _loading.SetVisible(false);
+            }
+        }
+
+        /// <summary>
+        /// 막대의 "편집 중" 표시와 저장 버튼을 저장 안 된 편집이 있는지에 맞춘다.
+        /// </summary>
+        private void UpdateEditingState()
+        {
+            if (_editor == null || _editingLabel == null)
+            {
+                return;
+            }
+            bool dirty = _isEditing && _editor.IsDirty;
+            _editingLabel.text = GitText.Get(dirty ? "diff.editingDirty" : "diff.editing");
+            _editingLabel.EnableInClassList("git-diff__editing-label--dirty", dirty);
+            _saveButton.SetEnabled(dirty);
+        }
+
+        /// <summary>
+        /// 지금 diff 에서 작업 사본에 더해진 줄 번호(새 판, 1부터). 편집기의 줄 번호 칸에 표시한다.
+        /// </summary>
+        private IEnumerable<int> ChangedNewLines()
+        {
+            if (_document == null)
+            {
+                return Array.Empty<int>();
+            }
+            return _document.Lines.Where(line => line.Kind == GitDiffLineKind.Added && line.NewNumber > 0).Select(line => line.NewNumber).ToList();
         }
 
         /// <summary>
@@ -903,6 +1280,14 @@ namespace GitVersionControl
 
         private void SetFileView(bool fileView)
         {
+            if (_isEditing)
+            {
+                // 편집이 곧 파일 보기다. Diff 보기로 가면 편집을 끝낸다(저장 안 된 편집은 먼저 묻는다).
+                if (fileView || TryLeaveEdit() == false)
+                {
+                    return;
+                }
+            }
             GitVcsSettings.instance.DiffFileView = fileView;
             ReloadOrRelayout();
         }
@@ -1133,6 +1518,12 @@ namespace GitVersionControl
                 LoadBinaryAsync(version, _target);
             }
             ApplyLayout();
+            if (_isEditing)
+            {
+                // 저장 뒤 새로 읽은 diff 로 편집기의 "바뀐 줄" 표시를 맞춘다.
+                ApplyEditVisibility();
+                _editor.SetChangedLines(ChangedNewLines());
+            }
             if (_scrollToTop)
             {
                 _scrollToTop = false;
@@ -1195,7 +1586,8 @@ namespace GitVersionControl
                 ShowBinary(false);
                 SetDocument(null);
                 ApplyLayout();
-                _loading.SetVisible(true);
+                // 편집 중이면 편집기가 그 자리에 그대로 있으니 "불러오는 중" 을 겹쳐 띄우지 않는다.
+                _loading.SetVisible(_isEditing == false);
             }).StartingIn(LoadingDelayMs);
         }
 

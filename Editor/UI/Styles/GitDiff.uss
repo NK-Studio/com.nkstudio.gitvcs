@@ -970,3 +970,147 @@
     -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
     color: var(--git-text);
 }
+
+/* ── "이 파일 편집"(GitKraken 의 editable File View) ─────────────────
+   막대 왼쪽: [이 파일 편집] 자리에 "편집 중" 표시와 [저장][취소][외부 편집기]. 아래는 줄 목록 대신 코드 편집기(GitCodeEditor). */
+.git-diff__editing {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.git-diff__editing-label {
+    margin: 0 8px 0 2px;
+    padding: 0;
+    font-size: 12px;
+    -unity-font-style: italic;
+    color: var(--git-text-muted);
+    white-space: nowrap;
+}
+
+.git-diff__editing-label--dirty {
+    color: var(--git-text);
+}
+
+.git-diff__edit-action {
+    margin-left: 6px;
+}
+
+/* 저장은 Stage 처럼 초록 테두리(diff 의 버튼 한 벌과 같은 높이·모서리). */
+.git-diff__bar-button.git-diff__edit-save {
+    border-color: var(--git-success);
+    color: var(--git-success);
+}
+
+.git-diff__bar-button.git-diff__edit-save:disabled {
+    opacity: 0.4;
+}
+
+/* 좁은 막대에서는 외부 편집기 버튼을 뺀다(편집기·이 파일 편집의 오른쪽 버튼 메뉴에도 있다). */
+.git-diff__bar--compact .git-diff__edit-external {
+    display: none;
+}
+
+.git-diff__bar--micro .git-diff__editing-label {
+    display: none;
+}
+
+.git-code-editor {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-direction: row;
+    font-size: 12px;
+    background-color: var(--git-diff-bg);
+    --code-keyword: var(--git-code-keyword);
+    --code-string: var(--git-code-string);
+    --code-number: var(--git-code-number);
+    --code-comment: var(--git-code-comment);
+    --code-key: var(--git-code-key);
+    --editor-current-line: var(--git-editor-current-line);
+    --editor-indent-guide: var(--git-editor-indent-guide);
+    --editor-selection: var(--git-diff-text-selection);
+}
+
+/* 줄 번호 칸. 글 칸과 같이 세로로만 움직인다(코드가 줄마다 top 을 스크롤만큼 당긴다). */
+.git-code-editor__gutter {
+    flex-shrink: 0;
+    overflow: hidden;
+    background-color: var(--git-diff-gutter);
+}
+
+.git-code-editor__number {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 18px;
+    margin: 0;
+    padding: 0 8px 0 0;
+    font-size: 11px;
+    -unity-text-align: middle-right;
+    color: var(--git-diff-number);
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.git-code-editor__number--current {
+    color: var(--git-editor-number-current);
+}
+
+/* 작업 사본에서 바뀐 줄(마지막으로 저장·읽은 diff 기준)은 줄 번호 왼쪽에 초록 띠. */
+.git-code-editor__number--changed {
+    border-left-color: var(--git-diff-added-sign);
+}
+
+.git-code-editor__scroll {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+.git-code-editor__scroll > .unity-scroll-view__content-viewport {
+    cursor: text;
+}
+
+.git-code-editor__content {
+    flex-shrink: 0;
+}
+
+.git-code-editor__layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.git-code-editor__line {
+    position: absolute;
+    left: 10px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    -unity-text-align: middle-left;
+    color: var(--git-diff-text);
+}
+
+.git-code-editor__caret {
+    position: absolute;
+    width: 2px;
+    height: 16px;
+    background-color: var(--git-editor-caret);
+}
+
+/* IME 로 조합 중인 글자(한글 조합 등): 커서 자리에 밑줄과 함께 겹쳐 보인다. */
+.git-code-editor__composition {
+    position: absolute;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    -unity-text-align: middle-left;
+    color: var(--git-diff-text);
+    background-color: var(--git-diff-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-editor-caret);
+}
