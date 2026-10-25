@@ -33,6 +33,8 @@ namespace GitVersionControl
 
         private void CreateGUI()
         {
+            // 너무 좁으면 diff 막대가 겹쳐 깨진다. 막대가 버튼을 숨겨 가며 들어가는 폭까지만 줄인다(보조 창과 같다).
+            minSize = new Vector2(520, 300);
             _service ??= new GitDiffService(new EditorDialogService());
 
             VisualElement scaleHost = new();

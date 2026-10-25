@@ -11,12 +11,19 @@
 
 .git-diff__toolbar {
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+/* 좁아지면 파일 이름·판 설명이 말줄임으로 줄고, 오른쪽 버튼(외부 도구로 열기·다시 읽기·×)은 줄지 않는다 — 줄면 글자가 왼쪽 글 위로 넘쳐 겹친다. */
+.git-diff__toolbar > .unity-toolbar-button {
+    flex-shrink: 0;
 }
 
 .git-diff__title {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-left;
     margin: 0 6px;
+    min-width: 0;
     flex-shrink: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -193,8 +200,12 @@
     padding: 0;
 }
 
-.git-diff__bar--compact .git-diff__bar-side {
+/* 묶음은 자기 내용 폭보다 줄지 않는다. 줄면 오른쪽 묶음(오른쪽 맞춤)의 버튼이 왼쪽으로 넘쳐 가운데 묶음 위에 겹친다.
+   그래도 모자라면 막대(overflow: hidden)가 오른쪽 끝을 자른다 — 겹치는 것보다 낫고, 그 전에 아래 단계들이 버튼을 뺀다. */
+.git-diff__bar--compact .git-diff__bar-side,
+.git-diff__bar--compact .git-diff__bar-center {
     flex-grow: 0;
+    flex-shrink: 0;
     flex-basis: auto;
 }
 
@@ -211,6 +222,11 @@
 }
 
 .git-diff__bar--tiny .git-diff__segment--display {
+    display: none;
+}
+
+/* Git 창 가운데 칸처럼 아주 좁으면 보기 방식 셋도 뺀다(마지막에 고른 방식이 그대로 쓰인다). */
+.git-diff__bar--micro .git-diff__segment--layouts {
     display: none;
 }
 
@@ -232,7 +248,9 @@
 }
 
 .git-diff__revisions {
-    flex-shrink: 1;
+    flex-shrink: 2;
+    min-width: 0;
+    -unity-text-align: middle-left;
     font-size: 10px;
     color: var(--git-text-muted);
     margin-left: 6px;

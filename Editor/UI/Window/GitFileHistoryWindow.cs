@@ -41,6 +41,11 @@ namespace GitVersionControl
             window.Load();
         }
 
+        /// <summary>
+        /// 위 커밋 목록과 아래 diff 가 둘 다 쓸 만한 높이로 남게 기본보다 높게 잡는다.
+        /// </summary>
+        protected override Vector2 MinimumSize => new(520, 480);
+
         private void CreateGUI()
         {
             _diffService ??= new GitDiffService(new EditorDialogService());

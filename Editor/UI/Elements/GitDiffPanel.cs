@@ -88,11 +88,12 @@ namespace GitVersionControl
 
         /// <summary>
         /// 막대가 좁을 때 줄이는 단계. 이 패널은 Git 창의 좁은 가운데 칸에도 들어간다.
-        /// Compact: 가운데 맞춤을 풀고 "이 파일 편집" 을 아이콘만. Narrow: Blame·히스토리 숨김(파일 목록 메뉴에도 있다). Tiny: 공백·줄 바꿈 숨김.
+        /// Compact: 가운데 맞춤을 풀고 "이 파일 편집" 을 아이콘만. Narrow: Blame·히스토리 숨김(파일 목록 메뉴에도 있다). Tiny: 공백·줄 바꿈 숨김. Micro: 보기 방식 셋 숨김.
         /// </summary>
         private const float CompactBarWidth = 820f;
         private const float NarrowBarWidth = 690f;
         private const float TinyBarWidth = 560f;
+        private const float MicroBarWidth = 470f;
 
         /// <summary>
         /// 지금 읽어 둔 diff 의 문맥 줄 수. 보기 방식을 바꿨을 때 다시 읽어야 하는지(변경 묶음 ↔ 파일 전체) 가른다.
@@ -561,6 +562,7 @@ namespace GitVersionControl
             _inlineLayoutButton = BarButton(() => SetLayout(DiffLayout.Inline), GitText.Get("diff.viewInline"), "inline", null);
             _splitLayoutButton = BarButton(() => SetLayout(DiffLayout.SideBySide), GitText.Get("diff.viewSplit"), "split", null);
             VisualElement layouts = Segment(_hunkLayoutButton, _inlineLayoutButton, _splitLayoutButton);
+            layouts.AddToClassList("git-diff__segment--layouts");
             right.Add(layouts);
             _textOnlyControls.Add(layouts);
 
@@ -579,6 +581,7 @@ namespace GitVersionControl
                 _bar.EnableInClassList("git-diff__bar--compact", width < CompactBarWidth);
                 _bar.EnableInClassList("git-diff__bar--narrow", width < NarrowBarWidth);
                 _bar.EnableInClassList("git-diff__bar--tiny", width < TinyBarWidth);
+                _bar.EnableInClassList("git-diff__bar--micro", width < MicroBarWidth);
             });
             return _bar;
         }

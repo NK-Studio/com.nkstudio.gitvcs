@@ -14,8 +14,15 @@ namespace GitVersionControl
 
         protected VisualElement Content { get; private set; }
 
+        /// <summary>
+        /// 창을 이보다 작게 줄이지 못하게 한다. 너무 좁으면 diff 막대·목록 머리가 겹쳐 깨진다.
+        /// diff 막대는 좁아지면 덜 중요한 버튼부터 숨기는데(GitDiffPanel), 520 은 그렇게 줄인 막대가 들어가는 폭이다.
+        /// </summary>
+        protected virtual Vector2 MinimumSize => new(520, 360);
+
         protected void CreateContent()
         {
+            minSize = MinimumSize;
             Content = new VisualElement();
             Content.style.flexGrow = 1;
             Content.AddToClassList("git-window");
