@@ -26,7 +26,7 @@ namespace GitVersionControl
     }
 
     /// <summary>
-    /// git 오류 글을 짧은 해설(원인 한 줄·해결 한 줄)로 바꾼다. 오류 팝업의 "쉬운 설명" 이 쓴다(<see cref="GitErrorDialog"/>).
+    /// git 오류 글을 짧은 해설(원인 한 줄·해결 한 줄)로 바꾼다. 오류 팝업의 "설명" 이 쓴다(<see cref="GitErrorDialog"/>).
     /// <see cref="GitAuth.IsAuthFailure"/> 처럼 소문자로 바꾼 글에 든 문구로 알아본다. 겹치는 문구가 있어 순서가 중요하다
     /// (보호된 브랜치·큰 파일 거절도 "[remote rejected]" 이고, 403 도 "unable to access" 다).
     /// </summary>

@@ -717,7 +717,7 @@
     color: rgb(255, 255, 255);
 }
 
-/* 쉬운 설명 | git 원문 전환. 제목 시작선에 맞춰 들인 두 칸짜리 버튼. */
+/* 설명 | git 원문 전환. 제목 시작선에 맞춰 들인 두 칸짜리 버튼. */
 .error-dialog__modes {
     flex-direction: row;
     align-self: flex-start;
@@ -753,6 +753,20 @@
 .error-dialog__body {
     max-height: 320px;
     margin: 0 0 6px 58px;
+}
+
+/* 설명·git 원문을 겹쳐 두는 칸. 높이는 높은 쪽에 맞춘다(GitErrorDialog.FitStack). */
+.error-dialog__stack {
+    position: relative;
+}
+
+/* 숨긴 보기는 흐름에서 빼고 같은 폭으로 겹쳐 둔다(높이를 잴 수 있게). */
+.error-dialog__view--hidden {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    visibility: hidden;
 }
 
 .error-dialog__cause {

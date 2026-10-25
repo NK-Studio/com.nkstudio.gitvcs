@@ -862,8 +862,8 @@ namespace GitVersionControl
             ["compare.summaryWorkingTree"] = new[] { "{0} ↔ 작업 트리 · 파일 {1}개 (새 파일 제외)", "{0} ↔ working tree · {1} files (untracked excluded)" },
             ["diff.revisionsCommitWorkingTree"] = new[] { "{0} ↔ 작업 트리", "{0} ↔ working tree" },
 
-            // ── 오류 팝업: 쉬운 설명 / git 원문 (GitErrorDialog·GitErrorAdvice) ──
-            ["error.modeFriendly"] = new[] { "쉬운 설명", "Explanation" },
+            // ── 오류 팝업: 설명 / git 원문 (GitErrorDialog·GitErrorAdvice) ──
+            ["error.modeFriendly"] = new[] { "설명", "Explanation" },
             ["error.modeDeveloper"] = new[] { "git 원문", "git Output" },
             ["error.copyAll"] = new[] { "전체 복사", "Copy All" },
             ["error.copied"] = new[] { "복사됨", "Copied" },
@@ -900,7 +900,7 @@ namespace GitVersionControl
 
             ["settings.errorDetail"] = new[] { "오류 알림 보기", "Error Details" },
             ["settings.errorDetailTooltip"] = new[] { "작업이 실패했을 때 원인과 해결 방법을 쉽게 풀어 보일지, git 이 남긴 글을 그대로 보일지 고릅니다. 오류 팝업에서도 바꿀 수 있습니다.", "Show failed operations as a plain explanation with fixes, or as git's raw output. You can also switch in the error popup." },
-            ["errorDetail.Friendly"] = new[] { "쉬운 설명", "Explanation" },
+            ["errorDetail.Friendly"] = new[] { "설명", "Explanation" },
             ["errorDetail.Developer"] = new[] { "git 원문 (개발자)", "git Output (Developer)" },
         };
     }

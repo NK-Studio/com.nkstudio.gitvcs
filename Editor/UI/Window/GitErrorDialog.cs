@@ -7,12 +7,12 @@ namespace GitVersionControl
 {
     /// <summary>
     /// 작업 실패 알림. 운영체제 대화상자(<see cref="IDialogService.Alert"/>) 대신 Git 창 위에 덮어 띄운다(<see cref="GitConfirmDialog"/> 와 같은 막·카드).
-    /// 두 가지로 보인다(<see cref="ErrorDetailMode"/>): "쉬운 설명" 은 원인·해결 한 줄씩(<see cref="GitErrorAdvice"/>),
+    /// 두 가지로 보인다(<see cref="ErrorDetailMode"/>): "설명" 은 원인·해결 한 줄씩(<see cref="GitErrorAdvice"/>),
     /// "git 원문" 은 git 이 남긴 글 그대로. 제목 아래 전환 버튼으로 바꾸고, 고른 쪽을 기억한다. Enter·Esc·× 는 닫기.
     /// </summary>
     public sealed class GitErrorDialog
     {
-        /// <summary>"쉬운 설명" 이 알아보지 못한 오류일 때 함께 보일 원문 줄 수.</summary>
+        /// <summary>"설명" 이 알아보지 못한 오류일 때 함께 보일 원문 줄 수.</summary>
         private const int UnknownPreviewLines = 3;
 
         /// <summary>복사 버튼이 "복사됨" 으로 있다가 돌아오기까지(ms).</summary>
@@ -24,7 +24,9 @@ namespace GitVersionControl
         private readonly GitErrorAdvice _advice;
         private readonly Button _friendlyTab;
         private readonly Button _developerTab;
-        private readonly ScrollView _body;
+        private readonly VisualElement _stack;
+        private readonly VisualElement _friendlyView;
+        private readonly VisualElement _developerView;
         private readonly Button _copyAll;
 
         /// <summary>
@@ -86,9 +88,22 @@ namespace GitVersionControl
             }
             card.Add(modes);
 
-            _body = new ScrollView(ScrollViewMode.Vertical);
-            _body.AddToClassList("error-dialog__body");
-            card.Add(_body);
+            // 두 보기를 같은 칸에 겹쳐 두고 높은 쪽에 맞춘다 — 바꿀 때 카드 높이가 오르내리지 않게.
+            ScrollView body = new(ScrollViewMode.Vertical);
+            body.AddToClassList("error-dialog__body");
+            _stack = new VisualElement();
+            _stack.AddToClassList("error-dialog__stack");
+            _friendlyView = BuildFriendly();
+            _developerView = new VisualElement();
+            _developerView.Add(Raw(_message));
+            foreach (VisualElement view in new[] { _friendlyView, _developerView })
+            {
+                view.AddToClassList("error-dialog__view");
+                view.RegisterCallback<GeometryChangedEvent>(_ => FitStack());
+                _stack.Add(view);
+            }
+            body.Add(_stack);
+            card.Add(body);
 
             VisualElement buttons = new();
             buttons.AddToClassList("branch-dialog__buttons");
@@ -127,38 +142,45 @@ namespace GitVersionControl
             bool friendly = mode == ErrorDetailMode.Friendly;
             _friendlyTab.EnableInClassList("error-dialog__mode--on", friendly);
             _developerTab.EnableInClassList("error-dialog__mode--on", friendly == false);
-            _copyAll.SetVisible(friendly == false);
-            _body.Clear();
-            if (friendly)
+            _friendlyView.EnableInClassList("error-dialog__view--hidden", friendly == false);
+            _developerView.EnableInClassList("error-dialog__view--hidden", friendly);
+            // 버튼 줄도 자리를 지킨다(숨겨도 폭을 차지).
+            _copyAll.style.visibility = friendly ? Visibility.Hidden : Visibility.Visible;
+        }
+
+        /// <summary>
+        /// 겹친 칸의 높이를 두 보기 중 높은 쪽으로. 숨긴 보기도 같은 폭으로 배치되어 있어 높이를 잴 수 있다.
+        /// </summary>
+        private void FitStack()
+        {
+            float height = Mathf.Max(_friendlyView.layout.height, _developerView.layout.height);
+            if (float.IsNaN(height) == false && Mathf.Approximately(_stack.resolvedStyle.minHeight.value, height) == false)
             {
-                BuildFriendly();
+                _stack.style.minHeight = height;
             }
-            else
-            {
-                _body.Add(Raw(_message));
-            }
-            _body.scrollOffset = Vector2.zero;
         }
 
         /// <summary>원인 한 줄(굵게)과 해결 한 줄.</summary>
-        private void BuildFriendly()
+        private VisualElement BuildFriendly()
         {
+            VisualElement view = new();
             Label cause = new(_advice.Cause);
             cause.AddToClassList("error-dialog__cause");
             cause.selection.isSelectable = true;
-            _body.Add(cause);
+            view.Add(cause);
 
             // 알아보지 못한 오류는 git 이 남긴 앞쪽 몇 줄을 함께 보인다.
             if (_advice.Kind == GitErrorKind.Unknown)
             {
                 string preview = string.Join("\n", _message.Split('\n').Select(l => l.TrimEnd()).Where(l => l.Length > 0).Take(UnknownPreviewLines));
-                _body.Add(Raw(preview));
+                view.Add(Raw(preview));
             }
 
             Label fix = new(_advice.Fix);
             fix.AddToClassList("error-dialog__fix");
             fix.selection.isSelectable = true;
-            _body.Add(fix);
+            view.Add(fix);
+            return view;
         }
 
         /// <summary>git 글을 고정폭 글꼴의 테두리 칸에. 골라서 복사할 수 있다.</summary>
