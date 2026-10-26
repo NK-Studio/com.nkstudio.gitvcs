@@ -73,6 +73,16 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(GitSubmoduleState.Conflicted, submodules[3].State);
         }
 
+        [Test]
+        public void Test_ParseGitlinkPaths_OnlyGitlinksOnce()
+        {
+            const string output = "100644 aaa 0\tAssets/a.cs\0"
+                                  + "160000 bbb 0\tPackages/\ud55c\uae00 \ubaa8\ub4c8\0"
+                                  + "160000 ccc 1\tLibs/Conflict\0160000 ddd 2\tLibs/Conflict\0160000 eee 3\tLibs/Conflict\0";
+            List<string> paths = GitRefs.ParseGitlinkPaths(output);
+            CollectionAssert.AreEqual(new[] { "Packages/\ud55c\uae00 \ubaa8\ub4c8", "Libs/Conflict" }, paths);
+        }
+
         [TestCase("[ahead 1, behind 2]", "1\u2191 2\u2193")]
         [TestCase("[ahead 3]", "3\u2191")]
         [TestCase("[behind 4]", "4\u2193")]

@@ -141,6 +141,12 @@ namespace GitVersionControl
         public static readonly string[] SubmodulesCommand = { "submodule", "status" };
 
         /// <summary>
+        /// 인덱스의 모든 항목. 서브모듈(gitlink) 경로만 빠르게 알 때 쓴다 — <c>submodule status</c> 는 셸 스크립트로 시작하고
+        /// 서브모듈마다 <c>git describe</c> 를 여러 번 돌려 Windows 에서 1초 넘게 걸린다. 이건 프로세스 하나다.
+        /// </summary>
+        public static readonly string[] GitlinksCommand = { "ls-files", "--stage", "-z" };
+
+        /// <summary>
         /// 다섯 가지를 동시에 읽는다. 메인 스레드에서 불러도 된다(git 은 작업 스레드에서 돈다).
         /// </summary>
         public static async Task<GitRefSet> LoadAsync()
@@ -286,6 +292,29 @@ namespace GitVersionControl
         public static bool IsUnmappedGitlinkError(string message)
         {
             return message != null && message.IndexOf("no submodule mapping found", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// <c>ls-files --stage -z</c>: NUL 로 나뉜 "모드 해시 단계\t경로". 모드가 160000(gitlink)인 경로만 순서대로 고른다.
+        /// 충돌 중이면 같은 경로가 단계마다 나오므로 한 번만 넣는다.
+        /// </summary>
+        public static List<string> ParseGitlinkPaths(string output)
+        {
+            List<string> paths = new();
+            foreach (string entry in (output ?? string.Empty).Split('\0'))
+            {
+                int tab = entry.IndexOf('\t');
+                if (tab <= 0 || entry.StartsWith("160000 ", StringComparison.Ordinal) == false)
+                {
+                    continue;
+                }
+                string path = entry.Substring(tab + 1);
+                if (paths.Count == 0 || paths[paths.Count - 1] != path)
+                {
+                    paths.Add(path);
+                }
+            }
+            return paths;
         }
 
         public static List<GitSubmoduleRef> ParseSubmodules(string output)

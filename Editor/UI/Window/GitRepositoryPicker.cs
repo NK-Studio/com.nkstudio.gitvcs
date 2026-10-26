@@ -101,18 +101,19 @@ namespace GitVersionControl
 
         private async void LoadSubmodules(string mainRoot, Label message)
         {
-            GitResult result = await GitCommand.RunAsync(mainRoot, GitRefs.SubmodulesCommand);
+            // submodule status 대신 인덱스의 gitlink 만 읽는다(GitRefs.GitlinksCommand 참고). 받았는지는 .git 이 있는지로 본다.
+            GitResult result = await GitCommand.RunAsync(mainRoot, GitRefs.GitlinksCommand);
             if (_closed)
             {
                 return;
             }
-            List<GitSubmoduleRef> submodules = result.Success ? GitRefs.ParseSubmodules(result.Output) : new List<GitSubmoduleRef>();
             if (result.Success == false)
             {
                 message.text = result.Message;
                 return;
             }
-            if (submodules.Count == 0)
+            List<string> submodulePaths = GitRefs.ParseGitlinkPaths(result.Output);
+            if (submodulePaths.Count == 0)
             {
                 message.text = GitText.Get("actionbar.noSubmodules");
                 return;
@@ -122,14 +123,15 @@ namespace GitVersionControl
             divider.AddToClassList("repo-picker__divider");
             _panel.Add(divider);
             string opened = GitRepository.OpenedRoot;
-            foreach (GitSubmoduleRef submodule in submodules)
+            foreach (string submodulePath in submodulePaths)
             {
-                string root = $"{mainRoot}/{submodule.Path}";
-                bool initialized = submodule.State != GitSubmoduleState.NotInitialized;
+                string root = $"{mainRoot}/{submodulePath}";
+                string dotGit = $"{root}/.git";
+                bool initialized = Directory.Exists(dotGit) || File.Exists(dotGit);
                 AddItem(new Item
                 {
-                    Name = Path.GetFileName(submodule.Path.TrimEnd('/')),
-                    Detail = initialized ? submodule.Path : submodule.Path + GitText.Get("actionbar.submoduleNotInitialized"),
+                    Name = Path.GetFileName(submodulePath.TrimEnd('/')),
+                    Detail = initialized ? submodulePath : submodulePath + GitText.Get("actionbar.submoduleNotInitialized"),
                     Root = root,
                     IsOpen = string.Equals(opened, root, StringComparison.OrdinalIgnoreCase),
                     Enabled = initialized,
