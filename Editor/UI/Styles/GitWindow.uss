@@ -530,6 +530,12 @@
     color: var(--git-text-muted);
 }
 
+/* 커서는 물려받지 않아 아이콘·숫자에도 준다. */
+.git-rail__item,
+.git-rail__item * {
+    cursor: link;
+}
+
 .git-rail__item:hover {
     background-color: var(--git-hover);
     color: var(--git-text);
@@ -625,6 +631,13 @@
     flex-basis: 0;
     min-height: 0;
     background-color: var(--git-sidebar-bg);
+}
+
+/* 구역 머리 줄(로컬·리모트…)만 줄 전체(펼침 화살표 포함)에 손가락 커서. 그 아래 항목은 기본 커서.
+   커서는 물려받지 않아 포인터를 받는 안쪽 요소(글자·아이콘·화살표)에도 준다. */
+.ref-tree__item--section,
+.ref-tree__item--section * {
+    cursor: link;
 }
 
 .ref-tree__row {

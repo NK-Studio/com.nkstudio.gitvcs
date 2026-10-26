@@ -336,8 +336,18 @@ namespace GitVersionControl
             label.text = GitDisplay.Nfc(node.Label);
             badge.text = node.Badge;
             row.tooltip = node.Tooltip;
-            row.EnableInClassList(Block + "__row--section", node.Kind == RefNodeKind.Section);
+            bool isSection = node.Kind == RefNodeKind.Section;
+            row.EnableInClassList(Block + "__row--section", isSection);
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
+            // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서는 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
+            for (VisualElement item = row.parent; item != null; item = item.parent)
+            {
+                if (item.ClassListContains(TreeView.itemUssClassName))
+                {
+                    item.EnableInClassList(Block + "__item--section", isSection);
+                    break;
+                }
+            }
         }
 
         /// <summary>
