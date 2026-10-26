@@ -384,7 +384,8 @@
     cursor: text;
 }
 
-/* 앞·바뀐 부분·뒤 세 조각. 공백을 그대로 보이게 줄바꿈 없이 붙인다. */
+/* 앞·바뀐 부분·뒤 세 조각. 공백을 그대로 보이게 줄바꿈 없이 붙인다.
+   cursor 는 상속되지 않고 마우스 밑에서 골라진 조각 것을 쓰므로 조각에도 I 모양 커서를 준다. */
 .diff-row__part {
     padding: 0;
     margin: 0;
@@ -392,6 +393,7 @@
     white-space: pre;
     -unity-text-align: middle-left;
     color: var(--git-diff-text);
+    cursor: text;
 }
 
 .diff-row--added,

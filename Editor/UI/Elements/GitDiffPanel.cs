@@ -177,6 +177,12 @@ namespace GitVersionControl
         private bool _textDragging;
 
         /// <summary>
+        /// 글을 끄는 동안 끌기·떼기를 받는 패널 맨 위 요소. 포인터를 잡으면(CapturePointer) 줄의 :hover 가 풀린 뒤
+        /// 떼어도 다른 요소로 옮겨 가기 전까지 돌아오지 않으므로, 잡지 않고 맨 위에서 먼저(TrickleDown) 받는다.
+        /// </summary>
+        private VisualElement _textDragRoot;
+
+        /// <summary>
         /// 고른 글 배경. 테마 토큰(<c>--git-diff-text-selection</c>)을 GitDiff.uss 가 <c>--diff-text-selection</c> 으로 넘긴다. 리치 텍스트 &lt;mark&gt; 로 칠한다.
         /// </summary>
         private Color _textSelectionColor = new(0.22f, 0.47f, 0.82f, 0.45f);
@@ -304,11 +310,9 @@ namespace GitVersionControl
             // 줄 끌어 고르기는 줄 요소의 PointerDown·PointerEnter 로 하고, 버튼을 떼거나 목록 밖으로 나가면 끝낸다.
             _list.RegisterCallback<PointerUpEvent>(_ => _dragSelecting = false, TrickleDown.TrickleDown);
             _list.RegisterCallback<PointerLeaveEvent>(_ => _dragSelecting = false);
-            // 코드 글 고르기: 누르기는 코드 칸(CodeElement)이 받고, 끌기·떼기는 포인터를 잡은 목록이 받는다(줄 요소는 스크롤하면 바뀐다).
+            // 코드 글 고르기: 누르기는 코드 칸(CodeElement)이 받고, 끌기·떼기는 끄는 동안 패널 맨 위가 받는다(BeginTextDrag).
             _list.focusable = true;
-            _list.RegisterCallback<PointerMoveEvent>(OnTextPointerMove);
-            _list.RegisterCallback<PointerUpEvent>(OnTextPointerUp);
-            _list.RegisterCallback<PointerCaptureOutEvent>(_ => _textDragging = false);
+            _list.RegisterCallback<DetachFromPanelEvent>(_ => EndTextDrag());
             _list.RegisterCallback<KeyDownEvent>(OnTextKeyDown, TrickleDown.TrickleDown);
             _list.RegisterCallback<ValidateCommandEvent>(OnValidateTextCommand);
             _list.RegisterCallback<ExecuteCommandEvent>(OnExecuteTextCommand);
@@ -2142,7 +2146,7 @@ namespace GitVersionControl
             _textFocusRow = -1;
             _textAnchorOffset = 0;
             _textFocusOffset = 0;
-            _textDragging = false;
+            EndTextDrag();
         }
 
         private void ClearTextSelection()
@@ -2258,10 +2262,9 @@ namespace GitVersionControl
             {
                 SetTextSelection(row, offset, row, offset);
             }
-            _textDragging = evt.clickCount == 1;
-            if (_textDragging)
+            if (evt.clickCount == 1)
             {
-                _list.CapturePointer(evt.pointerId);
+                BeginTextDrag();
             }
             _list.Focus();
             RefreshTextSelection();
@@ -2275,6 +2278,31 @@ namespace GitVersionControl
             _textFocusOffset = focusOffset;
         }
 
+        private void BeginTextDrag()
+        {
+            EndTextDrag();
+            _textDragRoot = _list.panel?.visualTree;
+            if (_textDragRoot == null)
+            {
+                return;
+            }
+            _textDragging = true;
+            _textDragRoot.RegisterCallback<PointerMoveEvent>(OnTextPointerMove, TrickleDown.TrickleDown);
+            _textDragRoot.RegisterCallback<PointerUpEvent>(OnTextPointerUp, TrickleDown.TrickleDown);
+        }
+
+        private void EndTextDrag()
+        {
+            _textDragging = false;
+            if (_textDragRoot == null)
+            {
+                return;
+            }
+            _textDragRoot.UnregisterCallback<PointerMoveEvent>(OnTextPointerMove, TrickleDown.TrickleDown);
+            _textDragRoot.UnregisterCallback<PointerUpEvent>(OnTextPointerUp, TrickleDown.TrickleDown);
+            _textDragRoot = null;
+        }
+
         private void OnTextPointerMove(PointerMoveEvent evt)
         {
             if (_textDragging == false)
@@ -2284,11 +2312,7 @@ namespace GitVersionControl
             // 창이 포커스를 잃는 사이 버튼 떼기를 놓쳤으면(왼쪽 버튼이 눌려 있지 않으면) 끌기를 끝낸다.
             if ((evt.pressedButtons & 1) == 0)
             {
-                _textDragging = false;
-                if (_list.HasPointerCapture(evt.pointerId))
-                {
-                    _list.ReleasePointer(evt.pointerId);
-                }
+                EndTextDrag();
                 return;
             }
             VisualElement code = CodeAt(evt.position);
@@ -2317,11 +2341,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            _textDragging = false;
-            if (_list.HasPointerCapture(evt.pointerId))
-            {
-                _list.ReleasePointer(evt.pointerId);
-            }
+            EndTextDrag();
         }
 
         /// <summary>
