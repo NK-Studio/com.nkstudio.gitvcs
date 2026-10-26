@@ -263,6 +263,8 @@ namespace GitVersionControl
         private void OnFocus()
         {
             ApplyTheme();
+            // 보조 창(파일 히스토리 등)과 배율 설정을 같이 쓰므로 거기서 바꿨으면 돌아올 때 맞춘다.
+            _scale?.Apply();
             _services?.Repository.RequestRefresh();
         }
 

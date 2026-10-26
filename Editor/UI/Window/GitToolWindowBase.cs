@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -5,12 +6,15 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 파일 히스토리·blame 같은 보조 창의 공통 바탕: Git 창과 같은 스타일 시트·테마를 붙인 내용 루트(<see cref="Content"/>).
+    /// 파일 히스토리·blame 같은 보조 창의 공통 바탕: Git 창과 같은 스타일 시트·테마·UI 배율을 붙인 내용 루트(<see cref="Content"/>).
+    /// 배율은 Git 창과 같은 설정을 쓴다 — Git 창에서 연 창이 그 창과 다른 글자 크기로 뜨지 않게.
     /// </summary>
-    public abstract class GitToolWindowBase : EditorWindow
+    public abstract class GitToolWindowBase : EditorWindow, IHasCustomMenu
     {
         private const string StyleFolder = "Packages/com.nkstudio.gitvcs/Editor/UI/Styles/";
         private static readonly string[] Sheets = { "GitCommon", "GitRows", "GitViews", "GitDiff", "GitStaging" };
+
+        private UiScaleController _scale;
 
         protected VisualElement Content { get; private set; }
 
@@ -23,14 +27,17 @@ namespace GitVersionControl
         protected void CreateContent()
         {
             minSize = MinimumSize;
+            VisualElement scaleHost = new();
             Content = new VisualElement();
-            Content.style.flexGrow = 1;
             Content.AddToClassList("git-window");
             foreach (string sheet in Sheets)
             {
                 Content.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StyleFolder + sheet + ".uss"));
             }
-            rootVisualElement.Add(Content);
+            rootVisualElement.Add(scaleHost);
+            scaleHost.Add(Content);
+            GitVcsSettings settings = GitVcsSettings.instance;
+            _scale = new UiScaleController(scaleHost, Content, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
             GitContextMenu.Attach(Content, Content);
             GitTheme.Apply(Content);
             GitTheme.Changed -= ApplyTheme;
@@ -45,6 +52,8 @@ namespace GitVersionControl
         private void OnFocus()
         {
             ApplyTheme();
+            // Git 창에서 배율을 바꾼 뒤 돌아오면 그 배율로 맞춘다.
+            _scale?.Apply();
         }
 
         private void ApplyTheme()
@@ -58,6 +67,23 @@ namespace GitVersionControl
         protected static GUIContent TitleWithIcon(string title)
         {
             return new GUIContent(title, EditorGUIUtility.IconContent("d_UnityEditor.VersionControl").image);
+        }
+
+        /// <summary>
+        /// 창 오른쪽 위 ⋮ 메뉴: 테마, UI 크기(Ctrl+휠 을 모르는 사람을 위한 같은 기능).
+        /// </summary>
+        public virtual void AddItemsToMenu(GenericMenu menu)
+        {
+            string themeMenu = GitText.Get("window.theme");
+            foreach (GitThemeStyle style in (GitThemeStyle[])Enum.GetValues(typeof(GitThemeStyle)))
+            {
+                GitThemeStyle captured = style;
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(style))}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+            }
+            string scaleMenu = GitText.Get("window.uiScale");
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.GitWindowScale * 100f))}"), false, () => _scale?.Reset());
         }
     }
 }

@@ -148,7 +148,10 @@ namespace GitVersionControl
             ShowIndicator(clamped);
         }
 
-        private void Apply()
+        /// <summary>
+        /// 다른 창에서 같은 배율 설정을 바꿨을 때 다시 맞춘다.
+        /// </summary>
+        public void Apply()
         {
             float scale = Clamp(_getScale());
             Rect area = _root.contentRect;
