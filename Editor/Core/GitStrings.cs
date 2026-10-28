@@ -435,7 +435,6 @@ namespace GitVersionControl
             ["column.author"] = new[] { "작성자", "Author" },
             ["column.date"] = new[] { "날짜", "Date" },
             ["column.name"] = new[] { "이름", "Name" },
-            ["column.incomingFiles"] = new[] { "받을 파일", "Incoming Files" },
             ["column.local"] = new[] { "로컬", "Local" },
             ["column.changedFiles"] = new[] { "바뀐 파일", "Changed Files" },
 
@@ -478,7 +477,6 @@ namespace GitVersionControl
             ["window.notGitMode"] = new[] { "Git 연동을 시작하는 중입니다.", "Starting Git integration." },
             ["window.notRepository"] = new[] { "git 저장소가 아닙니다. Git 설정에서 git init 할 수 있습니다.", "This is not a git repository. You can run git init from the Git settings." },
             ["tab.pending"] = new[] { "대기 중인 변경사항", "Pending Changes" },
-            ["tab.incoming"] = new[] { "수신 변경사항", "Incoming Changes" },
             ["tab.changesets"] = new[] { "체인지 세트", "Changesets" },
             ["tab.explorer"] = new[] { "브랜치 탐색기", "Branch Explorer" },
 
@@ -499,17 +497,6 @@ namespace GitVersionControl
             ["pending.discardMessage"] = new[] { "다음 변경을 버립니다. 되돌릴 수 없습니다.\n\n{0}", "The following changes will be discarded. This cannot be undone.\n\n{0}" },
             ["pending.discardFolder"] = new[] { "이 폴더의 변경 {0}개 되돌리기", "Discard {0} Changes in This Folder" },
             ["pending.discardMore"] = new[] { "\n… 외 {0}개", "\n… and {0} more" },
-
-            // ── 수신 변경사항 ──
-            ["incoming.localChange"] = new[] { "⚠ 로컬 변경 있음", "⚠ Local changes" },
-            ["incoming.lastFetch"] = new[] { "  ·  마지막 fetch {0}", "  ·  last fetch {0}" },
-            ["incoming.noFetch"] = new[] { "  ·  fetch 기록 없음", "  ·  never fetched" },
-            ["incoming.summary"] = new[] { "{0}: 커밋 {1}개, 파일 {2}개{3}", "{0}: {1} commits, {2} files{3}" },
-            ["incoming.noUpstream"] = new[] { "현재 브랜치에 upstream 이 없습니다. Push 하면 origin 에 같은 이름의 추적 브랜치가 생깁니다.", "The current branch has no upstream. Pushing creates a tracking branch with the same name on origin." },
-            ["incoming.nothing"] = new[] { "받을 변경이 없습니다. 최신 상태를 보려면 Fetch 하세요.", "Nothing to receive. Fetch to check for new changes." },
-            ["incoming.diverged"] = new[] { "로컬과 원격이 갈라졌습니다(↑{0} ↓{1}). fast-forward Pull 이 불가능하니 터미널에서 merge 또는 rebase 하세요.", "Local and remote have diverged (↑{0} ↓{1}). A fast-forward pull is not possible; merge or rebase in a terminal." },
-            ["incoming.overlap"] = new[] { "받을 파일 중 {0}개가 커밋하지 않은 로컬 변경과 겹칩니다. Pull 이 거부되거나 충돌할 수 있습니다.", "{0} incoming files overlap uncommitted local changes. The pull may be refused or conflict." },
-            ["incoming.pullConfirm"] = new[] { "받을 파일 중 {0}개가 로컬 변경과 겹칩니다. git 이 덮어쓰지 않고 거부하면 아무것도 바뀌지 않습니다.\n계속할까요?", "{0} incoming files overlap local changes. If git refuses instead of overwriting, nothing changes.\nContinue?" },
 
             // ── 체인지 세트 ──
             ["changesets.allBranches"] = new[] { "모든 브랜치", "All Branches" },

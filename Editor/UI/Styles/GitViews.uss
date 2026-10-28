@@ -1,4 +1,4 @@
-/* 탭 블록들: pending-changes, incoming-changes, changesets, branches, branch-explorer, commit-detail. */
+/* 탭 블록들: pending-changes, changesets, branches, branch-explorer, commit-detail. */
 
 .view {
     flex-grow: 1;

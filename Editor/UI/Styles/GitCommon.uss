@@ -334,7 +334,6 @@
 .column--author { width: 130px; min-width: 130px; }
 .column--date { width: 112px; min-width: 112px; }
 .column--track { width: 170px; min-width: 170px; }
-.column--local { width: 130px; min-width: 130px; }
 /* 늘어나는 열은 basis 0 에서 나눈다. auto 면 글자 길이만큼 먼저 차지해 머리 줄과 목록 줄의 열 경계가 어긋난다. */
 .column--grow { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 60px; }
 .column--grow-2 { flex-grow: 2; flex-shrink: 1; flex-basis: 0; min-width: 60px; }

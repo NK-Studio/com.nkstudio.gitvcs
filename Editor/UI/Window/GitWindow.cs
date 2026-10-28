@@ -321,7 +321,6 @@ namespace GitVersionControl
             }
             AddView(new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
             AddView(new WorkspaceView(_services, _state.Workspace), content, sidebar);
-            AddView(new IncomingChangesView(_services), content, sidebar);
             AddView(new ChangesetsView(_services, _state.Changesets, this), content, sidebar);
         }
 
@@ -346,7 +345,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 사이드바에서 고른 브랜치·태그·스태시의 커밋을 보인다. 보고 있는 탭이 보일 수 있으면 그 탭에서,
-        /// 아니면(작업 공간·수신 변경, 또는 목록에 없는 커밋) 그래프 탭(GitKraken 형태면 Graph, 아니면 Branch Explorer)으로 넘어가서 보인다.
+        /// 아니면(작업 공간, 또는 목록에 없는 커밋) 그래프 탭(GitKraken 형태면 Graph, 아니면 Branch Explorer)으로 넘어가서 보인다.
         /// </summary>
         private void Reveal(string hash)
         {
@@ -411,7 +410,6 @@ namespace GitVersionControl
                 GraphWorkspaceView => ActionGlyphKind.Hierarchy,
                 BranchExplorerView => ActionGlyphKind.Branch,
                 WorkspaceView => ActionGlyphKind.Folder,
-                IncomingChangesView => ActionGlyphKind.Pull,
                 ChangesetsView => ActionGlyphKind.PathList,
                 _ => ActionGlyphKind.Pencil,
             };
