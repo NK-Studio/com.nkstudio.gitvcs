@@ -426,6 +426,23 @@
     color: var(--git-diff-removed-sign);
 }
 
+/* 파일 보기: 줄 번호 칸 바탕(--git-diff-gutter)은 반투명이라 줄 전체에 깐 색이 비쳐 번호 칸까지 초록 · 빨강이 된다.
+   파일 보기는 줄 번호가 한 칸뿐인 편집기 모양이라 줄 바탕을 빼고 +/− 칸과 코드 칸에만 깐다(diff 보기는 그대로). */
+.git-diff--file-view .diff-row--added,
+.git-diff--file-view .diff-row--removed {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-diff--file-view .diff-row--added .diff-row__sign,
+.git-diff--file-view .diff-row--added .diff-row__code {
+    background-color: var(--git-diff-added-line);
+}
+
+.git-diff--file-view .diff-row--removed .diff-row__sign,
+.git-diff--file-view .diff-row--removed .diff-row__code {
+    background-color: var(--git-diff-removed-line);
+}
+
 /* 반대편에 짝이 없는 칸(나란히 보기). 빗금 대신 더 어두운 칸으로 비어 있음을 보인다. */
 .diff-side--empty {
     background-color: var(--git-diff-empty);
