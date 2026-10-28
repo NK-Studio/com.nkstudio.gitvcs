@@ -184,7 +184,10 @@
     min-height: 0;
 }
 
+/* 오른쪽 커밋 상세·작업 칸. 너무 좁으면 바뀐 파일 머리 줄(개수 · 경로/트리)이 겹치고, 너무 넓으면 그래프가 밀려나서 끌 수 있는 폭을 묶는다(SplitPaneClamp 가 읽는다). */
 .graph-workspace__side {
+    min-width: 280px;
+    max-width: 720px;
     flex-direction: column;
     border-left-width: 1px;
     border-left-color: var(--git-border);

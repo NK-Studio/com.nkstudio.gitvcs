@@ -84,14 +84,14 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 고정 칸 크기를 정한다. 공간이 넉넉하면 <paramref name="preferred"/> 그대로, 모자라면 늘어나는 칸에 <paramref name="minFlexed"/> 를 남기고,
+        /// 고정 칸 크기를 정한다. 공간이 넉넉하면 <paramref name="preferred"/> 그대로(단 <paramref name="maxFixed"/> 까지), 모자라면 늘어나는 칸에 <paramref name="minFlexed"/> 를 남기고,
         /// 그래도 모자라면 <paramref name="minFixed"/> 아래로는 줄이지 않는다(그때는 늘어나는 칸이 양보한다).
-        /// 예: (260, 600, 120, 80) → 260, (260, 300, 120, 80) → 180, (260, 150, 120, 80) → 80.
+        /// 예: (260, 600, 120, 80) → 260, (260, 300, 120, 80) → 180, (260, 150, 120, 80) → 80, (900, 2000, 120, 80, 720) → 720.
         /// </summary>
-        public static float Fit(float preferred, float available, float minFlexed, float minFixed)
+        public static float Fit(float preferred, float available, float minFlexed, float minFixed, float maxFixed = float.PositiveInfinity)
         {
             float room = available - minFlexed;
-            return Mathf.Max(minFixed, Mathf.Min(preferred, room));
+            return Mathf.Max(minFixed, Mathf.Min(Mathf.Min(preferred, maxFixed), room));
         }
 
         /// <summary>
@@ -99,10 +99,48 @@ namespace GitVersionControl
         /// 고정 칸이 앞(0)이면 경계선을 뒤로 끌수록 커지고, 뒤(1)면 앞으로 끌수록 커진다.
         /// 예: (380, +50, 0, 1000) → 430, (380, +50, 1, 1000) → 330.
         /// </summary>
-        public static float DraggedSize(float startSize, float pointerDelta, int fixedPaneIndex, float available)
+        public static float DraggedSize(float startSize, float pointerDelta, int fixedPaneIndex, float available,
+            float minFixed = MinFixedPane, float maxFixed = float.PositiveInfinity, float minFlexed = MinFlexedPane)
         {
             float size = fixedPaneIndex == 0 ? startSize + pointerDelta : startSize - pointerDelta;
-            return Fit(size, available, MinFlexedPane, MinFixedPane);
+            return Fit(size, available, minFlexed, minFixed, maxFixed);
+        }
+
+        /// <summary>
+        /// 고정 칸의 USS min-width/max-width(세로 분할은 min-height/max-height)를 끌기·크기 맞추기 한도로 쓴다.
+        /// 커밋 상세처럼 너무 좁으면 머리 줄이 겹치는 칸은 USS 에 한도를 적어 두면 된다. 적지 않으면 <see cref="MinFixedPane"/> · 끝없음.
+        /// 늘어나는 칸의 USS min-width 도 남길 공간으로 읽는다(사이드바를 끌어 본문을 밀어내지 못하게). 적지 않으면 <see cref="MinFlexedPane"/>.
+        /// </summary>
+        private float MinFixed
+        {
+            get
+            {
+                StyleFloat min = IsVertical ? _split.fixedPane.resolvedStyle.minHeight : _split.fixedPane.resolvedStyle.minWidth;
+                return IsLength(min) ? Mathf.Max(MinFixedPane, min.value) : MinFixedPane;
+            }
+        }
+
+        private float MinFlexed
+        {
+            get
+            {
+                StyleFloat min = IsVertical ? _split.flexedPane.resolvedStyle.minHeight : _split.flexedPane.resolvedStyle.minWidth;
+                return IsLength(min) ? Mathf.Max(MinFlexedPane, min.value) : MinFlexedPane;
+            }
+        }
+
+        private float MaxFixed
+        {
+            get
+            {
+                StyleFloat max = IsVertical ? _split.fixedPane.resolvedStyle.maxHeight : _split.fixedPane.resolvedStyle.maxWidth;
+                return IsLength(max) ? max.value : float.PositiveInfinity;
+            }
+        }
+
+        private static bool IsLength(StyleFloat value)
+        {
+            return value.keyword == StyleKeyword.Undefined && float.IsNaN(value.value) == false && value.value > 0f;
         }
 
         private bool IsVertical => _split.orientation == TwoPaneSplitViewOrientation.Vertical;
@@ -155,7 +193,7 @@ namespace GitVersionControl
                 return;
             }
             float delta = LocalAxis(evt.position) - _dragStartPointer;
-            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available));
+            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available, MinFixed, MaxFixed, MinFlexed));
             evt.StopPropagation();
         }
 
@@ -207,7 +245,7 @@ namespace GitVersionControl
             {
                 _preferred = available * 0.5f;
             }
-            float target = Fit(_preferred, available, MinFlexedPane, MinFixedPane);
+            float target = Fit(_preferred, available, MinFlexed, MinFixed, MaxFixed);
             if (Mathf.Abs(CurrentFixedSize - target) < 0.5f)
             {
                 return;

@@ -99,5 +99,26 @@ namespace GitVersionControl.Tests
         {
             Assert.AreEqual(expected, SplitPaneClamp.Fit(preferred, available, minFlexed: 120f, minFixed: 80f));
         }
+
+        [TestCase(900f, 2000f, 720f)]
+        [TestCase(100f, 2000f, 280f)]
+        [TestCase(500f, 2000f, 500f)]
+        [TestCase(500f, 300f, 280f)]
+        public void Test_SplitPaneClamp_Fit_KeepsPaneWithinStyledLimits(float preferred, float available, float expected)
+        {
+            // 커밋 상세 칸(min-width 280, max-width 720): 너무 좁게도 넓게도 끌리지 않고, 창이 좁으면 최소 폭을 지킨다.
+            Assert.AreEqual(expected, SplitPaneClamp.Fit(preferred, available, minFlexed: 120f, minFixed: 280f, maxFixed: 720f));
+            Assert.AreEqual(expected, SplitPaneClamp.DraggedSize(preferred, 0f, 1, available, 280f, 720f));
+        }
+
+        [TestCase(900f, 1600f, 480f)]
+        [TestCase(900f, 800f, 320f)]
+        [TestCase(230f, 800f, 230f)]
+        [TestCase(230f, 500f, 160f)]
+        public void Test_SplitPaneClamp_DraggedSize_SidebarLeavesRoomForContent(float wanted, float available, float expected)
+        {
+            // 창 본체: 사이드바(앞 칸, 160~480)를 끌어도 본문(min-width 480)을 밀어내지 못하고, 창이 좁으면 사이드바 최소 폭이 우선한다.
+            Assert.AreEqual(expected, SplitPaneClamp.DraggedSize(wanted, 0f, 0, available, 160f, 480f, 480f));
+        }
     }
 }

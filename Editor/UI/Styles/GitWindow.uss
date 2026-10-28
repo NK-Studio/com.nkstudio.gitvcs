@@ -15,9 +15,10 @@
     min-width: 0;
 }
 
+/* 사이드바를 끌어도 본문은 이만큼 남는다(SplitPaneClamp 가 읽는다): 브랜치 탐색기의 그래프 + 커밋 상세(최소 280)가 들어가는 폭. */
 .git-window__content {
     flex-grow: 1;
-    min-width: 200px;
+    min-width: 480px;
     /* 원격 추가 서랍이 닫혀 왼쪽 밖으로 밀려나 있을 때 보이지 않게 자른다. */
     overflow: hidden;
 }
@@ -497,8 +498,10 @@
     padding-bottom: 0;
 }
 
+/* 사이드바 폭 한도(SplitPaneClamp 가 끌기 한도로 읽는다). */
 .git-sidebar {
     min-width: 160px;
+    max-width: 480px;
     flex-direction: column;
     background-color: var(--git-sidebar-bg);
     border-right-width: 1px;
