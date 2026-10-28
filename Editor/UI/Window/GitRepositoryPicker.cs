@@ -115,7 +115,8 @@ namespace GitVersionControl
             List<string> submodulePaths = GitRefs.ParseGitlinkPaths(result.Output);
             if (submodulePaths.Count == 0)
             {
-                message.text = GitText.Get("actionbar.noSubmodules");
+                // 서브모듈이 없으면 안내 줄 없이 프로젝트 저장소만 남긴다.
+                message.RemoveFromHierarchy();
                 return;
             }
             message.RemoveFromHierarchy();

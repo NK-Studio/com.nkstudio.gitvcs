@@ -41,7 +41,6 @@ namespace GitVersionControl
             ["actionbar.repository"] = new[] { "저장소", "repository" },
             ["actionbar.submodule"] = new[] { "서브모듈", "submodule" },
             ["actionbar.repositoryTooltip"] = new[] { "프로젝트 저장소와 서브모듈 중에서 열 저장소를 고릅니다.", "Choose the project repository or one of its submodules to open." },
-            ["actionbar.noSubmodules"] = new[] { "서브모듈 없음", "No submodules" },
             ["repoPicker.project"] = new[] { "프로젝트 저장소", "Project repository" },
             ["actionbar.submoduleNotInitialized"] = new[] { " (받지 않음)", " (not initialized)" },
             ["actionbar.branch"] = new[] { "브랜치", "branch" },
