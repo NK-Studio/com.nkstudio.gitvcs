@@ -363,8 +363,30 @@ namespace GitVersionControl
                     DrawBox(painter, P, 7.5f, 7.5f);
                     break;
                 case ActionGlyphKind.Worktree:
-                    Polyline(painter, P(10f, 3f), P(15.5f, 11f), P(4.5f, 11f), P(10f, 3f));
-                    Polyline(painter, P(10f, 11f), P(10f, 17f));
+                    // Material Symbols "park"(FILL0 wght400 opsz48) SVG 경로(viewBox 0 -960 960 960)를 20 칸으로 옮겼다. 줄기 달린 나무 바깥 윤곽과 안쪽 윤곽을 홀짝 규칙으로 채워 테두리만 남긴다.
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(11.208f, 18.333f));
+                    painter.LineTo(P(8.813f, 18.333f));
+                    painter.LineTo(P(8.813f, 15.229f));
+                    painter.LineTo(P(2.5f, 15.229f));
+                    painter.LineTo(P(6.438f, 9.521f));
+                    painter.LineTo(P(4.458f, 9.521f));
+                    painter.LineTo(P(10f, 1.667f));
+                    painter.LineTo(P(15.542f, 9.521f));
+                    painter.LineTo(P(13.583f, 9.521f));
+                    painter.LineTo(P(17.5f, 15.229f));
+                    painter.LineTo(P(11.208f, 15.229f));
+                    painter.ClosePath();
+                    painter.MoveTo(P(4.917f, 13.979f));
+                    painter.LineTo(P(15.104f, 13.979f));
+                    painter.LineTo(P(11.167f, 8.271f));
+                    painter.LineTo(P(13.021f, 8.271f));
+                    painter.LineTo(P(10f, 3.979f));
+                    painter.LineTo(P(6.979f, 8.271f));
+                    painter.LineTo(P(8.854f, 8.271f));
+                    painter.ClosePath();
+                    painter.Fill(FillRule.OddEven);
                     break;
                 case ActionGlyphKind.Check:
                     // 원본 SVG(viewBox 0 -960 960 960)를 20 칸으로 옮긴 외곽선을 선 대신 글자색으로 채운다.
