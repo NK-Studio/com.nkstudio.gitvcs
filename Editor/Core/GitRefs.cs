@@ -118,6 +118,17 @@ namespace GitVersionControl
         public List<GitStashRef> Stashes = new();
         public List<GitWorktreeRef> Worktrees = new();
         public List<GitSubmoduleRef> Submodules = new();
+
+        /// <summary>
+        /// 원격 이름 → 주소(remote.&lt;이름&gt;.url). 원격이 없으면 비어 있다.
+        /// </summary>
+        public Dictionary<string, string> RemoteUrls = new();
+
+        /// <summary>
+        /// 사이드바 Pull Requests 구역 상태. git 이 아니라 GitHub 에서 따로 읽어 사이드바가 채운다. null 이면 아직 모른다(읽는 중으로 그린다).
+        /// </summary>
+        public GitPullRequestSet PullRequests;
+
         public string Error;
     }
 
@@ -141,6 +152,11 @@ namespace GitVersionControl
         public static readonly string[] SubmodulesCommand = { "submodule", "status" };
 
         /// <summary>
+        /// 원격 주소 목록. 원격이 하나도 없으면 아무것도 찾지 못해 실패(종료 코드 1)하므로 오류로 모으지 않는다.
+        /// </summary>
+        public static readonly string[] RemoteUrlsCommand = { "config", "--get-regexp", @"^remote\..*\.url$" };
+
+        /// <summary>
         /// 인덱스의 모든 항목. 서브모듈(gitlink) 경로만 빠르게 알 때 쓴다 — <c>submodule status</c> 는 셸 스크립트로 시작하고
         /// 서브모듈마다 <c>git describe</c> 를 여러 번 돌려 Windows 에서 1초 넘게 걸린다. 이건 프로세스 하나다.
         /// </summary>
@@ -156,12 +172,14 @@ namespace GitVersionControl
             Task<GitResult> stashTask = GitRepository.RunAsync(StashesCommand);
             Task<GitResult> worktreeTask = GitRepository.RunAsync(WorktreesCommand);
             Task<GitResult> submoduleTask = GitRepository.RunAsync(SubmodulesCommand);
+            Task<GitResult> remoteTask = GitRepository.RunAsync(RemoteUrlsCommand);
 
             (List<GitBranchRef> branches, string branchError) = await branchTask;
             GitResult tags = await tagTask;
             GitResult stashes = await stashTask;
             GitResult worktrees = await worktreeTask;
             GitResult submodules = await submoduleTask;
+            GitResult remotes = await remoteTask;
 
             List<string> errors = new();
             if (string.IsNullOrEmpty(branchError) == false)
@@ -192,8 +210,68 @@ namespace GitVersionControl
                 Stashes = stashes.Success ? ParseStashes(stashes.Output) : new List<GitStashRef>(),
                 Worktrees = worktrees.Success ? ParseWorktrees(worktrees.Output, GitRepository.RepoRoot) : new List<GitWorktreeRef>(),
                 Submodules = submodules.Success ? ParseSubmodules(submodules.Output) : new List<GitSubmoduleRef>(),
+                RemoteUrls = remotes.Success ? ParseRemoteUrls(remotes.Output) : new Dictionary<string, string>(),
                 Error = errors.Count == 0 ? null : string.Join("\n", errors),
             };
+        }
+
+        /// <summary>
+        /// <c>config --get-regexp</c>: 줄마다 "remote.&lt;이름&gt;.url 주소". 이름에 점이 들어갈 수 있어 앞뒤를 잘라 낸다.
+        /// </summary>
+        public static Dictionary<string, string> ParseRemoteUrls(string output)
+        {
+            const string prefix = "remote.";
+            const string suffix = ".url";
+            Dictionary<string, string> urls = new();
+            foreach (string line in (output ?? string.Empty).Split('\n'))
+            {
+                int space = line.IndexOf(' ');
+                if (space <= 0)
+                {
+                    continue;
+                }
+                string key = line.Substring(0, space);
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == false || key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) == false
+                                                                                       || key.Length <= prefix.Length + suffix.Length)
+                {
+                    continue;
+                }
+                string name = key.Substring(prefix.Length, key.Length - prefix.Length - suffix.Length);
+                // 같은 원격에 주소가 여럿이면 git 처럼 첫 주소를 쓴다.
+                if (urls.ContainsKey(name) == false)
+                {
+                    urls[name] = line.Substring(space + 1).Trim();
+                }
+            }
+            return urls;
+        }
+
+        /// <summary>
+        /// github.com 원격인지(https://github.com/…, git@github.com:…, ssh://git@github.com/…).
+        /// </summary>
+        public static bool IsGitHubUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+            string host = url;
+            int scheme = host.IndexOf("://", StringComparison.Ordinal);
+            if (scheme >= 0)
+            {
+                host = host.Substring(scheme + 3);
+            }
+            int at = host.IndexOf('@');
+            if (at >= 0)
+            {
+                host = host.Substring(at + 1);
+            }
+            int end = host.IndexOfAny(new[] { '/', ':' });
+            if (end >= 0)
+            {
+                host = host.Substring(0, end);
+            }
+            return string.Equals(host, "github.com", StringComparison.OrdinalIgnoreCase) || host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase);
         }
 
         public static List<GitTagRef> ParseTags(string output)

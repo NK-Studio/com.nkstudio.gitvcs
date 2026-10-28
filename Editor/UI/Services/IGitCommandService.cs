@@ -60,6 +60,18 @@ namespace GitVersionControl
         /// </summary>
         Task<GitResult> DeleteTagAsync(string name);
         Task<GitResult> PushTagAsync(string remote, string name);
+
+        /// <summary>
+        /// 원격을 더하고(Push 주소가 따로 있으면 함께 적고) 그 원격만 fetch 한다. 더하기가 실패하면 fetch 하지 않는다.
+        /// </summary>
+        Task<GitResult> AddRemoteAsync(string name, string pullUrl, string pushUrl);
+
+        Task<GitResult> AddWorktreeAsync(string path, string reference, string newBranch);
+
+        /// <summary>
+        /// 서브모듈을 받아(clone) .gitmodules 와 인덱스에 올린다. 네트워크를 쓴다.
+        /// </summary>
+        Task<GitResult> AddSubmoduleAsync(string url, string path);
         Task<GitResult> DeleteRemoteTagAsync(string remote, string name);
         Task<GitResult> StashApplyAsync(string stash, bool drop);
         Task<GitResult> StashDropAsync(string stash);
@@ -170,6 +182,28 @@ namespace GitVersionControl
         public Task<GitResult> DeleteTagAsync(string name) => GitRepository.RunAsync(GitCommitCommands.DeleteTag(name));
 
         public Task<GitResult> PushTagAsync(string remote, string name) => GitOperations.RunNetworkAsync(GitCommitCommands.PushTag(remote, name));
+
+        public async Task<GitResult> AddRemoteAsync(string name, string pullUrl, string pushUrl)
+        {
+            GitResult added = await GitRepository.RunAsync(GitCommitCommands.AddRemote(name, pullUrl));
+            if (added.Success == false)
+            {
+                return added;
+            }
+            if (string.IsNullOrWhiteSpace(pushUrl) == false && pushUrl != pullUrl)
+            {
+                GitResult pushSet = await GitRepository.RunAsync(GitCommitCommands.SetPushUrl(name, pushUrl));
+                if (pushSet.Success == false)
+                {
+                    return pushSet;
+                }
+            }
+            return await GitOperations.RunNetworkAsync(GitCommitCommands.FetchRemote(name));
+        }
+
+        public Task<GitResult> AddWorktreeAsync(string path, string reference, string newBranch) => GitRepository.RunAsync(GitCommitCommands.AddWorktree(path, reference, newBranch));
+
+        public Task<GitResult> AddSubmoduleAsync(string url, string path) => GitOperations.RunNetworkAsync(GitCommitCommands.AddSubmodule(url, path));
 
         public Task<GitResult> DeleteRemoteTagAsync(string remote, string name) => GitOperations.RunNetworkAsync(GitCommitCommands.DeleteRemoteTag(remote, name));
 

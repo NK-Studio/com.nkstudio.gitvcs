@@ -66,6 +66,21 @@ namespace GitVersionControl
         Cloud,
 
         /// <summary>
+        /// GitHub 마크(채운 원 안의 고양이). github.com 원격. Octicons "mark-github" 를 옮겼다.
+        /// </summary>
+        GitHub,
+
+        /// <summary>
+        /// 지구본(원 안의 세로 타원과 위도선 셋). 원격 추가 서랍의 URL 탭.
+        /// </summary>
+        Globe,
+
+        /// <summary>
+        /// Pull Request(왼쪽 줄기 위아래 두 점과, 오른쪽 아래 점에서 올라가 왼쪽 위로 꺾이는 화살표).
+        /// </summary>
+        PullRequest,
+
+        /// <summary>
         /// 로컬(노트북: 화면과 받침).
         /// </summary>
         Laptop,
@@ -248,7 +263,96 @@ namespace GitVersionControl
                     Polyline(painter, P(3f, 5f), P(8f, 5f), P(9.5f, 7f), P(17f, 7f), P(17f, 15.5f), P(3f, 15.5f), P(3f, 5f));
                     break;
                 case ActionGlyphKind.Cloud:
-                    Polyline(painter, P(5f, 14.5f), P(3.8f, 11.8f), P(6.3f, 8.6f), P(10f, 7.5f), P(13.7f, 8.6f), P(16.2f, 11.8f), P(15f, 14.5f), P(5f, 14.5f));
+                    // Material Symbols "cloud"(FILL0 wght400 opsz48) SVG 경로(viewBox 0 -960 960 960)를 그대로 20 칸으로 옮겼다. 바깥·안쪽 두 윤곽을 홀짝 규칙으로 채워 테두리만 남긴다.
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(5.229f, 16.667f));
+                    painter.QuadraticCurveTo(P(3.396f, 16.667f), P(2.115f, 15.385f));
+                    painter.QuadraticCurveTo(P(0.833f, 14.104f), P(0.833f, 12.271f));
+                    painter.QuadraticCurveTo(P(0.833f, 10.646f), P(1.875f, 9.417f));
+                    painter.QuadraticCurveTo(P(2.917f, 8.188f), P(4.521f, 7.938f));
+                    painter.QuadraticCurveTo(P(4.938f, 5.917f), P(6.479f, 4.635f));
+                    painter.QuadraticCurveTo(P(8.021f, 3.354f), P(10.042f, 3.354f));
+                    painter.QuadraticCurveTo(P(12.375f, 3.354f), P(13.979f, 5.052f));
+                    painter.QuadraticCurveTo(P(15.583f, 6.75f), P(15.583f, 9.125f));
+                    painter.LineTo(P(15.583f, 9.625f));
+                    painter.QuadraticCurveTo(P(17.083f, 9.583f), P(18.125f, 10.594f));
+                    painter.QuadraticCurveTo(P(19.167f, 11.604f), P(19.167f, 13.146f));
+                    painter.QuadraticCurveTo(P(19.167f, 14.583f), P(18.125f, 15.625f));
+                    painter.QuadraticCurveTo(P(17.083f, 16.667f), P(15.646f, 16.667f));
+                    painter.LineTo(P(5.229f, 16.667f));
+                    painter.ClosePath();
+                    painter.MoveTo(P(5.229f, 15.417f));
+                    painter.LineTo(P(15.646f, 15.417f));
+                    painter.QuadraticCurveTo(P(16.583f, 15.417f), P(17.25f, 14.75f));
+                    painter.QuadraticCurveTo(P(17.917f, 14.083f), P(17.917f, 13.146f));
+                    painter.QuadraticCurveTo(P(17.917f, 12.208f), P(17.25f, 11.542f));
+                    painter.QuadraticCurveTo(P(16.583f, 10.875f), P(15.646f, 10.875f));
+                    painter.LineTo(P(14.333f, 10.875f));
+                    painter.LineTo(P(14.333f, 9.125f));
+                    painter.QuadraticCurveTo(P(14.333f, 7.229f), P(13.062f, 5.917f));
+                    painter.QuadraticCurveTo(P(11.792f, 4.604f), P(9.958f, 4.604f));
+                    painter.QuadraticCurveTo(P(8.125f, 4.604f), P(6.844f, 5.917f));
+                    painter.QuadraticCurveTo(P(5.562f, 7.229f), P(5.562f, 9.125f));
+                    painter.LineTo(P(5.167f, 9.125f));
+                    painter.QuadraticCurveTo(P(3.875f, 9.125f), P(2.979f, 10.031f));
+                    painter.QuadraticCurveTo(P(2.083f, 10.938f), P(2.083f, 12.271f));
+                    painter.QuadraticCurveTo(P(2.083f, 13.583f), P(3f, 14.5f));
+                    painter.QuadraticCurveTo(P(3.917f, 15.417f), P(5.229f, 15.417f));
+                    painter.ClosePath();
+                    painter.Fill(FillRule.OddEven);
+                    break;
+                case ActionGlyphKind.GitHub:
+                    // 원본 SVG(16 칸)를 20 칸 가운데로 옮긴 외곽선 하나. 고양이는 원 아래에서 파고든 빈자리다.
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(10f, 2f));
+                    painter.BezierCurveTo(P(14.42f, 2f), P(18f, 5.58f), P(18f, 10f));
+                    painter.Arc(P(10f, 10f), 8f * scale, 0f, 71.429f);
+                    painter.BezierCurveTo(P(12.15f, 17.67f), P(12f, 17.42f), P(12f, 17.21f));
+                    painter.BezierCurveTo(P(12f, 16.94f), P(12.01f, 16.08f), P(12.01f, 15.01f));
+                    painter.BezierCurveTo(P(12.01f, 14.26f), P(11.76f, 13.78f), P(11.47f, 13.53f));
+                    painter.BezierCurveTo(P(13.25f, 13.33f), P(15.12f, 12.65f), P(15.12f, 9.58f));
+                    painter.BezierCurveTo(P(15.12f, 8.7f), P(14.81f, 7.99f), P(14.3f, 7.43f));
+                    painter.BezierCurveTo(P(14.38f, 7.23f), P(14.66f, 6.41f), P(14.22f, 5.31f));
+                    painter.BezierCurveTo(P(14.22f, 5.31f), P(13.55f, 5.09f), P(12.02f, 6.13f));
+                    painter.BezierCurveTo(P(11.38f, 5.95f), P(10.7f, 5.86f), P(10.02f, 5.86f));
+                    painter.BezierCurveTo(P(9.34f, 5.86f), P(8.66f, 5.95f), P(8.02f, 6.13f));
+                    painter.BezierCurveTo(P(6.49f, 5.1f), P(5.82f, 5.31f), P(5.82f, 5.31f));
+                    painter.BezierCurveTo(P(5.38f, 6.41f), P(5.66f, 7.23f), P(5.74f, 7.43f));
+                    painter.BezierCurveTo(P(5.23f, 7.99f), P(4.92f, 8.71f), P(4.92f, 9.58f));
+                    painter.BezierCurveTo(P(4.92f, 12.64f), P(6.78f, 13.33f), P(8.56f, 13.53f));
+                    painter.BezierCurveTo(P(8.33f, 13.73f), P(8.12f, 14.08f), P(8.05f, 14.6f));
+                    painter.BezierCurveTo(P(7.59f, 14.81f), P(6.44f, 15.15f), P(5.72f, 13.94f));
+                    painter.BezierCurveTo(P(5.57f, 13.7f), P(5.12f, 13.11f), P(4.49f, 13.12f));
+                    painter.BezierCurveTo(P(3.82f, 13.13f), P(4.22f, 13.5f), P(4.5f, 13.65f));
+                    painter.BezierCurveTo(P(4.84f, 13.84f), P(5.23f, 14.55f), P(5.32f, 14.78f));
+                    painter.BezierCurveTo(P(5.48f, 15.23f), P(6f, 16.09f), P(8.01f, 15.72f));
+                    painter.BezierCurveTo(P(8.01f, 16.39f), P(8.02f, 17.02f), P(8.02f, 17.21f));
+                    painter.BezierCurveTo(P(8.02f, 17.42f), P(7.87f, 17.66f), P(7.47f, 17.59f));
+                    painter.Arc(P(10f, 10f), 8f * scale, 108.435f, 180f);
+                    painter.BezierCurveTo(P(2f, 5.58f), P(5.58f, 2f), P(10f, 2f));
+                    painter.ClosePath();
+                    painter.Fill();
+                    break;
+                case ActionGlyphKind.Globe:
+                    DrawRing(painter, P(10f, 10f), 7.5f * scale);
+                    painter.BeginPath();
+                    painter.MoveTo(P(10f, 2.5f));
+                    painter.BezierCurveTo(P(14f, 6f), P(14f, 14f), P(10f, 17.5f));
+                    painter.BezierCurveTo(P(6f, 14f), P(6f, 6f), P(10f, 2.5f));
+                    painter.Stroke();
+                    Polyline(painter, P(2.5f, 10f), P(17.5f, 10f));
+                    Polyline(painter, P(4f, 6.2f), P(16f, 6.2f));
+                    Polyline(painter, P(4f, 13.8f), P(16f, 13.8f));
+                    break;
+                case ActionGlyphKind.PullRequest:
+                    DrawRing(painter, P(6f, 4.5f), 1.6f * scale);
+                    DrawRing(painter, P(6f, 15.5f), 1.6f * scale);
+                    DrawRing(painter, P(14f, 15.5f), 1.6f * scale);
+                    Polyline(painter, P(6f, 6.1f), P(6f, 13.9f));
+                    Polyline(painter, P(14f, 13.9f), P(14f, 7.5f), P(12f, 5.5f), P(9f, 5.5f));
+                    Polyline(painter, P(10.8f, 3.7f), P(9f, 5.5f), P(10.8f, 7.3f));
                     break;
                 case ActionGlyphKind.Laptop:
                     Polyline(painter, P(5f, 13f), P(5f, 5f), P(15f, 5f), P(15f, 13f), P(5f, 13f));

@@ -18,6 +18,8 @@
 .git-window__content {
     flex-grow: 1;
     min-width: 200px;
+    /* 원격 추가 서랍이 닫혀 왼쪽 밖으로 밀려나 있을 때 보이지 않게 자른다. */
+    overflow: hidden;
 }
 
 .git-window__notice {
@@ -640,6 +642,17 @@
     cursor: link;
 }
 
+/* 왼쪽 끝에 붙지 않게 필터 상자와 같은 8px 를 띄운다. 선택 배경은 항목 전체 너비 그대로다. */
+.ref-tree__tree .unity-tree-view__item {
+    padding-left: 8px;
+}
+
+/* 폴더·원격(늘 펼침)의 화살표. 들여쓰기를 맞추려 자리는 남기고 보이지만 않게 한다.
+   visibility 는 TreeView 가 직접 정하므로 opacity 로 감춘다. */
+.ref-tree__item--fixed .unity-tree-view__item-toggle {
+    opacity: 0;
+}
+
 .ref-tree__row {
     flex-direction: row;
     align-items: center;
@@ -687,6 +700,15 @@
     color: var(--git-section-count);
 }
 
+/* PR 묶음·안내 줄: 아이콘 없이 글자만. 안내는 흐리게. */
+.ref-tree__row--plain .ref-tree__icon {
+    display: none;
+}
+
+.ref-tree__row--info .ref-tree__label {
+    color: var(--git-text-muted);
+}
+
 /* 현재 브랜치·워크트리: 굵게, 아이콘은 강조색. */
 .ref-tree__row--current .ref-tree__label {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
@@ -694,6 +716,321 @@
 
 .ref-tree__row--current .ref-tree__icon {
     color: var(--git-accent-fg);
+}
+
+/* 리모트·워크트리·서브모듈 머리 줄의 + (GitKraken 처럼 줄에 마우스를 올리면 개수 대신 바로 나온다 — 전환 없이 딱 바뀐다). */
+.ref-tree__add {
+    display: none;
+    flex-shrink: 0;
+    width: 22px;
+    height: 18px;
+    margin: 0 0 0 4px;
+    padding: 0;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-success);
+    background-color: rgba(63, 184, 92, 0.18);
+    color: var(--git-text);
+    font-size: 14px;
+    -unity-text-align: middle-center;
+    cursor: link;
+}
+
+.ref-tree__add:hover {
+    background-color: rgba(63, 184, 92, 0.32);
+}
+
+.unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__add {
+    display: flex;
+}
+
+.unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__badge {
+    display: none;
+}
+
+/* ── side-drawer: 본문 왼쪽에서 밀려 나오는 서랍(원격 추가 · 워크트리 · 서브모듈 · Pull Request) ── */
+.side-drawer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 480px;
+    max-width: 100%;
+    padding: 14px 0 0 0;
+    background-color: var(--git-bg);
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+    translate: -100% 0;
+    transition-property: translate;
+    transition-duration: 0.22s;
+    transition-timing-function: ease-out-cubic;
+}
+
+.side-drawer--open {
+    translate: 0 0;
+}
+
+.side-drawer--hidden {
+    visibility: hidden;
+}
+
+.side-drawer__header {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 0 18px 10px 18px;
+}
+
+.side-drawer__header-glyph {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    color: var(--git-text-muted);
+}
+
+.side-drawer__title {
+    flex-grow: 1;
+    font-size: 16px;
+    color: var(--git-text);
+}
+
+.side-drawer__close {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    font-size: 14px;
+}
+
+.side-drawer__close:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.side-drawer__body {
+    flex-grow: 1;
+}
+
+.side-drawer__content {
+    padding: 0 18px 18px 18px;
+}
+
+.side-drawer__tabs {
+    flex-direction: row;
+    flex-shrink: 0;
+    margin: 0 -18px 6px -18px;
+    padding: 0 18px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-divider);
+}
+
+.side-drawer__tab {
+    flex-direction: column;
+    align-items: center;
+    width: 72px;
+    margin: 0 4px 0 0;
+    padding: 4px 0 6px 0;
+    border-width: 0 0 2px 0;
+    border-radius: 0;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+}
+
+.side-drawer__tab:hover {
+    color: var(--git-text);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.side-drawer__tab--selected {
+    color: var(--git-text);
+    border-color: var(--git-text);
+}
+
+.side-drawer__tab-glyph {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 3px;
+}
+
+.side-drawer__tab-label {
+    font-size: 12px;
+}
+
+.side-drawer__section {
+    flex-shrink: 0;
+}
+
+.side-drawer__caption {
+    margin: 10px 0 4px 0;
+    color: var(--git-text);
+}
+
+.side-drawer__input {
+    margin: 0;
+    height: 26px;
+}
+
+.side-drawer__input .unity-base-text-field__input {
+    padding: 0 6px;
+}
+
+.side-drawer__input--multiline {
+    height: 110px;
+}
+
+.side-drawer__input--multiline .unity-base-text-field__input {
+    padding: 4px 6px;
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.side-drawer__row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.side-drawer__grow {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.side-drawer__row > .side-drawer__browse {
+    height: 26px;
+    margin: 0 0 0 6px;
+    align-self: auto;
+}
+
+.side-drawer__columns {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.side-drawer__column {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+.side-drawer__arrow {
+    width: 28px;
+    margin-top: 58px;
+    font-size: 16px;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+}
+
+.side-drawer__toggle {
+    margin: 10px 0 0 0;
+}
+
+.side-drawer__note,
+.side-drawer__message {
+    margin-top: 6px;
+    white-space: normal;
+    color: var(--git-text-muted);
+}
+
+.side-drawer__problem {
+    margin-top: 6px;
+    white-space: normal;
+    font-size: 11px;
+    color: var(--git-danger);
+}
+
+.side-drawer__primary {
+    height: 30px;
+    margin: 16px 0 0 0;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-success);
+    background-color: rgba(63, 184, 92, 0.18);
+    color: var(--git-text);
+}
+
+.side-drawer__primary:hover {
+    background-color: rgba(63, 184, 92, 0.32);
+}
+
+.side-drawer__primary:disabled {
+    opacity: 0.5;
+}
+
+.side-drawer__secondary {
+    height: 26px;
+    margin: 10px 0 0 0;
+    align-self: flex-start;
+}
+
+.side-drawer__buttons > .side-drawer__secondary {
+    height: 30px;
+    margin: 16px 8px 0 0;
+    align-self: auto;
+}
+
+/* ── search-select: 서랍의 검색 되는 고르기 칸 ── */
+.search-select {
+    flex-shrink: 0;
+}
+
+.search-select__box {
+    flex-direction: row;
+    align-items: center;
+}
+
+.search-select__search {
+    flex-grow: 1;
+    margin: 0;
+    height: 26px;
+}
+
+.search-select__search .unity-base-text-field__input {
+    padding: 0 24px 0 6px;
+}
+
+.search-select__caret {
+    position: absolute;
+    right: 6px;
+    width: 14px;
+    height: 14px;
+    color: var(--git-text-muted);
+}
+
+.search-select__list {
+    margin-top: 2px;
+    background-color: var(--git-field-bg);
+    border-width: 1px;
+    border-color: var(--git-field-border);
+    border-radius: var(--git-radius);
+}
+
+.search-select__item {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+}
+
+.search-select__item:hover,
+.search-select__item--highlight {
+    background-color: var(--git-selected);
+}
+
+.search-select__item-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    color: var(--git-text);
+}
+
+.search-select__item-badge {
+    flex-shrink: 0;
+    margin-left: 6px;
+    font-size: 10px;
+    color: var(--git-text-muted);
 }
 
 .git-sidebar__tab {

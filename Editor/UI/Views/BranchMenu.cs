@@ -24,6 +24,11 @@ namespace GitVersionControl
             /// 브랜치 끝 커밋을 Branch Explorer 에서 보인다. null 이면 항목을 뺀다.
             /// </summary>
             public Action<string> ShowInExplorer;
+
+            /// <summary>
+            /// 이 브랜치로 Pull Request 서랍을 연다. null 이면 항목을 뺀다.
+            /// </summary>
+            public Action<GitBranchRef> CreatePullRequest;
         }
 
         private static readonly ICollection<string> NoNames = Array.Empty<string>();
@@ -98,6 +103,11 @@ namespace GitVersionControl
                     menu.AppendAction(prefix + GitText.Format("fork.push", name), action => _ = _actions.PushAsync(branch), writable);
                     menu.AppendAction(prefix + GitText.Get("fork.setUpstream"), action => _ = _actions.SetUpstreamAsync(branch), writable);
                 }
+            }
+            Action<GitBranchRef> createPullRequest = hooks?.CreatePullRequest;
+            if (createPullRequest != null)
+            {
+                menu.AppendAction(prefix + GitText.Get("pr.menu"), _ => createPullRequest(branch));
             }
             Separator(menu, prefix);
 
@@ -176,6 +186,11 @@ namespace GitVersionControl
             else
             {
                 menu.AppendAction(remote + GitText.Get("branch.push"), action => _ = _actions.PushAsync(branch), writable);
+            }
+            Action<GitBranchRef> createPullRequest = hooks?.CreatePullRequest;
+            if (createPullRequest != null)
+            {
+                menu.AppendAction(remote + GitText.Get("pr.menu"), _ => createPullRequest(branch));
             }
             menu.AppendSeparator();
 

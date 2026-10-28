@@ -154,7 +154,35 @@ namespace GitVersionControl.Tests
             List<RefNode> roots = RefTreeBuilder.Build(new GitRefSet(), null, section => section.ToString());
 
             Assert.AreEqual(RefTreeBuilder.Sections.Length, roots.Count);
-            Assert.IsTrue(roots.All(r => r.Children.Count == 0));
+            Assert.IsTrue(roots.Where(r => r.Section != RefSection.PullRequests).All(r => r.Children.Count == 0));
+            // PR 목록을 아직 모르면 "읽는 중" 안내 한 줄.
+            Assert.AreEqual(RefNodeKind.Info, roots.Single(r => r.Section == RefSection.PullRequests).Children.Single().Kind);
+        }
+
+        [Test]
+        public void Test_ParseRemoteUrls_KeepsDottedNamesAndFirstUrl()
+        {
+            const string output = "remote.origin.url https://github.com/a/b.git\n"
+                                  + "remote.my.fork.url git@gitlab.com:a/b.git\n"
+                                  + "remote.origin.url https://example.com/second.git\n";
+            Dictionary<string, string> urls = GitRefs.ParseRemoteUrls(output);
+            Assert.AreEqual(2, urls.Count);
+            Assert.AreEqual("https://github.com/a/b.git", urls["origin"]);
+            Assert.AreEqual("git@gitlab.com:a/b.git", urls["my.fork"]);
+            Assert.AreEqual(0, GitRefs.ParseRemoteUrls(string.Empty).Count);
+        }
+
+        [TestCase("https://github.com/a/b.git", true)]
+        [TestCase("git@github.com:a/b.git", true)]
+        [TestCase("ssh://git@ssh.github.com:443/a/b.git", true)]
+        [TestCase("https://user@GitHub.com/a/b", true)]
+        [TestCase("https://gitlab.com/a/b.git", false)]
+        [TestCase("https://github.company.com/a/b.git", false)]
+        [TestCase("https://notgithub.com/a/b.git", false)]
+        [TestCase(null, false)]
+        public void Test_IsGitHubUrl(string url, bool expected)
+        {
+            Assert.AreEqual(expected, GitRefs.IsGitHubUrl(url));
         }
 
         [TestCase("section:Local", true)]
@@ -179,6 +207,41 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("stash branch fix stash@{0}", Joined(GitCommitCommands.StashBranch("fix", "stash@{0}")));
             Assert.AreEqual("worktree remove E:/wt", Joined(GitCommitCommands.RemoveWorktree("E:/wt")));
             Assert.AreEqual("submodule update --init --recursive -- Libs/Core", Joined(GitCommitCommands.UpdateSubmodule("Libs/Core")));
+            Assert.AreEqual("remote add -- origin https://github.com/a/b.git", Joined(GitCommitCommands.AddRemote("origin", "https://github.com/a/b.git")));
+            Assert.AreEqual("remote set-url --push -- origin git@github.com:a/b.git", Joined(GitCommitCommands.SetPushUrl("origin", "git@github.com:a/b.git")));
+            Assert.AreEqual("fetch --prune -- upstream", Joined(GitCommitCommands.FetchRemote("upstream")));
+        }
+
+        [Test]
+        public void Test_SuggestRemoteName()
+        {
+            Assert.AreEqual("origin", GitRemoteForm.SuggestName(new List<string>(), "NK-Studio"));
+            Assert.AreEqual("NK-Studio", GitRemoteForm.SuggestName(new List<string> { "origin" }, "NK-Studio"));
+            Assert.AreEqual("NK-Studio2", GitRemoteForm.SuggestName(new List<string> { "Origin", "nk-studio" }, "NK-Studio"));
+            Assert.AreEqual("remote", GitRemoteForm.SuggestName(new List<string> { "origin" }, null));
+        }
+
+        [Test]
+        public void Test_CheckRemoteName()
+        {
+            Assert.AreEqual(BranchNameProblem.None, GitRemoteForm.CheckName("upstream", new[] { "origin" }));
+            Assert.AreEqual(BranchNameProblem.Exists, GitRemoteForm.CheckName("ORIGIN", new[] { "origin" }));
+            Assert.AreEqual(BranchNameProblem.Whitespace, GitRemoteForm.CheckName("my remote", new string[0]));
+            Assert.AreEqual(BranchNameProblem.Empty, GitRemoteForm.CheckName("", new string[0]));
+        }
+
+        [Test]
+        public void Test_ParseRepositories()
+        {
+            const string json = "[{\"full_name\":\"NK-Studio/gitvcs\",\"clone_url\":\"https://github.com/NK-Studio/gitvcs.git\",\"private\":true,\"owner\":{\"login\":\"NK-Studio\"}},"
+                                + "{\"full_name\":\"me/tools\",\"clone_url\":\"https://github.com/me/tools.git\",\"private\":false,\"owner\":{\"login\":\"me\"}},"
+                                + "{\"full_name\":\"broken\"}]";
+            List<GitHubRepository> repositories = GitRemoteForm.ParseRepositories(json);
+            Assert.AreEqual(2, repositories.Count);
+            Assert.AreEqual("NK-Studio", repositories[0].Owner);
+            Assert.IsTrue(repositories[0].IsPrivate);
+            Assert.AreEqual("https://github.com/me/tools.git", repositories[1].CloneUrl);
+            Assert.AreEqual(0, GitRemoteForm.ParseRepositories("[]").Count);
         }
 
         [TestCase("feature/login", BranchNameProblem.None)]

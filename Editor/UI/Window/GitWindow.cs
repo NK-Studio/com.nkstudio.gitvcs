@@ -35,6 +35,7 @@ namespace GitVersionControl
         private VisualElement _layout;
         private GitHubConnectPanel _connect;
         private RefSidebar _refs;
+        private readonly List<SideDrawer> _drawers = new();
         private TwoPaneSplitView _body;
         private SidebarRail _rail;
         private bool _isSidebarCollapsed;
@@ -129,6 +130,32 @@ namespace GitVersionControl
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
+            // 본문 왼쪽 가장자리(사이드바 바로 옆)에서 밀려 나오는 서랍들. 본문 위에 덮어 띄우고, 한 번에 하나만 연다.
+            VisualElement content = layout.Require<VisualElement>("content");
+            AddRemoteDrawer addRemote = AddDrawer(new AddRemoteDrawer(content, _services));
+            AddWorktreeDrawer addWorktree = AddDrawer(new AddWorktreeDrawer(content, _services));
+            AddSubmoduleDrawer addSubmodule = AddDrawer(new AddSubmoduleDrawer(content, _services));
+            CreatePullRequestDrawer createPullRequest = AddDrawer(new CreatePullRequestDrawer(content, _services));
+            _refs.AddRequested += section =>
+            {
+                switch (section)
+                {
+                    case RefSection.Remote:
+                        addRemote.Open();
+                        break;
+                    case RefSection.Worktrees:
+                        addWorktree.Open();
+                        break;
+                    case RefSection.Submodules:
+                        addSubmodule.Open();
+                        break;
+                    case RefSection.PullRequests:
+                        createPullRequest.OpenFor(null);
+                        break;
+                }
+            };
+            _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
+            createPullRequest.Created += _refs.ReloadPullRequests;
             foreach (RefSection section in RefTreeBuilder.Sections)
             {
                 RefSection captured = section;
@@ -182,6 +209,7 @@ namespace GitVersionControl
             _connect = null;
             _refs?.Dispose();
             _refs = null;
+            _drawers.Clear();
             if (_services == null)
             {
                 return;
@@ -331,6 +359,22 @@ namespace GitVersionControl
             }
             SelectTab(_views.IndexOf(target));
             ((ICommitRevealer)target).RevealCommit(hash);
+        }
+
+        private T AddDrawer<T>(T drawer) where T : SideDrawer
+        {
+            _drawers.Add(drawer);
+            drawer.Opening += opening =>
+            {
+                foreach (SideDrawer other in _drawers)
+                {
+                    if (other != opening && other.IsOpen)
+                    {
+                        other.Close();
+                    }
+                }
+            };
+            return drawer;
         }
 
         private void AddView(GitView view, VisualElement content, VisualElement sidebar)

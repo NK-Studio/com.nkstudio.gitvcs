@@ -10,6 +10,7 @@ namespace GitVersionControl
         Remote,
         Worktrees,
         Stashes,
+        PullRequests,
         Submodules,
         Tags,
     }
@@ -24,6 +25,14 @@ namespace GitVersionControl
         Stash,
         Worktree,
         Submodule,
+
+        /// <summary>Pull Requests 구역의 묶음(내 PR · 나에게 배정됨 · 내 리뷰 대기 · 전체). 펼치고 접을 수 있다.</summary>
+        PullRequestGroup,
+
+        PullRequest,
+
+        /// <summary>안내 한 줄(읽는 중 · 로그인 필요 · 오류). 참조가 아니다.</summary>
+        Info,
     }
 
     /// <summary>
@@ -49,20 +58,31 @@ namespace GitVersionControl
         public string Tooltip;
         public bool IsCurrent;
 
+        /// <summary>
+        /// github.com 원격(원격 줄만). 구름 대신 GitHub 아이콘을 쓴다.
+        /// </summary>
+        public bool IsGitHub;
+
         public GitBranchRef Branch;
         public GitTagRef Tag;
         public GitStashRef Stash;
         public GitWorktreeRef Worktree;
         public GitSubmoduleRef Submodule;
+        public GitPullRequestInfo PullRequest;
 
         public readonly List<RefNode> Children = new();
 
         /// <summary>
         /// 그래프에서 보일 커밋. 없으면 null(워크트리·서브모듈·구역).
         /// </summary>
-        public string Commit => Branch?.Hash ?? Tag?.Commit ?? Stash?.Hash;
+        public string Commit => Branch?.Hash ?? Tag?.Commit ?? Stash?.Hash ?? PullRequest?.HeadSha;
 
-        public int LeafCount => Children.Count == 0 ? (Kind == RefNodeKind.Section || Kind == RefNodeKind.Folder || Kind == RefNodeKind.Remote ? 0 : 1) : Children.Sum(c => c.LeafCount);
+        public int LeafCount => Children.Count == 0 ? (IsContainer || Kind == RefNodeKind.Info ? 0 : 1) : Children.Sum(c => c.LeafCount);
+
+        /// <summary>
+        /// 아이를 갖는 줄(구역 · 폴더 · 원격 · PR 묶음).
+        /// </summary>
+        public bool IsContainer => Kind is RefNodeKind.Section or RefNodeKind.Folder or RefNodeKind.Remote or RefNodeKind.PullRequestGroup;
     }
 
     /// <summary>
@@ -86,8 +106,10 @@ namespace GitVersionControl
         }
 
         /// <param name="sectionTitle">구역 이름(번역). 테스트는 enum 이름을 넘긴다.</param>
-        public static List<RefNode> Build(GitRefSet refs, string filter, Func<RefSection, string> sectionTitle)
+        /// <param name="localize">PR 묶음 이름·안내 문구 번역(키 → 글자). null 이면 키 그대로(테스트).</param>
+        public static List<RefNode> Build(GitRefSet refs, string filter, Func<RefSection, string> sectionTitle, Func<string, string> localize = null)
         {
+            localize ??= key => key;
             string needle = string.IsNullOrWhiteSpace(filter) ? null : filter.Trim();
             bool Matches(string text) => needle == null || (text ?? string.Empty).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -112,7 +134,11 @@ namespace GitVersionControl
                             RefNode remoteNode = root.Children.FirstOrDefault(c => c.Kind == RefNodeKind.Remote && c.Label == remote);
                             if (remoteNode == null)
                             {
-                                remoteNode = new RefNode { Kind = RefNodeKind.Remote, Section = section, Id = "remote:" + remote, Label = remote };
+                                refs.RemoteUrls.TryGetValue(remote, out string url);
+                                remoteNode = new RefNode
+                                {
+                                    Kind = RefNodeKind.Remote, Section = section, Id = "remote:" + remote, Label = remote, Tooltip = url, IsGitHub = GitRefs.IsGitHubUrl(url),
+                                };
                                 root.Children.Add(remoteNode);
                             }
                             AddByPath(remoteNode, section, "Remote/" + remote, name, BranchLeaf(branch, section));
@@ -148,6 +174,9 @@ namespace GitVersionControl
                             });
                         }
                         break;
+                    case RefSection.PullRequests:
+                        AddPullRequests(root, refs.PullRequests, needle, Matches, localize);
+                        break;
                     case RefSection.Submodules:
                         foreach (GitSubmoduleRef submodule in refs.Submodules.Where(s => Matches(s.Path)))
                         {
@@ -178,7 +207,8 @@ namespace GitVersionControl
                         }
                         break;
                 }
-                root.Badge = root.LeafCount.ToString();
+                // PR 은 여러 묶음에 겹쳐 나오므로 구역 개수는 "전체" 묶음 수다.
+                root.Badge = (section == RefSection.PullRequests ? PullRequestCount(refs.PullRequests) : root.LeafCount).ToString();
                 // 검색 중에는 걸린 것이 있는 구역만 남긴다(Fork 처럼 일치하는 요소만 보인다). 검색하지 않을 때는 빈 구역도 둔다.
                 if (needle != null && root.Children.Count == 0)
                 {
@@ -187,6 +217,66 @@ namespace GitVersionControl
                 roots.Add(root);
             }
             return roots;
+        }
+
+        /// <summary>
+        /// Pull Requests 구역 머리의 개수(열린 PR 수). 목록을 아직 못 읽었으면 0.
+        /// </summary>
+        public static int PullRequestCount(GitPullRequestSet set)
+        {
+            return set == null || set.IsLoading || set.NeedsSignIn || set.NoGitHubRemote || set.Error != null ? 0 : set.All.Count;
+        }
+
+        /// <summary>
+        /// 목록이 있으면 네 묶음과 그 아래 PR, 없으면 안내 한 줄(검색 중에는 안내를 뺀다).
+        /// </summary>
+        private static void AddPullRequests(RefNode root, GitPullRequestSet set, string needle, Func<string, bool> matches, Func<string, string> localize)
+        {
+            string info = set == null || set.IsLoading ? localize("common.loading")
+                : set.NeedsSignIn ? localize("prList.signIn")
+                : set.NoGitHubRemote ? localize("prList.noRemote")
+                : set.Error != null ? localize("prList.error") + " " + set.Error
+                : null;
+            if (info != null)
+            {
+                if (needle == null)
+                {
+                    root.Children.Add(new RefNode { Kind = RefNodeKind.Info, Section = RefSection.PullRequests, Id = "prinfo", Label = info, Tooltip = info });
+                }
+                return;
+            }
+            foreach (GitPullRequestList.Group group in GitPullRequestList.Groups)
+            {
+                List<GitPullRequestInfo> pulls = GitPullRequestList.InGroup(set, group)
+                    .Where(pr => matches(pr.Title) || matches("#" + pr.Number) || matches(pr.Author) || matches(pr.HeadRef))
+                    .ToList();
+                if (needle != null && pulls.Count == 0)
+                {
+                    continue;
+                }
+                RefNode groupNode = new()
+                {
+                    Kind = RefNodeKind.PullRequestGroup,
+                    Section = RefSection.PullRequests,
+                    Id = "prgroup:" + group,
+                    Label = localize("prList.group" + group),
+                    Badge = pulls.Count.ToString(),
+                };
+                foreach (GitPullRequestInfo pr in pulls)
+                {
+                    groupNode.Children.Add(new RefNode
+                    {
+                        Kind = RefNodeKind.PullRequest,
+                        Section = RefSection.PullRequests,
+                        Id = "pr:" + group + ":" + pr.Number,
+                        Label = $"#{pr.Number} {pr.Title}",
+                        Badge = pr.IsDraft ? localize("prList.draft") : pr.Author,
+                        Tooltip = $"#{pr.Number} {pr.Title}\n{pr.Author}  ·  {pr.HeadRef} → {pr.BaseRef}",
+                        PullRequest = pr,
+                    });
+                }
+                root.Children.Add(groupNode);
+            }
         }
 
         /// <summary>

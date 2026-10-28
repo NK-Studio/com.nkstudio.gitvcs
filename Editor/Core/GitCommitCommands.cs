@@ -186,6 +186,37 @@ namespace GitVersionControl
             return new[] { "worktree", "remove", path };
         }
 
+        public static string[] AddRemote(string name, string url)
+        {
+            return new[] { "remote", "add", "--", name, url };
+        }
+
+        /// <summary>
+        /// 원격의 Push 주소만 따로 둔다(remote.&lt;이름&gt;.pushurl). Pull(fetch) 주소는 그대로다.
+        /// </summary>
+        public static string[] SetPushUrl(string name, string url)
+        {
+            return new[] { "remote", "set-url", "--push", "--", name, url };
+        }
+
+        public static string[] FetchRemote(string name)
+        {
+            return new[] { "fetch", "--prune", "--", name };
+        }
+
+        /// <param name="newBranch">새로 만들 브랜치. null 이면 <paramref name="reference"/> 를 그대로 체크아웃한다(로컬 브랜치면 그 브랜치, 원격·태그면 분리된 HEAD).</param>
+        public static string[] AddWorktree(string path, string reference, string newBranch)
+        {
+            return string.IsNullOrEmpty(newBranch)
+                ? new[] { "worktree", "add", "--", path, reference }
+                : new[] { "worktree", "add", "-b", newBranch, "--", path, reference };
+        }
+
+        public static string[] AddSubmodule(string url, string path)
+        {
+            return new[] { "submodule", "add", "--", url, path };
+        }
+
         public static string[] UpdateSubmodule(string path)
         {
             return new[] { "submodule", "update", "--init", "--recursive", "--", path };
