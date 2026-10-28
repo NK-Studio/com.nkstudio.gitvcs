@@ -907,3 +907,430 @@
     white-space: normal;
     color: var(--git-danger);
 }
+
+/* ── commit-history: Fork 형태 브랜치 탐색기(CommitHistoryView). 위 커밋 목록, 아래 Commit · Changes · File Tree 칸 ── */
+.commit-history__list {
+    flex-grow: 1;
+    min-height: 120px;
+}
+
+.commit-history__detail {
+    min-height: 160px;
+    flex-direction: column;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+    background-color: var(--git-sidebar-bg);
+}
+
+.commit-history__tabs {
+    flex-direction: row;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.commit-history__tab {
+    margin: 0 4px 0 0;
+    padding: 3px 12px;
+    border-width: 0;
+    border-radius: var(--git-radius);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    font-size: 13px;
+    cursor: link;
+}
+
+.commit-history__tab:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.commit-history__tab--selected,
+.commit-history__tab--selected:hover {
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+.commit-history__page {
+    flex-grow: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Commit 칸: Fork 처럼 정보 · 메시지 · 파일 목록이 한 스크롤. */
+.commit-history__info {
+    flex-grow: 1;
+    padding: 10px 16px 10px 16px;
+}
+
+.commit-history__people {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.commit-history__person {
+    min-width: 260px;
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 16px 6px 0;
+}
+
+.commit-history__person-caption {
+    font-size: 11px;
+    color: var(--git-text-muted);
+    margin: 0 0 4px 0;
+    padding: 0;
+}
+
+.commit-history__person-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.commit-history__avatar {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    justify-content: center;
+    align-items: center;
+    -unity-background-scale-mode: scale-and-crop;
+    margin-right: 10px;
+}
+
+.commit-history__avatar--small {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+.commit-history__initials {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    font-size: 12px;
+    color: #ffffff;
+    padding: 0;
+    margin: 0;
+}
+
+.commit-history__avatar--small .commit-history__initials {
+    font-size: 9px;
+}
+
+.commit-history__person-text {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.commit-history__person-name-line {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.commit-history__person-name {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    font-size: 14px;
+    color: var(--git-text);
+    margin: 0 8px 0 0;
+    padding: 0;
+}
+
+.commit-history__person-email,
+.commit-history__person-date {
+    font-size: 12px;
+    color: var(--git-text-muted);
+    margin: 0;
+    padding: 0;
+}
+
+.commit-history__field {
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+}
+
+.commit-history__field-label {
+    width: 72px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+    -unity-text-align: middle-right;
+    margin: 0 10px 0 0;
+    padding: 0;
+}
+
+.commit-history__field-value {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.commit-history__field-value .graph-detail__parent-link {
+    margin-right: 8px;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+}
+
+.commit-history__sha {
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    font-size: 12px;
+    color: var(--git-text);
+    margin: 0;
+    padding: 0;
+    cursor: link;
+}
+
+.commit-history__ref {
+    font-size: 11px;
+    color: var(--git-graph-pill-text);
+    background-color: var(--git-graph-pill-bg);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin: 1px 6px 1px 0;
+}
+
+.commit-history__ref--current {
+    background-color: var(--git-graph-pill-head);
+}
+
+.commit-history__ref--tag {
+    background-color: var(--git-graph-pill-tag);
+}
+
+.commit-history__message {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.commit-history__subject {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    font-size: 15px;
+    color: var(--git-text);
+    white-space: normal;
+    margin: 0 0 6px 0;
+    padding: 0;
+}
+
+.commit-history__body {
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    font-size: 12px;
+    color: var(--git-text);
+    white-space: normal;
+    margin: 0;
+    padding: 0;
+}
+
+/* Changes · File Tree 칸 위 한 줄: 아바타, 작성자, 해시, 날짜, 제목(Fork 와 같다). */
+.commit-history__header-line {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 30px;
+    padding: 0 12px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.commit-history__header-line > Label {
+    margin: 0 10px 0 0;
+    padding: 0;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.commit-history__header-author {
+    color: var(--git-text);
+}
+
+.commit-history__header-hash {
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    color: var(--git-text-muted);
+}
+
+.commit-history__header-date {
+    color: var(--git-text-muted);
+}
+
+.commit-history__header-line > .commit-history__header-subject {
+    flex-shrink: 1;
+    min-width: 0;
+    color: var(--git-text);
+}
+
+/* 왼쪽 파일 칸(Changes · File Tree)과 오른쪽 diff · 내용. 왼쪽 폭은 SplitPaneClamp 가 이 한도 안에서 끈다. */
+.commit-history__side {
+    min-width: 180px;
+    max-width: 640px;
+    flex-direction: column;
+    border-right-width: 1px;
+    border-right-color: var(--git-border);
+}
+
+.commit-history__side .file-browser,
+.commit-history__tree {
+    flex-grow: 1;
+}
+
+.commit-history__viewer {
+    flex-direction: column;
+    min-width: 0;
+    background-color: var(--git-diff-bg);
+}
+
+.commit-history__tree-row {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+}
+
+.commit-history__tree-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.commit-history__tree-label {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--git-text);
+}
+
+.commit-history__content-path {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    margin: 0;
+    color: var(--git-text-muted);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.commit-history__content {
+    flex-grow: 1;
+}
+
+.commit-history__line {
+    flex-direction: row;
+    height: 18px;
+    align-items: center;
+}
+
+.commit-history__line-number {
+    width: 52px;
+    flex-shrink: 0;
+    padding: 0 10px 0 0;
+    margin: 0;
+    -unity-text-align: middle-right;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    font-size: 12px;
+    color: var(--git-diff-number);
+    background-color: var(--git-diff-gutter);
+}
+
+.commit-history__line-text {
+    padding: 0 0 0 10px;
+    margin: 0;
+    white-space: pre;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    font-size: 12px;
+    color: var(--git-diff-text);
+}
+
+/* Fork 처럼 파일 칸 안쪽에 여백을 둬서 줄이 칸 가장자리에 붙지 않게 하고, 고른 줄·마우스 줄은 둥글게. */
+/* 목록 자체의 margin 은 공통 규칙이 덮어쓰므로 감싸는 칸에 padding 을 준다. */
+.commit-history__side {
+    padding: 6px 8px 6px 8px;
+}
+
+.commit-history__side .list,
+.commit-history__tree {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.commit-history__side .unity-collection-view__item,
+.commit-history__tree .unity-collection-view__item {
+    border-radius: 5px;
+}
+
+.commit-history__tree-row {
+    padding-right: 6px;
+}
+
+
+
+/* Commit 칸 바뀐 파일: Fork 처럼 [상태][아이콘][경로] 의 평평한 목록. 링크 모양 — 마우스를 올리면 경로가 파란 글씨, 손가락 커서, 뒤에 →.
+   cursor 는 자식에게 물려주지 않으므로 줄 안 모든 요소에 건다. */
+.commit-history__file-list {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.commit-history__file {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 5px;
+}
+
+.commit-history__file,
+.commit-history__file * {
+    cursor: link;
+}
+
+.commit-history__file:hover {
+    background-color: var(--git-hover);
+}
+
+.commit-history__file-badge {
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+.commit-history__file-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+.commit-history__file-path {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--git-text);
+}
+
+.commit-history__file:hover .commit-history__file-path {
+    color: var(--git-accent-fg);
+}
+
+.commit-history__file-arrow {
+    display: none;
+    flex-shrink: 0;
+    margin: 0 0 0 8px;
+    padding: 0;
+    color: var(--git-text-muted);
+}
+
+.commit-history__file:hover .commit-history__file-arrow {
+    display: flex;
+}
+
+.commit-history__file-more {
+    margin: 6px 0 0 6px;
+    padding: 0;
+    color: var(--git-accent-fg);
+    cursor: link;
+}

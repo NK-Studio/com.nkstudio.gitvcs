@@ -72,6 +72,8 @@ namespace GitVersionControl
             GitTheme.Changed += ApplyTheme;
             GitLayout.Changed -= Rebuild;
             GitLayout.Changed += Rebuild;
+            GitExplorerStyle.Changed -= Rebuild;
+            GitExplorerStyle.Changed += Rebuild;
             // 로그인하면 연결 화면에서 본체로, 로그아웃하면 다시 연결 화면으로 바꾼다.
             GitHubAccount.Changed -= Rebuild;
             GitHubAccount.Changed += Rebuild;
@@ -129,7 +131,7 @@ namespace GitVersionControl
             GitContextMenu.Attach(layout, _window);
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
-            _refs.ShowInExplorerRequested += hash => SelectTab<BranchExplorerView>()?.Reveal(hash);
+            _refs.ShowInExplorerRequested += hash => SelectTab<ExplorerView>()?.Reveal(hash);
             // 본문 왼쪽 가장자리(사이드바 바로 옆)에서 밀려 나오는 서랍들. 본문 위에 덮어 띄우고, 한 번에 하나만 연다.
             VisualElement content = layout.Require<VisualElement>("content");
             AddRemoteDrawer addRemote = AddDrawer(new AddRemoteDrawer(content, _services));
@@ -200,6 +202,7 @@ namespace GitVersionControl
             GitText.LanguageChanged -= Rebuild;
             GitTheme.Changed -= ApplyTheme;
             GitLayout.Changed -= Rebuild;
+            GitExplorerStyle.Changed -= Rebuild;
             GitHubAccount.Changed -= Rebuild;
             GitRepository.RepositorySwitched -= Rebuild;
             TearDown();
@@ -252,6 +255,7 @@ namespace GitVersionControl
                 GitLayoutStyle captured = style;
                 menu.AddItem(new GUIContent($"{layoutMenu}/{GitDisplay.MenuSafe(GitLayout.DisplayName(style))}"), GitLayout.Style == style, () => GitLayout.Style = captured);
             }
+            GitExplorerStyle.AddMenuItems(menu);
             string themeMenu = GitText.Get("window.theme");
             foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
             {
@@ -319,7 +323,10 @@ namespace GitVersionControl
                     AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
                     break;
             }
-            AddView(new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
+            // 브랜치 탐색기 모양은 개인 설정이다. GitKraken 배치는 가로 브랜치 그래프로 고정(GitExplorerStyle.Effective).
+            AddView(GitExplorerStyle.Effective == ExplorerStyle.CommitList
+                ? new CommitHistoryView(_services, _state.Explorer, this)
+                : new BranchExplorerView(_services, _state.Explorer, this), content, sidebar);
             AddView(new WorkspaceView(_services, _state.Workspace), content, sidebar);
             AddView(new ChangesetsView(_services, _state.Changesets, this), content, sidebar);
         }
@@ -353,7 +360,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            GitView target = (GitView)_views.OfType<GraphWorkspaceView>().FirstOrDefault() ?? _views.OfType<BranchExplorerView>().FirstOrDefault();
+            GitView target = (GitView)_views.OfType<GraphWorkspaceView>().FirstOrDefault() ?? _views.OfType<ExplorerView>().FirstOrDefault();
             if (target == null)
             {
                 return;
@@ -408,7 +415,7 @@ namespace GitVersionControl
             return view switch
             {
                 GraphWorkspaceView => ActionGlyphKind.Hierarchy,
-                BranchExplorerView => ActionGlyphKind.Branch,
+                ExplorerView => ActionGlyphKind.Branch,
                 WorkspaceView => ActionGlyphKind.Folder,
                 ChangesetsView => ActionGlyphKind.PathList,
                 _ => ActionGlyphKind.Pencil,

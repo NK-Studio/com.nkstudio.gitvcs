@@ -46,6 +46,15 @@ namespace GitVersionControl
             public VisualElement Message;
 
             /// <summary>
+            /// Fork 형태에서 메시지 뒤에 붙는 [작성자][SHA][날짜] 묶음(<see cref="CommitGraphList(VisualElement, IAvatarProvider, bool)"/> 의 detailColumns). 없으면 null.
+            /// </summary>
+            public VisualElement Details;
+
+            public Label Author;
+            public Label Hash;
+            public Label Date;
+
+            /// <summary>
             /// 이름표에 보이는 첫 참조의 종류와 참조 개수. 칸 폭이 바뀔 때 다시 묶지 않고 이름표 모양만 고르려고 들고 있다.
             /// </summary>
             public CommitRefKind RefKind;
@@ -206,6 +215,12 @@ namespace GitVersionControl
 
         private const float MaxGraphColumnWidth = 800f;
 
+        // Fork 형태의 오른쪽 고정 칸(작성자 · SHA · 날짜). 순서·폭을 바꾸는 칸이 아니라 늘 맨 오른쪽에 붙는다.
+        private const float AuthorColumnWidth = 150f;
+        private const float HashColumnWidth = 84f;
+        private const float DateColumnWidth = 150f;
+        private const string DetailsModifier = "commit-graph--details";
+
         /// <summary>
         /// 그래프 칸 오른쪽 끝 가지 색 막대 폭(USS .commit-graph-row__band 의 border-right-width). 가지는 이 막대 앞까지에 맞춘다.
         /// </summary>
@@ -249,6 +264,18 @@ namespace GitVersionControl
         private readonly Label[] _headerCells = new Label[3];
         private readonly ColumnResizer[] _resizers = new ColumnResizer[3];
         private readonly TextField _branchInput;
+
+        /// <summary>
+        /// Fork 형태: 메시지 뒤에 작성자 · SHA · 날짜 칸을 둔다. 머리 줄 쪽 묶음은 <see cref="_headerDetails"/>.
+        /// </summary>
+        private readonly bool _detailColumns;
+
+        private readonly VisualElement _headerDetails;
+
+        /// <summary>
+        /// 오른쪽 고정 칸들의 폭 합. 맨 오른쪽 순서 칸(남은 폭)은 이만큼 덜 갖는다.
+        /// </summary>
+        private float DetailsWidth => _detailColumns ? AuthorColumnWidth + HashColumnWidth + DateColumnWidth : 0f;
 
         /// <summary>
         /// 이름표 칸에 마우스를 올렸을 때 그 줄 참조를 모두 세로로 펼친 목록(<see cref="ShowRefsPopup"/>).
@@ -343,9 +370,11 @@ namespace GitVersionControl
         public VisualElement Root { get; }
 
         /// <param name="avatars">작성자 아바타. null 이거나 설정에서 꺼져 있으면 작은 점으로 그린다.</param>
-        public CommitGraphList(VisualElement host, IAvatarProvider avatars = null)
+        /// <param name="detailColumns">Fork 형태: 메시지 뒤에 작성자 · SHA · 날짜 칸을 둔다(브랜치 탐색기의 커밋 목록 모양).</param>
+        public CommitGraphList(VisualElement host, IAvatarProvider avatars = null, bool detailColumns = false)
         {
             _avatars = avatars;
+            _detailColumns = detailColumns;
             Root = new VisualElement();
             Root.AddToClassList("commit-graph");
             host.Add(Root);
@@ -387,6 +416,15 @@ namespace GitVersionControl
                 width => SetColumnWidths(_refsWidth, _graphWidthOverride, ClampMessageWidth(width)),
                 () => settings.GraphMessageColumnWidth = _messageWidth,
                 () => SetColumnWidths(_refsWidth, _graphWidthOverride, DefaultMessageColumnWidth));
+            if (_detailColumns)
+            {
+                Root.AddToClassList(DetailsModifier);
+                _headerDetails = new VisualElement();
+                _headerDetails.AddToClassList("commit-graph__details");
+                _headerDetails.Add(DetailHeaderCell("column.author", AuthorColumnWidth));
+                _headerDetails.Add(DetailHeaderCell("column.hash", HashColumnWidth));
+                _headerDetails.Add(DetailHeaderCell("column.date", DateColumnWidth));
+            }
             Root.Add(_header);
 
             ColumnReorderer reorderer = new(_header, Root, MoveColumn);
@@ -634,6 +672,29 @@ namespace GitVersionControl
                     _header.Add(_resizers[(int)_order[i]].Handle);
                 }
             }
+            if (_headerDetails != null)
+            {
+                _header.Add(_headerDetails);
+            }
+        }
+
+        private static Label DetailHeaderCell(string textKey, float width)
+        {
+            Label cell = new(GitText.Get(textKey));
+            cell.AddToClassList("list-header__cell");
+            cell.AddToClassList("commit-graph__detail-cell");
+            cell.style.width = width;
+            return cell;
+        }
+
+        private static Label DetailRowCell(string className, float width)
+        {
+            Label cell = new();
+            cell.AddToClassList("commit-graph-row__detail");
+            cell.AddToClassList(className);
+            cell.AddToClassList("ellipsis");
+            cell.style.width = width;
+            return cell;
         }
 
         /// <summary>
@@ -645,6 +706,7 @@ namespace GitVersionControl
             {
                 row.Cell(column).BringToFront();
             }
+            row.Details?.BringToFront();
         }
 
         private bool IsLast(CommitGraphColumn column)
@@ -692,7 +754,7 @@ namespace GitVersionControl
                 return FixedWidth(column);
             }
             float bodyWidth = _body.contentRect.width;
-            return float.IsNaN(bodyWidth) || bodyWidth <= 0f ? FixedWidth(column) : Mathf.Max(bodyWidth - ColumnStart(column), MinLastColumnWidth);
+            return float.IsNaN(bodyWidth) || bodyWidth <= 0f ? FixedWidth(column) : Mathf.Max(bodyWidth - ColumnStart(column) - DetailsWidth, MinLastColumnWidth);
         }
 
         /// <summary>
@@ -738,7 +800,7 @@ namespace GitVersionControl
                 if (IsLast(spanEnd))
                 {
                     layer.style.width = StyleKeyword.Null;
-                    layer.style.right = 0f;
+                    layer.style.right = DetailsWidth;
                 }
                 else
                 {
@@ -1160,6 +1222,19 @@ namespace GitVersionControl
             row.Refs = refs;
             row.Graph = graph;
             row.Message = message;
+            if (_detailColumns)
+            {
+                VisualElement details = new();
+                details.AddToClassList("commit-graph-row__details");
+                row.Author = DetailRowCell("commit-graph-row__author", AuthorColumnWidth);
+                row.Hash = DetailRowCell("commit-graph-row__hash", HashColumnWidth);
+                row.Date = DetailRowCell("commit-graph-row__date", DateColumnWidth);
+                details.Add(row.Author);
+                details.Add(row.Hash);
+                details.Add(row.Date);
+                row.Add(details);
+                row.Details = details;
+            }
             ArrangeCells(row);
             ApplyCellWidths(row);
 
@@ -1218,6 +1293,7 @@ namespace GitVersionControl
                 BindWipCounts(row);
                 subject.text = string.Empty;
                 subject.tooltip = null;
+                BindDetails(row, null);
                 return;
             }
             if (_wipRow == row)
@@ -1242,6 +1318,22 @@ namespace GitVersionControl
             PlaceBand(row);
             subject.text = commit.Subject;
             subject.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
+            BindDetails(row, commit);
+        }
+
+        /// <summary>
+        /// Fork 형태의 작성자 · SHA · 날짜 칸. 작업 중 줄(null)은 비운다.
+        /// </summary>
+        private static void BindDetails(GraphRow row, GitCommitInfo commit)
+        {
+            if (row.Details == null)
+            {
+                return;
+            }
+            row.Author.text = commit == null ? string.Empty : GitDisplay.Nfc(commit.AuthorName);
+            row.Author.tooltip = commit?.AuthorEmail;
+            row.Hash.text = commit?.ShortHash ?? string.Empty;
+            row.Date.text = commit == null ? string.Empty : GitDisplay.FormatDate(commit.Date);
         }
 
         /// <summary>

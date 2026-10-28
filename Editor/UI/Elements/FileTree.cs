@@ -187,6 +187,33 @@ namespace GitVersionControl
             _tree.ClearSelection();
         }
 
+        /// <summary>
+        /// 그 파일 줄을 고른다: 위 폴더를 모두 펼치고 보이는 곳으로 스크롤한다(Fork 처럼 다른 칸에서 넘어왔을 때 어느 파일인지 바로 보이게).
+        /// 지금 목록에 없으면 false.
+        /// </summary>
+        public bool SelectFile(string repoPath)
+        {
+            if (_idByFilePath.TryGetValue(repoPath, out int id) == false)
+            {
+                return false;
+            }
+            try
+            {
+                for (int parent = _tree.viewController.GetParentId(id); parent >= 0; parent = _tree.viewController.GetParentId(parent))
+                {
+                    _tree.ExpandItem(parent);
+                }
+                _tree.SetSelectionById(id);
+                _tree.ScrollToItemById(id);
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                // 지난 목록에만 있던 파일.
+                return false;
+            }
+        }
+
         private bool AllFoldersExpanded()
         {
             return _shownFolderIds.All(id => _tree.IsExpanded(id));

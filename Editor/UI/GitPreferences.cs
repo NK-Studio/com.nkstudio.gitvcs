@@ -5,7 +5,7 @@ using UnityEngine.Networking;
 namespace GitVersionControl
 {
     /// <summary>
-    /// Preferences > Git: 사람마다 다른 개인 설정. 지금은 GitHub 계정 로그인(<see cref="GitHubAccount"/>)만 있다.
+    /// Preferences > Git: 사람마다 다른 개인 설정. 메인 툴바 버튼, 브랜치 탐색기 모양(<see cref="GitExplorerStyle"/>), GitHub 계정 로그인(<see cref="GitHubAccount"/>).
     /// 프로젝트 설정(Project Settings > Git)과 달리 이 PC 의 모든 프로젝트에 같이 적용된다.
     /// </summary>
 #if UNITY_6000_7_OR_NEWER
@@ -33,7 +33,7 @@ namespace GitVersionControl
             {
                 label = "Git",
                 guiHandler = _ => Draw(),
-                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar" },
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork" },
             };
         }
 
@@ -42,6 +42,7 @@ namespace GitVersionControl
             EditorGUILayout.Space();
             GitVcsSettings settings = GitVcsSettings.instance;
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
+            GitExplorerStyle.DrawPopup();
             EditorGUILayout.Space();
             EditorGUILayout.LabelField(GitText.Get("github.title"), EditorStyles.boldLabel);
             EditorGUILayout.LabelField(GitText.Get("github.description"), EditorStyles.wordWrappedMiniLabel);

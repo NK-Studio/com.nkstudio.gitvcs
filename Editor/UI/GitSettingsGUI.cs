@@ -330,6 +330,8 @@ namespace GitVersionControl
             {
                 GitLayout.Style = styles[picked];
             }
+            // 배치에 따라 탐색기 모양이 정해지거나 고를 수 있어 바로 아래에 둔다(값은 개인 설정).
+            GitExplorerStyle.DrawPopup();
         }
 
         /// <summary>언어 선택. 이름은 각 언어 자기 말로 보여서 어떤 언어로 보고 있든 고를 수 있게 한다.</summary>

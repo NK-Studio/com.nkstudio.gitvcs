@@ -87,6 +87,9 @@ namespace GitVersionControl
                 DiffTargetOf = TargetOf,
             };
             _files.SelectionChanged += item => FileSelected?.Invoke(item == null ? null : TargetOf(item));
+            // 브랜치 탐색기(Fork 형태)의 Changes 칸과 같은 우클릭 메뉴(열기 · 외부 diff · 되돌리기 · Blame · 히스토리 · 이 버전 저장 · 경로 복사).
+            CommitFileMenu fileMenu = new(services);
+            _files.FileMenu = (menu, item) => fileMenu.Populate(menu, _shown, item);
 
             if (_avatars != null)
             {

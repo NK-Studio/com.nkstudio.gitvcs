@@ -111,6 +111,17 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(expected, SplitPaneClamp.DraggedSize(preferred, 0f, 1, available, 280f, 720f));
         }
 
+        [TestCase(0.5f, 0.5f)]
+        [TestCase(0.1f, 0.25f)]
+        [TestCase(0.95f, 0.8f)]
+        [TestCase(0f, 0.5f)]
+        [TestCase(float.NaN, 0.5f)]
+        public void Test_SplitPaneClamp_ClampRatio(float ratio, float expected)
+        {
+            // Fork 형태 탐색기의 아래 칸 비율: 25%~80%, 깨진 값(처음 · 0 · NaN)은 반.
+            Assert.AreEqual(expected, SplitPaneClamp.ClampRatio(ratio));
+        }
+
         [TestCase(900f, 1600f, 480f)]
         [TestCase(900f, 800f, 320f)]
         [TestCase(230f, 800f, 230f)]

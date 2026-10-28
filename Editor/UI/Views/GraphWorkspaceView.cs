@@ -446,7 +446,7 @@ namespace GitVersionControl
             _commitMenu.Populate(menu, commit, new CommitMenu.Hooks
             {
                 GoToParent = parent == null ? null : () => _graph.SelectCommit(parent),
-                ShowInExplorer = () => _navigator.SelectTab<BranchExplorerView>()?.Reveal(commit.Hash),
+                ShowInExplorer = () => _navigator.SelectTab<ExplorerView>()?.Reveal(commit.Hash),
                 Branches = _graph.Graph?.Branches,
             });
         }

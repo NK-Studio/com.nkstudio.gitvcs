@@ -1336,3 +1336,47 @@
     white-space: normal;
     color: var(--git-text-muted);
 }
+
+/* ── Fork 형태 커밋 목록(CommitGraphList detailColumns): 메시지 뒤 고정 칸 [작성자][SHA][날짜] ──
+   폭은 코드가 넣는다. 고른 줄·마우스 바탕은 메시지 칸처럼 이 묶음에도 깐다(줄 전체가 한 줄로 보이게). */
+.commit-graph__details,
+.commit-graph-row__details {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-self: stretch;
+}
+
+.commit-graph__detail-cell {
+    flex-shrink: 0;
+    padding-left: 10px;
+}
+
+.commit-graph-row__details {
+    align-items: center;
+    margin: 3px 0;
+}
+
+.commit-graph-row__detail {
+    flex-shrink: 0;
+    padding: 0 0 0 10px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--git-text-muted);
+    -unity-text-align: middle-left;
+}
+
+.commit-graph-row__hash {
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+}
+
+.commit-graph__list .unity-collection-view__item:hover .commit-graph-row__details {
+    background-color: var(--git-hover);
+}
+
+.commit-graph__list .unity-collection-view__item--selected .commit-graph-row__details {
+    background-color: rgba(59, 130, 196, 0.3);
+}
+
+.git-themed .commit-graph .unity-collection-view .unity-collection-view__item--selected .commit-graph-row__detail {
+    color: var(--git-text);
+}

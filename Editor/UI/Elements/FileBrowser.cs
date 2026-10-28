@@ -211,6 +211,24 @@ namespace GitVersionControl
             _tree.ClearSelection();
         }
 
+        /// <summary>
+        /// 그 파일 줄을 골라 보이게 한다(트리면 위 폴더를 펼친다). 고르면 <see cref="SelectionChanged"/> 가 온다. 목록에 없으면 false.
+        /// </summary>
+        public bool SelectFile(string repoPath)
+        {
+            if (_shownMode == FileViewMode.Tree)
+            {
+                return _tree.SelectFile(repoPath);
+            }
+            FileListItem item = _items.FirstOrDefault(i => string.Equals(i.RepoPath, repoPath, StringComparison.OrdinalIgnoreCase));
+            if (item == null)
+            {
+                return false;
+            }
+            _list.Select(item);
+            return true;
+        }
+
         private void OnFileChosen(FileListItem item)
         {
             if (ChooseAction != null)

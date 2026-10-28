@@ -11,14 +11,8 @@ namespace GitVersionControl
     /// 그래프 배치는 <see cref="GitGraph"/>, 그리기·조작은 <see cref="BranchGraphElement"/>, 상세는 오른쪽 인스펙터 <see cref="GraphCommitDetail"/>.
     /// 이 클래스는 기간·검색 같은 도구 막대와 데이터 읽기만 맡는다.
     /// </summary>
-    public sealed class BranchExplorerView : GitView, ICommitRevealer
+    public sealed class BranchExplorerView : ExplorerView
     {
-        /// <summary>
-        /// 한 번에 읽을 커밋 수. 커밋 ~4500·브랜치 3000 저장소에서 읽기~배치 ~0.3초, 그리기 한 장 ~7ms(2026-10-18 실측).
-        /// </summary>
-        private const int MaxCommits = 5000;
-        private static readonly string[] RangeKeys = { "explorer.rangeWeek", "explorer.rangeMonth", "explorer.rangeQuarter", "explorer.rangeAll" };
-
         private readonly BranchExplorerState _state;
         private readonly ITabNavigator _navigator;
         private readonly DropdownField _range;
@@ -43,8 +37,6 @@ namespace GitVersionControl
         private string _loadedKey;
         private bool _isLoading;
         private int _searchCursor = -1;
-
-        public override string Title => GitText.Get("tab.explorer");
 
         private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{_state.RangeIndex}";
 
@@ -153,15 +145,7 @@ namespace GitVersionControl
             string key = CurrentKey;
             Render();
 
-            DateTime? since = _state.RangeIndex switch
-            {
-                0 => DateTime.Now.AddDays(-7),
-                1 => DateTime.Now.AddMonths(-1),
-                2 => DateTime.Now.AddMonths(-3),
-                _ => null,
-            };
-
-            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, since, MaxCommits);
+            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, SinceOf(_state.RangeIndex), MaxCommits);
             _isLoading = false;
             _loadedKey = key;
 
@@ -180,21 +164,12 @@ namespace GitVersionControl
             TryReveal();
         }
 
-        /// <summary>
-        /// 커밋을 골라 화면 가운데로 옮긴다(Branches 탭의 "Branch Explorer 에서 보기"). 지금 기간에 없으면 기간을 "전체" 로 넓혀 다시 읽는다.
-        /// </summary>
-        public void Reveal(string hash)
+        public override void Reveal(string hash)
         {
             _pendingReveal = hash;
             ReloadIfNeeded();
             // 탭을 막 연 경우 그래프 크기가 아직 0 이라 가운데 맞추기가 틀어진다. 배치가 끝난 뒤에 한다.
             Root.schedule.Execute(TryReveal);
-        }
-
-        public bool RevealCommit(string hash)
-        {
-            Reveal(hash);
-            return true;
         }
 
         private void TryReveal()
@@ -210,11 +185,10 @@ namespace GitVersionControl
                 _graph.FocusNode(node);
                 return;
             }
-            int allRangeIndex = RangeKeys.Length - 1;
-            if (_state.RangeIndex != allRangeIndex)
+            if (_state.RangeIndex != AllRangeIndex)
             {
                 // 값이 바뀌면 다시 읽고, 다 읽은 뒤 여기로 돌아온다.
-                _range.index = allRangeIndex;
+                _range.index = AllRangeIndex;
                 return;
             }
             // 전체 기간에서도 없으면(읽는 커밋 수 상한 밖) 포기한다.

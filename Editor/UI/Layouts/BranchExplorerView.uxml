@@ -6,6 +6,7 @@
             <ui:VisualElement class="spacer" />
             <uie:ToolbarSearchField name="search" class="branch-explorer__search" />
             <uie:ToolbarButton name="next-match-button" text="@explorer.next" tooltip="@explorer.nextTooltip" />
+            <uie:ToolbarMenu name="style-menu" tooltip="@settings.explorerStyleTooltip" class="branch-explorer__style-menu" />
         </uie:Toolbar>
 
         <ui:VisualElement name="error-notice" class="notice notice--error">

@@ -1,4 +1,5 @@
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -49,11 +50,35 @@ namespace GitVersionControl
 
         private bool _halfUntilDragged;
 
+        /// <summary>
+        /// 고정 칸을 픽셀이 아니라 분할 크기의 비율로 둔다(<c>.view__split--ratio</c>, 이름 있는 분할만). 처음에는 반,
+        /// 끌어 놓으면 그 비율을 이 PC 에 기억해 창 크기가 바뀌거나 다시 열어도 같은 비율로 연다. 경계선을 두 번 누르면 반으로 돌아간다.
+        /// Fork 형태 브랜치 탐색기의 위 커밋 목록 · 아래 상세처럼 창 높이에 따라 한쪽만 커지면 어색한 곳에 쓴다.
+        /// </summary>
+        private const string RatioModifier = "view__split--ratio";
+
+        private const string RatioPrefsPrefix = "GitVersionControl.SplitRatio.";
+        public const float DefaultRatio = 0.5f;
+        public const float MinRatio = 0.25f;
+        public const float MaxRatio = 0.8f;
+
+        /// <summary>
+        /// 비율 모드의 저장 키. null 이면 픽셀 모드.
+        /// </summary>
+        private readonly string _ratioKey;
+
+        private float _ratio = DefaultRatio;
+
         private SplitPaneClamp(TwoPaneSplitView split)
         {
             _split = split;
             _preferred = split.fixedPaneInitialDimension;
             _halfUntilDragged = split.ClassListContains(HalfModifier);
+            if (split.ClassListContains(RatioModifier) && string.IsNullOrEmpty(split.name) == false)
+            {
+                _ratioKey = RatioPrefsPrefix + split.name;
+                _ratio = ClampRatio(EditorPrefs.GetFloat(_ratioKey, DefaultRatio));
+            }
             // 안쪽 칸에 든 다른 분할의 경계선을 집지 않도록 이 분할의 직접 자식에서 찾는다.
             _dragLineAnchor = split.hierarchy.Children().FirstOrDefault(child => child.ClassListContains(DragLineAnchorClass));
 
@@ -99,6 +124,14 @@ namespace GitVersionControl
         /// 고정 칸이 앞(0)이면 경계선을 뒤로 끌수록 커지고, 뒤(1)면 앞으로 끌수록 커진다.
         /// 예: (380, +50, 0, 1000) → 430, (380, +50, 1, 1000) → 330.
         /// </summary>
+        /// <summary>
+        /// 기억해 둘 비율을 한도(<see cref="MinRatio"/> ~ <see cref="MaxRatio"/>) 안으로. 깨진 값이면 반.
+        /// </summary>
+        public static float ClampRatio(float ratio)
+        {
+            return float.IsNaN(ratio) || ratio <= 0f ? DefaultRatio : Mathf.Clamp(ratio, MinRatio, MaxRatio);
+        }
+
         public static float DraggedSize(float startSize, float pointerDelta, int fixedPaneIndex, float available,
             float minFixed = MinFixedPane, float maxFixed = float.PositiveInfinity, float minFlexed = MinFlexedPane)
         {
@@ -170,6 +203,14 @@ namespace GitVersionControl
             {
                 return;
             }
+            // 비율 모드에서 경계선을 두 번 누르면 반으로 돌아간다.
+            if (_ratioKey != null && evt.clickCount == 2)
+            {
+                SaveRatio(DefaultRatio);
+                Apply();
+                evt.StopImmediatePropagation();
+                return;
+            }
             _isDragging = true;
             _dragStartPointer = LocalAxis(evt.position);
             _dragStartSize = CurrentFixedSize;
@@ -193,7 +234,10 @@ namespace GitVersionControl
                 return;
             }
             float delta = LocalAxis(evt.position) - _dragStartPointer;
-            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available, MinFixed, MaxFixed, MinFlexed));
+            // 비율 모드는 끄는 동안에도 비율 한도 안에서만 움직인다(놓았을 때 튀지 않게).
+            float minFixed = _ratioKey != null ? Mathf.Max(MinFixed, Available * MinRatio) : MinFixed;
+            float maxFixed = _ratioKey != null ? Mathf.Min(MaxFixed, Available * MaxRatio) : MaxFixed;
+            SetFixedSize(DraggedSize(_dragStartSize, delta, _split.fixedPaneIndex, Available, minFixed, maxFixed, MinFlexed));
             evt.StopPropagation();
         }
 
@@ -226,6 +270,10 @@ namespace GitVersionControl
             {
                 _preferred = CurrentFixedSize;
                 _halfUntilDragged = false;
+                if (_ratioKey != null && Available > 0f)
+                {
+                    SaveRatio(CurrentFixedSize / Available);
+                }
             }
             _split.schedule.Execute(Apply);
         }
@@ -245,12 +293,22 @@ namespace GitVersionControl
             {
                 _preferred = available * 0.5f;
             }
+            if (_ratioKey != null)
+            {
+                _preferred = available * _ratio;
+            }
             float target = Fit(_preferred, available, MinFlexed, MinFixed, MaxFixed);
             if (Mathf.Abs(CurrentFixedSize - target) < 0.5f)
             {
                 return;
             }
             SetFixedSize(target);
+        }
+
+        private void SaveRatio(float ratio)
+        {
+            _ratio = ClampRatio(ratio);
+            EditorPrefs.SetFloat(_ratioKey, _ratio);
         }
 
         /// <summary>

@@ -1,0 +1,88 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <!-- Fork 형태 브랜치 탐색기: 위는 커밋 목록(그래프 · 메시지 · 작성자 · SHA · 날짜), 아래는 고른 커밋의 Commit · Changes · File Tree 칸. -->
+    <ui:VisualElement class="view branch-explorer commit-history">
+        <uie:Toolbar class="branch-explorer__toolbar">
+            <ui:DropdownField name="range" class="branch-explorer__range" />
+            <ui:Label name="summary" class="view__toolbar-label" />
+            <ui:VisualElement class="spacer" />
+            <uie:ToolbarSearchField name="search" class="branch-explorer__search" />
+            <uie:ToolbarButton name="next-match-button" text="@explorer.next" tooltip="@history.nextTooltip" />
+            <uie:ToolbarMenu name="style-menu" tooltip="@settings.explorerStyleTooltip" class="branch-explorer__style-menu" />
+        </uie:Toolbar>
+
+        <ui:VisualElement name="error-notice" class="notice notice--error">
+            <ui:Label name="error-text" class="notice__text" />
+        </ui:VisualElement>
+        <ui:VisualElement name="empty-notice" class="notice">
+            <ui:Label text="@common.noCommits" class="notice__text" />
+        </ui:VisualElement>
+
+        <ui:TwoPaneSplitView name="history-split" fixed-pane-index="1" fixed-pane-initial-dimension="340" orientation="Vertical" class="view__split view__split--ratio">
+            <ui:VisualElement name="list-host" class="view__pane commit-history__list" />
+            <ui:VisualElement class="view__pane commit-history__detail">
+                <ui:VisualElement class="commit-history__tabs">
+                    <ui:Button name="tab-commit" text="@history.tabCommit" class="commit-history__tab" />
+                    <ui:Button name="tab-changes" text="@history.tabChanges" class="commit-history__tab" />
+                    <ui:Button name="tab-tree" text="@history.tabTree" class="commit-history__tab" />
+                </ui:VisualElement>
+                <ui:Label name="placeholder" text="@detail.placeholder" class="list__empty" />
+
+                <!-- Commit: Fork 처럼 한 스크롤 안에 작성자 · 커미터, 참조 · SHA · 부모, 메시지, 바뀐 파일(경로만 있는 평평한 목록, 링크처럼 눌러 Changes 로). -->
+                <ui:ScrollView name="commit-page" class="commit-history__page commit-history__info">
+                    <ui:VisualElement class="commit-history__people">
+                        <ui:VisualElement name="author" class="commit-history__person" />
+                        <ui:VisualElement name="committer" class="commit-history__person" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="commit-history__field">
+                        <ui:Label text="@history.refs" class="commit-history__field-label" />
+                        <ui:VisualElement name="refs" class="commit-history__field-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="commit-history__field">
+                        <ui:Label text="SHA" class="commit-history__field-label" />
+                        <ui:VisualElement class="commit-history__field-value">
+                            <ui:Label name="sha" tooltip="@graphDetail.copyHash" class="commit-history__sha" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="commit-history__field">
+                        <ui:Label text="@history.parents" class="commit-history__field-label" />
+                        <ui:VisualElement name="parents" class="commit-history__field-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="commit-history__message">
+                        <ui:Label name="subject" class="commit-history__subject" />
+                        <ui:Label name="message-body" class="commit-history__body" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="commit-files" class="commit-history__file-list" />
+                </ui:ScrollView>
+
+                <!-- Changes: 왼쪽 바뀐 파일, 오른쪽 diff. -->
+                <ui:VisualElement name="changes-page" class="commit-history__page">
+                    <ui:VisualElement name="changes-header" class="commit-history__header-line" />
+                    <ui:TwoPaneSplitView name="changes-split" fixed-pane-index="0" fixed-pane-initial-dimension="320" orientation="Horizontal" class="view__split">
+                        <ui:VisualElement class="view__pane commit-history__side">
+                            <ui:VisualElement class="list-header">
+                                <ui:VisualElement name="changes-summary" class="graph-detail__summary" />
+                                <ui:VisualElement class="spacer" />
+                                <ui:VisualElement name="changes-view-mode" class="list-header__tools" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="changes-files" class="list file-browser" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="diff-host" class="view__pane commit-history__viewer" />
+                    </ui:TwoPaneSplitView>
+                </ui:VisualElement>
+
+                <!-- File Tree: 그 커밋 시점의 모든 파일, 오른쪽에 고른 파일 내용. -->
+                <ui:VisualElement name="tree-page" class="commit-history__page">
+                    <ui:VisualElement name="tree-header" class="commit-history__header-line" />
+                    <ui:TwoPaneSplitView name="tree-split" fixed-pane-index="0" fixed-pane-initial-dimension="320" orientation="Horizontal" class="view__split">
+                        <ui:VisualElement name="tree-host" class="view__pane commit-history__side" />
+                        <ui:VisualElement class="view__pane commit-history__viewer">
+                            <ui:Label name="content-path" class="commit-history__content-path ellipsis" />
+                            <ui:Label name="content-notice" class="list__empty" />
+                            <ui:ListView name="content-lines" class="commit-history__content" />
+                        </ui:VisualElement>
+                    </ui:TwoPaneSplitView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+    </ui:VisualElement>
+</ui:UXML>
