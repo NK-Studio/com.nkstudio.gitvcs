@@ -163,6 +163,11 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(2, GitPullRequestList.InGroup(set, GitPullRequestList.Group.All).Count());
         }
 
+        private static Dictionary<string, string> GitHubOrigin()
+        {
+            return new Dictionary<string, string> { ["origin"] = "https://github.com/me/repo.git" };
+        }
+
         [Test]
         public void Test_BuildPullRequestSection()
         {
@@ -171,18 +176,18 @@ namespace GitVersionControl.Tests
                 Login = "me",
                 All = { new GitPullRequestInfo { Number = 7, Title = "Login", Author = "me" }, new GitPullRequestInfo { Number = 8, Title = "Fix", Author = "bob" } },
             };
-            RefNode section = RefTreeBuilder.Build(new GitRefSet { PullRequests = set }, null, s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
+            RefNode section = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, null, s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual("2", section.Badge);
             Assert.AreEqual(4, section.Children.Count);
             Assert.AreEqual("1", section.Children[0].Badge);
             Assert.AreEqual("#7 Login", section.Children[0].Children[0].Label);
 
             // 검색하면 걸린 PR 이 있는 묶음만 남는다.
-            RefNode filtered = RefTreeBuilder.Build(new GitRefSet { PullRequests = set }, "#8", s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
+            RefNode filtered = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, "#8", s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual(new[] { "prList.groupAll" }, filtered.Children.Select(c => c.Label).ToArray());
 
             // 목록이 없으면 안내 한 줄, 개수는 0.
-            RefNode signIn = RefTreeBuilder.Build(new GitRefSet { PullRequests = new GitPullRequestSet { NeedsSignIn = true } }, null, s => s.ToString())
+            RefNode signIn = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = new GitPullRequestSet { NeedsSignIn = true } }, null, s => s.ToString())
                 .Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual("0", signIn.Badge);
             Assert.AreEqual(RefNodeKind.Info, signIn.Children.Single().Kind);

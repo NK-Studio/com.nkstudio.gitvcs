@@ -20,6 +20,7 @@ namespace GitVersionControl
         private readonly VisualElement _sections;
         private readonly List<VisualElement> _viewItems = new();
         private readonly List<Label> _viewBadges = new();
+        private readonly Dictionary<RefSection, VisualElement> _sectionItems = new();
         private readonly Dictionary<RefSection, Label> _sectionBadges = new();
 
         public VisualElement Root { get; }
@@ -78,7 +79,19 @@ namespace GitVersionControl
         {
             VisualElement item = MakeItem(icon, GitText.Get("refs.section" + section), clicked, out Label badge);
             _sections.Add(item);
+            _sectionItems[section] = item;
             _sectionBadges[section] = badge;
+        }
+
+        /// <summary>
+        /// 사이드바가 숨긴 구역(<see cref="RefTreeBuilder.IsShown"/>)은 레일에서도 숨긴다.
+        /// </summary>
+        public void SetSectionVisible(RefSection section, bool visible)
+        {
+            if (_sectionItems.TryGetValue(section, out VisualElement item))
+            {
+                item.SetVisible(visible);
+            }
         }
 
         public void SetSectionCount(RefSection section, int count)

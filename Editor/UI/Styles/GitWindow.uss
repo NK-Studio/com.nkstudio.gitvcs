@@ -736,8 +736,40 @@
     cursor: link;
 }
 
+/* 버튼 위에 올리면 초록으로 꽉 채운다. */
 .ref-tree__add:hover {
-    background-color: rgba(63, 184, 92, 0.32);
+    background-color: var(--git-success);
+    color: #ffffff;
+}
+
+/* ── hover-callout: 버튼 오른쪽에 바로 뜨는 말풍선(HoverCallout). 왼쪽 꼭지가 버튼을 가리킨다. ── */
+.hover-callout {
+    position: absolute;
+    flex-direction: row;
+    align-items: center;
+    translate: 0 -50%;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: var(--git-graph-tooltip-bg);
+}
+
+.hover-callout__arrow {
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    margin-top: -4px;
+    rotate: 45deg;
+    background-color: var(--git-graph-tooltip-bg);
+}
+
+.hover-callout__label {
+    padding: 0;
+    margin: 0;
+    color: var(--git-graph-tooltip-text);
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__add {

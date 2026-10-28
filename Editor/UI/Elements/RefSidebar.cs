@@ -190,6 +190,14 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 이 저장소에서 보이는 구역인지(<see cref="RefTreeBuilder.IsShown"/>).
+        /// </summary>
+        public bool IsSectionShown(RefSection section)
+        {
+            return RefTreeBuilder.IsShown(section, _refs);
+        }
+
+        /// <summary>
         /// 접힌 사이드바에서 구역 아이콘을 눌렀을 때: 그 구역을 펼치고 머리 줄로 스크롤한다.
         /// </summary>
         public void RevealSection(RefSection section)
@@ -417,6 +425,9 @@ namespace GitVersionControl
             add.text = "+";
             add.AddToClassList(Block + "__add");
             add.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            // 기본 tooltip 대신 GitKraken 처럼 버튼 오른쪽에 바로 뜨는 말풍선으로 무엇을 하는지 알린다.
+            HoverCallout.Attach(add, () => add.userData is RefSection section ? AddHintKey(section) is { } key ? GitText.Get(key) : null : null,
+                () => _services.PopupHost);
             row.Add(add);
             row.AddManipulator(new ContextualMenuManipulator(evt =>
             {
@@ -452,12 +463,11 @@ namespace GitVersionControl
             // PR 묶음 줄과 안내 줄은 GitKraken 처럼 아이콘 없이 글자만.
             row.EnableInClassList(Block + "__row--plain", node.Kind is RefNodeKind.PullRequestGroup or RefNodeKind.Info);
             row.EnableInClassList(Block + "__row--info", node.Kind == RefNodeKind.Info);
-            string addKey = isSection ? AddMenuKey(node.Section) : null;
+            string addKey = isSection ? AddHintKey(node.Section) : null;
             row.EnableInClassList(Block + "__row--addable", addKey != null);
             if (addKey != null)
             {
                 row[3].userData = node.Section;
-                row[3].tooltip = GitText.Get(addKey);
             }
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
             // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서와 화살표 숨김은 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
@@ -493,16 +503,16 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 머리 줄에 + 를 두는 구역과 그 도움말 키. 없으면 null.
+        /// 머리 줄에 + 를 두는 구역과 그 말풍선 글 키. 없으면 null.
         /// </summary>
-        private static string AddMenuKey(RefSection section)
+        private static string AddHintKey(RefSection section)
         {
             return section switch
             {
-                RefSection.Remote => "refs.addRemote",
-                RefSection.Worktrees => "refs.addWorktree",
-                RefSection.Submodules => "refs.addSubmodule",
-                RefSection.PullRequests => "pr.menu",
+                RefSection.Remote => "refs.addRemoteHint",
+                RefSection.Worktrees => "refs.addWorktreeHint",
+                RefSection.Submodules => "refs.addSubmoduleHint",
+                RefSection.PullRequests => "refs.createPullRequestHint",
                 _ => null,
             };
         }

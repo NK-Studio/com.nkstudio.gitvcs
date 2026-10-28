@@ -164,11 +164,13 @@ namespace GitVersionControl
                     RestoreSidebar();
                     _refs.RevealSection(captured);
                 });
+                _rail.SetSectionVisible(section, _refs.IsSectionShown(section));
             }
             _refs.Loaded += () =>
             {
                 foreach (RefSection section in RefTreeBuilder.Sections)
                 {
+                    _rail.SetSectionVisible(section, _refs.IsSectionShown(section));
                     _rail.SetSectionCount(section, _refs.SectionCount(section));
                 }
             };

@@ -115,7 +115,8 @@ namespace GitVersionControl.Tests
         public void Test_Build_GroupsFoldersAndRemotes()
         {
             List<RefNode> roots = RefTreeBuilder.Build(SampleRefs(), null, section => section.ToString());
-            CollectionAssert.AreEqual(RefTreeBuilder.Sections.Select(s => s.ToString()).ToArray(), roots.Select(r => r.Label).ToArray());
+            // GitHub 원격이 없으니 Pull Requests 구역은 빠진다.
+            CollectionAssert.AreEqual(RefTreeBuilder.Sections.Where(s => s != RefSection.PullRequests).Select(s => s.ToString()).ToArray(), roots.Select(r => r.Label).ToArray());
 
             RefNode local = roots[0];
             Assert.AreEqual("3", local.Badge);
@@ -151,12 +152,33 @@ namespace GitVersionControl.Tests
         [Test]
         public void Test_Build_NoFilter_KeepsEmptySections()
         {
-            List<RefNode> roots = RefTreeBuilder.Build(new GitRefSet(), null, section => section.ToString());
+            GitRefSet refs = new() { RemoteUrls = { ["origin"] = "https://github.com/me/repo.git" } };
+            List<RefNode> roots = RefTreeBuilder.Build(refs, null, section => section.ToString());
 
             Assert.AreEqual(RefTreeBuilder.Sections.Length, roots.Count);
             Assert.IsTrue(roots.Where(r => r.Section != RefSection.PullRequests).All(r => r.Children.Count == 0));
             // PR 목록을 아직 모르면 "읽는 중" 안내 한 줄.
             Assert.AreEqual(RefNodeKind.Info, roots.Single(r => r.Section == RefSection.PullRequests).Children.Single().Kind);
+        }
+
+        [TestCase(null, false)]
+        [TestCase("/Users/me/backup/repo.git", false)]
+        [TestCase("https://gitlab.com/me/repo.git", false)]
+        [TestCase("https://github.com/me/repo.git", true)]
+        [TestCase("git@github.com:me/repo.git", true)]
+        public void Test_Build_PullRequestsOnlyWithGitHubRemote(string url, bool shown)
+        {
+            GitRefSet refs = new();
+            if (url != null)
+            {
+                refs.RemoteUrls["origin"] = url;
+            }
+            List<RefNode> roots = RefTreeBuilder.Build(refs, null, section => section.ToString());
+
+            // 로컬뿐이거나 GitHub 이 아닌 원격만 있으면 git 으로 다루는 구역만 남는다.
+            Assert.AreEqual(shown, roots.Any(r => r.Section == RefSection.PullRequests));
+            Assert.AreEqual(shown, RefTreeBuilder.IsShown(RefSection.PullRequests, refs));
+            Assert.AreEqual(RefTreeBuilder.Sections.Length - (shown ? 0 : 1), roots.Count);
         }
 
         [Test]

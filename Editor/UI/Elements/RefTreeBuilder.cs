@@ -105,6 +105,15 @@ namespace GitVersionControl
                    && id != "section:" + RefSection.Tags;
         }
 
+        /// <summary>
+        /// 이 저장소에서 보일 구역인지. GitHub 원격이 없는(로컬뿐인) 저장소는 GitHub 에서 읽는 Pull Requests 구역을 숨기고,
+        /// GitKraken 처럼 git 만으로 다루는 구역(로컬·원격·워크트리·스태시·서브모듈·태그)만 둔다.
+        /// </summary>
+        public static bool IsShown(RefSection section, GitRefSet refs)
+        {
+            return section != RefSection.PullRequests || GitPullRequestForm.GitHubRemotes(refs.RemoteUrls).Count > 0;
+        }
+
         /// <param name="sectionTitle">구역 이름(번역). 테스트는 enum 이름을 넘긴다.</param>
         /// <param name="localize">PR 묶음 이름·안내 문구 번역(키 → 글자). null 이면 키 그대로(테스트).</param>
         public static List<RefNode> Build(GitRefSet refs, string filter, Func<RefSection, string> sectionTitle, Func<string, string> localize = null)
@@ -116,6 +125,10 @@ namespace GitVersionControl
             List<RefNode> roots = new();
             foreach (RefSection section in Sections)
             {
+                if (IsShown(section, refs) == false)
+                {
+                    continue;
+                }
                 RefNode root = new() { Kind = RefNodeKind.Section, Section = section, Id = "section:" + section, Label = sectionTitle(section) };
                 switch (section)
                 {
