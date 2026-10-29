@@ -500,6 +500,10 @@ namespace GitVersionControl
                 Root.RegisterCallback<AttachToPanelEvent>(_ => _avatars.AvatarLoaded += Redraw);
                 Root.RegisterCallback<DetachFromPanelEvent>(_ => _avatars.AvatarLoaded -= Redraw);
             }
+            // 창 어디서든 버튼을 누르고 있는지(칸 경계·패널 경계·스크롤바 끌기). 끄는 동안 이름표 칸에 들어와도 목록을 열지 않는다.
+            // 들어옴 이벤트는 칸 폭이 바뀔 때도 버튼 정보 없이 오므로 패널 루트에서 누름·뗌을 직접 받는다.
+            Root.RegisterCallback<AttachToPanelEvent>(evt => WatchPointerButtons(evt.destinationPanel.visualTree, true));
+            Root.RegisterCallback<DetachFromPanelEvent>(evt => WatchPointerButtons(evt.originPanel.visualTree, false));
 
             RebuildHeader();
             ApplyColumnWidths();
@@ -1236,9 +1240,26 @@ namespace GitVersionControl
                 }
             });
             // 이름표 칸에 마우스를 올리면 이 커밋의 참조를 모두 펼쳐 보인다(GitKraken 과 같다). 펼친 목록으로 옮겨 가면 닫지 않는다.
-            refs.RegisterCallback<PointerEnterEvent>(_ => ShowRefsPopup(row));
+            // 버튼을 누른 채 들어오면(칸 경계·패널 경계·스크롤바를 끄는 중) 열지 않는다 — 끄는 동안 커서가 이름표 위를 지나며 목록이 열렸다 닫혀 깜박였다.
+            // 끄는 중에 이미 들어와 있던 이름표는 놓은 뒤에도 열리지 않고, 밖으로 나갔다 다시 들어오면 연다.
+            refs.RegisterCallback<PointerEnterEvent>(_ =>
+            {
+                if (_pointerPressed)
+                {
+                    _refsHoverBlocked = refs;
+                    return;
+                }
+                if (_refsHoverBlocked != refs)
+                {
+                    ShowRefsPopup(row);
+                }
+            });
             refs.RegisterCallback<PointerLeaveEvent>(evt =>
             {
+                if (_refsHoverBlocked == refs)
+                {
+                    _refsHoverBlocked = null;
+                }
                 if (_refsPopupCell == refs && _refsPopup.worldBound.Contains(evt.position) == false)
                 {
                     HideRefsPopup();
@@ -1616,6 +1637,54 @@ namespace GitVersionControl
         }
 
         private const string RefHoverModifier = "commit-graph-ref--hover";
+
+        /// <summary>
+        /// 창 안에서 마우스 버튼을 누르고 있는지(<see cref="WatchPointerButtons"/>).
+        /// </summary>
+        private bool _pointerPressed;
+
+        private void WatchPointerButtons(VisualElement panelRoot, bool watch)
+        {
+            if (watch)
+            {
+                panelRoot.RegisterCallback<PointerDownEvent>(OnAnyPointerDown, TrickleDown.TrickleDown);
+                panelRoot.RegisterCallback<PointerUpEvent>(OnAnyPointerUp, TrickleDown.TrickleDown);
+                panelRoot.RegisterCallback<PointerMoveEvent>(OnAnyPointerMove, TrickleDown.TrickleDown);
+            }
+            else
+            {
+                panelRoot.UnregisterCallback<PointerDownEvent>(OnAnyPointerDown, TrickleDown.TrickleDown);
+                panelRoot.UnregisterCallback<PointerUpEvent>(OnAnyPointerUp, TrickleDown.TrickleDown);
+                panelRoot.UnregisterCallback<PointerMoveEvent>(OnAnyPointerMove, TrickleDown.TrickleDown);
+                _pointerPressed = false;
+            }
+        }
+
+        private void OnAnyPointerDown(PointerDownEvent evt)
+        {
+            _pointerPressed = true;
+        }
+
+        private void OnAnyPointerUp(PointerUpEvent evt)
+        {
+            _pointerPressed = evt.pressedButtons != 0;
+        }
+
+        /// <summary>
+        /// 창 밖에서 버튼을 놓아 뗌을 놓친 경우: 버튼 없이 움직이면 풀린다.
+        /// </summary>
+        private void OnAnyPointerMove(PointerMoveEvent evt)
+        {
+            if (_pointerPressed && evt.pressedButtons == 0)
+            {
+                _pointerPressed = false;
+            }
+        }
+
+        /// <summary>
+        /// 버튼을 누른 채(끄는 중에) 들어온 이름표 칸. 버튼을 놓는 순간 칸 폭이 바뀌며 다시 들어옴이 와도 이 칸을 벗어나기 전까지는 목록을 열지 않는다.
+        /// </summary>
+        private VisualElement _refsHoverBlocked;
 
         /// <summary>이름이 <see cref="NameFadeStart"/> + <see cref="NameFadeWidth"/>(말줄임표 하나 남짓) 밑으로 깎이면 흐려지기 시작해 이 폭에서 사라진다.</summary>
         private const float NameFadeStart = 2f;
