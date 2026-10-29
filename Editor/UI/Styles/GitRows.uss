@@ -85,7 +85,7 @@
 }
 
 /* 줄에 마우스를 올리면 오른쪽에 나오는 버튼(GitKraken 의 Stage File·Unstage File). 쓰는 쪽이 모양 클래스(--stage·--unstage)를
-   붙인 파일 줄에서만, 그 줄 위에 마우스가 있을 때만 보인다. 버튼 위에 올리면 색을 채워 강조한다. */
+   붙인 파일 줄에서만, 그 줄 위에 마우스가 있을 때만 보인다. 평소엔 테두리만, 버튼 위에 올리면 꽉 채운다. */
 .file-row__action {
     display: none;
     flex-shrink: 0;
@@ -106,7 +106,7 @@
 
 .file-row .file-row__action--stage {
     border-color: var(--git-success);
-    background-color: var(--git-success-soft);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .file-row .file-row__action--stage:hover:enabled {
@@ -120,7 +120,7 @@
 
 .file-row .file-row__action--unstage {
     border-color: var(--git-danger);
-    background-color: var(--git-danger-soft);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .file-row .file-row__action--unstage:hover:enabled {

@@ -37,6 +37,16 @@
     border-bottom-color: var(--git-border);
 }
 
+/* ── 공통: 떠 있는 UI 그림자(GitShadow) ─────────────────── */
+/* 테마 변수는 물려받기만 해서 C# 이 사용자 정의 스타일로 읽을 수 없으므로, 그림자를 다는 요소에 이름을 옮겨 적는다. */
+.git-shadow--large {
+    --shadow-color: var(--git-shadow-large);
+}
+
+.git-shadow--small {
+    --shadow-color: var(--git-shadow-small);
+}
+
 /* ── 공통: 체크박스 ─────────────────────────────── */
 /* Unity 기본 체크박스는 에디터 스킨 그림이라 창 밝기를 바꾸면 흰 상자가 어두운 바탕에 떠 보인다. 테마 토큰으로 직접 그린다:
    빈 상자는 입력란 바탕·테두리, 체크·혼합(일부만 고름)은 강조색 바탕에 흰 ✓·−. 기본 스킨의 마우스 올림·포커스 규칙보다 세게 하려고 클래스를 겹쳐 적는다. */
@@ -171,6 +181,11 @@
 
 .git-theme--jetbrains .unity-base-text-field__input {
     padding: 4px 6px;
+}
+
+/* 비어 있을 때 보이는 안내 글자("Select…" 등)는 입력한 글자와 구분되게 흐린 색. 위 입력란 글자색 규칙보다 세게 클래스를 겹친다. */
+.git-theme--jetbrains .unity-base-text-field__input.unity-base-text-field__input--placeholder {
+    color: var(--git-text-muted);
 }
 
 .git-theme--jetbrains .unity-toolbar .unity-base-text-field__input,

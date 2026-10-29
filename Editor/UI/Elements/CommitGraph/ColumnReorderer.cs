@@ -47,6 +47,7 @@ namespace GitVersionControl
             _ghost = new Label { pickingMode = PickingMode.Ignore };
             _ghost.AddToClassList("list-header__cell");
             _ghost.AddToClassList("column-reorder__ghost");
+            GitShadow.Add(_ghost, GitShadowSize.Small);
             _indicator = new VisualElement { pickingMode = PickingMode.Ignore };
             _indicator.AddToClassList("column-reorder__indicator");
         }

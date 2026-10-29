@@ -46,11 +46,13 @@ namespace GitVersionControl
         private static readonly CustomStyleProperty<Color> HeadProperty = new("--graph-head");
         private static readonly CustomStyleProperty<Color> DateBandProperty = new("--graph-date-band");
         private static readonly CustomStyleProperty<Color> TruncatedProperty = new("--graph-truncated");
+        private static readonly CustomStyleProperty<Color> ShadowProperty = new("--graph-shadow");
         private Color _selectionColor = GraphStyle.Selection;
         private Color _searchColor = GraphStyle.SearchMatch;
         private Color _headColor = GraphStyle.Head;
         private Color _dateBandColor = GraphStyle.DateBand;
         private Color _truncatedColor = GraphStyle.Truncated;
+        private Color _shadowColor = new(0f, 0f, 0f, 0.5f);
         private Vector2 _pointer;
 
         public GraphViewport Viewport { get; }
@@ -86,6 +88,7 @@ namespace GitVersionControl
             _tooltip = new Label { pickingMode = PickingMode.Ignore };
             _tooltip.AddToClassList(Block + "__label");
             _tooltip.AddToClassList(Block + "__tooltip");
+            GitShadow.Add(_tooltip, GitShadowSize.Small);
             _tooltip.SetVisible(false);
             Add(_tooltip);
 
@@ -335,7 +338,9 @@ namespace GitVersionControl
                 {
                     DrawHoverGlow(painter, p, radius, ring, hover, node == _hovered);
                 }
-                FillCircle(painter, p, radius + (isLaneTip ? 4f : 2.5f) + 2f * hover, ring);
+                float ringRadius = radius + (isLaneTip ? 4f : 2.5f) + 2f * hover;
+                DrawShadow(painter, p, ringRadius, alpha);
+                FillCircle(painter, p, ringRadius, ring);
 
                 Color fill = GraphStyle.AuthorColor(node.Commit.AuthorName);
                 fill = Color.Lerp(fill, Color.white, 0.15f * hover);
@@ -413,7 +418,37 @@ namespace GitVersionControl
             _headColor = style.TryGetValue(HeadProperty, out Color head) ? head : GraphStyle.Head;
             _dateBandColor = style.TryGetValue(DateBandProperty, out Color band) ? band : GraphStyle.DateBand;
             _truncatedColor = style.TryGetValue(TruncatedProperty, out Color truncated) ? truncated : GraphStyle.Truncated;
+            _shadowColor = style.TryGetValue(ShadowProperty, out Color shadow) ? shadow : new Color(0f, 0f, 0f, 0.5f);
+            // 이름표 그림자 색도 테마를 따르므로 다시 단다.
+            UpdateLabels();
             MarkDirtyRepaint();
+        }
+
+        /// <summary>
+        /// 원 아래 그림자. Painter2D 는 흐림이 없으므로 아래로 조금 내린 원을 바깥에서 안쪽으로 조금씩 줄이며 옅게 겹쳐 번지게 한다(USS drop-shadow 와 비슷한 결).
+        /// 겹이 적으면 경계가 계단처럼 보이므로, 한 겹 간격을 0.5px 남짓으로 두고 진하기는 겹마다 조금씩만 더한다.
+        /// </summary>
+        private void DrawShadow(Painter2D painter, Vector2 center, float radius, float alpha)
+        {
+            const int Layers = 12;
+            float scale = Mathf.Max(Viewport.Zoom, 0.6f);
+            Vector2 drop = new(0f, 2f * scale);
+            float spread = 6f * scale;
+            Color color = _shadowColor;
+            color.a *= 0.06f * alpha;
+            for (int i = 0; i < Layers; i++)
+            {
+                FillCircle(painter, center + drop, radius + spread * (1f - (float)i / Layers), color);
+            }
+        }
+
+        /// <summary>
+        /// 이름표(줄 이름·HEAD·브랜치·태그) 아래 그림자(<see cref="GitShadow"/>). 이름표는 재사용하며 클래스를 매번 지우므로 색은 직접 넣는다.
+        /// </summary>
+        private void ApplyShadow(VisualElement element)
+        {
+            GitShadow.Add(element, GitShadowSize.Small);
+            GitShadow.SetColor(element, _shadowColor);
         }
 
         private static void FillCircle(Painter2D painter, Vector2 center, float radius, Color color)
@@ -472,6 +507,7 @@ namespace GitVersionControl
                 string[] modifiers = lane.IsAnonymous ? new[] { Block + "__lane--anonymous" } : Array.Empty<string>();
                 Label label = _labels.Place(Block + "__lane", text, new Vector2(first.x - radius - 8f, first.y - 11f), Vector2.zero, 0f, 1f, modifiers);
                 label.style.borderBottomColor = GraphStyle.LaneColor(lane);
+                ApplyShadow(label);
             }
         }
 
@@ -533,7 +569,7 @@ namespace GitVersionControl
                 string text = isOverflow ? $"+{pills.Count - 2}" : pills[i].text;
                 string[] modifiers = isOverflow || pills[i].modifier == null ? Array.Empty<string>() : new[] { pills[i].modifier };
                 Vector2 position = new(p.x, p.y - radius - 6f - (i + 1) * (pillHeight + 2f));
-                _labels.Place(Block + "__pill", text, position, new Vector2(0f, pillHeight), 0f, 0.5f, modifiers);
+                ApplyShadow(_labels.Place(Block + "__pill", text, position, new Vector2(0f, pillHeight), 0f, 0.5f, modifiers));
             }
         }
 

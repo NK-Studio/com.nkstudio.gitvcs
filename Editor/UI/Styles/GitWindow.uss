@@ -743,9 +743,9 @@
     padding: 0;
     border-width: 1px;
     border-radius: 3px;
-    /* Stage 버튼과 한 벌: 초록 테두리에 옅은 초록 바탕, + 는 보통 글자색. 색은 테마 토큰(Themes/*.tss). */
+    /* Stage 버튼과 한 벌: 평소엔 초록 테두리만, 마우스를 올리면 꽉 채운다. 색은 테마 토큰(Themes/*.tss). */
     border-color: var(--git-success);
-    background-color: var(--git-success-soft);
+    background-color: rgba(0, 0, 0, 0);
     color: var(--git-text);
     font-size: 13px;
     -unity-text-align: middle-center;
@@ -854,9 +854,10 @@
     border-right-width: 1px;
     border-right-color: var(--git-border);
     translate: -100% 0;
+    /* 미끄러져 들어오는 게 보이게 길게 두고, 처음엔 빠르게 나오다가 도착할 때 길게 감속한다(ease-out-circ 는 cubic 보다 끝이 더 느리다). */
     transition-property: translate;
-    transition-duration: 0.22s;
-    transition-timing-function: ease-out-cubic;
+    transition-duration: 0.4s;
+    transition-timing-function: ease-out-circ;
 }
 
 .side-drawer--open {
@@ -962,13 +963,14 @@
     color: var(--git-text);
 }
 
+/* 고르기 칸(.search-select__box)과 같은 30px·안쪽 8px. */
 .side-drawer__input {
     margin: 0;
-    height: 26px;
+    height: 30px;
 }
 
 .side-drawer__input .unity-base-text-field__input {
-    padding: 0 6px;
+    padding: 0 8px;
 }
 
 .side-drawer__input--multiline {
@@ -1040,12 +1042,18 @@
     border-width: 1px;
     border-radius: var(--git-radius);
     border-color: var(--git-success);
-    background-color: rgba(63, 184, 92, 0.18);
+    background-color: rgba(0, 0, 0, 0);
     color: var(--git-text);
 }
 
-.side-drawer__primary:hover {
-    background-color: rgba(63, 184, 92, 0.32);
+.side-drawer__primary:hover:enabled {
+    background-color: var(--git-success-strong);
+    color: var(--git-on-strong);
+}
+
+.side-drawer__primary:active:enabled {
+    background-color: var(--git-success-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .side-drawer__primary:disabled {
@@ -1065,6 +1073,7 @@
 }
 
 /* ── search-select: 서랍의 검색 되는 고르기 칸 ── */
+/* react-select 와 같은 모양: 테두리 상자 하나 안에 글자 칸(테두리 없음) · 얇은 구분선 · ⌄. 포커스면 상자 테두리가 강조색, 펼치면 ⌄ 가 위를 본다. */
 .search-select {
     flex-shrink: 0;
 }
@@ -1072,31 +1081,78 @@
 .search-select__box {
     flex-direction: row;
     align-items: center;
+    height: 30px;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+}
+
+.search-select__box:hover {
+    border-color: var(--git-text-muted);
+}
+
+.search-select__box.search-select__box--focused {
+    border-color: var(--git-accent);
 }
 
 .search-select__search {
     flex-grow: 1;
     margin: 0;
-    height: 26px;
+    height: 100%;
 }
 
-.search-select__search .unity-base-text-field__input {
-    padding: 0 24px 0 6px;
+/* 상자가 테두리를 가지므로 안쪽 글자 칸은 테두리·바탕을 지운다. 테마의 입력란 규칙(.git-theme--jetbrains .unity-base-text-field__input)보다 세게 적는다. */
+.search-select .search-select__search .unity-base-text-field__input,
+.search-select .search-select__search:focus .unity-base-text-field__input {
+    padding: 0 8px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
 }
 
-.search-select__caret {
-    position: absolute;
-    right: 6px;
-    width: 14px;
-    height: 14px;
-    color: var(--git-text-muted);
+.search-select__separator {
+    flex-shrink: 0;
+    width: 1px;
+    height: 18px;
+    background-color: var(--git-field-border);
 }
 
+.search-select__indicator {
+    flex-shrink: 0;
+    width: 32px;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    cursor: link;
+}
+
+/* 아이콘은 펼침 화살표와 같은 Material "chevron_right" 를 90° 돌려 ⌄ 로 쓴다. 펼치면 270° 로 위를 본다. */
+.search-select__chevron {
+    width: 16px;
+    height: 16px;
+    background-image: url("../Icons/ChevronRight.png");
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-text-muted);
+    rotate: 90deg;
+    transition-property: rotate;
+    transition-duration: 0.15s;
+}
+
+.search-select__indicator:hover .search-select__chevron {
+    -unity-background-image-tint-color: var(--git-text);
+}
+
+.search-select--open .search-select__chevron {
+    rotate: 270deg;
+}
+
+/* 칸 아래 칸들을 밀지 않고 덮는다. 테마 루트에 따로 붙고 left·top·width 는 SearchSelect 가 칸 위치에 맞춰 넣는다. */
 .search-select__list {
-    margin-top: 2px;
-    background-color: var(--git-field-bg);
+    position: absolute;
+    padding: 4px 0;
+    background-color: var(--git-menu-bg);
     border-width: 1px;
-    border-color: var(--git-field-border);
+    border-color: var(--git-menu-border);
     border-radius: var(--git-radius);
 }
 

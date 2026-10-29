@@ -793,6 +793,7 @@ namespace GitVersionControl
                 // 가운데 동그라미 손잡이(양쪽 화살표, Icons/SwipeArrows.png). 누르면 손잡이 칸으로 올라가 같이 끈다.
                 VisualElement knob = new();
                 knob.AddToClassList("git-image-diff__swipe-knob");
+                GitShadow.Add(knob, GitShadowSize.Small);
                 VisualElement arrows = new() { pickingMode = PickingMode.Ignore };
                 arrows.AddToClassList("git-image-diff__swipe-knob-arrows");
                 knob.Add(arrows);

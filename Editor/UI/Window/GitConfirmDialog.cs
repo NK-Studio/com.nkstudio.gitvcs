@@ -127,6 +127,7 @@ namespace GitVersionControl
             _overlay.AddToClassList("branch-popup");
             VisualElement card = new();
             card.AddToClassList("branch-dialog");
+            GitShadow.Add(card, GitShadowSize.Large);
             card.AddToClassList("confirm-dialog");
             card.EnableInClassList("confirm-dialog--alert", alert);
             _overlay.Add(card);

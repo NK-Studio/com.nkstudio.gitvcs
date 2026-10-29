@@ -31,19 +31,15 @@
     --git-menu-hover: #2e436e;
     --git-menu-hover-text: #dfe1e5;
     --git-menu-shadow: rgba(0,0,0,0.45);
+    /* 떠 있는 UI 그림자(GitShadow): 메뉴·팝업·대화 상자·서랍은 large, 말풍선·떠 있는 버튼은 small. */
+    --git-shadow-large: rgba(0,0,0,0.28);
+    --git-shadow-small: rgba(0,0,0,0.24);
     --git-success: #5fb865;
     --git-warning: #d6ae58;
     --git-danger: #db5c5c;
-    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 테두리는 --git-success·--git-danger, 바탕은 같은 색을 옅게(soft → 올림 → 누름),
-       꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). */
-    --git-success-soft: rgba(95, 184, 101, 0.18);
-    --git-success-soft-hover: rgba(95, 184, 101, 0.32);
-    --git-success-soft-pressed: rgba(95, 184, 101, 0.45);
+    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 평소엔 테두리(--git-success·--git-danger)만, 마우스를 올리면 꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). */
     --git-success-strong: rgba(95, 184, 101, 0.6);
     --git-success-strong-pressed: rgba(95, 184, 101, 0.8);
-    --git-danger-soft: rgba(219, 92, 92, 0.18);
-    --git-danger-soft-hover: rgba(219, 92, 92, 0.32);
-    --git-danger-soft-pressed: rgba(219, 92, 92, 0.45);
     --git-danger-strong: rgba(219, 92, 92, 0.6);
     --git-danger-strong-pressed: rgba(219, 92, 92, 0.8);
     --git-on-strong: #ffffff;
@@ -80,6 +76,8 @@
     --git-graph-search: #d6ae58;
     --git-graph-head: #5fb865;
     --git-graph-date-band: rgba(255,255,255,0.06);
+    /* 그래프 커밋 원·이름표 아래 그림자. */
+    --git-graph-shadow: rgba(0,0,0,0.35);
     --git-graph-truncated: rgba(128,131,138,0.5);
     /* 커밋 그래프 작업 중 줄의 변경 개수 아이콘(+·−)의 색: 추가·지움. */
     --git-count-added: #73bd79;

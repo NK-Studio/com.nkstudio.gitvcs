@@ -12,6 +12,12 @@
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
 }
 
+/* 버튼 글자는 Regular 로는 얇아 보여 Medium. 강조(제목·폴더 이름)는 이미 Bold 라 버튼까지 Bold 면 화면이 무거워진다.
+   클래스 하나로만 적어, Bold 를 따로 주는 버튼(.file-row__action 등)이 그대로 이기게 한다. */
+.unity-button {
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Medium.ttf");
+}
+
 /* 누를 수 있는 것에는 손가락 커서.
    cursor 는 상속되지 않고 마우스 아래에서 골라진(pick) 요소의 값을 쓴다. 그래서 안쪽 글자·아이콘(Label 등) 위에서는
    기본 화살표로 돌아가므로 자손(*)에도 같이 준다. */
@@ -376,6 +382,12 @@
     /* USS 에는 box-shadow 가 없어서 아래·오른쪽 테두리를 조금 짙게 해 떠 있는 느낌만 준다. */
     border-bottom-color: var(--git-menu-shadow);
     border-right-color: var(--git-menu-shadow);
+}
+
+/* 진짜 그림자(GitShadow)가 붙었으면 짙은 테두리는 그만 쓴다. */
+.git-menu.git-shadow--on {
+    border-bottom-color: var(--git-menu-border);
+    border-right-color: var(--git-menu-border);
 }
 
 .git-menu__item {

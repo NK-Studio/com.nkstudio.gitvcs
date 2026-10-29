@@ -66,6 +66,7 @@ namespace GitVersionControl
 
             _panel = new VisualElement { focusable = true };
             _panel.AddToClassList("branch-picker");
+            GitShadow.Add(_panel, GitShadowSize.Large);
             _panel.AddToClassList("repo-picker");
             _overlay.Add(_panel);
             _panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);

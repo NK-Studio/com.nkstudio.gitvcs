@@ -191,6 +191,7 @@ namespace GitVersionControl
 
             VisualElement panel = new();
             panel.AddToClassList(Block);
+            GitShadow.Add(panel, GitShadowSize.Large);
             PanelState state = new() { Folder = folder };
             panel.userData = state;
             foreach (Node node in folder.Children)

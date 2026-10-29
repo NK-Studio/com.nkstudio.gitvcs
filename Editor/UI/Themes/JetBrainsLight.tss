@@ -31,19 +31,15 @@
     --git-menu-hover: #d5e1ff;
     --git-menu-hover-text: #000000;
     --git-menu-shadow: rgba(0,0,0,0.12);
+    /* 떠 있는 UI 그림자(GitShadow): 메뉴·팝업·대화 상자·서랍은 large, 말풍선·떠 있는 버튼은 small. */
+    --git-shadow-large: rgba(0,0,0,0.06);
+    --git-shadow-small: rgba(0,0,0,0.08);
     --git-success: #208a3c;
     --git-warning: #a46704;
     --git-danger: #db3b4b;
-    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 테두리는 --git-success·--git-danger, 바탕은 같은 색을 옅게(soft → 올림 → 누름),
-       꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). 흰 바탕이라 옅은 단계는 어두운 테마보다 묽게. */
-    --git-success-soft: rgba(32, 138, 60, 0.12);
-    --git-success-soft-hover: rgba(32, 138, 60, 0.2);
-    --git-success-soft-pressed: rgba(32, 138, 60, 0.3);
-    --git-success-strong: #208a3c;
-    --git-success-strong-pressed: #1b7733;
-    --git-danger-soft: rgba(219, 59, 75, 0.1);
-    --git-danger-soft-hover: rgba(219, 59, 75, 0.18);
-    --git-danger-soft-pressed: rgba(219, 59, 75, 0.28);
+    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 평소엔 테두리(--git-success·--git-danger)만, 마우스를 올리면 꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). */
+    --git-success-strong: #2ea44f;
+    --git-success-strong-pressed: #2a9147;
     --git-danger-strong: #db3b4b;
     --git-danger-strong-pressed: #c22f3f;
     --git-on-strong: #ffffff;
@@ -80,6 +76,8 @@
     --git-graph-search: #e5a823;
     --git-graph-head: #208a3c;
     --git-graph-date-band: rgba(0,0,0,0.05);
+    /* 그래프 커밋 원·이름표 아래 그림자. */
+    --git-graph-shadow: rgba(0,0,0,0.14);
     --git-graph-truncated: rgba(108,112,126,0.5);
     /* 커밋 그래프 작업 중 줄의 변경 개수 아이콘(+·−)의 색: 추가·지움. */
     --git-count-added: #208a3c;

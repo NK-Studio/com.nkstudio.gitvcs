@@ -139,6 +139,7 @@ namespace GitVersionControl
         {
             VisualElement callout = new();
             callout.AddToClassList(Block);
+            GitShadow.Add(callout, GitShadowSize.Small);
             callout.EnableInClassList(Block + "--below", placement == HoverCalloutPlacement.Below);
             callout.pickingMode = PickingMode.Ignore;
             VisualElement arrow = new();

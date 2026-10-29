@@ -63,6 +63,7 @@ namespace GitVersionControl
             _overlay.AddToClassList("branch-popup");
             VisualElement card = new();
             card.AddToClassList("branch-dialog");
+            GitShadow.Add(card, GitShadowSize.Large);
             _overlay.Add(card);
 
             Button close = new(Cancel) { text = "×", tooltip = GitText.Get("common.cancel") };

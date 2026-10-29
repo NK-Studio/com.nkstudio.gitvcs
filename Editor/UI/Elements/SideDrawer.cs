@@ -41,6 +41,7 @@ namespace GitVersionControl
 
             Root = new VisualElement();
             Root.AddToClassList(Block);
+            GitShadow.Add(Root, GitShadowSize.Large);
             Root.AddToClassList(HiddenModifier);
             // 닫는 움직임이 끝나면 화면 밖에 남은 서랍이 Tab 포커스·포인터를 받지 않게 숨긴다.
             Root.RegisterCallback<TransitionEndEvent>(_ =>

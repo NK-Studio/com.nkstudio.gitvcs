@@ -13,6 +13,7 @@
     --graph-head: var(--git-graph-head);
     --graph-date-band: var(--git-graph-date-band);
     --graph-truncated: var(--git-graph-truncated);
+    --graph-shadow: var(--git-graph-shadow);
 }
 
 .branch-graph__label {
@@ -88,11 +89,16 @@
 }
 
 /* 날짜 띠 머리의 날짜(Unity VCS Branch Explorer 처럼 또렷하게). */
+/* 날짜 띠가 좁으면 두 줄로 넘어가 머리 줄 밖으로 깨지므로, 한 줄로 두고 넘치면 "2026-10…" 처럼 자른다. 양옆 4px 는 띠 경계에 붙지 않게. */
 .branch-graph__date {
     height: 24px;
+    padding: 0 4px;
     font-size: 12px;
     color: var(--git-graph-date);
     -unity-text-align: middle-center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .branch-graph__tooltip {

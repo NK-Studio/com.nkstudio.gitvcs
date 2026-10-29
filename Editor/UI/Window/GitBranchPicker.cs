@@ -70,6 +70,7 @@ namespace GitVersionControl
 
             _panel = new VisualElement();
             _panel.AddToClassList("branch-picker");
+            GitShadow.Add(_panel, GitShadowSize.Large);
             _overlay.Add(_panel);
 
             // 검색창: 안쪽 왼쪽에 돋보기, 비어 있으면 "Search". 포커스면 바깥 상자를 강조색으로.

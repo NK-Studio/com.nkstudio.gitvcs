@@ -45,8 +45,8 @@
     border-radius: var(--git-radius);
 }
 
-/* Stage(초록)·Unstage(빨강): GitKraken 처럼 테두리는 테마의 성공·위험 색, 바탕은 같은 색을 옅게 깐다.
-   바탕 rgba 는 테마마다 비슷한 초록·빨강이라 하나로 둔다. 기본 버튼의 :hover:enabled 보다 세게 하려고 같은 꼴로 적는다. */
+/* Stage(초록)·Unstage(빨강): GitKraken 처럼 테두리는 테마의 성공·위험 색, 평소엔 바탕 없이 테두리만, 마우스를 올리면 같은 색으로 꽉 채우고 글자는 흰색.
+   색은 테마 토큰(--git-success-strong 등). 기본 버튼의 :hover:enabled 보다 세게 하려고 같은 꼴로 적는다. */
 .staging__button--stage,
 .staging__button--unstage {
     border-width: 1px;
@@ -55,28 +55,32 @@
 
 .staging__button--stage {
     border-color: var(--git-success);
-    background-color: var(--git-success-soft);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .staging__button--stage:hover:enabled {
-    background-color: var(--git-success-soft-hover);
+    background-color: var(--git-success-strong);
+    color: var(--git-on-strong);
 }
 
 .staging__button--stage:active:enabled {
-    background-color: var(--git-success-soft-pressed);
+    background-color: var(--git-success-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .staging__button--unstage {
     border-color: var(--git-danger);
-    background-color: var(--git-danger-soft);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .staging__button--unstage:hover:enabled {
-    background-color: var(--git-danger-soft-hover);
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
 }
 
 .staging__button--unstage:active:enabled {
-    background-color: var(--git-danger-soft-pressed);
+    background-color: var(--git-danger-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 /* Fork 모드(--fork, StagingLists.ShiftForAll): 초록·빨강 없이 무채색. 위 규칙보다 세게 하려고 같은 꼴에 클래스를 하나 더 얹는다.
@@ -232,15 +236,17 @@
     border-width: 1px;
     border-radius: var(--git-radius);
     border-color: var(--git-danger);
-    background-color: var(--git-danger-soft);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .graph-workspace__discard-all:hover {
-    background-color: var(--git-danger-soft-hover);
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
 }
 
 .graph-workspace__discard-all:active {
-    background-color: var(--git-danger-soft-pressed);
+    background-color: var(--git-danger-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .graph-workspace__discard-all:disabled {
@@ -254,6 +260,10 @@
     background-image: url("../Icons/Delete.png");
     -unity-background-scale-mode: scale-to-fit;
     -unity-background-image-tint-color: var(--git-text);
+}
+
+.graph-workspace__discard-all:hover:enabled .graph-workspace__discard-all-icon {
+    -unity-background-image-tint-color: var(--git-on-strong);
 }
 
 .graph-workspace__commit {

@@ -478,6 +478,7 @@ namespace GitVersionControl
             // 펼친 참조 목록. 누르면 그 커밋 줄을 고르고, 우클릭은 그 줄 메뉴. 마우스가 그 줄 이름표 칸이 아닌 곳으로 벗어나면 닫는다.
             _refsPopup = new VisualElement();
             _refsPopup.AddToClassList("commit-graph-refs-popup");
+            GitShadow.Add(_refsPopup, GitShadowSize.Large);
             _refsPopup.SetVisible(false);
             _refsPopup.RegisterCallback<PointerLeaveEvent>(evt =>
             {
