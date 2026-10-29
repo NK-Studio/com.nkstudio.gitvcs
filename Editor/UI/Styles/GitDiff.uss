@@ -1,6 +1,16 @@
 /*
  * git-diff: 내장 diff 뷰어(색은 Themes/*.tss 의 --git-diff-* 토큰). 통합 보기(diff-row) 와 나란히 보기(diff-row--split, 양쪽 diff-side) 두 줄 모양을 쓴다.
  * 색은 GitHub·VS Code 의 어두운 테마 diff 색에 맞췄다(초록=더함, 빨강=지움, 진한 칸=줄 안에서 실제로 바뀐 부분).
+ *
+ * 크기 규칙(이 파일 전체가 따른다):
+ *  - 모서리: 조작 요소(22px 버튼·묶음·칩)와 카드는 --git-radius, 그보다 작은 꼬리표(16~18px: 이미지 판 이름·줄의 + 버튼)는 --git-radius-small.
+ *    원(스와이프 손잡이)은 높이의 반. 창 끝까지 닿는 막대·목록·칸은 0.
+ *  - padding = 그릇의 안쪽 여백. 가로 막대(제목 줄·diff 막대·이미지 막대·정보 줄)는 좌우 8px 라 모든 막대의 첫 요소가 같은 세로선에 선다.
+ *    버튼 글자는 좌우 10px, 꼬리표는 2px 6px, 빈 상태 안내는 위 24px·옆 16px.
+ *  - margin = 앞 형제와의 간격만(그릇 가장자리 띄우기는 그릇의 padding 이 한다). 같은 묶음 안 요소 사이 6px, 묶음(왼쪽·가운데·오른쪽) 사이 12px,
+ *    정보 줄 항목 사이 12px. 줄의 맨 앞 요소에는 간격을 두지 않는다(--leading).
+ *  - 높이: 막대 32px, 정보 줄 24px, 조작 요소 22px(묶음은 칸 20px + 위아래 테두리), 코드 줄 18px.
+ *  - 고른 상태는 한 가지: --git-selected 바탕 + --git-selected-text.
  */
 
 .git-diff {
@@ -17,7 +27,7 @@
     overflow: hidden;
     height: 32px;
     align-items: center;
-    padding: 0 8px 0 2px;
+    padding: 0 8px;
 }
 
 /* ── 버튼 한 벌(GitKraken 처럼 diff 의 모든 버튼이 같은 높이·테두리·모서리·글자 크기) ──
@@ -67,7 +77,9 @@
 .git-diff__title {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-left;
-    margin: 0 6px;
+    /* 줄의 맨 앞이라 왼쪽 간격 없음(막대 padding 8px 이 띄운다). 뒤의 +/− 수와는 6px. */
+    margin: 0 6px 0 0;
+    padding: 0;
     min-width: 0;
     flex-shrink: 1;
     overflow: hidden;
@@ -107,8 +119,9 @@
     justify-content: flex-end;
 }
 
+/* 묶음 사이 12px. */
 .git-diff__bar-center {
-    margin: 0 10px;
+    margin: 0 12px;
 }
 
 /* 버튼 하나. 묶음 안에서는 테두리를 묶음이 그리고 칸 사이에 선만 긋는다. */
@@ -119,7 +132,7 @@
     height: 22px;
     min-width: 26px;
     margin: 0;
-    padding: 0 9px;
+    padding: 0 10px;
     border-width: 0;
     border-radius: 0;
     background-color: rgba(0, 0, 0, 0);
@@ -199,8 +212,27 @@
     overflow: hidden;
 }
 
-.git-diff__bar-center > .git-diff__segment {
-    margin-left: 8px;
+/* 줄의 맨 앞에 온 묶음(이미지 막대의 보기 방식)은 앞 간격이 없다. */
+.git-diff__segment--leading {
+    margin-left: 0;
+}
+
+/* 묶음 밖에 홀로 선 버튼이 다른 요소 뒤에 오면 묶음과 같은 6px 간격. */
+.git-diff__bar-button--spaced {
+    margin-left: 6px;
+}
+
+/* ── 정보 줄(이미지 diff 의 바뀐 픽셀 수 등): 막대와 같은 좌우 8px, 높이 24px ── */
+.git-diff__info {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+    background-color: var(--git-header-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+    overflow: hidden;
 }
 
 /* 묶음 테두리(위·아래 1px)를 더해 홀로 선 버튼과 같은 22px 가 되게 칸은 20px. */
@@ -256,7 +288,7 @@
 }
 
 .git-diff__bar--compact .git-diff__bar-center {
-    margin: 0 0 0 8px;
+    margin: 0 0 0 12px;
 }
 
 .git-diff__bar--compact .git-diff__bar-side--right {
@@ -515,7 +547,7 @@
     padding: 0;
     margin: 0;
     border-width: 0;
-    border-radius: 3px;
+    border-radius: var(--git-radius-small);
     font-size: 13px;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-center;
@@ -638,7 +670,7 @@
 
 .git-image-diff__slider {
     width: 220px;
-    margin: 0 6px;
+    margin: 0 0 0 12px;
     align-items: center;
 }
 
@@ -655,17 +687,20 @@
     min-width: 30px;
 }
 
+/* 지금 배율(읽기 전용 글자). 뒤의 [화면에 맞춤|100%] 묶음이 6px 간격을 둔다. */
 .git-image-diff__zoom {
     min-width: 44px;
-    margin-right: 4px;
-    font-size: 11px;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
     -unity-text-align: middle-right;
     color: var(--git-text-muted);
 }
 
+/* 정보 줄 항목. 항목 사이 12px(뒤 항목과의 간격). */
 .git-image-diff__info {
     font-size: 11px;
-    margin-right: 12px;
+    margin: 0 12px 0 0;
     padding: 0;
     white-space: nowrap;
     color: var(--git-text);
@@ -717,13 +752,14 @@
     overflow: hidden;
 }
 
+/* 판 이름 꼬리표. 칸 가장자리에서 막대와 같은 8px 안쪽. */
 .git-image-diff__caption {
     position: absolute;
-    left: 6px;
-    top: 4px;
-    padding: 1px 6px;
+    left: 8px;
+    top: 8px;
+    padding: 2px 6px;
     font-size: 10px;
-    border-radius: 3px;
+    border-radius: var(--git-radius-small);
     color: #ffffff;
     background-color: rgba(0, 0, 0, 0.55);
 }
@@ -831,9 +867,21 @@
     white-space: normal;
 }
 
+/* 막대 버튼과 같은 한 벌(22px·1px·--git-radius·12px). 위아래로 놓여 버튼 사이 6px. */
 .git-diff-lfs__button {
-    margin-top: 4px;
-    padding: 4px 12px;
+    height: 22px;
+    margin: 6px 0 0 0;
+    padding: 0 10px;
+    border-width: 1px;
+    border-color: var(--git-field-border);
+    border-radius: var(--git-radius);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text);
+    font-size: 12px;
+}
+
+.git-diff-lfs__button:hover {
+    background-color: var(--git-hover);
 }
 
 .git-diff-binary {
@@ -843,7 +891,7 @@
 }
 
 .git-diff-binary__status {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px 0;
     font-size: 13px;
     -unity-text-align: middle-center;
 }
@@ -867,7 +915,7 @@
 
 .git-diff-binary__column {
     align-items: center;
-    margin: 0 10px;
+    margin: 0 12px;
 }
 
 /* 회색 카드 안 가운데에 파일 아이콘과 확장자. */
@@ -876,7 +924,7 @@
     height: 194px;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: var(--git-radius);
     background-color: var(--git-pressed);
 }
 
@@ -894,7 +942,7 @@
 }
 
 .git-diff-binary__size {
-    margin: 10px 0 0 0;
+    margin: 12px 0 0 0;
     font-size: 12px;
     color: var(--git-text);
     -unity-text-align: middle-center;

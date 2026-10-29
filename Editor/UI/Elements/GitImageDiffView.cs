@@ -28,7 +28,7 @@ namespace GitVersionControl
 
         private static Texture2D _checker;
 
-        private readonly ToolbarToggle[] _modeToggles = new ToolbarToggle[4];
+        private readonly Button[] _modeButtons = new Button[4];
         private readonly Slider _opacitySlider;
         private readonly Label _zoomLabel;
         private readonly VisualElement _info;
@@ -36,7 +36,7 @@ namespace GitVersionControl
         private readonly Label _changedInfo;
         private readonly VisualElement _stage;
         private readonly VisualElement _modeControls;
-        private readonly ToolbarToggle _propertiesToggle;
+        private readonly Button _propertiesButton;
         private readonly VisualElement _properties;
         private readonly VisualElement _propertiesSplitter;
 
@@ -68,38 +68,30 @@ namespace GitVersionControl
             Root = new VisualElement();
             Root.AddToClassList("git-image-diff");
 
-            Toolbar toolbar = new();
+            // 코드 diff 막대와 같은 한 벌(GitDiff.uss 의 git-diff__bar·__segment·__bar-button): 높이·테두리·모서리·고른 상태가 같다.
+            // [나란히|스와이프|겹쳐 보기|차이 강조] (불투명도)          151% [화면에 맞춤|100%] [속성 보기]
+            VisualElement toolbar = new();
+            toolbar.AddToClassList("git-diff__bar");
             toolbar.AddToClassList("git-image-diff__toolbar");
-            // 보기 방식·불투명도·허용 오차. 새로 만들거나 지운 이미지(한쪽만 있음)에는 비교할 게 없어 숨긴다.
+            // 보기 방식·불투명도. 새로 만들거나 지운 이미지(한쪽만 있음)에는 비교할 게 없어 숨긴다.
             _modeControls = new VisualElement();
             _modeControls.AddToClassList("git-image-diff__mode-controls");
             toolbar.Add(_modeControls);
             string[] modeKeys = { "imageDiff.twoUp", "imageDiff.swipe", "imageDiff.onion", "imageDiff.difference" };
-            for (int i = 0; i < _modeToggles.Length; i++)
+            for (int i = 0; i < _modeButtons.Length; i++)
             {
                 ImageDiffMode mode = (ImageDiffMode)i;
-                ToolbarToggle toggle = new() { text = GitText.Get(modeKeys[i]) };
-                toggle.RegisterValueChangedCallback(evt =>
-                {
-                    if (evt.newValue)
-                    {
-                        SetMode(mode);
-                    }
-                    else
-                    {
-                        // 이미 고른 방식을 다시 눌러도 꺼지지 않게.
-                        toggle.SetValueWithoutNotify(true);
-                    }
-                });
-                _modeToggles[i] = toggle;
-                _modeControls.Add(toggle);
+                // 이미 고른 방식을 다시 눌러도 그대로다.
+                _modeButtons[i] = BarButton(() => SetMode(mode), GitText.Get(modeKeys[i]));
             }
+            VisualElement modes = Segment(_modeButtons);
+            modes.AddToClassList("git-diff__segment--leading");
+            _modeControls.Add(modes);
 
             _opacitySlider = new Slider(GitText.Get("imageDiff.opacity"), 0f, 1f) { value = 0.5f };
             _opacitySlider.AddToClassList("git-image-diff__slider");
             _opacitySlider.RegisterValueChangedCallback(_ => ApplyTransform());
             _modeControls.Add(_opacitySlider);
-
 
             VisualElement spacer = new();
             spacer.AddToClassList("spacer");
@@ -108,16 +100,15 @@ namespace GitVersionControl
             _zoomLabel = new Label { tooltip = GitText.Get("imageDiff.zoomTooltip") };
             _zoomLabel.AddToClassList("git-image-diff__zoom");
             toolbar.Add(_zoomLabel);
-            toolbar.Add(new ToolbarButton(Fit) { text = GitText.Get("imageDiff.fit"), tooltip = GitText.Get("imageDiff.zoomTooltip") });
-            toolbar.Add(new ToolbarButton(() => ZoomAt(1f, ViewportCenter())) { text = "100%" });
-            _propertiesToggle = new ToolbarToggle { text = GitText.Get("imageDiff.showProperties"), tooltip = GitText.Get("imageDiff.showPropertiesTooltip") };
-            _propertiesToggle.SetValueWithoutNotify(GitVcsSettings.instance.ImageDiffShowProperties);
-            _propertiesToggle.RegisterValueChangedCallback(evt =>
-            {
-                GitVcsSettings.instance.ImageDiffShowProperties = evt.newValue;
-                RenderProperties();
-            });
-            toolbar.Add(_propertiesToggle);
+            Button fit = BarButton(Fit, GitText.Get("imageDiff.fit"));
+            fit.tooltip = GitText.Get("imageDiff.zoomTooltip");
+            toolbar.Add(Segment(fit, BarButton(() => ZoomAt(1f, ViewportCenter()), "100%")));
+            _propertiesButton = BarButton(ToggleProperties, GitText.Get("imageDiff.showProperties"));
+            _propertiesButton.tooltip = GitText.Get("imageDiff.showPropertiesTooltip");
+            _propertiesButton.AddToClassList("git-diff__bar-button--outlined");
+            _propertiesButton.AddToClassList("git-diff__bar-button--spaced");
+            _propertiesButton.EnableInClassList("git-diff__bar-button--checked", GitVcsSettings.instance.ImageDiffShowProperties);
+            toolbar.Add(_propertiesButton);
             Root.Add(toolbar);
 
             // 정보 줄: 크기 변경·바뀐 픽셀 수. 양쪽 판의 크기·형식·해상도는 "속성 보기" 칸이 보인다.
@@ -159,6 +150,39 @@ namespace GitVersionControl
                 }
             });
             SyncModeControls();
+        }
+
+        /// <summary>코드 diff 막대의 글자 버튼과 같은 모양(<c>git-diff__bar-button</c>).</summary>
+        private static Button BarButton(Action onClick, string text)
+        {
+            Button button = new(onClick);
+            button.AddToClassList("git-diff__bar-button");
+            Label label = new(text) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList("git-diff__bar-text");
+            button.Add(label);
+            return button;
+        }
+
+        /// <summary>한 테두리 안의 칸 묶음(<c>git-diff__segment</c>). 맨 앞 칸에는 칸 사이 선이 없다.</summary>
+        private static VisualElement Segment(params Button[] buttons)
+        {
+            VisualElement segment = new();
+            segment.AddToClassList("git-diff__segment");
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                buttons[i].AddToClassList("git-diff__segment-button");
+                buttons[i].EnableInClassList("git-diff__segment-button--first", i == 0);
+                segment.Add(buttons[i]);
+            }
+            return segment;
+        }
+
+        private void ToggleProperties()
+        {
+            bool show = GitVcsSettings.instance.ImageDiffShowProperties == false;
+            GitVcsSettings.instance.ImageDiffShowProperties = show;
+            _propertiesButton.EnableInClassList("git-diff__bar-button--checked", show);
+            RenderProperties();
         }
 
         private static Label InfoLabel(VisualElement parent)
@@ -360,9 +384,9 @@ namespace GitVersionControl
         private void SyncModeControls()
         {
             ImageDiffMode mode = Mode;
-            for (int i = 0; i < _modeToggles.Length; i++)
+            for (int i = 0; i < _modeButtons.Length; i++)
             {
-                _modeToggles[i].SetValueWithoutNotify((int)mode == i);
+                _modeButtons[i].EnableInClassList("git-diff__bar-button--checked", (int)mode == i);
             }
             _opacitySlider.SetVisible(mode == ImageDiffMode.Onion);
         }

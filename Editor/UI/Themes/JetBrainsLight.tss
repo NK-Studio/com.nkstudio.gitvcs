@@ -55,6 +55,7 @@
     --git-button-border: #c9ccd6;
     --git-button-hover: #f0f1f3;
     --git-radius: 6px;
+    --git-radius-small: 4px;
     --git-state-modified: #3574f0;
     --git-state-added: #208a3c;
     --git-state-deleted: #6c707e;
