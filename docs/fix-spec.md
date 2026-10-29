@@ -310,7 +310,7 @@ PR 상세 화면: `#번호`, 제목, 상태 배지(Open/Draft), "작성자 wants
 
 Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트(gitTest)에 git URL 로 설치한 뒤 패키지를 Packages/ 에 내려받아(embedded) 고치며 확인.
 원격은 로컬 bare 저장소(`origin`, Windows 경로)와 시험 저장소(`github` = `NK-Studio/gitvcs-pr-test-www`, Push 하지 않음) 둘.
-검증: 설치 직후 EditMode 844/844 통과(건너뜀 0), 아래 수정 뒤 849/849(새 회귀 테스트 5개). Unity 재컴파일 오류 0. 마우스·키보드로 실제 조작.
+검증: 설치 직후 EditMode 844/844 통과(건너뜀 0), 아래 수정 뒤 852/852(새 테스트 8개). Unity 재컴파일 오류 0. 마우스·키보드로 실제 조작.
 
 ### 통과
 
@@ -339,6 +339,8 @@ Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트
 | W-06 | Fork 배치 Shift+Stage(전부) 무반응 | Button 의 Clickable 이 수정 키 없는 클릭만 받음 → Shift 활성기 추가(모든 OS) |
 | W-07 | 로컬 폴더 원격에 첫 Push 해도 PR 만들기 제안 → 빈 서랍 | 올린 원격이 GitHub 일 때만 제안(`PushedToGitHubAsync`) |
 | W-08 | 자동 Fetch·간격, rebase 충돌 시 멈추기, .meta 묶어 보기·짝 옮기기가 Project Settings 에 남음 | 이 값들도 원래 UserSettings(저장소에 안 올라감)라 팀 공유가 아니었다 → Preferences > Git·EditorPrefs 로. Project Settings 에는 이 저장소의 GitHub 계정과 저장소 상태(git init)만 |
+| W-09 | Project Settings > Git 이 남을 까닭이 없음(남은 것은 계정·저장소 정보·git init 뿐, 정보는 Git 창에 이미 있음). Diff 도구·LFS 계정 버튼은 설정이 옮겨 간 뒤에도 Project Settings 를 열었다 | Project Settings > Git 을 없앰. git init 은 Git 창의 "git 저장소가 아닙니다" 안내 줄의 버튼(확인 카드), 이 저장소의 GitHub 계정은 Git 창 ⋮ 메뉴, 설정은 모두 Preferences > Git(도구 막대 메뉴도 한 줄로). git 을 못 찾는 등 오류면 안내 줄 버튼이 Preferences 를 연다. Project Settings 를 가리키던 안내 글 5개 고침 |
+| W-10 | git init 뒤 Library·Temp 등 수천 개가 변경 목록에 잡힘 | .gitignore 가 없으면 Unity 용(github/gitignore 의 Unity.gitignore 바탕)을 함께 만듦. 있던 .gitignore 는 그대로(`GitInit`). 실제로 저장소를 떼어 놓고 Git 창에서 git init → Library·Temp·csproj·UserSettings 가 목록에 없음을 확인한 뒤 원래 저장소로 되돌림 |
 
 ### 남은 관찰(고치지 않음)
 
@@ -346,6 +348,7 @@ Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트
 - Draft PR 상세의 병합 안내가 "GitHub 에서 Ready for review 로 바꾸면" — 바로 옆에 Ready for review 버튼이 있다.
 - 한국어 글의 "{0} 을(를)" 띄어쓰기가 9곳 더 있다.
 - Push 뒤 Unity 기본 툴팁 글이 잠깐 남는 것(P1-05).
+- EditMode 테스트를 돌린 직후 열려 있던 Git 창 사이드바가 잠깐 시험용 임시 저장소(GitVcsInProgress…, `main`)를 보인다. 창에 포커스가 돌아와 새로고침되면 원래대로 돌아온다.
 
 ## 남은 일과 시험 흔적 (2026-10-29)
 
