@@ -192,12 +192,19 @@ namespace GitVersionControl
                 });
                 _rail.SetSectionVisible(section, _refs.IsSectionShown(section));
             }
-            _refs.Loaded += () =>
+            // 창을 다시 만들거나 닫은 뒤에도 그 전에 시작한 읽기가 늦게 끝나 Loaded 가 올 수 있다. 이 사이드바·레일을 붙잡고, 이미 바뀌었으면 무시한다.
+            RefSidebar refs = _refs;
+            SidebarRail rail = _rail;
+            refs.Loaded += () =>
             {
+                if (refs != _refs)
+                {
+                    return;
+                }
                 foreach (RefSection section in RefTreeBuilder.Sections)
                 {
-                    _rail.SetSectionVisible(section, _refs.IsSectionShown(section));
-                    _rail.SetSectionCount(section, _refs.SectionCount(section));
+                    rail.SetSectionVisible(section, refs.IsSectionShown(section));
+                    rail.SetSectionCount(section, refs.SectionCount(section));
                 }
             };
 

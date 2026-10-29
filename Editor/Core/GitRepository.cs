@@ -204,7 +204,6 @@ namespace GitVersionControl
 
         private static List<GitStatusEntry> s_entries = new();
         private static Dictionary<string, GitFileState> s_assetStateDict = new(StringComparer.OrdinalIgnoreCase);
-        private static HashSet<string> s_dirtyFolders = new(StringComparer.OrdinalIgnoreCase);
         private static bool s_refreshPending;
 
         /// <summary>
@@ -378,11 +377,6 @@ namespace GitVersionControl
         public static bool TryGetState(string assetPath, out GitFileState state)
         {
             return s_assetStateDict.TryGetValue(assetPath, out state);
-        }
-
-        public static bool FolderHasChanges(string assetPath)
-        {
-            return s_dirtyFolders.Contains(assetPath);
         }
 
         /// <summary>저장소 루트에서 git 을 실행한다. 저장소가 아니면 프로젝트 루트에서 실행한다.</summary>
@@ -663,8 +657,6 @@ namespace GitVersionControl
         private static void BuildLookup(List<GitStatusEntry> entries)
         {
             Dictionary<string, GitFileState> stateDict = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> dirtyFolders = new(StringComparer.OrdinalIgnoreCase);
-
             foreach (GitStatusEntry entry in entries)
             {
                 if (entry.ProjectPath == null)
@@ -684,21 +676,9 @@ namespace GitVersionControl
                     // 에셋 본문의 상태가 .meta 보다 우선. 충돌만은 어느 쪽이든 드러낸다.
                     stateDict[assetPath] = existing == GitFileState.Conflicted ? existing : entry.State;
                 }
-
-                int slash = assetPath.LastIndexOf('/');
-                while (slash > 0)
-                {
-                    string folder = assetPath.Substring(0, slash);
-                    if (dirtyFolders.Add(folder) == false)
-                    {
-                        break;
-                    }
-                    slash = folder.LastIndexOf('/');
-                }
             }
 
             s_assetStateDict = stateDict;
-            s_dirtyFolders = dirtyFolders;
         }
     }
 

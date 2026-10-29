@@ -5,8 +5,8 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 파일 상태 배지(<c>.state-badge</c>). UVCS 패키지가 있으면 UVCS 상태 아이콘을 배경 그림으로 쓰고(<c>--icon</c>),
-    /// 없으면 상태별 BEM 수식어(<c>--modified</c> 등)의 색과 글자로 보인다. 색·크기는 USS 가 정한다.
+    /// 파일 상태 배지(<c>.state-badge</c>). 패키지에 복사해 둔 UVCS 상태 아이콘(<see cref="GitStatusIcons"/>)을 배경 그림으로 쓰고(<c>--icon</c>),
+    /// 아이콘을 못 찾으면 상태별 BEM 수식어(<c>--modified</c> 등)의 색과 글자로 보인다. 색·크기는 USS 가 정한다.
     /// </summary>
     public static class StateBadge
     {
