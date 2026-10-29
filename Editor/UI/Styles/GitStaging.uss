@@ -834,6 +834,11 @@
     margin-left: 0;
 }
 
+/* 로컬과 원격이 같은 커밋인 이름표(--synced)도 아이콘 하나: 현재는 체크, 로컬은 노트북만 남기고 구름은 끈다(GitKraken). 펼친 목록에서는 다시 보인다(아래). */
+.commit-graph--refs-centered .commit-graph-ref--synced > .commit-graph-ref__remote-icon {
+    display: none;
+}
+
 /* ── 이름표 칸에 마우스를 올렸을 때 펼치는 참조 목록(GitKraken 과 같다, CommitGraphList.ShowRefsPopup) ──
    줄 이름표 바로 위에 겹쳐 참조를 모두 세로로 늘어놓는다. 이름은 자르지 않고 가장 긴 이름에 폭을 맞춘다(옆 칸 위로 넘친다).
    이름표 바탕이 반투명한 가지 색이라 아래 줄이 비치지 않게 목록에 불투명한 바탕을 깐다.
@@ -897,6 +902,11 @@
 .commit-graph--refs-centered .commit-graph-refs-popup > .commit-graph-ref > .commit-graph-ref__remote-icon,
 .commit-graph--refs-centered .commit-graph-refs-popup > .commit-graph-ref > .commit-graph-ref__tag-icon {
     margin-left: 5px;
+}
+
+.commit-graph--refs-centered .commit-graph-refs-popup > .commit-graph-ref--synced > .commit-graph-ref__remote-icon {
+    display: flex;
+    margin-left: 3px;
 }
 
 /* 마우스를 올린 태그 이름표: 금색 채움을 진하게(브랜치 이름표는 코드가 가지 색을 밝힌다 — CommitGraphList.SetRefHover). */
