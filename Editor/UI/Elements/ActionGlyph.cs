@@ -416,13 +416,13 @@ namespace GitVersionControl
                     Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
                     break;
                 case ActionGlyphKind.FilterAdd:
-                    // GitKraken 의 "필터 추가": 깔때기 + 그 다리 끝에 겹친 원 안의 더하기. 다른 선 아이콘과 같은 굵기로 긋는다.
-                    // 깔때기 오른쪽 기둥은 원 앞에서 끊고, 왼쪽 기둥 끝은 원 쪽으로 꺾어 둘이 한 덩어리로 보이게 한다.
-                    // 그림 전체(가로 1.8~18.7, 세로 2.4~17.6)를 20 칸 가운데에 맞춰 버튼 가운데에 서게 한다.
-                    Polyline(painter, P(9.8f, 11.3f), P(9.8f, 8.5f), P(15.2f, 2.4f), P(1.8f, 2.4f), P(7.2f, 8.5f), P(7.2f, 15.1f), P(9.0f, 14.1f));
-                    DrawRing(painter, P(14.6f, 13.5f), 4.1f * scale);
-                    Polyline(painter, P(12.7f, 13.5f), P(16.5f, 13.5f));
-                    Polyline(painter, P(14.6f, 11.6f), P(14.6f, 15.4f));
+                    // "필터 추가": 깔때기 + 그 다리 끝에 겹친 원 안의 더하기(원은 왼쪽 아래). 다른 선 아이콘과 같은 굵기로 긋는다.
+                    // 깔때기 왼쪽 기둥은 원 앞에서 끊고, 오른쪽 기둥 끝은 원 쪽으로 꺾어 둘이 한 덩어리로 보이게 한다.
+                    // 그림 전체(가로 1.3~18.2, 세로 2.4~17.6)를 20 칸 가운데에 맞춰 버튼 가운데에 서게 한다.
+                    Polyline(painter, P(10.2f, 11.3f), P(10.2f, 8.5f), P(4.8f, 2.4f), P(18.2f, 2.4f), P(12.8f, 8.5f), P(12.8f, 15.1f), P(11.0f, 14.1f));
+                    DrawRing(painter, P(5.4f, 13.5f), 4.1f * scale);
+                    Polyline(painter, P(3.5f, 13.5f), P(7.3f, 13.5f));
+                    Polyline(painter, P(5.4f, 11.6f), P(5.4f, 15.4f));
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;
@@ -440,13 +440,13 @@ namespace GitVersionControl
                     Polyline(painter, P(8.5f, 6.5f), P(12f, 10f), P(8.5f, 13.5f));
                     break;
                 case ActionGlyphKind.MoreVert:
-                    // Material Symbols "more_vert"(FILL0 wght400 opsz48) SVG(viewBox 0 -960 960 960)의 점 셋(지름 96)을 20 칸으로 옮겨 글자색으로 채운다.
+                    // 점 셋을 글자색으로 채운다. GitKraken 처럼 두툼한 동그라미(지름 3.1 칸)를 조금 촘촘히(간격 5.2 칸) 둔다.
                     painter.fillColor = resolvedStyle.color;
-                    foreach (float y in new[] { 4.333f, 10f, 15.667f })
+                    foreach (float y in new[] { 4.8f, 10f, 15.2f })
                     {
                         painter.BeginPath();
-                        painter.Arc(P(10f, y), 1f * scale, 0f, 180f);
-                        painter.Arc(P(10f, y), 1f * scale, 180f, 360f);
+                        painter.Arc(P(10f, y), 1.55f * scale, 0f, 180f);
+                        painter.Arc(P(10f, y), 1.55f * scale, 180f, 360f);
                         painter.ClosePath();
                         painter.Fill();
                     }
