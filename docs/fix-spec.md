@@ -367,6 +367,24 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 | W-11 | Project 창에서 연 이미지 diff 가 아주 작게 보임 | diff 창이 Unity 기본(최소 크기 근처)으로 떴다 → 새로 뜰 때 1200×800 을 메인 창의 85% 안으로 줄여 가운데에(`GitWindowPlacement`). 히스토리·blame·비교 창도 같다. 옮기거나 키운 뒤에는 그대로 |
 | W-12 | 창마다 글자 크기가 다름(diff 창 140%, Git 창 130%) | 히스토리·blame·비교 창은 Git 창 배율을 쓰는데 diff 창만 따로(`DiffWindowScale`) → diff 창도 Git 창 배율. 따로 두던 설정은 지움 |
 
+### diff 창 디자인 점검(모서리·여백)
+
+규칙을 `GitDiff.uss` 맨 위에 적고 그대로 맞췄다.
+- 모서리: 조작 요소(22px)·카드 `--git-radius`(6px), 작은 꼬리표(16~18px) `--git-radius-small`(4px, 두 테마에 새로), 원은 높이의 반, 창 끝까지 닿는 막대·목록은 0.
+- padding = 그릇 안쪽 여백: 가로 막대 좌우 8px(모든 막대의 첫 요소가 한 세로선), 버튼 글자 좌우 10px.
+- margin = 앞 형제와의 간격만: 같은 묶음 안 6px, 묶음 사이 12px. 줄 맨 앞 요소는 0.
+- 높이: 막대 32px, 정보 줄 24px, 조작 요소 22px, 코드 줄 18px. 고른 상태는 한 가지 색.
+
+| 찾은 것 | 고침 |
+|---|---|
+| 이미지 막대가 Unity 기본 Toolbar(ToolbarToggle·ToolbarButton)라 높이·간격·고른 색이 코드 막대와 다름 | 코드 막대와 같은 부품으로: [나란히·스와이프·겹쳐 보기·차이 강조] 한 묶음, [화면에 맞춤·100%] 한 묶음, "속성 보기"는 테두리 버튼(켜지면 고른 색) |
+| "바뀐 픽셀 …" 줄이 창 왼쪽 끝에 붙음(`git-diff__info` 규칙이 없었다) | 막대와 같은 좌우 8px·높이 24px 정보 줄 |
+| 제목 줄 첫 글자(2px+6px)와 아래 막대 첫 버튼(8px)이 어긋남 | 제목 줄 padding 8px, 제목 margin 왼쪽 0 |
+| 가운데 묶음 간격 8px·10px, 버튼 글자 9px·10px 섞임 | 요소 사이 6px·묶음 사이 12px, 버튼 글자 10px |
+| 판 이름 꼬리표·줄 + 버튼 3px, 바이너리 카드 6px 숫자 직접 | `--git-radius-small`·`--git-radius` 토큰 |
+| LFS 안내 버튼이 Unity 기본 버튼 | 막대 버튼과 같은 한 벌 |
+| 바이너리 카드 간격 10px | 12px(간격 단계 4·6·8·12·16·24 안으로) |
+
 ### 남은 관찰(고치지 않음)
 
 - 패키지를 embedded 로 두면 Unity 6.7 분석기 경고(UAL0010·UAL0013) 16개: `GitCommand`·`GitIntegration`·`GitPullRequestFilter`·`GitShadow`·`HoverCallout` 에 `NoAutoStaticsCleanup` 이 없음. git URL 설치에서는 안 보임.
