@@ -13,6 +13,8 @@
     --git-list-bg: #191a1c;
     --git-text: #d1d3d9;
     --git-text-muted: #80838a;
+    /* 본문과 흐린 글자 사이: 늘 보여야 하는 보조 아이콘(PR 필터 추가 등). */
+    --git-text-secondary: #a8abb2;
     /* 위 작업 막대(Fetch·Push…) 아이콘. */
     --git-action-icon: #d1d3d9;
     --git-border: #33353b;

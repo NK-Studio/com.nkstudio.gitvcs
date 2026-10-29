@@ -13,6 +13,8 @@
     --git-list-bg: #ffffff;
     --git-text: #000000;
     --git-text-muted: #6c707e;
+    /* 본문과 흐린 글자 사이: 늘 보여야 하는 보조 아이콘(PR 필터 추가 등). */
+    --git-text-secondary: #4e5260;
     /* 위 작업 막대(Fetch·Push…) 아이콘. 밝은 테마에서 글자색(검정)을 쓰면 막대가 무거워 보여 IntelliJ 도구 막대처럼 한 단계 흐리게. */
     --git-action-icon: #5e6270;
     --git-border: #ebecf0;

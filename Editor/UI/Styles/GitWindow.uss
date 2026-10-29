@@ -707,12 +707,13 @@
     color: var(--git-text);
 }
 
-/* 개수는 GitKraken 처럼 바탕 없는 맨 숫자를 오른쪽 세로선(줄 padding 14px)에 맞춘다. 묶음·원격 줄은 12px 회색. */
+/* 개수는 GitKraken 처럼 바탕 없는 맨 숫자를 오른쪽 세로선(줄 padding 14px)에 맞춘다. 묶음·원격 줄은 12px 회색 Medium. */
 .ref-tree__badge {
     flex-shrink: 0;
     margin: 0 0 0 6px;
     padding: 0;
     font-size: 12px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Medium.ttf");
     -unity-text-align: middle-right;
     color: var(--git-text-muted);
 }
@@ -827,7 +828,8 @@
     align-items: center;
     justify-content: center;
     background-color: rgba(0, 0, 0, 0);
-    color: var(--git-text-muted);
+    /* 늘 보이는 버튼이라 흐린 글자보다 한 단계 밝게. */
+    color: var(--git-text-secondary);
 }
 
 .ref-tree__pr-filter-add > .action-glyph {
