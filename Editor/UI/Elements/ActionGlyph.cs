@@ -416,11 +416,13 @@ namespace GitVersionControl
                     Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
                     break;
                 case ActionGlyphKind.FilterAdd:
-                    // Material Symbols "filter_plus" 모양을 다른 선 아이콘과 같은 굵기로 긋는다: 깔때기(위 넓은 입구·좁은 목·기둥) + 오른쪽 아래 더하기.
-                    // (원본 윤곽을 채우고 덧그으면 둥근 모서리에서 선이 삐죽 튀어나와 쓰지 않는다.)
-                    Polyline(painter, P(2.9f, 4f), P(14f, 4f), P(9.5f, 10.6f), P(9.5f, 16f), P(7.4f, 16f), P(7.4f, 10.6f), P(2.9f, 4f));
-                    Polyline(painter, P(12.6f, 13.6f), P(17.9f, 13.6f));
-                    Polyline(painter, P(15.25f, 11f), P(15.25f, 16.2f));
+                    // GitKraken 의 "필터 추가": 깔때기 + 그 다리 끝에 겹친 원 안의 더하기. 다른 선 아이콘과 같은 굵기로 긋는다.
+                    // 깔때기 오른쪽 기둥은 원 앞에서 끊고, 왼쪽 기둥 끝은 원 쪽으로 꺾어 둘이 한 덩어리로 보이게 한다.
+                    // 그림 전체(가로 1.8~18.7, 세로 2.4~17.6)를 20 칸 가운데에 맞춰 버튼 가운데에 서게 한다.
+                    Polyline(painter, P(9.8f, 11.3f), P(9.8f, 8.5f), P(15.2f, 2.4f), P(1.8f, 2.4f), P(7.2f, 8.5f), P(7.2f, 15.1f), P(9.0f, 14.1f));
+                    DrawRing(painter, P(14.6f, 13.5f), 4.1f * scale);
+                    Polyline(painter, P(12.7f, 13.5f), P(16.5f, 13.5f));
+                    Polyline(painter, P(14.6f, 11.6f), P(14.6f, 15.4f));
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;

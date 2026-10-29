@@ -624,13 +624,26 @@ namespace GitVersionControl
             // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서와 화살표 숨김은 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
             // 폴더·원격은 늘 펼쳐 두므로 화살표를 감추고 누를 수 없게 한다(자리는 남겨 형제 브랜치와 들여쓰기를 맞춘다).
             bool isFixed = IsAlwaysOpen(node);
+            // 담는 줄(구역·PR 묶음·원격)은 비어 있어도 GitKraken 처럼 화살표를 그린다 — 0 인 줄만 화살표가 빠져 들쭉날쭉하지 않게.
+            // TreeView 는 아이가 없는 줄의 화살표를 직접(인라인 visibility) 숨기므로 그 뒤에 덮어쓴다. 빈 줄은 펼친 모양(⌄)이고 누를 것이 없다.
+            bool isEmptyContainer = node.IsContainer && node.Children.Count == 0;
             for (VisualElement item = row.parent; item != null; item = item.parent)
             {
                 if (item.ClassListContains(TreeView.itemUssClassName))
                 {
                     item.EnableInClassList(Block + "__item--section", isSection);
                     item.EnableInClassList(Block + "__item--fixed", isFixed);
-                    item.Q(className: TreeView.itemToggleUssClassName)?.SetEnabled(isFixed == false);
+                    VisualElement toggleElement = item.Q(className: TreeView.itemToggleUssClassName);
+                    if (toggleElement != null)
+                    {
+                        toggleElement.SetEnabled(isFixed == false);
+                        toggleElement.pickingMode = isEmptyContainer ? PickingMode.Ignore : PickingMode.Position;
+                        if (isEmptyContainer)
+                        {
+                            toggleElement.style.visibility = Visibility.Visible;
+                            (toggleElement as Toggle)?.SetValueWithoutNotify(true);
+                        }
+                    }
                     break;
                 }
             }
