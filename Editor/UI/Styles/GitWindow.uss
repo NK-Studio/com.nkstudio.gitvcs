@@ -761,11 +761,11 @@
 .ref-tree__synced {
     display: none;
     position: absolute;
-    left: -17px;
+    left: -18px;
     top: 50%;
-    width: 14px;
-    height: 14px;
-    margin-top: -7px;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
     color: var(--git-success);
 }
 
@@ -1332,9 +1332,34 @@
     margin-left: 8px;
 }
 
+/* 아이콘 + 글자 버튼: 가운데 정렬, 아이콘 16px(버튼 글자 옆 아이콘 크기), 아이콘과 글자 사이 6px. 글자·아이콘 모두 버튼 글자색을 따른다. */
+.submodule-edit__icon-button {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.submodule-edit__button-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.submodule-edit__button-label {
+    margin: 0;
+    padding: 0;
+}
+
+/* 우리 버튼 규칙: 평소엔 테두리만, 마우스를 올리면 그 색으로 꽉 채우고 글자는 흰색(--git-on-strong). */
 .side-drawer__secondary.submodule-edit__open {
     border-color: var(--git-accent);
     color: var(--git-text);
+}
+
+.side-drawer__secondary.submodule-edit__open:hover:enabled {
+    background-color: var(--git-accent);
+    color: var(--git-on-strong);
 }
 
 .side-drawer__secondary.submodule-edit__delete {

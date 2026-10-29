@@ -70,11 +70,25 @@ namespace GitVersionControl
 
             VisualElement actions = new();
             actions.AddToClassList(Sm + "__actions");
-            _open = SecondaryButton(actions, GitText.Get("submodule.open"), OpenSubmoduleRepository);
+            _open = IconButton(actions, ActionGlyphKind.Folder, GitText.Get("submodule.open"), OpenSubmoduleRepository);
             _open.AddToClassList(Sm + "__open");
-            _delete = SecondaryButton(actions, GitText.Get("submodule.delete"), () => _ = DeleteAsync());
+            _delete = IconButton(actions, ActionGlyphKind.Trash, GitText.Get("submodule.delete"), () => _ = DeleteAsync());
             _delete.AddToClassList(Sm + "__delete");
             Body.Add(actions);
+        }
+
+        /// <summary>아이콘 + 글자 버튼(GitKraken 처럼 글자 왼쪽에 아이콘). 아이콘은 글자색을 따른다.</summary>
+        private static Button IconButton(VisualElement parent, ActionGlyphKind icon, string text, System.Action clicked)
+        {
+            Button button = SecondaryButton(parent, string.Empty, clicked);
+            button.AddToClassList(Sm + "__icon-button");
+            ActionGlyph glyph = new(icon);
+            glyph.AddToClassList(Sm + "__button-icon");
+            button.Add(glyph);
+            Label label = new(text) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList(Sm + "__button-label");
+            button.Add(label);
+            return button;
         }
 
         private static Label Fact(VisualElement parent, string name)

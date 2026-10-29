@@ -96,7 +96,7 @@ namespace GitVersionControl
         Worktree,
 
         /// <summary>
-        /// 체크 표시(채운 도형). 커밋 그래프의 현재 브랜치 이름표. Material Symbols "check_small".
+        /// 체크 표시(꺾인 선). 커밋 그래프의 현재 브랜치 이름표, 사이드바의 맞는 서브모듈.
         /// </summary>
         Check,
 
@@ -139,11 +139,19 @@ namespace GitVersionControl
         /// 필터 추가(깔때기와 오른쪽 아래 +). 사이드바 Pull Requests 검색 칸 옆 버튼. Material Symbols "filter_alt" + 더하기("filter_plus").
         /// </summary>
         FilterAdd,
+
+        /// <summary>
+        /// 휴지통(손잡이 달린 뚜껑과 세로 줄 둘이 있는 통). 지우기 버튼. Material Symbols "delete" 비례를 선으로 옮겼다.
+        /// </summary>
+        Trash,
     }
 
     /// <summary>
     /// 작업 막대 버튼의 선 아이콘. 그림 파일 대신 Painter2D 로 그려 어느 배율·테마에서도 선명하고, 색은 글자색(<c>color</c>)을 따른다.
     /// 좌표는 20×20 칸 기준으로 적고 실제 크기에 맞춰 늘린다.
+    /// 규칙: 선 굵기는 모든 아이콘이 <see cref="StrokeUnits"/> 하나만 쓴다(아이콘마다 굵기를 따로 정하지 않는다). 외부 SVG 를 옮길 때도
+    /// 윤곽을 채우지 말고 같은 굵기의 선으로 다시 그리거나, 채운 윤곽이면 <see cref="FillOutline"/> 으로 테두리를 이 굵기에 맞춘다.
+    /// ActionGlyphRulesTests 가 이 규칙을 지킨다.
     /// </summary>
     public sealed class ActionGlyph : VisualElement
     {
@@ -371,17 +379,8 @@ namespace GitVersionControl
                     FillOutline(painter, scale);
                     break;
                 case ActionGlyphKind.Check:
-                    // 원본 SVG(viewBox 0 -960 960 960)를 20 칸으로 옮긴 외곽선을 선 대신 글자색으로 채운다.
-                    painter.fillColor = resolvedStyle.color;
-                    painter.BeginPath();
-                    painter.MoveTo(P(8.333f, 13.25f));
-                    painter.LineTo(P(5.146f, 10.063f));
-                    painter.LineTo(P(6.021f, 9.188f));
-                    painter.LineTo(P(8.333f, 11.625f));
-                    painter.LineTo(P(13.979f, 5.979f));
-                    painter.LineTo(P(14.854f, 6.854f));
-                    painter.ClosePath();
-                    painter.Fill();
+                    // 다른 선 아이콘과 같은 굵기로 긋는다(전에는 Material "check_small" 윤곽을 채워 1.25 칸으로 가늘었다).
+                    Polyline(painter, P(4.5f, 10.4f), P(8.2f, 14.1f), P(15.5f, 6.4f));
                     break;
                 case ActionGlyphKind.Hierarchy:
                     // 위 칸 → 줄기 → 가로대 → 아래 칸 셋으로 내려가는 가지.
@@ -404,9 +403,8 @@ namespace GitVersionControl
                     break;
                 case ActionGlyphKind.Search:
                     // Material Symbols "search"(FILL0 wght400 opsz48) 의 렌즈(가운데 7.85,7.81 · 반지름 4.08~5.33)와 45° 손잡이를 20 칸 그대로 옮겨,
-                    // 윤곽을 채우는 대신 선으로 긋는다. 원본 굵기(1.25 칸)는 작은 크기에서 가늘어 1.75 칸으로 둔다.
+                    // 윤곽을 채우는 대신 다른 아이콘과 같은 굵기의 선으로 긋는다.
                     // (채운 윤곽을 한 번 더 긋는 식은 두 윤곽 사이에 이음선이 생겨 렌즈 왼쪽 위로 삐죽 선이 튀었다.)
-                    painter.lineWidth = 1.75f * scale;
                     painter.BeginPath();
                     painter.Arc(P(7.85f, 7.81f), 4.7f * scale, 0f, 180f);
                     painter.Arc(P(7.85f, 7.81f), 4.7f * scale, 180f, 360f);
@@ -448,6 +446,14 @@ namespace GitVersionControl
                         painter.ClosePath();
                         painter.Fill();
                     }
+                    break;
+                case ActionGlyphKind.Trash:
+                    // Material Symbols "delete"(viewBox 48) 비례를 20 칸으로 옮겨 선으로 긋는다: 손잡이 → 뚜껑 → 통 → 안쪽 세로 줄 둘.
+                    Polyline(painter, P(7.8f, 4.6f), P(7.8f, 2.4f), P(12.2f, 2.4f), P(12.2f, 4.6f));
+                    Polyline(painter, P(3.4f, 4.6f), P(16.6f, 4.6f));
+                    Polyline(painter, P(5.2f, 4.6f), P(5.2f, 16.9f), P(14.8f, 16.9f), P(14.8f, 4.6f));
+                    Polyline(painter, P(8.3f, 8.2f), P(8.3f, 13.6f));
+                    Polyline(painter, P(11.7f, 8.2f), P(11.7f, 13.6f));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);
@@ -552,8 +558,8 @@ namespace GitVersionControl
             painter.lineWidth = width;
         }
 
-        /// <summary>선으로 긋는 아이콘의 굵기(20 칸 기준).</summary>
-        private const float StrokeUnits = 1.6f;
+        /// <summary>모든 선 아이콘의 굵기(20 칸 기준). 아이콘마다 바꾸지 않는다(ActionGlyphRulesTests).</summary>
+        public const float StrokeUnits = 1.6f;
 
         /// <summary>Material Symbols wght400 윤곽 테두리 두께(20 칸 기준, 960 칸의 60).</summary>
         private const float MaterialOutlineUnits = 1.25f;
