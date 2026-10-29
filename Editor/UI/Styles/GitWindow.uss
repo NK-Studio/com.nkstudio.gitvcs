@@ -66,15 +66,27 @@
     margin-top: 4px;
 }
 
+/* 우리 버튼 규칙: 평소엔 강조색 테두리, 마우스를 올리면 강조색으로 채운다. */
 .github-connect__primary {
     height: 32px;
     margin: 0;
     font-size: 13px;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    color: var(--git-accent-text);
-    background-color: var(--git-accent);
-    border-width: 0;
+    color: var(--git-text);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--git-accent);
     border-radius: 6px;
+}
+
+.github-connect__primary:hover:enabled {
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.github-connect__primary:active:enabled {
+    background-color: var(--git-accent-hover);
+    color: var(--git-accent-text);
 }
 
 .github-connect__code {
@@ -1626,8 +1638,38 @@
     color: var(--git-text-muted);
 }
 
-.pr-detail__danger {
+/* 색 있는 보조 버튼(닫기·승인·변경 요청): 우리 버튼 규칙대로 평소엔 그 색 테두리·글자, 마우스를 올리면 그 색으로 채우고 글자는 흰색. */
+.side-drawer__secondary.pr-detail__danger,
+.side-drawer__secondary.pr-detail__request-changes {
+    border-color: var(--git-danger);
     color: var(--git-danger);
+}
+
+.side-drawer__secondary.pr-detail__danger:hover:enabled,
+.side-drawer__secondary.pr-detail__request-changes:hover:enabled {
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
+}
+
+.side-drawer__secondary.pr-detail__danger:active:enabled,
+.side-drawer__secondary.pr-detail__request-changes:active:enabled {
+    background-color: var(--git-danger-strong-pressed);
+    color: var(--git-on-strong);
+}
+
+.side-drawer__secondary.pr-detail__approve {
+    border-color: var(--git-success);
+    color: var(--git-success);
+}
+
+.side-drawer__secondary.pr-detail__approve:hover:enabled {
+    background-color: var(--git-success-strong);
+    color: var(--git-on-strong);
+}
+
+.side-drawer__secondary.pr-detail__approve:active:enabled {
+    background-color: var(--git-success-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .pr-detail__timeline {
@@ -1702,13 +1744,6 @@
     margin-bottom: 12px;
 }
 
-.pr-detail__approve {
-    color: var(--git-success);
-}
-
-.pr-detail__request-changes {
-    color: var(--git-danger);
-}
 
 /* ── search-select: 서랍의 검색 되는 고르기 칸 ── */
 /* react-select 와 같은 모양: 테두리 상자 하나 안에 글자 칸(테두리 없음) · 얇은 구분선 · ⌄. 포커스면 상자 테두리가 강조색, 펼치면 ⌄ 가 위를 본다. */

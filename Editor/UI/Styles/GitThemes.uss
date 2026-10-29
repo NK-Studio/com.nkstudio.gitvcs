@@ -314,16 +314,23 @@
 }
 
 /* 커밋 버튼은 JetBrains 의 기본(파란) 버튼. */
+/* 커밋 버튼(세 배치 공통): 우리 버튼 규칙대로 평소엔 강조색 테두리, 마우스를 올리면 강조색으로 채우고 글자는 흰색. */
 .git-theme--jetbrains .pending-changes__commit-button {
-    background-color: var(--git-accent);
+    background-color: rgba(0, 0, 0, 0);
     border-color: var(--git-accent);
     border-width: 1px;
     border-radius: var(--git-radius);
+    color: var(--git-text);
+}
+
+.git-theme--jetbrains .pending-changes__commit-button:hover:enabled {
+    background-color: var(--git-accent);
     color: var(--git-accent-text);
 }
 
-.git-theme--jetbrains .pending-changes__commit-button:hover {
+.git-theme--jetbrains .pending-changes__commit-button:active:enabled {
     background-color: var(--git-accent-hover);
+    color: var(--git-accent-text);
 }
 
 .git-theme--jetbrains .pending-changes__commit-button:disabled {

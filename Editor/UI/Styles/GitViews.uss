@@ -782,15 +782,22 @@
 }
 
 /* 만들기: 강조색 채움(이름이 맞을 때만 켜진다). */
+/* 대화 상자의 주 버튼(만들기·확인…): 우리 버튼 규칙대로 평소엔 강조색 테두리, 마우스를 올리면 강조색으로 채우고 글자는 흰색. */
 .branch-dialog .branch-dialog__create {
-    background-color: var(--git-accent);
+    background-color: rgba(0, 0, 0, 0);
     border-color: var(--git-accent);
-    color: var(--git-accent-text);
+    color: var(--git-text);
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 .branch-dialog .branch-dialog__create:hover:enabled {
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.branch-dialog .branch-dialog__create:active:enabled {
     background-color: var(--git-accent-hover);
+    color: var(--git-accent-text);
 }
 
 .branch-dialog .branch-dialog__create:disabled {
@@ -821,15 +828,21 @@
 }
 
 /* 되돌릴 수 없는 확인(버리기·덮어쓰기)은 강조색 대신 빨강 채움. 세 갈래에서 버리기가 다른 쪽이면 무채색 버튼에 빨강 테두리. */
+/* 위험한 주 버튼(삭제·버리기…): 평소엔 위험색 테두리·글자, 마우스를 올리면 위험색으로 채운다. */
 .branch-dialog .branch-dialog__create.confirm-dialog__button--danger {
-    background-color: var(--git-danger);
+    background-color: rgba(0, 0, 0, 0);
     border-color: var(--git-danger);
-    color: #ffffff;
+    color: var(--git-danger);
 }
 
 .branch-dialog .branch-dialog__create.confirm-dialog__button--danger:hover:enabled {
-    background-color: var(--git-danger);
-    opacity: 0.85;
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
+}
+
+.branch-dialog .branch-dialog__create.confirm-dialog__button--danger:active:enabled {
+    background-color: var(--git-danger-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .branch-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline {
