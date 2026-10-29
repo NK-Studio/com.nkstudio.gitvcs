@@ -28,6 +28,7 @@ namespace GitVersionControl
             window._repoPath = repoPath;
             window.titleContent = TitleWithIcon(GitText.Format("blame.windowTitle", System.IO.Path.GetFileName(repoPath)));
             window.Show();
+            window.position = GitWindowPlacement.CenteredOnMain(new UnityEngine.Vector2(1000, 800));
             window.Load();
         }
 

@@ -63,6 +63,7 @@ namespace GitVersionControl
             window._workingTree = workingTree;
             window.titleContent = TitleWithIcon(title);
             window.Show();
+            window.position = GitWindowPlacement.CenteredOnMain(new UnityEngine.Vector2(1200, 860));
             window.Load();
         }
 

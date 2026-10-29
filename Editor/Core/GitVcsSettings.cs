@@ -77,7 +77,6 @@ namespace GitVersionControl
         [SerializeField] private string _customDiffArguments = ExternalDiffTool.DefaultCustomArguments;
         [SerializeField] private List<string> _diffToolPaths = new();
         [SerializeField] private float _gitWindowScale = 1f;
-        [SerializeField] private float _diffWindowScale = 1f;
         // 예전 _theme(JetBrains·Unity 모양)과 이름을 달리해, 남아 있던 값이 밝기로 잘못 읽히지 않고 System 에서 시작하게 한다.
         [SerializeField] private int _themeMode = (int)GitThemeMode.System;
         [SerializeField] private int _layout;
@@ -424,15 +423,6 @@ namespace GitVersionControl
         {
             get => UiScaleController.Clamp(_gitWindowScale);
             set => SetAndSave(ref _gitWindowScale, UiScaleController.Clamp(value));
-        }
-
-        /// <summary>
-        /// diff 뷰어 UI 배율. 코드는 Git 창과 따로 키워 보는 일이 많아 나눠 둔다.
-        /// </summary>
-        public float DiffWindowScale
-        {
-            get => UiScaleController.Clamp(_diffWindowScale);
-            set => SetAndSave(ref _diffWindowScale, UiScaleController.Clamp(value));
         }
 
         /// <summary>

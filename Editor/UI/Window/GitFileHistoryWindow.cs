@@ -38,6 +38,7 @@ namespace GitVersionControl
             window._diffService = diffService;
             window.titleContent = TitleWithIcon(GitText.Format("history.windowTitle", System.IO.Path.GetFileName(repoPath)));
             window.Show();
+            window.position = GitWindowPlacement.CenteredOnMain(new UnityEngine.Vector2(1200, 860));
             window.Load();
         }
 

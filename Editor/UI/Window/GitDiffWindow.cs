@@ -21,13 +21,21 @@ namespace GitVersionControl
         private UiScaleController _scale;
         private VisualElement _content;
 
+        /// <summary>새로 뜰 때의 크기. 이미지 diff 의 두 판과 코드 diff 의 양쪽이 읽을 만하게.</summary>
+        private static readonly Vector2 PreferredSize = new(1200, 800);
+
         public static void Open(GitDiffTarget target, IGitDiffService service)
         {
+            bool isNew = HasOpenInstances<GitDiffWindow>() == false;
             GitDiffWindow window = GetWindow<GitDiffWindow>();
             window.titleContent = new GUIContent(GitText.Get("diff.windowTitle"), GitIcons.Window);
             window._service = service;
             window._target = target;
             window.Show();
+            if (isNew)
+            {
+                window.position = GitWindowPlacement.CenteredOnMain(PreferredSize);
+            }
             window._panel?.SetTarget(target);
         }
 
@@ -42,8 +50,9 @@ namespace GitVersionControl
             VisualElement root = new();
             rootVisualElement.Add(scaleHost);
             scaleHost.Add(root);
+            // 배율은 Git 창·보조 창(히스토리·blame·비교)과 같은 설정을 쓴다 — 창마다 글자 크기가 달라 보이지 않게.
             GitVcsSettings settings = GitVcsSettings.instance;
-            _scale = new UiScaleController(scaleHost, root, () => settings.DiffWindowScale, value => settings.DiffWindowScale = value);
+            _scale = new UiScaleController(scaleHost, root, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
 
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(CommonStylePath));
             root.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(StylePath));
@@ -71,6 +80,8 @@ namespace GitVersionControl
         private void OnFocus()
         {
             ApplyTheme();
+            // 다른 창에서 배율을 바꾼 뒤 돌아오면 그 배율로 맞춘다.
+            _scale?.Apply();
         }
 
         private void OnDisable()
@@ -92,7 +103,7 @@ namespace GitVersionControl
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleOut")}"), false, () => _scale?.ZoomOut());
-            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.DiffWindowScale * 100f))}"), false, () => _scale?.Reset());
+            menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Format("window.uiScaleReset", Mathf.RoundToInt(GitVcsSettings.instance.GitWindowScale * 100f))}"), false, () => _scale?.Reset());
         }
     }
 }

@@ -66,6 +66,41 @@ namespace GitVersionControl
             });
         }
 
+        /// <summary>
+        /// Git 창을 열고 변경 탭에서 그 파일을 골라 diff 를 연다(Project 창 우클릭 "Git 창에서 보기").
+        /// </summary>
+        public static void RevealChange(string repoPath)
+        {
+            Open();
+            GitWindow window = GetWindow<GitWindow>();
+            // 창을 막 만들었으면 탭이 아직 없다. 다음 틱에 고른다.
+            window.rootVisualElement.schedule.Execute(() =>
+            {
+                int index = window._views.FindIndex(view => view.ShowsChanges);
+                if (index < 0)
+                {
+                    return;
+                }
+                window.SelectTab(index);
+                window._views[index].RevealChange(repoPath);
+            });
+        }
+
+        /// <summary>
+        /// 열려 있는 Git 창의 서비스. Git 창 밖(Project 창 메뉴)에서 작업할 때 같은 실행기를 써서 창의 작업과 겹치지 않게 한다. 창이 없으면 null.
+        /// </summary>
+        public static GitServices OpenWindowServices()
+        {
+            foreach (GitWindow window in Resources.FindObjectsOfTypeAll<GitWindow>())
+            {
+                if (window._services != null)
+                {
+                    return window._services;
+                }
+            }
+            return null;
+        }
+
         private void CreateGUI()
         {
             GitIcons.ApplyTo(this);
@@ -536,7 +571,7 @@ namespace GitVersionControl
         /// </summary>
         private void ShowConflicts()
         {
-            int index = _views.FindIndex(view => view.ShowsConflicts);
+            int index = _views.FindIndex(view => view.ShowsChanges);
             if (index < 0)
             {
                 return;

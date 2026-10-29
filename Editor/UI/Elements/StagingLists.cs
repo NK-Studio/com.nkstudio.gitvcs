@@ -362,6 +362,25 @@ namespace GitVersionControl
             return conflict != null && _unstaged.SelectFile(conflict.RepoPath);
         }
 
+        /// <summary>
+        /// 그 파일을 골라 diff 를 연다(Project 창 "Git 창에서 보기"). Unstaged 에 있으면 그쪽, 아니면 Staged. 에셋이 그대로이고 .meta 만 바뀌었으면 .meta 를 고른다.
+        /// </summary>
+        public bool SelectEntry(string repoPath)
+        {
+            foreach (string path in new[] { repoPath, repoPath + ".meta" })
+            {
+                if (_unstagedEntries.Any(e => e.RepoPath == path) && _unstaged.SelectFile(path))
+                {
+                    return true;
+                }
+                if (_stagedEntries.Any(e => e.RepoPath == path) && _staged.SelectFile(path))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public void Dispose()
         {
             GitVcsSettings.MetaGroupingChanged -= OnMetaGroupingChanged;

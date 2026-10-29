@@ -128,7 +128,7 @@ namespace GitVersionControl
             UpdateCommitArea();
         }
 
-        public override bool ShowsConflicts => true;
+        public override bool ShowsChanges => true;
 
         /// <summary>충돌 안내의 "충돌 보기": 첫 충돌 파일을 골라 diff 를 연다.</summary>
         public override void ShowConflicts()
@@ -138,6 +138,11 @@ namespace GitVersionControl
             {
                 _files.SelectFile(conflict.RepoPath);
             }
+        }
+
+        public override bool RevealChange(string repoPath)
+        {
+            return _files.SelectFile(repoPath) || _files.SelectFile(repoPath + ".meta");
         }
 
         public override void Dispose()
