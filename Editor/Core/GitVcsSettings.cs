@@ -38,7 +38,8 @@ namespace GitVersionControl
     }
 
     /// <summary>
-    /// 사용자·머신별 설정. git 경로는 머신마다 다르므로 저장소에 올라가지 않는 UserSettings 에 둔다.
+    /// 사용자·머신별 설정. 저장소에 올라가지 않는 UserSettings 에 두고, Preferences > Git 의 개인 설정(언어·테마·git 경로·Diff 등)은
+    /// EditorPrefs 에도 두어 이 PC 의 모든 프로젝트가 같은 값을 쓴다(<see cref="OnEnable"/>).
     /// </summary>
     [FilePath("UserSettings/GitVersionControl.asset", FilePathAttribute.Location.ProjectFolder)]
 #if UNITY_6000_7_OR_NEWER
@@ -102,19 +103,19 @@ namespace GitVersionControl
         public string GitExecutable
         {
             get => string.IsNullOrWhiteSpace(_gitExecutable) ? "git" : _gitExecutable.Trim();
-            set => SetAndSave(ref _gitExecutable, value);
+            set => SetAndSave(ref _gitExecutable, value, nameof(GitExecutable));
         }
 
         public bool ShowOverlays
         {
             get => _showOverlays;
-            set => SetAndSave(ref _showOverlays, value);
+            set => SetAndSave(ref _showOverlays, value, nameof(ShowOverlays));
         }
 
         public bool RefreshOnFocus
         {
             get => _refreshOnFocus;
-            set => SetAndSave(ref _refreshOnFocus, value);
+            set => SetAndSave(ref _refreshOnFocus, value, nameof(RefreshOnFocus));
         }
 
         /// <summary>
@@ -123,7 +124,7 @@ namespace GitVersionControl
         public bool WatchFileSystem
         {
             get => _watchFileSystem;
-            set => SetAndSave(ref _watchFileSystem, value);
+            set => SetAndSave(ref _watchFileSystem, value, nameof(WatchFileSystem));
         }
 
         /// <summary>
@@ -220,7 +221,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _language, index);
+                SetAndSave(ref _language, index, nameof(Language));
             }
         }
 
@@ -241,7 +242,7 @@ namespace GitVersionControl
         public bool ShowAvatars
         {
             get => _showAvatars;
-            set => SetAndSave(ref _showAvatars, value);
+            set => SetAndSave(ref _showAvatars, value, nameof(ShowAvatars));
         }
 
         /// <summary>
@@ -253,7 +254,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _diffEngine, index);
+                SetAndSave(ref _diffEngine, index, nameof(DiffEngine));
             }
         }
 
@@ -266,7 +267,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                if (SetAndSave(ref _diffAlgorithm, index))
+                if (SetAndSave(ref _diffAlgorithm, index, nameof(DiffAlgorithm)))
                 {
                     DiffOptionsChanged?.Invoke();
                 }
@@ -279,7 +280,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                if (SetAndSave(ref _diffWhitespace, index))
+                if (SetAndSave(ref _diffWhitespace, index, nameof(DiffWhitespace)))
                 {
                     DiffOptionsChanged?.Invoke();
                 }
@@ -295,7 +296,7 @@ namespace GitVersionControl
             set
             {
                 int clamped = Mathf.Clamp(value, 0, GitDiffOptions.MaxContextLines);
-                if (SetAndSave(ref _diffContextLines, clamped))
+                if (SetAndSave(ref _diffContextLines, clamped, nameof(DiffContextLines)))
                 {
                     DiffOptionsChanged?.Invoke();
                 }
@@ -308,7 +309,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _diffLayout, index);
+                SetAndSave(ref _diffLayout, index, nameof(DiffLayout));
             }
         }
 
@@ -378,7 +379,7 @@ namespace GitVersionControl
         public string DifftoolName
         {
             get => _difftoolName ?? string.Empty;
-            set => SetAndSave(ref _difftoolName, value?.Trim() ?? string.Empty);
+            set => SetAndSave(ref _difftoolName, value?.Trim() ?? string.Empty, nameof(DifftoolName));
         }
 
         /// <summary>
@@ -387,7 +388,7 @@ namespace GitVersionControl
         public string CustomDiffArguments
         {
             get => string.IsNullOrWhiteSpace(_customDiffArguments) ? ExternalDiffTool.DefaultCustomArguments : _customDiffArguments;
-            set => SetAndSave(ref _customDiffArguments, value);
+            set => SetAndSave(ref _customDiffArguments, value, nameof(CustomDiffArguments));
         }
 
         /// <summary>
@@ -413,6 +414,7 @@ namespace GitVersionControl
             }
             _diffToolPaths[index] = trimmed;
             Save(true);
+            EditorPrefs.SetString(PrefsPrefix + DiffToolPathsKey, string.Join("\n", _diffToolPaths));
         }
 
         /// <summary>
@@ -442,7 +444,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _themeMode, index);
+                SetAndSave(ref _themeMode, index, nameof(ThemeMode));
             }
         }
 
@@ -455,7 +457,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _layout, index);
+                SetAndSave(ref _layout, index, nameof(Layout));
             }
         }
 
@@ -465,7 +467,7 @@ namespace GitVersionControl
         public bool ShowInMainToolbar
         {
             get => _showInMainToolbar;
-            set => SetAndSave(ref _showInMainToolbar, value);
+            set => SetAndSave(ref _showInMainToolbar, value, nameof(ShowInMainToolbar));
         }
 
         /// <summary>
@@ -477,7 +479,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _menuStyle, index);
+                SetAndSave(ref _menuStyle, index, nameof(MenuStyle));
             }
         }
 
@@ -488,7 +490,7 @@ namespace GitVersionControl
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _errorDetailMode, index);
+                SetAndSave(ref _errorDetailMode, index, nameof(ErrorDetailMode));
             }
         }
 
@@ -526,6 +528,108 @@ namespace GitVersionControl
         {
             get => _graphColumnOrder ?? string.Empty;
             set => SetAndSave(ref _graphColumnOrder, value ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Preferences > Git 에 있는 개인 설정을 EditorPrefs 에 두는 키 앞부분. 이 PC 의 모든 프로젝트가 같은 값을 쓴다.
+        /// </summary>
+        private const string PrefsPrefix = "GitVersionControl.";
+
+        private const string DiffToolPathsKey = "DiffToolPaths";
+
+        /// <summary>
+        /// 개인 설정을 EditorPrefs 에서 읽어 필드에 채운다. git 은 백그라운드에서도 설정을 읽으므로(EditorPrefs 는 메인 스레드 전용)
+        /// 필드를 그대로 캐시로 쓴다. EditorPrefs 에 아직 없으면 예전 UserSettings 값을 옮겨 적는다(처음 연 프로젝트의 값이 기준이 된다).
+        /// </summary>
+        private void OnEnable()
+        {
+            SyncPref(nameof(GitExecutable), ref _gitExecutable);
+            SyncPref(nameof(ShowOverlays), ref _showOverlays);
+            SyncPref(nameof(RefreshOnFocus), ref _refreshOnFocus);
+            SyncPref(nameof(WatchFileSystem), ref _watchFileSystem);
+            SyncPref(nameof(Language), ref _language);
+            SyncPref(nameof(ShowAvatars), ref _showAvatars);
+            SyncPref(nameof(DiffEngine), ref _diffEngine);
+            SyncPref(nameof(DiffAlgorithm), ref _diffAlgorithm);
+            SyncPref(nameof(DiffWhitespace), ref _diffWhitespace);
+            SyncPref(nameof(DiffContextLines), ref _diffContextLines);
+            SyncPref(nameof(DiffLayout), ref _diffLayout);
+            SyncPref(nameof(DifftoolName), ref _difftoolName);
+            SyncPref(nameof(CustomDiffArguments), ref _customDiffArguments);
+            SyncPref(nameof(ThemeMode), ref _themeMode);
+            SyncPref(nameof(Layout), ref _layout);
+            SyncPref(nameof(ShowInMainToolbar), ref _showInMainToolbar);
+            SyncPref(nameof(MenuStyle), ref _menuStyle);
+            SyncPref(nameof(ErrorDetailMode), ref _errorDetailMode);
+
+            string paths = string.Join("\n", _diffToolPaths);
+            SyncPref(DiffToolPathsKey, ref paths);
+            _diffToolPaths = new List<string>(paths.Length == 0 ? Array.Empty<string>() : paths.Split('\n'));
+        }
+
+        private static void SyncPref(string key, ref string field)
+        {
+            key = PrefsPrefix + key;
+            if (EditorPrefs.HasKey(key))
+            {
+                field = EditorPrefs.GetString(key, field);
+            }
+            else
+            {
+                EditorPrefs.SetString(key, field ?? string.Empty);
+            }
+        }
+
+        private static void SyncPref(string key, ref bool field)
+        {
+            key = PrefsPrefix + key;
+            if (EditorPrefs.HasKey(key))
+            {
+                field = EditorPrefs.GetBool(key, field);
+            }
+            else
+            {
+                EditorPrefs.SetBool(key, field);
+            }
+        }
+
+        private static void SyncPref(string key, ref int field)
+        {
+            key = PrefsPrefix + key;
+            if (EditorPrefs.HasKey(key))
+            {
+                field = EditorPrefs.GetInt(key, field);
+            }
+            else
+            {
+                EditorPrefs.SetInt(key, field);
+            }
+        }
+
+        /// <summary>
+        /// 개인 설정을 바꾼다. UserSettings 에도 남기지만 다음 실행 때는 EditorPrefs 값이 이긴다.
+        /// </summary>
+        /// <returns>값이 실제로 바뀌었으면 true.</returns>
+        private bool SetAndSave<T>(ref T field, T value, string prefKey)
+        {
+            if (SetAndSave(ref field, value) == false)
+            {
+                return false;
+            }
+            string key = PrefsPrefix + prefKey;
+            switch (field)
+            {
+                case bool flag:
+                    EditorPrefs.SetBool(key, flag);
+                    break;
+                case int number:
+                    EditorPrefs.SetInt(key, number);
+                    break;
+                default:
+                    EditorPrefs.SetString(key, field?.ToString() ?? string.Empty);
+                    break;
+            }
+            return true;
         }
 
         /// <returns>값이 실제로 바뀌었으면 true.</returns>

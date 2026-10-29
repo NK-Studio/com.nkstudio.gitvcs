@@ -5,7 +5,7 @@ using UnityEngine.Networking;
 namespace GitVersionControl
 {
     /// <summary>
-    /// Preferences > Git: 사람마다 다른 개인 설정. 메인 툴바 버튼, 브랜치 탐색기 모양(<see cref="GitExplorerStyle"/>), GitHub 계정 로그인(<see cref="GitHubAccount"/>).
+    /// Preferences > Git: 사람마다 다른 개인 설정. 언어·테마·배치·브랜치 탐색기 모양, git 실행 파일, 에디터 동작·표시, Diff(<see cref="GitSettingsGUI.DrawPersonal"/>), GitHub 계정 로그인(<see cref="GitHubAccount"/>).
     /// 프로젝트 설정(Project Settings > Git)과 달리 이 PC 의 모든 프로젝트에 같이 적용된다.
     /// </summary>
 #if UNITY_6000_7_OR_NEWER
@@ -48,7 +48,7 @@ namespace GitVersionControl
             {
                 label = "Git",
                 guiHandler = _ => Draw(),
-                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork" },
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork", "Language", "Theme", "Layout", "Diff", "Menu" },
             };
         }
 
@@ -61,6 +61,8 @@ namespace GitVersionControl
                 using (new EditorGUILayout.VerticalScope(Page))
                 {
                     DrawGeneral();
+                    GUILayout.Space(SectionGap);
+                    GitSettingsGUI.DrawPersonalDiff();
                     GUILayout.Space(SectionGap);
                     DrawAccount();
                 }
@@ -75,10 +77,7 @@ namespace GitVersionControl
         {
             EditorGUILayout.LabelField(GitText.Get("prefs.general"), EditorStyles.boldLabel);
             GUILayout.Space(2);
-            GitVcsSettings settings = GitVcsSettings.instance;
-            GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
-            GUILayout.Space(2);
-            GitExplorerStyle.DrawPopup();
+            GitSettingsGUI.DrawPersonal();
         }
 
         private static void DrawAccount()
