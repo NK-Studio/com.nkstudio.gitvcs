@@ -661,6 +661,12 @@
     cursor: link;
 }
 
+/* 구역(로컬·리모트…) 사이 가로 구분선. 줄 높이는 고정이라 선은 줄 안쪽 맨 위에 그어진다. */
+.ref-tree__item--section-divided {
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
 /* 왼쪽 끝에 붙지 않게 필터 상자와 같은 8px 를 띄운다. 선택 배경은 항목 전체 너비 그대로다. */
 .ref-tree__tree .unity-tree-view__item {
     padding-left: 8px;

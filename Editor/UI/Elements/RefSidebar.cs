@@ -32,6 +32,8 @@ namespace GitVersionControl
         private readonly Dictionary<string, int> _idByKey = new();
         private readonly Dictionary<int, string> _keyById = new();
         private readonly Dictionary<RefSection, int> _sectionCounts = new();
+        /// <summary>마지막으로 고른 (구역 머리가 아닌) 줄. 구역 머리를 누르면 이 선택으로 되돌린다.</summary>
+        private readonly List<int> _selectedIds = new();
         private GitRefSet _refs = new();
         private int _nextId;
         private bool _rebuilding;
@@ -145,6 +147,14 @@ namespace GitVersionControl
                 {
                     return;
                 }
+                // 구역 머리 줄(로컬·리모트…)은 고르는 줄이 아니다: 고른 줄을 그대로 두고, 누르면 접고 펼친다(MakeRow 의 ClickEvent).
+                if (node.Kind == RefNodeKind.Section)
+                {
+                    _tree.SetSelectionByIdWithoutNotify(_selectedIds);
+                    return;
+                }
+                _selectedIds.Clear();
+                _selectedIds.AddRange(_tree.selectedIds);
                 if (node.Commit != null)
                 {
                     RevealRequested?.Invoke(node.Commit);
@@ -523,6 +533,23 @@ namespace GitVersionControl
             // 줄에 마우스를 올리면 GitKraken 처럼 줄 아래에 전체 이름(sample/main, origin/main)이나 워크트리 폴더를 바로 띄운다.
             HoverCallout.Attach(row, () => row.userData is int index ? HoverText(_tree.GetItemDataForIndex<RefNode>(index)) : null,
                 () => _services.PopupHost, HoverCalloutPlacement.Below);
+            // 구역 머리 줄은 GitKraken 처럼 줄 어디를 눌러도 접고 펼친다.
+            row.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (evt.button != 0 || row.userData is not int index || _tree.GetItemDataForIndex<RefNode>(index) is not { Kind: RefNodeKind.Section })
+                {
+                    return;
+                }
+                int id = _tree.GetIdForIndex(index);
+                if (_tree.IsExpanded(id))
+                {
+                    _tree.CollapseItem(id);
+                }
+                else
+                {
+                    _tree.ExpandItem(id);
+                }
+            });
             row.AddManipulator(new ContextualMenuManipulator(evt =>
             {
                 if (row.userData is int index)
@@ -631,6 +658,8 @@ namespace GitVersionControl
                 if (item.ClassListContains(TreeView.itemUssClassName))
                 {
                     item.EnableInClassList(Block + "__item--section", isSection);
+                    // 구역 사이 가로 구분선. 맨 위 구역 위에는 긋지 않는다(USS 에 :first-child 가 없어 줄 번호로 가린다).
+                    item.EnableInClassList(Block + "__item--section-divided", isSection && index > 0);
                     item.EnableInClassList(Block + "__item--fixed", isFixed);
                     VisualElement toggleElement = item.Q(className: TreeView.itemToggleUssClassName);
                     if (toggleElement != null)
