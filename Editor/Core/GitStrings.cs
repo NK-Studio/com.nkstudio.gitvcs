@@ -555,6 +555,7 @@ namespace GitVersionControl
             ["refs.addWorktreeHint"] = new[] { "새 워크트리 만들기", "Add a new worktree" },
             ["refs.addSubmoduleHint"] = new[] { "서브모듈 추가", "Add a submodule" },
             ["refs.createPullRequestHint"] = new[] { "Pull Request 만들기", "Create Pull Request" },
+            ["refs.branchMenuHint"] = new[] { "브랜치 작업", "Branch actions" },
             ["drawer.select"] = new[] { "선택…", "Select…" },
             ["worktree.createTitle"] = new[] { "워크트리 만들기", "Create Worktree" },
             ["worktree.reference"] = new[] { "체크아웃할 참조", "Reference to checkout" },

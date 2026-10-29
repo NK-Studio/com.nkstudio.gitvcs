@@ -800,6 +800,33 @@
     display: flex;
 }
 
+/* 브랜치 줄 끝의 ⋮(GitKraken 처럼 줄에 마우스를 올리면 나온다). 누르면 우클릭과 같은 브랜치 메뉴. */
+.ref-tree__more {
+    display: none;
+    flex-shrink: 0;
+    width: 16px;
+    height: 20px;
+    margin-left: 4px;
+    margin-right: -10px;
+    border-radius: 3px;
+    color: var(--git-text-muted);
+    cursor: link;
+}
+
+.ref-tree__more > .action-glyph {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+}
+
+.ref-tree__more:hover {
+    color: var(--git-text);
+}
+
+.unity-tree-view__item:hover .ref-tree__row--menu .ref-tree__more {
+    display: flex;
+}
+
 .unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__badge {
     display: none;
 }

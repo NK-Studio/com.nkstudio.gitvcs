@@ -429,6 +429,24 @@ namespace GitVersionControl
             HoverCallout.Attach(add, () => add.userData is RefSection section ? AddHintKey(section) is { } key ? GitText.Get(key) : null : null,
                 () => _services.PopupHost);
             row.Add(add);
+            // 로컬·리모트 브랜치 줄 끝의 ⋮: 우클릭과 같은 메뉴를 GitKraken 처럼 버튼 오른쪽 위를 기점으로 연다.
+            // 떼는 순간(클릭) 열어야 그 떼기가 막 뜬 메뉴 줄을 고르지 않는다.
+            VisualElement more = new();
+            more.AddToClassList(Block + "__more");
+            more.Add(new ActionGlyph(ActionGlyphKind.MoreVert));
+            more.AddManipulator(new Clickable(() =>
+            {
+                if (row.userData is int index)
+                {
+                    _tree.SetSelectionWithoutNotify(new[] { index });
+                    DropdownMenu menu = new();
+                    PopulateMenu(menu, _tree.GetItemDataForIndex<RefNode>(index));
+                    GitContextMenu.ShowAt(_services.PopupHost, more, menu);
+                }
+            }));
+            more.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            HoverCallout.Attach(more, () => GitText.Get("refs.branchMenuHint"), () => _services.PopupHost, HoverCalloutPlacement.Below);
+            row.Add(more);
             // 줄에 마우스를 올리면 GitKraken 처럼 줄 아래에 전체 이름(sample/main, origin/main)이나 워크트리 폴더를 바로 띄운다.
             HoverCallout.Attach(row, () => row.userData is int index ? HoverText(_tree.GetItemDataForIndex<RefNode>(index)) : null,
                 () => _services.PopupHost, HoverCalloutPlacement.Below);
@@ -471,6 +489,7 @@ namespace GitVersionControl
             {
                 row[3].userData = node.Section;
             }
+            row.EnableInClassList(Block + "__row--menu", node.Kind == RefNodeKind.Branch);
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
             // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서와 화살표 숨김은 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
             // 폴더·원격은 늘 펼쳐 두므로 화살표를 감추고 누를 수 없게 한다(자리는 남겨 형제 브랜치와 들여쓰기를 맞춘다).

@@ -129,6 +129,11 @@ namespace GitVersionControl
         /// 원 안의 오른쪽 꺾쇠. 접힌 사이드바(아이콘 줄)를 다시 펼치는 버튼. 임시 아이콘.
         /// </summary>
         Expand,
+
+        /// <summary>
+        /// 더 보기(세로로 늘어선 점 셋). 사이드바 브랜치 줄의 메뉴 버튼. Material Symbols "more_vert".
+        /// </summary>
+        MoreVert,
     }
 
     /// <summary>
@@ -437,6 +442,18 @@ namespace GitVersionControl
                     painter.Arc(P(10f, 10f), 7.5f * scale, 0f, 360f);
                     painter.Stroke();
                     Polyline(painter, P(8.5f, 6.5f), P(12f, 10f), P(8.5f, 13.5f));
+                    break;
+                case ActionGlyphKind.MoreVert:
+                    // Material Symbols "more_vert"(FILL0 wght400 opsz48) SVG(viewBox 0 -960 960 960)의 점 셋(지름 96)을 20 칸으로 옮겨 글자색으로 채운다.
+                    painter.fillColor = resolvedStyle.color;
+                    foreach (float y in new[] { 4.333f, 10f, 15.667f })
+                    {
+                        painter.BeginPath();
+                        painter.Arc(P(10f, y), 1f * scale, 0f, 180f);
+                        painter.Arc(P(10f, y), 1f * scale, 180f, 360f);
+                        painter.ClosePath();
+                        painter.Fill();
+                    }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_kind), _kind, null);

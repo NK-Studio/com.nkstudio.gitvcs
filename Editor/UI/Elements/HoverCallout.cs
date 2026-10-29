@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -29,46 +30,89 @@ namespace GitVersionControl
         private const float EdgeMargin = 4f;
 
         /// <summary>
+        /// 지금 떠 있는 말풍선과 그 주인. 한 번에 하나만 띄운다 — 줄 안의 버튼(⋮)에 올리면 줄의 말풍선 대신 버튼 것만 보인다.
+        /// </summary>
+        private static VisualElement s_shown;
+
+        private static VisualElement s_owner;
+
+        /// <summary>
+        /// 대상마다 말풍선을 띄우는 법. 안쪽 버튼에서 나와 아직 줄 위에 있으면 줄의 말풍선을 다시 띄울 때 쓴다.
+        /// </summary>
+        private static readonly ConditionalWeakTable<VisualElement, Action> s_showFor = new();
+
+        /// <summary>
         /// 줄은 재사용되므로 글은 뜰 때마다 <paramref name="text"/> 로 다시 읽는다. 비어 있으면 띄우지 않는다.
         /// <see cref="HoverCalloutPlacement.Below"/> 의 글은 rich text(&lt;b&gt;)를 쓸 수 있다.
+        /// 다른 말풍선 대상 안에 든 대상(줄 안의 버튼)이면 그 위에서는 이 말풍선만, 나오면 바깥 대상의 말풍선을 다시 띄운다.
         /// </summary>
         public static void Attach(VisualElement target, Func<string> text, Func<VisualElement> host,
             HoverCalloutPlacement placement = HoverCalloutPlacement.Right)
         {
-            VisualElement shown = null;
-
-            void Hide()
+            void Show()
             {
-                shown?.RemoveFromHierarchy();
-                shown = null;
-            }
-
-            target.RegisterCallback<PointerEnterEvent>(_ =>
-            {
-                Hide();
+                Hide(null);
                 string message = text();
                 VisualElement layer = host();
                 if (string.IsNullOrEmpty(message) || layer == null || target.panel == null)
                 {
                     return;
                 }
-                shown = Create(message, placement);
-                layer.Add(shown);
+                VisualElement callout = Create(message, placement);
+                s_shown = callout;
+                s_owner = target;
+                layer.Add(callout);
                 // 덮개 좌표로 옮겨 붙인다(배율이 걸려 있어도 WorldToLocal 이 맞춰 준다).
                 Rect bounds = layer.WorldToLocal(target.worldBound);
                 if (placement == HoverCalloutPlacement.Below)
                 {
-                    PlaceBelow(shown, layer, bounds);
+                    PlaceBelow(callout, layer, bounds);
                 }
                 else
                 {
-                    shown.style.left = bounds.xMax + 6f;
-                    shown.style.top = bounds.center.y;
+                    callout.style.left = bounds.xMax + 6f;
+                    callout.style.top = bounds.center.y;
+                }
+            }
+
+            s_showFor.AddOrUpdate(target, Show);
+            target.RegisterCallback<PointerEnterEvent>(_ => Show());
+            target.RegisterCallback<PointerLeaveEvent>(evt =>
+            {
+                if (Hide(target) == false)
+                {
+                    return;
+                }
+                // 줄 안의 버튼에서 나왔지만 아직 줄 위라면 줄의 말풍선으로 돌아간다.
+                for (VisualElement parent = target.parent; parent != null; parent = parent.parent)
+                {
+                    if (s_showFor.TryGetValue(parent, out Action showParent))
+                    {
+                        if (parent.worldBound.Contains(evt.position))
+                        {
+                            showParent();
+                        }
+                        break;
+                    }
                 }
             });
-            target.RegisterCallback<PointerLeaveEvent>(_ => Hide());
-            target.RegisterCallback<PointerDownEvent>(_ => Hide());
-            target.RegisterCallback<DetachFromPanelEvent>(_ => Hide());
+            target.RegisterCallback<PointerDownEvent>(_ => Hide(target));
+            target.RegisterCallback<DetachFromPanelEvent>(_ => Hide(target));
+        }
+
+        /// <summary>
+        /// 떠 있는 말풍선을 닫는다. <paramref name="owner"/> 를 주면 그 대상의 것일 때만 닫고, 닫았는지 돌려준다.
+        /// </summary>
+        private static bool Hide(VisualElement owner)
+        {
+            if (s_shown == null || (owner != null && s_owner != owner))
+            {
+                return false;
+            }
+            s_shown.RemoveFromHierarchy();
+            s_shown = null;
+            s_owner = null;
+            return true;
         }
 
         /// <summary>

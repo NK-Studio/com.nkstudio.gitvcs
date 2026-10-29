@@ -59,6 +59,24 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 버튼(⋮ 등)으로 여는 메뉴: 마우스 자리 대신 <paramref name="anchor"/> 의 오른쪽 위 모서리를 메뉴 왼쪽 위로 삼아 띄운다(GitKraken).
+        /// </summary>
+        public static void ShowAt(VisualElement host, VisualElement anchor, DropdownMenu menu)
+        {
+            if (host?.panel == null)
+            {
+                return;
+            }
+            Node root = Build(menu.MenuItems(), null);
+            if (root.Children.Count == 0)
+            {
+                return;
+            }
+            Rect bounds = anchor.worldBound;
+            _ = new GitContextMenu(host, root, host.WorldToLocal(new Vector2(bounds.xMax, bounds.yMin)));
+        }
+
+        /// <summary>
         /// "a/b/c" 이름을 하위 메뉴 나무로 묶는다. 숨김 항목은 뺀다. 구분선은 그 하위 메뉴 안에 둔다.
         /// 맨 앞·맨 뒤·겹친 구분선은 지운다.
         /// </summary>
