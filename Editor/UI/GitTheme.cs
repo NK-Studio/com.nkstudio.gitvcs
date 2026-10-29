@@ -136,6 +136,8 @@ namespace GitVersionControl
         /// </summary>
         public static void Apply(VisualElement root, bool isDark)
         {
+            // 테마를 입히는 창 루트마다 한글 IME 깨우기를 붙인다(코드로 포커스를 준 입력란의 첫 키, GitIme).
+            GitIme.Attach(root);
             string name = SheetName(isDark);
             // 이미 같은 테마면 손대지 않는다. 시트를 떼고 붙이면 창 전체 스타일을 다시 계산해서, 포커스마다 부르면 클릭이 굼떠진다.
             if (HasSheet(root, name) && root.ClassListContains(ThemedClass))
