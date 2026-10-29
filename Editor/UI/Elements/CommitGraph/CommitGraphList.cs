@@ -54,14 +54,7 @@ namespace GitVersionControl
             public Label Hash;
             public Label Date;
 
-            /// <summary>
-            /// 이름표에 보이는 첫 참조의 종류와 참조 개수. 칸 폭이 바뀔 때 다시 묶지 않고 이름표 모양만 고르려고 들고 있다.
-            /// </summary>
-            public CommitRefKind RefKind;
-
-            /// <summary>첫 이름표에 노트북 뒤 구름도 붙는지(로컬과 원격이 같은 커밋).</summary>
-            public bool RefHasRemote;
-
+            /// <summary>이 줄 커밋의 참조 개수(펼친 목록을 띄울지 고른다).</summary>
             public int RefCount;
 
             /// <summary>
@@ -141,9 +134,8 @@ namespace GitVersionControl
         private const float MinRefsColumnWidth = 32f;
 
         /// <summary>
-        /// 브랜치/태그 칸이 맨 왼쪽일 때의 최소 폭. 머리 아이콘(들여쓰기 20 + 14 + 여백 20)과
-        /// 아이콘 하나짜리 이름표(들여쓰기 12 + 이름표 31~34 + 칸 오른쪽 여백 6)가 왼쪽 자리에 그대로 있는 채로 들어오는 폭(GitKraken 과 같다).
-        /// 이름표는 폭을 강제하지 않고 뒤 아이콘만 빼므로, 넓을 때와 같은 자리에서 제 폭으로 줄어든다. USS 의 들여쓰기·이름표 여백을 바꾸면 같이 맞춘다.
+        /// 브랜치/태그 칸이 맨 왼쪽일 때의 최소 폭. 들여쓰기 12 + 아이콘 상자 30 + 12 — 이름표와 머리 아이콘(20 + 14)이 넓을 때 자리 그대로 칸 가운데(27)에 온다.
+        /// USS 의 들여쓰기·--refs-centered 이름표 폭을 바꾸면 같이 맞춘다.
         /// </summary>
         private const float MinRefsFirstWidth = 54f;
 
@@ -157,14 +149,8 @@ namespace GitVersionControl
         private const float MaxRefsColumnWidth = 480f;
 
         // ── 칸이 좁아질 때(GitKraken 과 같다) ──
-        // 이름이 말줄임으로 줄다가 "f…" 정도가 되면 이름을 빼고 아이콘만 남긴다(--no-name). 그보다 좁으면 이름표 모양은 그대로 두고
-        // 칸 경계가 오른쪽부터 가린다(.commit-graph-row__refs 의 overflow: hidden). 그래서 한 번에 바뀌지 않고 서서히 가려진다.
-        // 아래 폭은 GitStaging.uss 의 이름표 여백·테두리·아이콘 크기를 더한 값이라 USS 를 바꾸면 같이 맞춘다.
-
-        /// <summary>
-        /// 칸 좌우 여백(.commit-graph-row__refs 의 왼쪽 8 + 오른쪽 6). 맨 왼쪽 칸이면 왼쪽이 12(--refs-first).
-        /// </summary>
-        private float RefsCellPadding => _order[0] == CommitGraphColumn.Refs ? 18f : 14f;
+        // 이름만 말줄임으로 계속 깎이고, 다 깎이면 이름표는 아이콘 폭에서 멈춘 채 칸 경계가 오른쪽부터 자른다(KeepIconsWidth,
+        // .commit-graph-row__refs 의 overflow: hidden). 한 번에 모양을 바꾸는 단계가 없어 서서히 가려진다(GitKraken 과 같다).
 
         private const string FirstHeaderModifier = "commit-graph__header-cell--first";
 
@@ -172,21 +158,6 @@ namespace GitVersionControl
         /// 맨 왼쪽 칸 종류를 루트에 붙인다(--refs-first·--graph-first·--message-first). 맨 왼쪽 칸의 내용 들여쓰기에 쓴다.
         /// </summary>
         private static readonly string[] FirstColumnModifiers = { "commit-graph--refs-first", "commit-graph--graph-first", "commit-graph--message-first" };
-
-        /// <summary>
-        /// 이름을 빼기 전에 남겨 둘 이름 폭(첫 글자와 "…"). 이보다 좁으면 "…" 만 남아 읽을 수 없다.
-        /// </summary>
-        private const float MinRefNameWidth = 18f;
-
-        /// <summary>
-        /// "+n" 앞 간격(.commit-graph-ref__more 의 margin-left). 이 틈에 커밋까지 잇는 선이 지나간다(GitKraken 과 같다).
-        /// </summary>
-        private const float MoreGap = 6f;
-
-        /// <summary>
-        /// "+n" 상자의 좌우 여백 합(.commit-graph-ref__more 의 padding 5 + 5).
-        /// </summary>
-        private const float MorePadding = 10f;
 
         /// <summary>
         /// 이름표 바탕의 가지 색 진하기: 현재 브랜치는 진하게, 로컬 브랜치와 "+n" 은 옅게(GitKraken 과 같다).
@@ -305,7 +276,6 @@ namespace GitVersionControl
         /// <summary>
         /// 보이는 줄의 이름표 모양을 마지막으로 고른 칸 폭. 맨 오른쪽 칸이면 창 크기로 바뀌므로 달라졌을 때만 다시 고른다.
         /// </summary>
-        private float _fittedRefsWidth = -1f;
 
         /// <summary>
         /// 보이는 줄의 가지 색 띠를 마지막으로 놓은 그래프 칸 폭.
@@ -658,7 +628,6 @@ namespace GitVersionControl
             RebuildHeader();
             _list.Query<GraphRow>().ForEach(ArrangeCells);
             // 맨 왼쪽이 되면 이름표 칸 여백이 바뀌므로 폭이 같아도 이름표 모양을 다시 고른다.
-            _fittedRefsWidth = -1f;
             ApplyColumnWidths();
             _overlay.MarkDirtyRepaint();
             PlaceAvatars();
@@ -821,7 +790,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 좁은 머리 칸은 글자 대신 아이콘으로 바꾸고, 브랜치/태그 칸 폭이 바뀌었으면 보이는 줄마다 이름표 모양을 다시 고른다(<see cref="FitRefs"/>).
+        /// 좁은 머리 칸은 글자 대신 아이콘으로 바꾸고, 맨 왼쪽 브랜치/태그 칸이 최소 폭이면 이름표를 아이콘 하나로 줄인다(--refs-centered).
         /// </summary>
         private void UpdateCompactRefs()
         {
@@ -843,14 +812,6 @@ namespace GitVersionControl
             Root.EnableInClassList(CenteredRefsModifier, centered);
             // 그래프가 맨 오른쪽이면 막대가 가를 다음 칸이 없으므로 띠만 칸 끝까지 깐다(GitKraken 과 같다).
             Root.EnableInClassList(GraphLastModifier, IsLast(CommitGraphColumn.Graph));
-
-            float width = ColumnWidth(CommitGraphColumn.Refs);
-            if (Mathf.Approximately(width, _fittedRefsWidth))
-            {
-                return;
-            }
-            _fittedRefsWidth = width;
-            _list.Query<GraphRow>().ForEach(FitRefs);
         }
 
         /// <summary>
@@ -910,42 +871,6 @@ namespace GitVersionControl
             row.Band.style.backgroundColor = tint;
             row.Band.style.borderRightColor = laneColor;
             row.BandGlow.style.backgroundColor = glow;
-        }
-
-        /// <summary>
-        /// 이름이 첫 글자와 "…" 보다 좁아질 만큼 칸이 좁으면 이름을 빼고 아이콘만 남긴다(--no-name).
-        /// 그보다 좁아지면 이름표는 그대로 두고 칸 경계가 가린다. 숨긴 이름·참조는 마우스를 올리면 펼치는 목록으로 본다.
-        /// </summary>
-        private void FitRefs(GraphRow row)
-        {
-            if (row.RefCount == 0)
-            {
-                return;
-            }
-            VisualElement pill = row.Refs[0];
-            Label more = (Label)row.Refs[1];
-            float inner = ColumnWidth(CommitGraphColumn.Refs) - RefsCellPadding;
-            float moreWidth = row.RefCount > 1 ? MoreGap + MorePadding + MoreTextWidth(more) : 0f;
-            bool showName = inner - moreWidth >= PillChrome(row.RefKind, row.RefHasRemote) + MinRefNameWidth;
-            pill.EnableInClassList("commit-graph-ref--no-name", showName == false);
-        }
-
-        /// <summary>
-        /// 이름을 뺀 이름표 폭: 테두리 2 + 왼쪽 여백 + (현재 브랜치) 체크 18 + 간격 5 + 종류 아이콘 16 + (원격도 있으면) 간격 3 + 구름 16 + 오른쪽 여백 8.
-        /// </summary>
-        private static float PillChrome(CommitRefKind kind, bool hasRemote)
-        {
-            float remote = hasRemote ? 3f + 16f : 0f;
-            return (kind == CommitRefKind.Current ? 2f + 3f + 18f + 5f + 16f + 8f : 2f + 8f + 5f + 16f + 8f) + remote;
-        }
-
-        /// <summary>
-        /// "+n" 글자 폭. 아직 패널에 붙지 않아 잴 수 없으면 글자 수로 어림한다(11px 글꼴의 숫자 폭).
-        /// </summary>
-        private static float MoreTextWidth(Label more)
-        {
-            Vector2 size = more.MeasureTextSize(more.text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined);
-            return float.IsNaN(size.x) || size.x <= 0f ? more.text.Length * 7f : size.x;
         }
 
         private void ApplyCellWidths(GraphRow row)
@@ -1345,9 +1270,6 @@ namespace GitVersionControl
             IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
             BindRefs(pill, more, refs, laneColor);
             row.RefCount = refs.Count;
-            row.RefKind = refs.Count > 0 ? refs[0].Kind : CommitRefKind.Local;
-            row.RefHasRemote = refs.Count > 0 && refs[0].HasRemote;
-            FitRefs(row);
             // 가지 색 띠: 커밋 원 자리부터 그래프 칸 오른쪽 끝까지 옅게 깔고 끝에 막대를 둬서 줄마다 어느 가지인지 보이게 한다.
             // 막대는 칸 순서와 상관없이 그래프 칸에 붙는다(GitKraken 과 같다 — 기본 순서에서는 메시지 바로 앞).
             row.LaneRow = node.Lane.Row;
@@ -1502,7 +1424,7 @@ namespace GitVersionControl
         private static void BindRefs(VisualElement pill, Label more, IReadOnlyList<CommitRef> refs, Color laneColor)
         {
             pill.SetVisible(refs.Count > 0);
-            // "+n" 은 칸이 좁으면 FitRefs 가 클래스로 숨기므로 여기서도 인라인 display 대신 클래스로 숨긴다.
+            // "+n" 은 인라인 display 대신 클래스로 숨긴다(최소 폭 규칙·펼친 목록이 클래스로 다룬다).
             more.EnableInClassList("commit-graph-ref__more--hidden", refs.Count <= 1);
             if (refs.Count == 0)
             {
@@ -1545,6 +1467,14 @@ namespace GitVersionControl
             pill.Add(tag);
             // 마우스를 올리면 그 이름표의 가지 색을 더 밝고 진하게(흰 막을 덮으면 색이 회색빛으로 바랬다). 바탕이 인라인 가지 색이라 USS :hover 대신 여기서 바꾼다.
             pill.RegisterCallback<PointerEnterEvent>(_ => SetRefHover(pill, true));
+            // 칸이 좁아지면 이름만 깎이고(말줄임), 이름이 다 깎이면 이름표는 아이콘 폭에서 멈춘 채 칸 경계가 오른쪽부터 자른다(GitKraken).
+            // 이름표가 아이콘 폭 밑으로 줄지 않게 이름 밖 요소 폭을 실제 배치에서 재 최소 폭으로 둔다(USS 여백을 바꿔도 맞는다).
+            // 아이콘이 숨거나 보이면(가장 좁은 칸·펼친 목록) 이름표 크기는 이 최소 폭에 묶여 그대로라, 아이콘 쪽 변화에서도 다시 잰다.
+            pill.RegisterCallback<GeometryChangedEvent>(_ => KeepIconsWidth(pill));
+            foreach (VisualElement icon in new[] { check, local, remote, tag })
+            {
+                icon.RegisterCallback<GeometryChangedEvent>(_ => KeepIconsWidth(pill));
+            }
             pill.RegisterCallback<PointerLeaveEvent>(_ => SetRefHover(pill, false));
             // 커서(USS cursor)는 포인터 바로 밑 요소 것을 쓰므로 안쪽 요소는 포인터를 받지 않게 해 이름표 어디서나 손가락 커서가 되게 한다.
             check.pickingMode = PickingMode.Ignore;
@@ -1589,6 +1519,28 @@ namespace GitVersionControl
         }
 
         private const string RefHoverModifier = "commit-graph-ref--hover";
+
+        /// <summary>
+        /// 이름표의 최소 폭 = 테두리·안쪽 여백 + 이름을 뺀 보이는 요소(체크·아이콘)의 폭과 바깥 여백. 이름만 0 까지 깎이고 그 밑으로는 줄지 않는다.
+        /// </summary>
+        private static void KeepIconsWidth(VisualElement pill)
+        {
+            IResolvedStyle style = pill.resolvedStyle;
+            float width = style.borderLeftWidth + style.borderRightWidth + style.paddingLeft + style.paddingRight;
+            foreach (VisualElement child in pill.Children())
+            {
+                if (child.ClassListContains("commit-graph-ref__name") || child.resolvedStyle.display == DisplayStyle.None)
+                {
+                    continue;
+                }
+                width += child.layout.width + child.resolvedStyle.marginLeft + child.resolvedStyle.marginRight;
+            }
+            if (float.IsNaN(width) || Mathf.Abs(pill.resolvedStyle.minWidth.value - width) < 0.5f)
+            {
+                return;
+            }
+            pill.style.minWidth = width;
+        }
 
         /// <summary>
         /// 마우스를 올린 이름표: 가지 색 바탕을 밝기는 1.3 배, 진하기는 +0.2 로(GitKraken 처럼 같은 색이 밝아진다). 내리면 원래 색.
