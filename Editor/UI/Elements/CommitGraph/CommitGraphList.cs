@@ -1630,13 +1630,17 @@ namespace GitVersionControl
                 }
             }
 
-            // 줄의 이름표 바로 위에 겹쳐 첫 참조가 제자리에서 펼쳐져 보이게 한다. 이름표와 "+n" 을 다 덮는 폭부터 시작한다.
+            // 줄의 이름표 바로 위에 겹쳐 첫 참조가 제자리에서 펼쳐져 보이게 한다. 폭은 가장 긴 이름에 맞추고(GitKraken), 줄 이름표보다 좁아지지만 않게 한다.
+            // 전에는 "+n" 상자까지 덮는 폭부터 시작해 이름이 짧으면 오른쪽이 비었다 — 대신 열려 있는 동안 줄의 "+n" 을 숨긴다.
             Rect pillBound = pill.worldBound;
-            float right = more.resolvedStyle.display != DisplayStyle.None && string.IsNullOrEmpty(more.text) == false ? more.worldBound.xMax : pillBound.xMax;
             Vector2 topLeft = _body.WorldToLocal(pillBound.position);
             _refsPopup.style.left = topLeft.x;
             _refsPopup.style.top = topLeft.y;
-            _refsPopup.style.minWidth = right - pillBound.xMin;
+            // worldBound 는 창 배율이 곱해진 값이라 목록이 붙는 _body 좌표로 바꿔 잰다(그대로 쓰면 배율만큼 넓어졌다).
+            _refsPopup.style.minWidth = _body.WorldToLocal(new Vector2(pillBound.xMax, pillBound.yMin)).x - topLeft.x;
+            _refsPopupMore?.RemoveFromClassList(MoreCoveredModifier);
+            _refsPopupMore = more;
+            more.AddToClassList(MoreCoveredModifier);
             _refsPopupIndex = index;
             _refsPopupCell = row.Refs;
             _refsPopup.SetVisible(true);
@@ -1665,8 +1669,15 @@ namespace GitVersionControl
             }
             _refsPopupIndex = -1;
             _refsPopupCell = null;
+            _refsPopupMore?.RemoveFromClassList(MoreCoveredModifier);
+            _refsPopupMore = null;
             _refsPopup.SetVisible(false);
         }
+
+        /// <summary>펼친 목록 밑에 깔린 줄의 "+n"(목록이 열려 있는 동안 숨긴다).</summary>
+        private Label _refsPopupMore;
+
+        private const string MoreCoveredModifier = "commit-graph-ref__more--covered";
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
         {

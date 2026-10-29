@@ -837,6 +837,11 @@
    줄 이름표 바로 위에 겹쳐 참조를 모두 세로로 늘어놓는다. 이름은 자르지 않고 가장 긴 이름에 폭을 맞춘다(옆 칸 위로 넘친다).
    이름표 바탕이 반투명한 가지 색이라 아래 줄이 비치지 않게 목록에 불투명한 바탕을 깐다.
    좁은 칸 규칙(--no-name·--refs-centered)이 목록 안 이름표에는 먹지 않게 클래스를 하나 더 붙여 세게 적는다. */
+/* 목록이 열린 줄의 "+n": 목록이 내용 폭이라 오른쪽으로 비치지 않게 숨긴다(자리는 남긴다). */
+.commit-graph-ref__more--covered {
+    visibility: hidden;
+}
+
 .commit-graph-refs-popup {
     position: absolute;
     flex-direction: column;
