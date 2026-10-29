@@ -539,7 +539,8 @@ namespace GitVersionControl
         private void BindRefs(GitGraphNode node)
         {
             _refs.Clear();
-            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+            // 상세에는 원격까지 모두 늘어놓는다(그래프 줄처럼 합치지 않는다).
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node, mergeRemotes: false);
             _refs.parent.SetVisible(refs.Count > 0);
             foreach (CommitRef commitRef in refs)
             {

@@ -19,6 +19,9 @@ namespace GitVersionControl
 
         /// <summary>HEAD 가 이 커밋에서 가리키는 브랜치 이름(<c>%D</c> 의 "HEAD -> main"). 아니면 null.</summary>
         public string HeadBranch;
+
+        /// <summary><see cref="RefLabels"/> 중 원격 브랜치인 것(브랜치 목록의 원격 이름으로 가른다 — "github/main" 처럼 origin 이 아닌 원격도).</summary>
+        public HashSet<string> RemoteRefLabels = new();
     }
 
     public sealed class GitGraphLane
@@ -109,8 +112,15 @@ namespace GitVersionControl
             return graph;
         }
 
+        /// <summary>원격 브랜치 이름("github/main"). 참조 꼬리표가 원격인지 가른다.</summary>
+        private readonly HashSet<string> _remoteBranchNames = new();
+
         private void AssignNamedLanes(List<GitBranchRef> branches)
         {
+            foreach (GitBranchRef branch in branches.Where(b => b.IsRemote))
+            {
+                _remoteBranchNames.Add(branch.Name);
+            }
             IEnumerable<GitBranchRef> ordered = branches
                 .Where(b => string.IsNullOrEmpty(b.Hash) == false)
                 .OrderBy(BranchPriority)
@@ -254,6 +264,10 @@ namespace GitVersionControl
                         continue;
                     }
                     node.RefLabels.Add(label);
+                    if (_remoteBranchNames.Contains(label))
+                    {
+                        node.RemoteRefLabels.Add(label);
+                    }
                 }
             }
         }

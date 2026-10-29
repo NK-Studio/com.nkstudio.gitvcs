@@ -59,6 +59,9 @@ namespace GitVersionControl
             /// </summary>
             public CommitRefKind RefKind;
 
+            /// <summary>첫 이름표에 노트북 뒤 구름도 붙는지(로컬과 원격이 같은 커밋).</summary>
+            public bool RefHasRemote;
+
             public int RefCount;
 
             /// <summary>
@@ -918,16 +921,17 @@ namespace GitVersionControl
             Label more = (Label)row.Refs[1];
             float inner = ColumnWidth(CommitGraphColumn.Refs) - RefsCellPadding;
             float moreWidth = row.RefCount > 1 ? MoreGap + MorePadding + MoreTextWidth(more) : 0f;
-            bool showName = inner - moreWidth >= PillChrome(row.RefKind) + MinRefNameWidth;
+            bool showName = inner - moreWidth >= PillChrome(row.RefKind, row.RefHasRemote) + MinRefNameWidth;
             pill.EnableInClassList("commit-graph-ref--no-name", showName == false);
         }
 
         /// <summary>
-        /// 이름을 뺀 이름표 폭: 테두리 2 + 왼쪽 여백 + (현재 브랜치) 체크 18 + 간격 5 + 종류 아이콘 16 + 오른쪽 여백 8.
+        /// 이름을 뺀 이름표 폭: 테두리 2 + 왼쪽 여백 + (현재 브랜치) 체크 18 + 간격 5 + 종류 아이콘 16 + (원격도 있으면) 간격 3 + 구름 16 + 오른쪽 여백 8.
         /// </summary>
-        private static float PillChrome(CommitRefKind kind)
+        private static float PillChrome(CommitRefKind kind, bool hasRemote)
         {
-            return kind == CommitRefKind.Current ? 2f + 3f + 18f + 5f + 16f + 8f : 2f + 8f + 5f + 16f + 8f;
+            float remote = hasRemote ? 3f + 16f : 0f;
+            return (kind == CommitRefKind.Current ? 2f + 3f + 18f + 5f + 16f + 8f : 2f + 8f + 5f + 16f + 8f) + remote;
         }
 
         /// <summary>
@@ -1337,6 +1341,7 @@ namespace GitVersionControl
             BindRefs(pill, more, refs, laneColor);
             row.RefCount = refs.Count;
             row.RefKind = refs.Count > 0 ? refs[0].Kind : CommitRefKind.Local;
+            row.RefHasRemote = refs.Count > 0 && refs[0].HasRemote;
             FitRefs(row);
             // 가지 색 띠: 커밋 원 자리부터 그래프 칸 오른쪽 끝까지 옅게 깔고 끝에 막대를 둬서 줄마다 어느 가지인지 보이게 한다.
             // 막대는 칸 순서와 상관없이 그래프 칸에 붙는다(GitKraken 과 같다 — 기본 순서에서는 메시지 바로 앞).
@@ -1546,11 +1551,12 @@ namespace GitVersionControl
         /// </summary>
         private static void BindRefPill(VisualElement pill, CommitRef commitRef, Color laneColor)
         {
-            pill.Q<Label>(className: "commit-graph-ref__name").text = GitDisplay.Nfc(commitRef.Name);
+            pill.Q<Label>(className: "commit-graph-ref__name").text = GitDisplay.Nfc(commitRef.DisplayName);
             pill.EnableInClassList("commit-graph-ref--current", commitRef.Kind == CommitRefKind.Current);
             pill.EnableInClassList("commit-graph-ref--local", commitRef.Kind == CommitRefKind.Local);
             pill.EnableInClassList("commit-graph-ref--remote", commitRef.Kind == CommitRefKind.Remote);
             pill.EnableInClassList("commit-graph-ref--tag", commitRef.Kind == CommitRefKind.Tag);
+            pill.EnableInClassList("commit-graph-ref--synced", commitRef.HasRemote);
             // 브랜치 이름표는 GitKraken 처럼 가지 색을 입혀 선과 같은 색으로 잇는다: 현재 브랜치는 진하게, 로컬은 옅게(테두리 없이 채움만),
             // 원격은 채움 없이 테두리만. 태그는 USS 의 고정 색.
             bool usesLaneColor = commitRef.Kind != CommitRefKind.Tag;

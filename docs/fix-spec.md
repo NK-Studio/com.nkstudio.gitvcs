@@ -478,6 +478,17 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 
 그대로 둔 것: 서랍 주 버튼(이미 규칙대로), 병합 방식 셋(하나를 고르는 선택 버튼 — 고른 것은 선택 색), diff 줄의 작은 +/− Stage 단추(16px, 줄에 올렸을 때만 보이는 표시라 채운 모양이 그 자체).
 
+### 커밋 그래프 이름표 — 로컬·원격 합치기(GitKraken)
+
+| 찾은 것 | 고침 |
+|---|---|
+| 로컬 브랜치와 그 원격(github/…, origin/…)이 같은 커밋인데 이름표를 따로 세어 "feature/win-test2 💻 +3" | 같은 이름의 원격은 로컬 이름표에 합쳐 노트북 뒤 구름을 함께(`CommitRef.HasRemote`), "+n" 은 남은 참조만 → "feature/win-test2 💻☁ +1". 펼친 목록도 합친 모양 |
+| 원격 구분이 접두사(origin/·upstream/)뿐이라 "github/…" 원격을 로컬로 봤다 | 브랜치 목록의 실제 원격 브랜치 이름으로 가름(`GitGraphNode.RemoteRefLabels`) |
+
+| 원격 이름표가 "github/feature/pr-menu-a ☁" 처럼 원격 이름까지 보임 | 원격은 앞의 원격 이름을 빼고 보임(`CommitRef.DisplayName`, "feature/pr-menu-a ☁") — 구름이 원격임을 알려 준다. 전환 등 동작은 전체 이름 그대로 |
+
+커밋 상세의 참조 목록은 합치지 않고 모두 보인다(`CommitRefs.Of(node, mergeRemotes: false)`). 테스트: 합치기·다른 브랜치의 원격은 따로.
+
 ### 남은 관찰(고치지 않음)
 
 - Push 뒤 Unity 기본 툴팁 글이 잠깐 남는 것(P1-05).

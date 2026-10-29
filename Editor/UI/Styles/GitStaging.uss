@@ -735,6 +735,12 @@
     display: flex;
 }
 
+/* 로컬과 같은 이름의 원격이 같은 커밋이면 이름표 하나에 노트북 뒤 구름도(GitKraken). 두 아이콘은 조금 붙인다. */
+.commit-graph-ref--synced > .commit-graph-ref__remote-icon {
+    display: flex;
+    margin-left: 3px;
+}
+
 /* 원격: 바탕 없이 테두리만(로컬과 구분). */
 .commit-graph-ref--remote {
     color: var(--git-text-muted);
@@ -783,6 +789,10 @@
 
 .commit-graph-ref--current.commit-graph-ref--no-name > .commit-graph-ref__local {
     margin-left: 5px;
+}
+
+.commit-graph-ref--synced.commit-graph-ref--no-name > .commit-graph-ref__remote-icon {
+    margin-left: 3px;
 }
 
 /* 맨 왼쪽 칸의 내용 들여쓰기(GitKraken 과 같다): 이름표는 12px, 메시지는 머리 글자와 같은 20px. 그래프는 가지 배치가 이미 띄운다.

@@ -51,7 +51,7 @@ namespace GitVersionControl.Tests
             GitGraphLane lane = new() { Name = "main", IsCurrent = true, LastColumn = 2 };
             GitGraphNode node = new() { Column = 2, Lane = lane, RefLabels = new List<string> { "origin/main", "tag: v1" } };
 
-            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node, mergeRemotes: false);
 
             Assert.AreEqual(3, refs.Count);
             Assert.AreEqual(CommitRefKind.Current, refs[0].Kind);
@@ -73,6 +73,57 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(CommitRefKind.Current, refs[0].Kind);
             Assert.AreEqual("master", refs[1].Name);
             Assert.AreEqual(CommitRefKind.Local, refs[1].Kind);
+        }
+
+        [Test]
+        public void Test_CommitRefs_Of_MergesSameNamedRemotesIntoLocal()
+        {
+            // GitKraken 처럼 로컬 이름표 하나에 노트북·구름, "+n" 은 남은 참조(다른 로컬 브랜치)만.
+            GitGraphLane lane = new() { Name = "feature/win-test2", IsCurrent = true, LastColumn = 0 };
+            GitGraphNode node = new()
+            {
+                Column = 0,
+                Lane = lane,
+                RefLabels = new List<string> { "github/feature/win-test2", "origin/feature/win-test2", "feature/win-test" },
+                RemoteRefLabels = new HashSet<string> { "github/feature/win-test2", "origin/feature/win-test2" },
+            };
+
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+
+            Assert.AreEqual(2, refs.Count);
+            Assert.AreEqual("feature/win-test2", refs[0].Name);
+            Assert.AreEqual(CommitRefKind.Current, refs[0].Kind);
+            Assert.IsTrue(refs[0].HasRemote);
+            Assert.AreEqual("feature/win-test", refs[1].Name);
+            Assert.IsFalse(refs[1].HasRemote);
+        }
+
+        [Test]
+        public void Test_CommitRefs_Of_RemoteOfOtherBranchStaysSeparate()
+        {
+            GitGraphLane lane = new() { Name = "master", LastColumn = 0 };
+            GitGraphNode node = new()
+            {
+                Column = 0,
+                Lane = lane,
+                RefLabels = new List<string> { "github/test/round2" },
+                RemoteRefLabels = new HashSet<string> { "github/test/round2" },
+            };
+
+            IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
+
+            Assert.AreEqual(2, refs.Count);
+            Assert.IsFalse(refs[0].HasRemote);
+            Assert.AreEqual(CommitRefKind.Remote, refs[1].Kind);
+        }
+
+        [TestCase("github/feature/pr-menu-a", CommitRefKind.Remote, "feature/pr-menu-a")]
+        [TestCase("origin/master", CommitRefKind.Remote, "master")]
+        [TestCase("feature/x", CommitRefKind.Local, "feature/x")]
+        [TestCase("v1.0", CommitRefKind.Tag, "v1.0")]
+        public void Test_CommitRef_DisplayName_DropsRemoteNameOnlyForRemotes(string name, CommitRefKind kind, string shown)
+        {
+            Assert.AreEqual(shown, new CommitRef(name, kind).DisplayName);
         }
 
         [Test]
