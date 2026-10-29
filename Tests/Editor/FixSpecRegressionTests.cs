@@ -128,6 +128,42 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_PullRequestTimeline_MergesAndSorts()
+        {
+            string comments = "[{\"body\":\"first\",\"created_at\":\"2026-10-29T01:00:00Z\",\"user\":{\"login\":\"a\"}}]";
+            string reviews = "[{\"body\":\"\",\"state\":\"APPROVED\",\"submitted_at\":\"2026-10-29T03:00:00Z\",\"user\":{\"login\":\"b\"}},"
+                + "{\"body\":\"\",\"state\":\"COMMENTED\",\"submitted_at\":\"2026-10-29T02:00:00Z\",\"user\":{\"login\":\"c\"}},"
+                + "{\"body\":\"draft\",\"state\":\"PENDING\",\"user\":{\"login\":\"d\"}}]";
+            string lines = "[{\"body\":\"nit\",\"path\":\"a.cs\",\"line\":0,\"original_line\":7,\"created_at\":\"2026-10-29T02:00:00Z\",\"user\":{\"login\":\"c\"}}]";
+
+            List<GitPullRequestTimelineItem> items = GitPullRequestDetails.Timeline(comments, reviews, lines);
+
+            // 본문 없는 COMMENTED 리뷰(줄 코멘트만 단 리뷰)와 아직 안 낸 PENDING 리뷰는 뺀다.
+            Assert.AreEqual(3, items.Count);
+            Assert.AreEqual(GitPullRequestTimelineKind.Comment, items[0].Kind);
+            Assert.AreEqual(GitPullRequestTimelineKind.ReviewComment, items[1].Kind);
+            Assert.AreEqual(7, items[1].Line);
+            Assert.AreEqual("APPROVED", items[2].ReviewState);
+        }
+
+        [Test]
+        public void Test_PullRequestRequests()
+        {
+            Assert.AreEqual("{\"body\":\"he said \\\"hi\\\"\"}", GitPullRequestDetails.CommentRequestJson("he said \"hi\""));
+            Assert.AreEqual("{\"body\":\"\",\"event\":\"APPROVE\"}", GitPullRequestDetails.ReviewRequestJson(GitPullRequestReviewEvent.Approve, null));
+            Assert.AreEqual("{\"body\":\"fix\",\"event\":\"REQUEST_CHANGES\"}", GitPullRequestDetails.ReviewRequestJson(GitPullRequestReviewEvent.RequestChanges, "fix"));
+            Assert.IsFalse(GitPullRequestDetails.ReviewNeedsBody(GitPullRequestReviewEvent.Approve));
+            Assert.IsTrue(GitPullRequestDetails.ReviewNeedsBody(GitPullRequestReviewEvent.RequestChanges));
+            Assert.AreEqual("{\"state\":\"closed\"}", GitPullRequestDetails.StateRequestJson(false));
+            StringAssert.Contains("convertPullRequestToDraft", GitPullRequestDetails.DraftMutationJson("PR_1", true));
+            StringAssert.Contains("markPullRequestReadyForReview", GitPullRequestDetails.DraftMutationJson("PR_1", false));
+            StringAssert.Contains("\"id\":\"PR_1\"", GitPullRequestDetails.DraftMutationJson("PR_1", false));
+            Assert.AreEqual("bad", GitPullRequestDetails.GraphQlError("{\"data\":null,\"errors\":[{\"message\":\"bad\"}]}"));
+            Assert.IsNull(GitPullRequestDetails.GraphQlError("{\"data\":{}}"));
+            Assert.AreEqual("PR_kw", GitPullRequestDetails.Parse(PullDetailJson.Replace("{\"number\":3,", "{\"number\":3,\"node_id\":\"PR_kw\",")).NodeId);
+        }
+
+        [Test]
         public void Test_ParseRepoConfig()
         {
             string output = "user.name\n김한용\0user.email\nme@example.com\0remote.origin.url\nhttps://github.com/o/r.git\0";

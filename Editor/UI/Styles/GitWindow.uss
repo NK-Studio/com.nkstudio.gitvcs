@@ -1306,6 +1306,90 @@
     color: var(--git-text-muted);
 }
 
+.pr-detail__danger {
+    color: var(--git-danger);
+}
+
+.pr-detail__timeline {
+    margin-bottom: 4px;
+}
+
+.pr-detail__event {
+    margin: 6px 0 0 0;
+    padding: 6px 8px;
+    border-width: 1px;
+    border-left-width: 3px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-border);
+}
+
+.pr-detail__event--review {
+    border-left-color: var(--git-accent);
+}
+
+.pr-detail__event--reviewcomment {
+    border-left-color: var(--git-text-muted);
+}
+
+.pr-detail__event-head {
+    flex-direction: row;
+    align-items: center;
+}
+
+.pr-detail__event-author {
+    flex-shrink: 0;
+    margin: 0;
+    -unity-font-style: bold;
+    color: var(--git-text);
+}
+
+.pr-detail__event-action {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 0 0 6px;
+    color: var(--git-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pr-detail__event-action--approved {
+    color: var(--git-success);
+    -unity-font-style: bold;
+}
+
+.pr-detail__event-action--changes-requested {
+    color: var(--git-danger);
+    -unity-font-style: bold;
+}
+
+.pr-detail__event-time {
+    flex-shrink: 0;
+    margin: 0 0 0 6px;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
+.pr-detail__event-body {
+    margin: 4px 0 0 0;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.pr-detail__reply-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.pr-detail__approve {
+    color: var(--git-success);
+}
+
+.pr-detail__request-changes {
+    color: var(--git-danger);
+}
+
 /* ── search-select: 서랍의 검색 되는 고르기 칸 ── */
 /* react-select 와 같은 모양: 테두리 상자 하나 안에 글자 칸(테두리 없음) · 얇은 구분선 · ⌄. 포커스면 상자 테두리가 강조색, 펼치면 ⌄ 가 위를 본다. */
 .search-select {

@@ -123,6 +123,78 @@ namespace GitVersionControl
             return request.result == UnityWebRequest.Result.Success ? null : GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error;
         }
 
+        /// <summary>PR 대화: 일반 코멘트·리뷰·코드 줄 코멘트를 함께 읽어 시간순으로 합친다(각 최대 100개).</summary>
+        public static async Task<(List<GitPullRequestTimelineItem> items, string error)> TimelineAsync(GitHubRemoteRepo repository, int number)
+        {
+            string root = $"https://api.github.com/repos/{repository.Owner}/{repository.Repository}";
+            using UnityWebRequest comments = Get($"{root}/issues/{number}/comments?per_page=100");
+            using UnityWebRequest reviews = Get($"{root}/pulls/{number}/reviews?per_page=100");
+            using UnityWebRequest lineComments = Get($"{root}/pulls/{number}/comments?per_page=100");
+            await Task.WhenAll(GitHubAccount.SendAsync(comments), GitHubAccount.SendAsync(reviews), GitHubAccount.SendAsync(lineComments));
+            foreach (UnityWebRequest request in new[] { comments, reviews, lineComments })
+            {
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    return (new List<GitPullRequestTimelineItem>(), GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error);
+                }
+            }
+            return (GitPullRequestDetails.Timeline(comments.downloadHandler.text, reviews.downloadHandler.text, lineComments.downloadHandler.text), null);
+        }
+
+        /// <returns>성공하면 null, 실패하면 오류 문구.</returns>
+        public static Task<string> CommentAsync(GitHubRemoteRepo repository, int number, string body)
+        {
+            return SendAsync($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/issues/{number}/comments", UnityWebRequest.kHttpVerbPOST,
+                GitPullRequestDetails.CommentRequestJson(body));
+        }
+
+        /// <returns>성공하면 null, 실패하면 오류 문구(자기 PR 승인·변경 요청은 GitHub 가 거절한다).</returns>
+        public static Task<string> ReviewAsync(GitHubRemoteRepo repository, int number, GitPullRequestReviewEvent decision, string body)
+        {
+            return SendAsync($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/pulls/{number}/reviews", UnityWebRequest.kHttpVerbPOST,
+                GitPullRequestDetails.ReviewRequestJson(decision, body));
+        }
+
+        /// <summary>닫기(<paramref name="open"/> false)·다시 열기.</summary>
+        public static Task<string> SetOpenAsync(GitHubRemoteRepo repository, int number, bool open)
+        {
+            return SendAsync($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/pulls/{number}", "PATCH",
+                GitPullRequestDetails.StateRequestJson(open));
+        }
+
+        /// <summary>Draft 로 되돌리기(<paramref name="toDraft"/> true)·Ready for review. REST 에 없어 GraphQL 로 한다.</summary>
+        public static async Task<string> SetDraftAsync(string nodeId, bool toDraft)
+        {
+            using UnityWebRequest request = Json("https://api.github.com/graphql", UnityWebRequest.kHttpVerbPOST, GitPullRequestDetails.DraftMutationJson(nodeId, toDraft));
+            await GitHubAccount.SendAsync(request);
+            string text = request.downloadHandler?.text;
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                return GitPullRequestForm.ParseError(text) ?? request.error;
+            }
+            // GraphQL 은 실패해도 200 을 주고 errors 에 까닭을 담는다.
+            return GitPullRequestDetails.GraphQlError(text);
+        }
+
+        private static async Task<string> SendAsync(string url, string method, string json)
+        {
+            using UnityWebRequest request = Json(url, method, json);
+            await GitHubAccount.SendAsync(request);
+            return request.result == UnityWebRequest.Result.Success ? null : GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error;
+        }
+
+        private static UnityWebRequest Json(string url, string method, string json)
+        {
+            UnityWebRequest request = new(url, method)
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json)),
+                downloadHandler = new DownloadHandlerBuffer(),
+            };
+            SetHeaders(request);
+            request.SetRequestHeader("Content-Type", "application/json");
+            return request;
+        }
+
         private static UnityWebRequest Get(string url)
         {
             UnityWebRequest request = UnityWebRequest.Get(url);

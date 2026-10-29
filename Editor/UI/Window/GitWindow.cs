@@ -142,12 +142,10 @@ namespace GitVersionControl
             PullRequestFilterDrawer pullRequestFilter = AddDrawer(new PullRequestFilterDrawer(content, _services));
             PullRequestDetailDrawer pullRequestDetail = AddDrawer(new PullRequestDetailDrawer(content, _services));
             _refs.PullRequestOpened += pullRequestDetail.OpenFor;
-            pullRequestDetail.Merged += () =>
-            {
-                _refs.ReloadPullRequests();
-                // 병합 커밋을 그래프·Pull 숫자에 바로 보이게 원격을 받아 온다.
-                _ = GitAutoFetch.FetchNowAsync();
-            };
+            // 닫기·다시 열기·Draft 전환·병합은 사이드바 목록(묶음·Draft 표시)에 보인다.
+            pullRequestDetail.StateChanged += _refs.ReloadPullRequests;
+            // 병합 커밋을 그래프·Pull 숫자에 바로 보이게 원격을 받아 온다.
+            pullRequestDetail.Merged += () => _ = GitAutoFetch.FetchNowAsync();
             _refs.PullRequestFilterRequested += index =>
             {
                 if (index < 0)

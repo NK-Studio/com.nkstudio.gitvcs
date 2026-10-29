@@ -8,7 +8,8 @@ namespace GitVersionControl
 {
     /// <summary>
     /// GitKraken 의 Pull Request 화면: 번호·제목·상태, "누가 어디로 합치려 한다", 병합 가능 여부와 Merge(방식 고르기), 설명,
-    /// 리뷰어·담당자·라벨·브랜치, 바뀐 파일. 사이드바에서 PR 을 누르면 열린다.
+    /// 대화(코멘트·리뷰·코드 줄 코멘트)와 작성(코멘트·승인·변경 요청), Draft ↔ Ready·닫기/다시 열기, 리뷰어·담당자·라벨·브랜치, 바뀐 파일.
+    /// 사이드바에서 PR 을 누르면 열린다.
     /// 병합은 GitHub 에 바로 반영되므로 늘 확인 카드를 거치고, 본 때의 head 커밋을 함께 보내 그 사이 새 커밋이 올라왔으면 GitHub 가 거절하게 한다.
     /// </summary>
     public sealed class PullRequestDetailDrawer : SideDrawer
@@ -31,6 +32,15 @@ namespace GitVersionControl
         private readonly Button _merge;
         private readonly Button _viewChanges;
         private readonly Button _checkout;
+        private readonly Button _draftToggle;
+        private readonly Button _openToggle;
+        private readonly Label _timelineCaption;
+        private readonly VisualElement _timeline;
+        private readonly TextField _reply;
+        private readonly Label _replyProblem;
+        private readonly Button _comment;
+        private readonly Button _approve;
+        private readonly Button _requestChanges;
         private readonly Label _stats;
         private readonly Label _body;
         private readonly VisualElement _facts;
@@ -45,8 +55,14 @@ namespace GitVersionControl
         private GitPullRequestMergeMethod _method = GitPullRequestMergeMethod.Merge;
         private bool _merging;
 
+        /// <summary>GitHub 에 무언가 보내는 중(코멘트·리뷰·상태 바꾸기). 그동안 같은 버튼을 다시 누르지 못하게 한다.</summary>
+        private bool _posting;
+
         /// <summary>병합했을 때. 창이 사이드바 PR 목록을 다시 읽고 원격을 fetch 한다.</summary>
         public event Action Merged;
+
+        /// <summary>닫기·다시 열기·Draft 전환처럼 사이드바 목록에 보이는 상태가 바뀌었을 때.</summary>
+        public event Action StateChanged;
 
         public PullRequestDetailDrawer(VisualElement host, GitServices services)
             : base(host, services, ActionGlyphKind.PullRequest, GitText.Get("prDetail.drawerTitle"))
@@ -101,6 +117,8 @@ namespace GitVersionControl
             SecondaryButton(actions, GitText.Get("prDetail.viewOnGitHub"), () => UnityEngine.Application.OpenURL(_detail?.Url ?? _info?.Url));
             _viewChanges = SecondaryButton(actions, GitText.Get("prDetail.viewChanges"), () => _openChanges?.Invoke());
             _checkout = SecondaryButton(actions, GitText.Get("prDetail.checkout"), () => _openCheckout?.Invoke());
+            _draftToggle = SecondaryButton(actions, string.Empty, () => _ = ToggleDraftAsync());
+            _openToggle = SecondaryButton(actions, string.Empty, () => _ = ToggleOpenAsync());
             _content.Add(actions);
 
             VisualElement description = Section(_content);
@@ -109,6 +127,25 @@ namespace GitVersionControl
             _body.AddToClassList(Pr + "__body");
             _body.selection.isSelectable = true;
             description.Add(_body);
+
+            VisualElement conversation = Section(_content);
+            _timelineCaption = Caption(conversation, string.Empty);
+            _timeline = new VisualElement();
+            _timeline.AddToClassList(Pr + "__timeline");
+            conversation.Add(_timeline);
+            _reply = Field(conversation, GitText.Get("prDetail.replyCaption"), GitText.Get("prDetail.replyPlaceholder"), multiline: true);
+            _reply.AddToClassList(Pr + "__reply");
+            _reply.RegisterValueChangedCallback(_ => Validate());
+            _replyProblem = Problem(conversation);
+            VisualElement replyButtons = new();
+            replyButtons.AddToClassList(Block + "__buttons");
+            replyButtons.AddToClassList(Pr + "__reply-buttons");
+            _comment = SecondaryButton(replyButtons, GitText.Get("prDetail.comment"), () => _ = PostAsync(null));
+            _approve = SecondaryButton(replyButtons, GitText.Get("prDetail.approve"), () => _ = PostAsync(GitPullRequestReviewEvent.Approve));
+            _approve.AddToClassList(Pr + "__approve");
+            _requestChanges = SecondaryButton(replyButtons, GitText.Get("prDetail.requestChanges"), () => _ = PostAsync(GitPullRequestReviewEvent.RequestChanges));
+            _requestChanges.AddToClassList(Pr + "__request-changes");
+            conversation.Add(replyButtons);
 
             _facts = Section(_content);
 
@@ -156,6 +193,11 @@ namespace GitVersionControl
             _facts.Clear();
             _files.Clear();
             _filesCaption.text = string.Empty;
+            _timeline.Clear();
+            _timelineCaption.text = GitText.Get("prDetail.conversation");
+            _reply.SetValueWithoutNotify(string.Empty);
+            Show(_replyProblem, null);
+            _posting = false;
             Show(_error, null);
             Show(_loading, GitText.Get("common.loading"));
             SelectMethod(_method);
@@ -178,6 +220,7 @@ namespace GitVersionControl
                 return;
             }
             Task<(List<GitPullRequestFile> files, string error)> filesTask = GitHubPullRequests.FilesAsync(repository, info.Number);
+            Task<(List<GitPullRequestTimelineItem> items, string error)> timelineTask = GitHubPullRequests.TimelineAsync(repository, info.Number);
             (GitPullRequestDetail detail, string error) = await GitHubPullRequests.GetAsync(repository, info.Number);
             // 병합 가능 여부는 GitHub 가 PR 을 처음 열 때 뒤에서 계산한다. 계산 중이면 잠시 뒤 다시 읽는다.
             for (int retry = 0; retry < CheckingRetries && detail != null && detail.Mergeable == null && detail.IsOpen && IsStillShowing(openCount, info); retry++)
@@ -197,11 +240,195 @@ namespace GitVersionControl
                 return;
             }
             ShowDetail(detail);
+            (List<GitPullRequestTimelineItem> items, string timelineError) = await timelineTask;
+            if (IsStillShowing(openCount, info))
+            {
+                ShowTimeline(items, timelineError);
+            }
             (List<GitPullRequestFile> files, string filesError) = await filesTask;
             if (IsStillShowing(openCount, info))
             {
                 ShowFiles(files, detail.ChangedFiles, filesError);
             }
+        }
+
+        /// <summary>코멘트·리뷰를 보낸 뒤 대화와 상태(리뷰 결정으로 병합 가능 여부가 바뀔 수 있다)만 다시 읽는다.</summary>
+        private async Task ReloadAfterPostAsync()
+        {
+            GitPullRequestInfo info = _info;
+            GitHubRemoteRepo repository = _repository;
+            int openCount = _shownOpenCount;
+            Task<(List<GitPullRequestTimelineItem> items, string error)> timelineTask = GitHubPullRequests.TimelineAsync(repository, info.Number);
+            (GitPullRequestDetail detail, _) = await GitHubPullRequests.GetAsync(repository, info.Number);
+            (List<GitPullRequestTimelineItem> items, string error) = await timelineTask;
+            if (IsStillShowing(openCount, info) == false)
+            {
+                return;
+            }
+            if (detail != null)
+            {
+                ShowDetail(detail);
+            }
+            ShowTimeline(items, error);
+        }
+
+        private void ShowTimeline(List<GitPullRequestTimelineItem> items, string error)
+        {
+            _timeline.Clear();
+            _timelineCaption.text = GitText.Format("prDetail.conversationCount", items.Count);
+            if (items.Count == 0 && string.IsNullOrEmpty(error))
+            {
+                Label empty = new(GitText.Get("prDetail.noConversation"));
+                empty.AddToClassList(Block + "__note");
+                _timeline.Add(empty);
+            }
+            foreach (GitPullRequestTimelineItem item in items)
+            {
+                _timeline.Add(TimelineRow(item));
+            }
+            if (string.IsNullOrEmpty(error) == false)
+            {
+                Show(Problem(_timeline), error);
+            }
+        }
+
+        private static VisualElement TimelineRow(GitPullRequestTimelineItem item)
+        {
+            VisualElement row = new();
+            row.AddToClassList(Pr + "__event");
+            row.AddToClassList(Pr + "__event--" + item.Kind.ToString().ToLowerInvariant());
+
+            VisualElement head = new();
+            head.AddToClassList(Pr + "__event-head");
+            Label author = new(item.Author ?? "?");
+            author.AddToClassList(Pr + "__event-author");
+            head.Add(author);
+            Label action = new(ActionText(item));
+            action.AddToClassList(Pr + "__event-action");
+            if (item.Kind == GitPullRequestTimelineKind.Review)
+            {
+                action.AddToClassList(Pr + "__event-action--" + item.ReviewState.ToLowerInvariant().Replace('_', '-'));
+            }
+            head.Add(action);
+            Label time = new(item.Time == DateTime.MinValue ? string.Empty : item.Time.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
+            time.AddToClassList(Pr + "__event-time");
+            head.Add(time);
+            row.Add(head);
+
+            if (string.IsNullOrWhiteSpace(item.Body) == false)
+            {
+                Label body = new(item.Body);
+                body.AddToClassList(Pr + "__event-body");
+                body.selection.isSelectable = true;
+                row.Add(body);
+            }
+            return row;
+        }
+
+        private static string ActionText(GitPullRequestTimelineItem item)
+        {
+            switch (item.Kind)
+            {
+                case GitPullRequestTimelineKind.Review:
+                    return GitText.Get(item.ReviewState switch
+                    {
+                        "APPROVED" => "prDetail.eventApproved",
+                        "CHANGES_REQUESTED" => "prDetail.eventChangesRequested",
+                        "DISMISSED" => "prDetail.eventDismissed",
+                        _ => "prDetail.eventReviewed",
+                    });
+                case GitPullRequestTimelineKind.ReviewComment:
+                    return GitText.Format("prDetail.eventLineComment", item.Line > 0 ? $"{item.Path}:{item.Line}" : item.Path);
+                default:
+                    return GitText.Get("prDetail.eventCommented");
+            }
+        }
+
+        /// <param name="decision">null 이면 일반 코멘트, 아니면 그 결정의 리뷰.</param>
+        private async Task PostAsync(GitPullRequestReviewEvent? decision)
+        {
+            GitPullRequestDetail detail = _detail;
+            GitHubRemoteRepo repository = _repository;
+            string body = (_reply.value ?? string.Empty).Trim();
+            if (detail == null || repository == null || _posting)
+            {
+                return;
+            }
+            bool needsBody = decision == null || GitPullRequestDetails.ReviewNeedsBody(decision.Value);
+            if (needsBody && body.Length == 0)
+            {
+                Show(_replyProblem, GitText.Get(decision == null ? "prDetail.commentEmpty" : "prDetail.reviewEmpty"));
+                return;
+            }
+            _posting = true;
+            Validate();
+            string error = decision == null
+                ? await GitHubPullRequests.CommentAsync(repository, detail.Number, body)
+                : await GitHubPullRequests.ReviewAsync(repository, detail.Number, decision.Value, body);
+            _posting = false;
+            if (ReferenceEquals(detail, _detail) == false)
+            {
+                return;
+            }
+            if (error != null)
+            {
+                Validate();
+                await Services.Dialogs.AlertAsync(GitText.Get(decision == null ? "prDetail.commentFailed" : "prDetail.reviewFailed"), error, ActionGlyphKind.PullRequest);
+                return;
+            }
+            // 보냈으면 쓴 글을 비운다(실패하면 남겨 다시 보낼 수 있게).
+            _reply.SetValueWithoutNotify(string.Empty);
+            Show(_replyProblem, null);
+            Validate();
+            await ReloadAfterPostAsync();
+        }
+
+        private async Task ToggleDraftAsync()
+        {
+            GitPullRequestDetail detail = _detail;
+            if (detail == null || detail.IsOpen == false || _posting)
+            {
+                return;
+            }
+            bool toDraft = detail.IsDraft == false;
+            await ChangeStateAsync(detail, () => GitHubPullRequests.SetDraftAsync(detail.NodeId, toDraft), toDraft ? "prDetail.toDraftFailed" : "prDetail.readyFailed");
+        }
+
+        private async Task ToggleOpenAsync()
+        {
+            GitPullRequestDetail detail = _detail;
+            GitHubRemoteRepo repository = _repository;
+            if (detail == null || repository == null || detail.IsMerged || _posting)
+            {
+                return;
+            }
+            bool reopen = detail.IsOpen == false;
+            if (reopen == false && await Services.Dialogs.ConfirmAsync(GitText.Format("prDetail.closeTitle", detail.Number),
+                    GitText.Format("prDetail.closeMessage", detail.Number, detail.Title), GitText.Get("prDetail.close"), danger: true, icon: ActionGlyphKind.PullRequest) == false)
+            {
+                return;
+            }
+            await ChangeStateAsync(detail, () => GitHubPullRequests.SetOpenAsync(repository, detail.Number, reopen), reopen ? "prDetail.reopenFailed" : "prDetail.closeFailed");
+        }
+
+        private async Task ChangeStateAsync(GitPullRequestDetail detail, Func<Task<string>> change, string failedKey)
+        {
+            _posting = true;
+            Validate();
+            string error = await change();
+            _posting = false;
+            if (ReferenceEquals(detail, _detail) == false)
+            {
+                return;
+            }
+            if (error != null)
+            {
+                Validate();
+                await Services.Dialogs.AlertAsync(GitText.Format(failedKey, detail.Number), error, ActionGlyphKind.PullRequest);
+                return;
+            }
+            StateChanged?.Invoke();
+            await ReloadAfterPostAsync();
         }
 
         private bool IsStillShowing(int openCount, GitPullRequestInfo info)
@@ -328,6 +555,21 @@ namespace GitVersionControl
             }
             _viewChanges.SetEnabled(_openChanges != null);
             _checkout.SetEnabled(_openCheckout != null && Services.Runner.IsBusy == false);
+
+            bool merged = _detail != null && _detail.IsMerged;
+            bool idle = _detail != null && _posting == false && _merging == false;
+            _draftToggle.text = GitText.Get(_detail != null && _detail.IsDraft ? "prDetail.readyForReview" : "prDetail.toDraft");
+            _draftToggle.SetVisible(open);
+            _draftToggle.SetEnabled(idle && string.IsNullOrEmpty(_detail?.NodeId) == false);
+            _openToggle.text = GitText.Get(open ? "prDetail.close" : "prDetail.reopen");
+            _openToggle.SetVisible(_detail != null && merged == false);
+            _openToggle.SetEnabled(idle);
+            _openToggle.EnableInClassList(Pr + "__danger", open);
+            bool hasText = string.IsNullOrWhiteSpace(_reply.value) == false;
+            _comment.SetEnabled(idle && hasText);
+            // 승인·변경 요청은 열린 PR 에만 낸다. 승인은 글 없이 된다.
+            _approve.SetEnabled(idle && open);
+            _requestChanges.SetEnabled(idle && open && hasText);
         }
 
         private async Task MergeAsync()
@@ -357,6 +599,7 @@ namespace GitVersionControl
                 return;
             }
             Merged?.Invoke();
+            StateChanged?.Invoke();
             // 병합된 상태(Merged 배지·버튼 끔)로 다시 읽는다.
             Reset();
             Validate();
