@@ -417,9 +417,10 @@ namespace GitVersionControl
                     break;
                 case ActionGlyphKind.FilterAdd:
                     // "필터 추가": 깔때기(선) + 다리 오른쪽 아래의 꽉 찬 원, 원 안의 + 는 비워 바탕이 비친다(짝홀 채우기라 바탕색과 상관없다).
-                    // 깔때기 다리는 원 앞에서 끊어 채운 원과 뭉치지 않게 한다. 원은 다리 끝보다 조금 위(깔때기 목 높이 쪽)에 둔다.
-                    Polyline(painter, P(9.8f, 10.2f), P(9.8f, 8.5f), P(15.2f, 2.4f), P(1.8f, 2.4f), P(7.2f, 8.5f), P(7.2f, 15.1f), P(8.6f, 14.3f));
-                    DrawPlusBadge(painter, P, new Vector2(14.6f, 12.6f), scale, resolvedStyle.color);
+                    // GitKraken 처럼 원을 깔때기 오른쪽 아래 비탈에 바짝 붙인다. 원이 오른쪽 다리 자리를 차지하므로 깔때기 선은 목에서 끝낸다(원과 뭉치지 않게).
+                    // 그림 전체(세로 3.0~16.4)가 20 칸 가운데에 온다.
+                    Polyline(painter, P(9.8f, 9.1f), P(15.2f, 3.0f), P(1.8f, 3.0f), P(7.2f, 9.1f), P(7.2f, 15.7f), P(8.6f, 14.9f));
+                    DrawPlusBadge(painter, P, new Vector2(14.6f, 11.8f), scale, resolvedStyle.color);
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;
