@@ -23,6 +23,8 @@
     --git-pressed: #33353b;
     --git-selected: #2a4371;
     --git-selected-text: #d1d3d9;
+    /* 사이드바에서 지금 체크아웃한 브랜치 줄의 바탕(한 단계 밝은 회색, 왼쪽 강조 막대와 함께). 고른 줄(--git-selected)이 이보다 앞선다. */
+    --git-current-row: #303238;
     --git-row-alt: rgba(0,0,0,0);
     --git-accent: #3871e1;
     --git-accent-hover: #3366cc;
@@ -73,7 +75,8 @@
     --git-graph-lane-bg: #26282c;
     --git-graph-lane-text: #d1d3d9;
     --git-graph-pill-bg: #233558;
-    --git-graph-pill-head: #5fb865;
+    /* 현재 브랜치 알약: 밝은 초록(#5fb865)은 어두운 바탕에서 혼자 튀어서, 옆 파랑 알약(#233558)과 비슷한 깊이로 낮춘다(흰 글자 대비 6:1). */
+    --git-graph-pill-head: #2f6b3a;
     --git-graph-pill-tag: #c79a3a;
     --git-graph-pill-text: #ffffff;
     --git-graph-empty: #6a6d74;

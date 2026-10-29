@@ -403,7 +403,7 @@ namespace GitVersionControl
             foreach (RefNode node in Containers(roots))
             {
                 int id = _idByKey[node.Id];
-                if (filtering || IsAlwaysOpen(node) || IsExpanded(node.Id))
+                if (filtering || KeepsOpen(node) || IsExpanded(node.Id))
                 {
                     _tree.ExpandItem(id);
                 }
@@ -439,6 +439,20 @@ namespace GitVersionControl
             return node.Kind is RefNodeKind.Folder or RefNodeKind.Remote;
         }
 
+        /// <summary>
+        /// 아이가 없는 담는 줄(빈 스태시·서브모듈 구역 등). 화살표를 펼친 모양(⌄)으로 그리므로 트리 안의 펼침 상태도 늘 펼침으로 둔다 —
+        /// 접힘으로 바뀌면 TreeView 가 다음에 줄을 다시 그릴 때 화살표를 > 로 되돌려, 누른 적 없는 다른 빈 구역까지 모양이 뒤섞였다.
+        /// </summary>
+        private static bool IsEmptyContainer(RefNode node)
+        {
+            return node.IsContainer && node.Children.Count == 0;
+        }
+
+        private static bool KeepsOpen(RefNode node)
+        {
+            return IsAlwaysOpen(node) || IsEmptyContainer(node);
+        }
+
         private bool IsExpanded(string key)
         {
             return RefTreeBuilder.ExpandedByDefault(key) != _state.Toggled.Contains(key);
@@ -446,8 +460,8 @@ namespace GitVersionControl
 
         private void OnExpandedChanged(TreeViewExpansionChangedArgs args)
         {
-            // 폴더·원격은 키보드(←)나 Alt+클릭으로 접혀도 다시 펼친다.
-            if (_rebuilding == false && args.isExpanded == false && _tree.GetItemDataForId<RefNode>(args.id) is { } folded && IsAlwaysOpen(folded))
+            // 폴더·원격·빈 담는 줄은 키보드(←)나 Alt+클릭으로 접혀도 다시 펼친다.
+            if (_rebuilding == false && args.isExpanded == false && _tree.GetItemDataForId<RefNode>(args.id) is { } folded && KeepsOpen(folded))
             {
                 int id = args.id;
                 _tree.schedule.Execute(() => _tree.ExpandItem(id));
@@ -536,7 +550,7 @@ namespace GitVersionControl
             // 구역 머리 줄은 GitKraken 처럼 줄 어디를 눌러도 접고 펼친다.
             row.RegisterCallback<ClickEvent>(evt =>
             {
-                if (evt.button != 0 || row.userData is not int index || _tree.GetItemDataForIndex<RefNode>(index) is not { Kind: RefNodeKind.Section })
+                if (evt.button != 0 || row.userData is not int index || _tree.GetItemDataForIndex<RefNode>(index) is not { Kind: RefNodeKind.Section } section || IsEmptyContainer(section))
                 {
                     return;
                 }
@@ -561,10 +575,17 @@ namespace GitVersionControl
             // Pull Requests 구역 맨 위 줄: GitKraken 처럼 PR 검색 칸과 필터 추가(깔때기+) 버튼. 그 줄에서만 보인다.
             VisualElement search = new();
             search.AddToClassList(Block + "__pr-search");
-            TextField searchField = new();
+            // 위 필터·커밋 검색과 같은 검색창(지우기·바깥 상자 포커스 테두리)을 쓴다. 돋보기는 USS 가 숨긴다.
+            ToolbarSearchField searchField = new();
             searchField.AddToClassList(Block + "__pr-search-field");
-            searchField.textEdition.placeholder = GitText.Get("prList.searchPlaceholder");
-            searchField.textEdition.hidePlaceholderOnFocus = false;
+            TextField searchInput = searchField.Q<TextField>();
+            if (searchInput != null)
+            {
+                searchInput.textEdition.placeholder = GitText.Get("prList.searchPlaceholder");
+                searchInput.textEdition.hidePlaceholderOnFocus = false;
+            }
+            searchField.RegisterCallback<FocusInEvent>(_ => searchField.AddToClassList("git-search--focused"));
+            searchField.RegisterCallback<FocusOutEvent>(_ => searchField.RemoveFromClassList("git-search--focused"));
             searchField.RegisterValueChangedCallback(evt =>
             {
                 _prSearch = evt.newValue ?? string.Empty;
@@ -575,6 +596,7 @@ namespace GitVersionControl
             // 트리의 화살표·Enter 처리로 넘어가지 않게 한다(글을 쓰는 칸이다).
             searchField.RegisterCallback<KeyDownEvent>(evt => evt.StopPropagation());
             searchField.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            searchField.RegisterCallback<PointerUpEvent>(evt => evt.StopPropagation());
             search.Add(searchField);
             Button addFilter = new(() => PullRequestFilterRequested?.Invoke(-1));
             addFilter.AddToClassList(Block + "__pr-filter-add");
@@ -634,8 +656,8 @@ namespace GitVersionControl
             badge.style.display = hidden;
             if (isSearch)
             {
+                searchRow.Q<ToolbarSearchField>().SetValueWithoutNotify(_prSearch);
                 TextField field = searchRow.Q<TextField>();
-                field.SetValueWithoutNotify(_prSearch);
                 if (_refocusPrSearch)
                 {
                     _refocusPrSearch = false;
@@ -652,7 +674,7 @@ namespace GitVersionControl
             bool isFixed = IsAlwaysOpen(node);
             // 담는 줄(구역·PR 묶음·원격)은 비어 있어도 GitKraken 처럼 화살표를 그린다 — 0 인 줄만 화살표가 빠져 들쭉날쭉하지 않게.
             // TreeView 는 아이가 없는 줄의 화살표를 직접(인라인 visibility) 숨기므로 그 뒤에 덮어쓴다. 빈 줄은 펼친 모양(⌄)이고 누를 것이 없다.
-            bool isEmptyContainer = node.IsContainer && node.Children.Count == 0;
+            bool isEmptyContainer = IsEmptyContainer(node);
             for (VisualElement item = row.parent; item != null; item = item.parent)
             {
                 if (item.ClassListContains(TreeView.itemUssClassName))
@@ -661,11 +683,14 @@ namespace GitVersionControl
                     // 구역 사이 가로 구분선. 맨 위 구역 위에는 긋지 않는다(USS 에 :first-child 가 없어 줄 번호로 가린다).
                     item.EnableInClassList(Block + "__item--section-divided", isSection && index > 0);
                     item.EnableInClassList(Block + "__item--fixed", isFixed);
+                    item.EnableInClassList(Block + "__item--current", node.IsCurrent);
                     VisualElement toggleElement = item.Q(className: TreeView.itemToggleUssClassName);
                     if (toggleElement != null)
                     {
                         toggleElement.SetEnabled(isFixed == false);
-                        toggleElement.pickingMode = isEmptyContainer ? PickingMode.Ignore : PickingMode.Position;
+                        // 안쪽(화살표 그림)까지 막는다 — 바깥만 막으면 화살표 그림이 클릭을 받아 값이 접힘(>)으로 바뀐다.
+                        PickingMode picking = isEmptyContainer ? PickingMode.Ignore : PickingMode.Position;
+                        toggleElement.Query().ForEach(part => part.pickingMode = picking);
                         if (isEmptyContainer)
                         {
                             toggleElement.style.visibility = Visibility.Visible;

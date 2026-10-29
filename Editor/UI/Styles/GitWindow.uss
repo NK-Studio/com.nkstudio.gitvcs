@@ -725,9 +725,14 @@
 }
 
 /* 구역 머리 줄(로컬·리모트…): GitKraken 처럼 굵은 대문자 느낌. */
+/* 구역 이름은 브랜치 이름과 같은 글자색(굵기로 구분). 흐린 회색은 다크 테마에서 잘 안 읽혔다. 아이콘은 한 단계 낮춘 보조색. */
 .ref-tree__row--section .ref-tree__label {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    color: var(--git-text-muted);
+    color: var(--git-text);
+}
+
+.ref-tree__row--section .ref-tree__icon {
+    color: var(--git-text-secondary);
 }
 
 /* 구역 개수(로컬·리모트…): GitKraken 처럼 큼직한 강조색 숫자. 작은 흰 글자를 알약에 넣으면 잘 안 읽혀서 바탕 없이 글자를 키운다.
@@ -754,6 +759,16 @@
 
 .ref-tree__row--current .ref-tree__icon {
     color: var(--git-accent-fg);
+}
+
+/* 현재 브랜치 줄: 한 단계 밝은 회색 바탕 + 왼쪽 3px 강조 막대로 "여기 있다"를 한눈에 보인다(고른 줄의 파란 바탕과 겹치지 않는 표시).
+   막대 두께만큼 왼쪽 여백(평소 8px)을 줄여 글자 자리는 다른 줄과 같다.
+   클래스 3개 — 테마의 고른 줄 규칙(4개)보다 약하게 적어, 이 줄을 고르면 바탕은 고른 줄 색이 이기고 막대는 남는다. */
+.ref-tree .ref-tree__tree .ref-tree__item--current {
+    padding-left: 5px;
+    border-left-width: 3px;
+    border-left-color: var(--git-accent);
+    background-color: var(--git-current-row);
 }
 
 /* 리모트·워크트리·서브모듈 머리 줄의 + (GitKraken 처럼 줄에 마우스를 올리면 개수 대신 바로 나온다 — 전환 없이 딱 바뀐다). */
@@ -795,10 +810,28 @@
     margin-right: 0;
 }
 
-.ref-tree__pr-search-field {
+/* PR 검색창: 위 필터와 같은 검색창(바깥 상자 테두리·포커스 표시)을 줄 높이에 맞춰 24px 로. 클래스를 겹쳐 테마의 .unity-search-field-base 규칙보다 이긴다. */
+.ref-tree .ref-tree__pr-search-field {
     flex-grow: 1;
+    flex-shrink: 1;
+    width: auto;
     min-width: 0;
+    height: 24px;
+    min-height: 24px;
     margin: 0;
+    padding: 0 4px;
+    border-radius: 4px;
+    align-items: center;
+}
+
+.ref-tree .ref-tree__pr-search-field .unity-base-text-field__input {
+    font-size: 12px;
+    -unity-text-align: middle-left;
+}
+
+/* 구역 안의 작은 검색 칸이라 돋보기는 빼고 글자만(위 필터와 겹쳐 보이지 않게). */
+.ref-tree .ref-tree__pr-search-field .unity-search-field-base__search-button {
+    display: none;
 }
 
 /*
@@ -813,17 +846,7 @@
     padding-left: 19px;
 }
 
-.ref-tree__pr-search-field > .unity-base-text-field__input {
-    height: 24px;
-    padding: 0 8px;
-    border-width: 1px;
-    border-radius: 4px;
-    border-color: var(--git-field-border);
-    background-color: var(--git-field-bg);
-    font-size: 12px;
-}
-
-/* 검색 칸(24px)과 같은 높이의 정사각형. 그림은 20px(GitKraken 처럼 칸 높이에 가깝게), 칸과는 6px, 올렸을 때 바탕 모서리는 칸과 같은 4px. */
+/* 검색 칸(24px)과 같은 높이의 정사각형. 그림은 18px, 칸과는 6px, 올렸을 때 바탕 모서리는 칸과 같은 4px. */
 .ref-tree__pr-filter-add {
     width: 24px;
     height: 24px;
@@ -839,8 +862,8 @@
 }
 
 .ref-tree__pr-filter-add > .action-glyph {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
 }
 

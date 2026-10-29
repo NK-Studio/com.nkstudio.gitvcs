@@ -23,6 +23,8 @@
     --git-pressed: #d3d5db;
     --git-selected: #d5e1ff;
     --git-selected-text: #000000;
+    /* 사이드바에서 지금 체크아웃한 브랜치 줄의 바탕(한 단계 밝은 회색, 왼쪽 강조 막대와 함께). 고른 줄(--git-selected)이 이보다 앞선다. */
+    --git-current-row: #e9ebef;
     --git-row-alt: rgba(0,0,0,0);
     --git-accent: #3574f0;
     --git-accent-hover: #3369d6;
