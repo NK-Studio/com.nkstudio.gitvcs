@@ -287,6 +287,11 @@
     background-color: rgba(0, 0, 0, 0);
 }
 
+/* 검색창 지우기(x): 바깥 테두리에서 8px(테두리 1 + 상자 안쪽 여백 4 + 3) — 왼쪽 돋보기와 같은 거리. 기본은 오른쪽 끝에 바짝 붙는다. */
+.git-theme--jetbrains .unity-search-field-base .unity-search-field-base__cancel-button {
+    margin-right: 3px;
+}
+
 .git-theme--jetbrains .unity-search-field-base.git-search--focused {
     border-color: var(--git-accent);
 }

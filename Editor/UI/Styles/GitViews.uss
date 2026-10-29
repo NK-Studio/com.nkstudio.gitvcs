@@ -217,7 +217,7 @@
 .workspace .workspace__filter .unity-search-field-base__search-button {
     width: 16px;
     height: 16px;
-    margin-left: 2px;
+    margin-left: 3px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
@@ -427,6 +427,8 @@
     min-width: 80px;
     height: 24px;
     margin: 0;
+    /* 돋보기·지우기(x)가 테두리에서 8px — 다른 검색창(필터 등)과 같은 안쪽 여백. */
+    padding: 0 4px;
     flex-shrink: 1;
     align-items: center;
 }
@@ -436,7 +438,7 @@
 .branch-explorer__toolbar .branch-explorer__search .unity-search-field-base__search-button:hover {
     width: 16px;
     height: 16px;
-    margin-left: 4px;
+    margin-left: 3px;
     background-image: none;
 }
 

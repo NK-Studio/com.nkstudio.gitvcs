@@ -635,7 +635,7 @@
 .ref-tree .ref-tree__filter .unity-search-field-base__search-button {
     width: 16px;
     height: 16px;
-    margin-left: 2px;
+    margin-left: 3px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
