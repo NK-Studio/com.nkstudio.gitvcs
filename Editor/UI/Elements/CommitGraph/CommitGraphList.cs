@@ -1594,6 +1594,11 @@ namespace GitVersionControl
         /// </summary>
         private static void SetRefHover(VisualElement pill, bool hover)
         {
+            // 지금 있는 브랜치(체크 표시)는 이미 진하게 칠해져 있어 올려도 바꾸지 않는다(GitKraken).
+            if (hover && pill.ClassListContains("commit-graph-ref--current"))
+            {
+                return;
+            }
             pill.EnableInClassList(RefHoverModifier, hover);
             if (pill.userData is not Color fill)
             {
