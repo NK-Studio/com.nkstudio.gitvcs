@@ -723,11 +723,11 @@
     color: var(--git-text-muted);
 }
 
-/* 구역 개수(로컬·리모트…): GitKraken 처럼 크고 굵은 강조색 숫자. 작은 흰 글자를 알약에 넣으면 잘 안 읽혀서 바탕 없이 글자를 키운다.
-   --git-accent-fg 는 글자용 강조색(대비 5:1 이상)이라 사이드바 바탕에서도 읽힌다. 0 도 같은 색(GitKraken 과 같다). */
+/* 구역 개수(로컬·리모트…): GitKraken 처럼 큼직한 강조색 숫자. 작은 흰 글자를 알약에 넣으면 잘 안 읽혀서 바탕 없이 글자를 키운다.
+   굵기는 Medium(Bold 는 옆 구역 이름보다 무거워 보였다). --git-accent-fg 는 글자용 강조색(대비 5:1 이상)이라 사이드바 바탕에서도 읽힌다. 0 도 같은 색. */
 .ref-tree__row--section .ref-tree__badge {
     font-size: 13px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Medium.ttf");
     color: var(--git-accent-fg);
 }
 
