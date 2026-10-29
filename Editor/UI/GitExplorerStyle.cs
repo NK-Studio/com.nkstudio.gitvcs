@@ -24,7 +24,7 @@ namespace GitVersionControl
     /// 브랜치 탐색기 모양 고르기. 사람마다 좋아하는 모양이 달라 프로젝트가 아니라 이 PC 의 개인 설정(EditorPrefs)으로 둔다.
     /// GitKraken 배치는 Graph 탭이 이미 세로 커밋 목록이라 탐색기는 가로 브랜치 그래프로 고정한다.
     /// Fork · Unity VCS 배치는 고를 수 있고, 고르지 않았으면 커밋 목록(Fork 형태)이다.
-    /// 고르는 곳: Preferences > Git, Project Settings > Git(배치 아래), Git 창 ⋮ 메뉴, 브랜치 탐색기 도구 막대.
+    /// 고르는 곳: Preferences > Git(배치 아래), Git 창 ⋮ 메뉴, 브랜치 탐색기 도구 막대.
     /// 바꾸면 열린 Git 창이 UI 를 다시 만든다(탭이 다른 클래스라서).
     /// </summary>
 #if UNITY_6000_7_OR_NEWER
@@ -83,7 +83,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// Preferences · Project Settings 의 고르기 칸. GitKraken 배치면 끄고 고정이라고 알린다.
+        /// Preferences 의 고르기 칸. GitKraken 배치면 끄고 고정이라고 알린다.
         /// </summary>
         public static void DrawPopup()
         {

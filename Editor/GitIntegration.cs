@@ -10,7 +10,8 @@ namespace GitVersionControl
     /// 예전에는 Mode 드롭다운에 "Git" 항목(VersionControlObject)을 더했지만, 그러면 ProjectSettings/VersionControlSettings.asset 에
     /// "Git" 이 저장돼 이 패키지가 없는 팀원의 에디터가 모르는 모드를 읽게 된다. 이제 모드와 상관없이 켜고,
     /// 예전 버전이 "Git" 으로 바꿔 둔 프로젝트(그 뒤 Unity 가 "Hidden Meta Files" 로 바꾼 경우 포함)는 열 때 "Visible Meta Files" 로 되돌린다.
-    /// 설정은 Project Settings > Git(<see cref="GitSettingsGUI"/>), Project 창 상태 배지는 <see cref="EditorApplication.projectWindowItemOnGUI"/> 로 그린다.
+    /// 설정은 모두 개인 설정이라 Preferences > Git(<see cref="GitPreferences"/>) 에만 있다. git init·이 저장소의 계정은 Git 창에서 한다.
+    /// Project 창 상태 배지는 <see cref="EditorApplication.projectWindowItemOnGUI"/> 로 그린다.
     /// </summary>
     [InitializeOnLoad]
     internal static class GitIntegration
@@ -23,8 +24,6 @@ namespace GitVersionControl
         public const string VisibleMetaFilesMode = "Visible Meta Files";
 
         public const string HiddenMetaFilesMode = "Hidden Meta Files";
-
-        public const string ProjectSettingsPath = "Project/Git";
 
         static GitIntegration()
         {
@@ -69,17 +68,6 @@ namespace GitVersionControl
             {
                 VersionControlSettings.mode = VisibleMetaFilesMode;
             }
-        }
-
-        [SettingsProvider]
-        private static SettingsProvider CreateSettingsProvider()
-        {
-            return new SettingsProvider(ProjectSettingsPath, SettingsScope.Project)
-            {
-                label = "Git",
-                guiHandler = _ => GitSettingsGUI.Draw(),
-                keywords = new[] { "Git", "Version Control", "Diff", "Merge", "Fetch", "Toolbar" },
-            };
         }
 
         /// <summary>

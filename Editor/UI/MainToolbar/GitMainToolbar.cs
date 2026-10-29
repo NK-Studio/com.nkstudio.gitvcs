@@ -41,9 +41,6 @@ namespace GitVersionControl
                 case GitMainToolbarCommand.HideFromToolbar:
                     SetShown(false);
                     break;
-                case GitMainToolbarCommand.OpenProjectSettings:
-                    SettingsService.OpenProjectSettings(GitMainToolbarMenu.ProjectSettingsPath);
-                    break;
                 case GitMainToolbarCommand.OpenPreferences:
                     SettingsService.OpenUserPreferences(GitMainToolbarMenu.PreferencesPath);
                     break;

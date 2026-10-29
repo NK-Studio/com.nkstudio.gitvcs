@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -6,96 +5,15 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
-    /// Project Settings > Git 화면(<see cref="GitIntegration"/>)과 Preferences > Git 의 개인 설정 칸(<see cref="GitPreferences"/>). Version Control 설정 화면에 붙던 시절의 IMGUI 를 그대로 쓴다.
+    /// Preferences > Git 의 설정 칸(<see cref="GitPreferences"/>). Version Control 설정 화면에 붙던 시절의 IMGUI 를 그대로 쓴다.
     /// </summary>
 #if UNITY_6000_7_OR_NEWER
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
 #endif
     internal static class GitSettingsGUI
     {
-        private static string s_accountText;
-        private static bool s_accountLoading;
-
-        static GitSettingsGUI()
-        {
-            GitAccounts.Changed += () =>
-            {
-                s_accountText = null;
-                SettingsService.RepaintAllSettingsWindow();
-            };
-        }
         private static string s_versionText;
         private static bool s_isBusy;
-
-        /// <summary>git init 을 눌러 확인을 기다리는 중(화면 안에 안내와 만들기·취소를 보인다).</summary>
-        private static bool s_initConfirming;
-
-        /// <summary>마지막 git init 의 실패 글. 없으면 null.</summary>
-        private static string s_initError;
-
-        /// <summary>
-        /// "GitHub 계정(이 저장소)": 지금 쓰는 계정과 바꾸기. 계정은 git 을 불러 알아내므로 처음 그릴 때 한 번 읽고, 바꾸기 뒤에는 다시 읽는다.
-        /// </summary>
-        private static void DrawAccount()
-        {
-            if (s_accountText == null && s_accountLoading == false)
-            {
-                _ = LoadAccountAsync();
-            }
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField(new GUIContent(GitText.Get("settings.account"), GitText.Get("settings.accountTooltip")), new GUIContent(s_accountText ?? GitText.Get("common.loading")));
-                if (GUILayout.Button(GitText.Get("settings.accountChange"), GUILayout.Width(80)))
-                {
-                    GitWindow.ChooseAccount();
-                }
-            }
-        }
-
-        private static async System.Threading.Tasks.Task LoadAccountAsync()
-        {
-            s_accountLoading = true;
-            try
-            {
-                (string owner, string repository)? remote = await GitAccounts.GitHubRemoteAsync();
-                if (remote == null)
-                {
-                    s_accountText = GitText.Get("settings.accountNotGitHub");
-                    return;
-                }
-                string current = await GitAccounts.CurrentUsernameAsync(remote.Value.owner, remote.Value.repository);
-                string how = await GitAccounts.ChosenDescriptionAsync() ?? GitText.Get("settings.accountDefault");
-                s_accountText = string.IsNullOrEmpty(current) ? GitText.Get("settings.accountUnknown") : $"{current}  ({how})";
-            }
-            finally
-            {
-                s_accountLoading = false;
-                SettingsService.RepaintAllSettingsWindow();
-            }
-        }
-
-        /// <summary>
-        /// Project Settings > Git: 이 저장소에 쓸 GitHub 계정과 저장소 상태(git init)만 둔다. 나머지 설정은 모두 개인 설정이라 Preferences > Git(<see cref="DrawPersonal"/>).
-        /// </summary>
-        public static void Draw()
-        {
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Git", EditorStyles.boldLabel);
-
-            DrawAccount();
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField(" ", GitText.Get("settings.personalInPreferences"), EditorStyles.wordWrappedMiniLabel);
-                if (GUILayout.Button(GitText.Get("settings.openPreferences"), GUILayout.Width(140)))
-                {
-                    SettingsService.OpenUserPreferences("Preferences/Git");
-                }
-            }
-
-            EditorGUILayout.Space();
-            DrawRepositoryStatus();
-        }
 
         /// <summary>
         /// Preferences > Git 의 개인 설정: 화면(언어·테마·배치), git 실행 파일, 에디터 동작, 표시 방식, 자동 Fetch·rebase·.meta 짝 다루기. 값은 EditorPrefs 에 있어 모든 프로젝트에 같이 적용된다.
@@ -372,110 +290,12 @@ namespace GitVersionControl
             }
         }
 
-        private static void DrawRepositoryStatus()
-        {
-            EditorGUILayout.LabelField(GitText.Get("settings.repository"), EditorStyles.boldLabel);
-
-            if (string.IsNullOrEmpty(GitRepository.LastError) == false)
-            {
-                EditorGUILayout.HelpBox(GitRepository.LastError, MessageType.Error);
-            }
-
-            if (GitRepository.IsRepository == false)
-            {
-                if (GitRepository.IsRefreshing)
-                {
-                    EditorGUILayout.LabelField(GitText.Get("settings.checking"));
-                    return;
-                }
-                EditorGUILayout.HelpBox(GitText.Get("settings.notRepository"), MessageType.Info);
-                // 묻고 알리는 것은 운영체제 대화상자 대신 이 화면 안에서 한다.
-                if (string.IsNullOrEmpty(s_initError) == false)
-                {
-                    EditorGUILayout.HelpBox(GitText.Get("settings.initFailed") + "\n" + s_initError, MessageType.Error);
-                }
-                if (s_initConfirming)
-                {
-                    bool hasGitignore = File.Exists(Path.Combine(GitRepository.ProjectRoot, ".gitignore"));
-                    EditorGUILayout.HelpBox(GitText.Format("settings.initMessage", GitRepository.ProjectRoot)
-                                            + (hasGitignore ? string.Empty : GitText.Get("settings.initNoGitignore")), MessageType.Warning);
-                    using (new EditorGUILayout.HorizontalScope())
-                    using (new EditorGUI.DisabledScope(s_isBusy))
-                    {
-                        if (GUILayout.Button(GitText.Get("common.create")))
-                        {
-                            s_initConfirming = false;
-                            InitAsync();
-                        }
-                        if (GUILayout.Button(GitText.Get("common.cancel")))
-                        {
-                            s_initConfirming = false;
-                        }
-                    }
-                    return;
-                }
-                using (new EditorGUI.DisabledScope(s_isBusy))
-                {
-                    if (GUILayout.Button("git init"))
-                    {
-                        s_initError = null;
-                        s_initConfirming = true;
-                    }
-                }
-                return;
-            }
-
-            GitBranchInfo branch = GitRepository.Branch;
-            EditorGUILayout.LabelField(GitText.Get("settings.root"), GitRepository.RepoRoot);
-            if (string.IsNullOrEmpty(GitRepository.ProjectPrefix) == false)
-            {
-                EditorGUILayout.LabelField(GitText.Get("settings.projectLocation"), GitRepository.ProjectPrefix);
-            }
-            if (branch != null)
-            {
-                EditorGUILayout.LabelField(GitText.Get("settings.branch"), GitDisplay.FormatBranch(branch));
-            }
-            EditorGUILayout.LabelField(GitText.Get("settings.changes"), GitText.Format("settings.changesCount", GitRepository.Entries.Count));
-
-            string author = string.IsNullOrEmpty(GitRepository.UserName) ? GitText.Get("settings.unset") : $"{GitRepository.UserName} <{GitRepository.UserEmail}>";
-            EditorGUILayout.LabelField(GitText.Get("settings.author"), author);
-            if (string.IsNullOrEmpty(GitRepository.UserName) || string.IsNullOrEmpty(GitRepository.UserEmail))
-            {
-                EditorGUILayout.HelpBox(GitText.Get("settings.noAuthor"), MessageType.Warning);
-            }
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button(GitText.Get("common.openGitWindow")))
-                {
-                    GitWindow.Open();
-                }
-                using (new EditorGUI.DisabledScope(GitRepository.IsRefreshing))
-                {
-                    if (GUILayout.Button(GitText.Get("common.refresh"), GUILayout.Width(90)))
-                    {
-                        GitRepository.RequestRefresh(immediate: true);
-                    }
-                }
-            }
-        }
-
         private static async void CheckVersionAsync()
         {
             s_isBusy = true;
             GitResult result = await GitCommand.RunAsync(GitRepository.ProjectRoot, new[] { "--version" });
             s_versionText = result.Success ? result.Output.Trim() : result.Message;
             s_isBusy = false;
-            SettingsService.RepaintAllSettingsWindow();
-        }
-
-        private static async void InitAsync()
-        {
-            s_isBusy = true;
-            GitResult result = await GitCommand.RunAsync(GitRepository.ProjectRoot, new[] { "init" });
-            s_isBusy = false;
-            s_initError = result.Success ? null : result.Message;
-            GitRepository.RequestRefresh(immediate: true);
             SettingsService.RepaintAllSettingsWindow();
         }
     }

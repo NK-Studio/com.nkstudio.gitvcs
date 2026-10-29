@@ -334,8 +334,8 @@ namespace GitVersionControl
             _lfsFetchButton = new Button(FetchLfs);
             _lfsFetchButton.AddToClassList("git-diff-lfs__button");
             _lfsView.Add(_lfsFetchButton);
-            // 계정 문제로 못 받았을 때만 보인다. 이 창은 Git 창과 따로 떠서 계정 팝업 대신 Project Settings > Git 을 연다.
-            _lfsAccountButton = new Button(() => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath)) { text = GitText.Get("lfs.chooseAccount") };
+            // 계정 문제로 못 받았을 때만 보인다. 이 창은 Git 창과 따로 뜰 수 있어 Git 창을 열고 그 위에 계정 고르기를 띄운다.
+            _lfsAccountButton = new Button(GitWindow.ChooseAccount) { text = GitText.Get("lfs.chooseAccount") };
             _lfsAccountButton.AddToClassList("git-diff-lfs__button");
             _lfsView.Add(_lfsAccountButton);
             _lfsView.SetVisible(false);
@@ -601,7 +601,7 @@ namespace GitVersionControl
             toolbar.Add(_revisions);
             toolbar.Add(Spacer());
 
-            // 알고리즘·공백·문맥 줄 수는 설정(Project Settings > Git)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
+            // 알고리즘·공백·문맥 줄 수는 설정(Preferences > Git)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
             ToolbarButton external = new(() =>
             {
                 if (_target != null)

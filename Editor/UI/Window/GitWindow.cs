@@ -31,6 +31,8 @@ namespace GitVersionControl
         private VisualElement _window;
         private VisualElement _notReady;
         private Label _notReadyMessage;
+        private Button _notReadyAction;
+        private bool _isInitializing;
         private UiScaleController _scale;
         private VisualElement _layout;
         private GitHubConnectPanel _connect;
@@ -49,7 +51,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// Git 창을 열고 그 위에 이 저장소의 GitHub 계정 고르기 팝업을 띄운다(Project Settings > Git 의 "바꾸기").
+        /// Git 창을 열고 그 위에 이 저장소의 GitHub 계정 고르기 팝업을 띄운다(따로 뜬 창의 LFS "계정 고르기" 등).
         /// </summary>
         public static void ChooseAccount()
         {
@@ -110,7 +112,8 @@ namespace GitVersionControl
             _window = layout.Require<VisualElement>("git-window");
             _notReady = layout.Require<VisualElement>("not-ready");
             _notReadyMessage = layout.Require<Label>("not-ready-message");
-            layout.Require<Button>("open-settings-button").clicked += () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath);
+            _notReadyAction = layout.Require<Button>("not-ready-action");
+            _notReadyAction.clicked += OnNotReadyAction;
 
             // 왼쪽 탭 경계선도 UI 배율에서 끌리도록 같은 처리기를 붙인다.
             _body = layout.Require<TwoPaneSplitView>("body");
@@ -347,7 +350,12 @@ namespace GitVersionControl
                     _ = _services.Dialogs.AlertAsync(GitText.Get("actionbar.terminalFailed"), error, ActionGlyphKind.Terminal);
                 }
             });
-            menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath));
+            menu.AddSeparator(string.Empty);
+            if (GitRepository.IsRepository)
+            {
+                menu.AddItem(new GUIContent(GitText.Get("account.menu")), false, () => _ = GitAccountDialog.ShowAsync(_services, null));
+            }
+            menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, GitPreferences.Open);
         }
 
         /// <summary>
@@ -567,6 +575,47 @@ namespace GitVersionControl
             _state.SelectedTab = index;
         }
 
+        private void OnNotReadyAction()
+        {
+            if (string.IsNullOrEmpty(_services.Repository.LastError))
+            {
+                _ = InitRepositoryAsync();
+            }
+            else
+            {
+                GitPreferences.Open();
+            }
+        }
+
+        /// <summary>
+        /// 이 프로젝트 폴더에 git 저장소를 만든다. .gitignore 가 없으면 Unity 용을 함께 만든다(<see cref="GitInit"/>).
+        /// </summary>
+        private async System.Threading.Tasks.Task InitRepositoryAsync()
+        {
+            string root = GitRepository.ProjectRoot;
+            string message = GitText.Format("init.message", root)
+                             + GitText.Get(GitInit.HasGitignore(root) ? "init.keepGitignore" : "init.addGitignore");
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("init.title"), message, GitText.Get("common.create"), icon: ActionGlyphKind.Branch) == false)
+            {
+                return;
+            }
+            _isInitializing = true;
+            _notReadyAction.SetEnabled(false);
+            (GitResult result, string gitignoreError) = await GitInit.CreateRepositoryAsync(root);
+            _isInitializing = false;
+            _notReadyAction.SetEnabled(true);
+            if (result.Success == false)
+            {
+                await _services.Dialogs.AlertAsync(GitText.Get("init.failed"), result.Message, ActionGlyphKind.Branch);
+                return;
+            }
+            GitRepository.RequestRefresh(immediate: true);
+            if (gitignoreError != null)
+            {
+                await _services.Dialogs.AlertAsync(GitText.Get("init.title"), GitText.Format("init.gitignoreFailed", gitignoreError), ActionGlyphKind.Branch);
+            }
+        }
+
         private void OnRepositoryChanged()
         {
             IGitRepositoryState repository = _services.Repository;
@@ -576,6 +625,10 @@ namespace GitVersionControl
             _notReadyMessage.text = repository.IsRunning == false
                 ? GitText.Get("window.notGitMode")
                 : string.IsNullOrEmpty(repository.LastError) ? GitText.Get("window.notRepository") : repository.LastError;
+            // 저장소가 아니면 여기서 바로 git init, git 을 못 찾는 등 오류면 git 경로가 있는 Preferences 를 연다.
+            _notReadyAction.SetVisible(ready == false && repository.IsRunning);
+            _notReadyAction.text = string.IsNullOrEmpty(repository.LastError) ? "git init" : GitText.Get("common.openVcsSettings");
+            _notReadyAction.SetEnabled(_isInitializing == false);
 
             _toolbar.Render();
             _operationBanner.Render();

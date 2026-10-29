@@ -11,7 +11,7 @@ namespace GitVersionControl
     /// 이 저장소의 GitHub 계정 고르기 팝업(<see cref="GitConfirmDialog"/> 와 같은 막·카드). 두 가지로 연다.
     /// <list type="bullet">
     /// <item>원격 작업이 인증 문제로 실패했을 때(<see cref="GitOperationRunner.AuthFailureHandler"/>): 어느 계정으로 접속했다가 거부됐는지 알리고, 고르면 그 작업을 다시 한다.</item>
-    /// <item>Project Settings > Git 의 "바꾸기": 실패 안내 없이 계정만 고른다.</item>
+    /// <item>Git 창 ⋮ 메뉴의 "이 저장소의 GitHub 계정…": 실패 안내 없이 계정만 고른다.</item>
     /// </list>
     /// 후보는 이 PC 의 gh·Git Credential Manager·패키지 로그인 계정이고, 각 계정이 이 저장소를 읽을 수 있는지 바로 확인해 표시한다(<see cref="GitAccounts"/>).
     /// </summary>

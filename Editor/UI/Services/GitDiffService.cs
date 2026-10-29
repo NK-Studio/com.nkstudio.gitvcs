@@ -292,7 +292,7 @@ namespace GitVersionControl
             {
                 if (await _dialogs.ConfirmAsync(GitText.Get("diff.toolNotFound"), GitText.Format("diff.toolNotFoundMessage", GitText.Get("diffEngine." + engine)), GitText.Get("common.openVcsSettings")))
                 {
-                    SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath);
+                    GitPreferences.Open();
                 }
                 return;
             }

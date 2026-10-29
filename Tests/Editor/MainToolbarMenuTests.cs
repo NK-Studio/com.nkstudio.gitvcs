@@ -69,7 +69,6 @@ namespace GitVersionControl.Tests
             {
                 GitMainToolbarCommand.OpenWindow,
                 GitMainToolbarCommand.HideFromToolbar,
-                GitMainToolbarCommand.OpenProjectSettings,
                 GitMainToolbarCommand.OpenPreferences,
                 GitMainToolbarCommand.OpenHelp,
             }, commands);
@@ -90,14 +89,13 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Build_SettingsItems_AreInSettingsSubmenu()
+        public void Test_Build_SettingsItem_IsSingleTopLevelItem()
         {
             IReadOnlyList<GitMainToolbarMenuItem> items = GitMainToolbarMenu.Build(KeyAsText);
 
-            GitMainToolbarMenuItem project = items.Single(item => item.IsSeparator == false && item.Command == GitMainToolbarCommand.OpenProjectSettings);
+            // 설정은 Preferences > Git 한 곳뿐이라 하위 메뉴 없이 한 줄이다.
             GitMainToolbarMenuItem preferences = items.Single(item => item.IsSeparator == false && item.Command == GitMainToolbarCommand.OpenPreferences);
-            Assert.AreEqual("mainToolbar.settings/mainToolbar.projectSettings", project.Path);
-            Assert.AreEqual("mainToolbar.settings/mainToolbar.preferences", preferences.Path);
+            Assert.AreEqual("mainToolbar.preferences", preferences.Path);
         }
 
         [Test]
@@ -121,7 +119,6 @@ namespace GitVersionControl.Tests
         [Test]
         public void Test_SettingsPaths_MatchRegisteredProviders()
         {
-            Assert.AreEqual("Project/Git", GitMainToolbarMenu.ProjectSettingsPath);
             Assert.AreEqual("Preferences/Git", GitMainToolbarMenu.PreferencesPath);
             Assert.AreEqual("https://github.com/NK-Studio/com.nkstudio.gitvcs", GitMainToolbarMenu.HelpUrl);
         }

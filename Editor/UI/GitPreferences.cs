@@ -5,14 +5,17 @@ using UnityEngine.Networking;
 namespace GitVersionControl
 {
     /// <summary>
-    /// Preferences > Git: 사람마다 다른 개인 설정. 언어·테마·배치·브랜치 탐색기 모양, git 실행 파일, 에디터 동작·표시, Diff(<see cref="GitSettingsGUI.DrawPersonal"/>), GitHub 계정 로그인(<see cref="GitHubAccount"/>).
-    /// 프로젝트 설정(Project Settings > Git)과 달리 이 PC 의 모든 프로젝트에 같이 적용된다.
+    /// Preferences > Git: 패키지의 설정은 모두 여기 있다. 언어·테마·배치·브랜치 탐색기 모양, git 실행 파일, 에디터 동작·표시, 자동 Fetch·.meta 짝,
+    /// Diff(<see cref="GitSettingsGUI.DrawPersonal"/>), GitHub 계정 로그인(<see cref="GitHubAccount"/>). 이 PC 의 모든 프로젝트에 같이 적용된다.
+    /// Project Settings 에는 Git 쪽이 없다 — 저장소에 올라가 팀이 나눠 쓸 설정이 없어서다.
     /// </summary>
 #if UNITY_6000_7_OR_NEWER
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
 #endif
     internal static class GitPreferences
     {
+        public const string SettingsPath = "Preferences/Git";
+
         private const float AvatarSize = 40f;
 
         /// <summary>라벨 칸 폭. 기본값(약 150)이면 "도구 막대에 Git 버튼 표시" 같은 긴 라벨이 체크박스에 붙는다.</summary>
@@ -44,12 +47,17 @@ namespace GitVersionControl
         {
             s_login.StateChanged -= SettingsService.RepaintAllSettingsWindow;
             s_login.StateChanged += SettingsService.RepaintAllSettingsWindow;
-            return new SettingsProvider("Preferences/Git", SettingsScope.User)
+            return new SettingsProvider(SettingsPath, SettingsScope.User)
             {
                 label = "Git",
                 guiHandler = _ => Draw(),
-                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork", "Language", "Theme", "Layout", "Diff", "Menu" },
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork", "Language", "Theme", "Layout", "Diff", "Menu", "Fetch", "Version Control" },
             };
+        }
+
+        public static void Open()
+        {
+            SettingsService.OpenUserPreferences(SettingsPath);
         }
 
         private static void Draw()

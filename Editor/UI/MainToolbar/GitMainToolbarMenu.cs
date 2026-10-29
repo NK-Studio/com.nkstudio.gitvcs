@@ -7,7 +7,6 @@ namespace GitVersionControl
     {
         OpenWindow,
         HideFromToolbar,
-        OpenProjectSettings,
         OpenPreferences,
         OpenHelp,
     }
@@ -39,8 +38,7 @@ namespace GitVersionControl
     {
         public const string ButtonLabel = "Git";
         public const string HelpUrl = "https://github.com/NK-Studio/com.nkstudio.gitvcs";
-        public const string ProjectSettingsPath = GitIntegration.ProjectSettingsPath;
-        public const string PreferencesPath = "Preferences/Git";
+        public const string PreferencesPath = GitPreferences.SettingsPath;
 
         /// <summary>
         /// 버튼에 보일 브랜치 이름의 최대 글자 수. 도구 막대 왼쪽 칸에 Account·Cloud 버튼과 함께 들어가는 폭으로 잡았다.
@@ -73,15 +71,14 @@ namespace GitVersionControl
         /// </summary>
         public static IReadOnlyList<GitMainToolbarMenuItem> Build(Func<string, string> localize)
         {
-            string settings = localize("mainToolbar.settings");
+            // 설정은 Preferences > Git 한 곳뿐이라 하위 메뉴 없이 한 줄로 둔다.
             return new[]
             {
                 new GitMainToolbarMenuItem(localize("mainToolbar.openWindow"), GitMainToolbarCommand.OpenWindow),
                 GitMainToolbarMenuItem.Separator,
                 new GitMainToolbarMenuItem(localize("mainToolbar.hide"), GitMainToolbarCommand.HideFromToolbar),
                 GitMainToolbarMenuItem.Separator,
-                new GitMainToolbarMenuItem($"{settings}/{localize("mainToolbar.projectSettings")}", GitMainToolbarCommand.OpenProjectSettings),
-                new GitMainToolbarMenuItem($"{settings}/{localize("mainToolbar.preferences")}", GitMainToolbarCommand.OpenPreferences),
+                new GitMainToolbarMenuItem(localize("mainToolbar.preferences"), GitMainToolbarCommand.OpenPreferences),
                 GitMainToolbarMenuItem.Separator,
                 new GitMainToolbarMenuItem(localize("mainToolbar.help"), GitMainToolbarCommand.OpenHelp),
             };

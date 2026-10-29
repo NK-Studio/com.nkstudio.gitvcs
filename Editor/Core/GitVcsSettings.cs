@@ -183,7 +183,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 이 프로젝트 저장소의 GitHub 원격에 쓸 토큰을 어디서 가져올지(<c>GitAccounts</c>). 0 = git 의 자격 증명 도우미 그대로,
-        /// 1 = gh 의 <see cref="AccountName"/> 계정, 2 = 패키지 로그인(Preferences > Git). 계정 접근 실패 팝업이나 Project Settings > Git 에서 고른다.
+        /// 1 = gh 의 <see cref="AccountName"/> 계정, 2 = 패키지 로그인(Preferences > Git). 계정 접근 실패 팝업이나 Git 창 ⋮ 메뉴에서 고른다.
         /// </summary>
         public int AccountSource
         {
