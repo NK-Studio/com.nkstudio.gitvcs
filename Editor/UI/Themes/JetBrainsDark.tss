@@ -47,12 +47,16 @@
     --git-success: #5fb865;
     --git-warning: #d6ae58;
     --git-danger: #db5c5c;
-    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 평소엔 테두리(--git-success·--git-danger)만, 마우스를 올리면 테두리와 같은 색으로 꽉 채운 바탕(strong 은 테두리색과 같은 불투명 색, pressed 는 한 단계 진하게)과 그 위 글자(--git-on-strong). 테두리·바탕이 한 색인 평평한 모양. */
+    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 평소엔 옅은 바탕(--git-*-soft) + 원색 테두리(--git-success·--git-danger), 마우스를 올리면 테두리와 같은 색으로 꽉 채운 바탕(strong 은 테두리색과 같은 불투명 색, pressed 는 한 단계 진하게)과 그 위 글자(--git-on-strong). 테두리·바탕이 한 색인 평평한 모양. */
     --git-success-strong: #5fb865;
     --git-success-strong-pressed: #4f9d55;
     --git-danger-strong: #db5c5c;
     --git-danger-strong-pressed: #c24c4c;
     --git-on-strong: #ffffff;
+    /* 색 버튼의 평소 바탕: 그 색을 옅게 깐다(테두리는 원색, 마우스를 올리면 원색으로 꽉 채움). */
+    --git-accent-soft: rgba(56, 113, 225, 0.28);
+    --git-success-soft: rgba(95, 184, 101, 0.24);
+    --git-danger-soft: rgba(219, 92, 92, 0.26);
     --git-refs: #3876fd;
     --git-badge-bg: #33353b;
     --git-field-bg: #191a1c;

@@ -66,14 +66,14 @@
     margin-top: 4px;
 }
 
-/* 우리 버튼 규칙: 평소엔 강조색 테두리, 마우스를 올리면 강조색으로 채운다. */
+/* 우리 버튼 규칙: 평소엔 옅은 강조색 바탕 + 강조색 테두리, 마우스를 올리면 강조색으로 꽉 채운다. */
 .github-connect__primary {
     height: 32px;
     margin: 0;
     font-size: 13px;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
-    background-color: rgba(0, 0, 0, 0);
+    background-color: var(--git-accent-soft);
     border-width: 1px;
     border-color: var(--git-accent);
     border-radius: 6px;
@@ -812,9 +812,9 @@
     padding: 0;
     border-width: 1px;
     border-radius: 3px;
-    /* Stage 버튼과 한 벌: 평소엔 초록 테두리만, 마우스를 올리면 꽉 채운다. 색은 테마 토큰(Themes/*.tss). */
+    /* Stage 버튼과 한 벌: 평소엔 옅은 초록 바탕 + 초록 테두리, 마우스를 올리면 꽉 채운다. 색은 테마 토큰(Themes/*.tss). */
     border-color: var(--git-success);
-    background-color: rgba(0, 0, 0, 0);
+    background-color: var(--git-success-soft);
     color: var(--git-text);
     font-size: 13px;
     -unity-text-align: middle-center;
@@ -1208,7 +1208,7 @@
     border-width: 1px;
     border-radius: var(--git-radius);
     border-color: var(--git-success);
-    background-color: rgba(0, 0, 0, 0);
+    background-color: var(--git-success-soft);
     color: var(--git-text);
 }
 
@@ -1367,10 +1367,11 @@
     padding: 0;
 }
 
-/* 우리 버튼 규칙: 평소엔 테두리만, 마우스를 올리면 그 색으로 꽉 채우고 글자는 흰색(--git-on-strong). */
+/* 우리 버튼 규칙: 평소엔 옅은 바탕(--git-*-soft) + 원색 테두리, 마우스를 올리면 그 색으로 꽉 채우고 글자는 흰색(--git-on-strong). */
 .side-drawer__secondary.submodule-edit__open {
     border-color: var(--git-accent);
     color: var(--git-text);
+    background-color: var(--git-accent-soft);
 }
 
 .side-drawer__secondary.submodule-edit__open:hover:enabled {
@@ -1381,7 +1382,8 @@
 
 .side-drawer__secondary.submodule-edit__delete {
     border-color: var(--git-danger);
-    color: var(--git-danger);
+    color: var(--git-text);
+    background-color: var(--git-danger-soft);
 }
 
 .side-drawer__secondary.submodule-edit__delete:hover:enabled {
@@ -1656,11 +1658,12 @@
     color: var(--git-text-muted);
 }
 
-/* 색 있는 보조 버튼(닫기·승인·변경 요청): 우리 버튼 규칙대로 평소엔 그 색 테두리·글자, 마우스를 올리면 그 색으로 채우고 글자는 흰색. */
+/* 색 있는 보조 버튼(닫기·승인·변경 요청): 우리 버튼 규칙대로 평소엔 그 색의 옅은 바탕 + 테두리, 마우스를 올리면 그 색으로 채우고 글자는 흰색. */
 .side-drawer__secondary.pr-detail__danger,
 .side-drawer__secondary.pr-detail__request-changes {
     border-color: var(--git-danger);
-    color: var(--git-danger);
+    color: var(--git-text);
+    background-color: var(--git-danger-soft);
 }
 
 .side-drawer__secondary.pr-detail__danger:hover:enabled,
@@ -1679,7 +1682,8 @@
 
 .side-drawer__secondary.pr-detail__approve {
     border-color: var(--git-success);
-    color: var(--git-success);
+    color: var(--git-text);
+    background-color: var(--git-success-soft);
 }
 
 .side-drawer__secondary.pr-detail__approve:hover:enabled {
