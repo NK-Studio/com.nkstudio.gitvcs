@@ -1541,10 +1541,9 @@ namespace GitVersionControl
             ActionGlyph tag = new(ActionGlyphKind.Tag);
             tag.AddToClassList("commit-graph-ref__tag-icon");
             pill.Add(tag);
-            // 마우스를 올리면 밝게(USS :hover). 이름표 바탕이 가지 색 인라인 스타일이라 USS 로 바꿀 수 없어 위에 얇은 막을 깐다.
-            VisualElement veil = new() { pickingMode = PickingMode.Ignore };
-            veil.AddToClassList("commit-graph-ref__veil");
-            pill.Add(veil);
+            // 마우스를 올리면 그 이름표의 가지 색을 더 밝고 진하게(흰 막을 덮으면 색이 회색빛으로 바랬다). 바탕이 인라인 가지 색이라 USS :hover 대신 여기서 바꾼다.
+            pill.RegisterCallback<PointerEnterEvent>(_ => SetRefHover(pill, true));
+            pill.RegisterCallback<PointerLeaveEvent>(_ => SetRefHover(pill, false));
             // 커서(USS cursor)는 포인터 바로 밑 요소 것을 쓰므로 안쪽 요소는 포인터를 받지 않게 해 이름표 어디서나 손가락 커서가 되게 한다.
             check.pickingMode = PickingMode.Ignore;
             name.pickingMode = PickingMode.Ignore;
@@ -1578,10 +1577,37 @@ namespace GitVersionControl
             // 테두리 폭(1px)은 남겨 두어 종류마다 이름표 크기가 같다. 테두리는 투명하게 해 바탕과 한 색으로 보인다.
             Color border = Color.clear;
             pill.style.backgroundColor = usesLaneColor ? fill : StyleKeyword.Null;
+            // 마우스를 올렸을 때 밝힐 원래 바탕(태그는 USS 가 칠하므로 없음).
+            pill.userData = usesLaneColor ? fill : null;
+            pill.RemoveFromClassList(RefHoverModifier);
             pill.style.borderLeftColor = usesLaneColor ? border : StyleKeyword.Null;
             pill.style.borderRightColor = usesLaneColor ? border : StyleKeyword.Null;
             pill.style.borderTopColor = usesLaneColor ? border : StyleKeyword.Null;
             pill.style.borderBottomColor = usesLaneColor ? border : StyleKeyword.Null;
+        }
+
+        private const string RefHoverModifier = "commit-graph-ref--hover";
+
+        /// <summary>
+        /// 마우스를 올린 이름표: 가지 색 바탕을 밝기는 1.3 배, 진하기는 +0.2 로(GitKraken 처럼 같은 색이 밝아진다). 내리면 원래 색.
+        /// 태그는 바탕을 USS 가 칠하므로 클래스(--hover)만 붙인다.
+        /// </summary>
+        private static void SetRefHover(VisualElement pill, bool hover)
+        {
+            pill.EnableInClassList(RefHoverModifier, hover);
+            if (pill.userData is not Color fill)
+            {
+                return;
+            }
+            if (hover == false)
+            {
+                pill.style.backgroundColor = fill;
+                return;
+            }
+            Color.RGBToHSV(fill, out float h, out float s, out float v);
+            Color bright = Color.HSVToRGB(h, s, Mathf.Min(1f, v * 1.3f));
+            bright.a = Mathf.Min(1f, fill.a + 0.2f);
+            pill.style.backgroundColor = bright;
         }
 
         /// <summary>

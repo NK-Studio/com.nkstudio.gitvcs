@@ -899,21 +899,9 @@
     margin-left: 5px;
 }
 
-/* 마우스가 올라간 참조를 밝게. 이름표 바탕은 인라인 가지 색이라 위에 흰 막을 얇게 덮는다. */
-.commit-graph-ref__veil {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 3px;
-    background-color: rgba(255, 255, 255, 0.16);
-}
-
-/* 줄 이름표·펼친 목록 모두 마우스를 올리면 밝아진다. */
-.commit-graph-ref:hover > .commit-graph-ref__veil {
-    display: flex;
+/* 마우스를 올린 태그 이름표: 금색 채움을 진하게(브랜치 이름표는 코드가 가지 색을 밝힌다 — CommitGraphList.SetRefHover). */
+.commit-graph-ref--tag.commit-graph-ref--hover {
+    background-color: rgba(229, 192, 123, 0.5);
 }
 
 /* 좁은 머리 칸: 글자 대신 아이콘(브랜치/태그 = 브랜치, 그래프 = 계층도). 원래 이름은 툴팁. */
