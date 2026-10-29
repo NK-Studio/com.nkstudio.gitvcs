@@ -17,7 +17,7 @@ namespace GitVersionControl
     public sealed class RefSidebar : IDisposable
     {
         private const string Block = "ref-tree";
-        private const float RowHeight = 20f;
+        private const float RowHeight = 24f;
 
         private readonly GitServices _services;
         private readonly RefSidebarState _state;
@@ -429,6 +429,9 @@ namespace GitVersionControl
             HoverCallout.Attach(add, () => add.userData is RefSection section ? AddHintKey(section) is { } key ? GitText.Get(key) : null : null,
                 () => _services.PopupHost);
             row.Add(add);
+            // 줄에 마우스를 올리면 GitKraken 처럼 줄 아래에 전체 이름(sample/main, origin/main)이나 워크트리 폴더를 바로 띄운다.
+            HoverCallout.Attach(row, () => row.userData is int index ? HoverText(_tree.GetItemDataForIndex<RefNode>(index)) : null,
+                () => _services.PopupHost, HoverCalloutPlacement.Below);
             row.AddManipulator(new ContextualMenuManipulator(evt =>
             {
                 if (row.userData is int index)
@@ -457,7 +460,6 @@ namespace GitVersionControl
             }
             label.text = GitDisplay.Nfc(node.Label);
             badge.text = node.Badge;
-            row.tooltip = node.Tooltip;
             bool isSection = node.Kind == RefNodeKind.Section;
             row.EnableInClassList(Block + "__row--section", isSection);
             // PR 묶음 줄과 안내 줄은 GitKraken 처럼 아이콘 없이 글자만.
@@ -500,6 +502,31 @@ namespace GitVersionControl
                 RefSection.PullRequests => ActionGlyphKind.PullRequest,
                 _ => ActionGlyphKind.Tag,
             };
+        }
+
+        /// <summary>
+        /// 줄 아래 말풍선 글(rich text). 브랜치는 폴더까지 붙인 전체 이름, 워크트리는 작업 폴더, 나머지는 줄의 설명. 구역 머리 줄은 없다.
+        /// </summary>
+        private static string HoverText(RefNode node)
+        {
+            if (node == null || node.Kind == RefNodeKind.Section)
+            {
+                return null;
+            }
+            if (node.Kind == RefNodeKind.Branch && node.Branch != null)
+            {
+                return NoParse(GitDisplay.Nfc(node.Branch.Name));
+            }
+            if (node.Kind == RefNodeKind.Worktree && node.Worktree != null)
+            {
+                return $"<b>{GitText.Get("worktree.path")}:</b>  {NoParse(GitDisplay.Nfc(node.Worktree.Path))}";
+            }
+            return string.IsNullOrEmpty(node.Tooltip) ? null : NoParse(node.Tooltip);
+        }
+
+        private static string NoParse(string text)
+        {
+            return $"<noparse>{text}</noparse>";
         }
 
         /// <summary>
