@@ -74,11 +74,9 @@ namespace GitVersionControl
         public float OneLaneWidth => Padding * 2f;
 
         /// <summary>
-        /// 두 번째 열까지 커밋 원이 다 보이는 폭. 그래프 칸이 이보다 좁으면 가지를 그릴 수 없어 한 줄로 접는다.
+        /// 칸이 넉넉할 때의 열 간격(좁아지면 <see cref="SpacingFor"/> 가 줄인다).
         /// </summary>
-        public float TwoLaneWidth => Padding * 2f + Spacing;
-
-        private float Spacing => HasAvatars ? AvatarLaneSpacing : LaneSpacing;
+        public float Spacing => HasAvatars ? AvatarLaneSpacing : LaneSpacing;
 
         private float Padding => HasAvatars ? AvatarLeftPadding : LeftPadding;
 
@@ -99,8 +97,24 @@ namespace GitVersionControl
         public float NodeOuterRadius => HasAvatars ? AvatarRadius + 4f : 8f;
 
         /// <summary>
+        /// 그래프 칸 폭에 맞춘 열 간격. 가지 묶음이 양옆 여백(<see cref="Padding"/>) 안에 다 들어가면 기본 간격이고,
+        /// 그보다 좁으면 간격을 이어서 좁혀 맨 오른쪽 가지도 칸 안에 둔다 — 원이 칸 경계에 반쯤 잘리지 않고,
+        /// 가장 좁은 폭(<see cref="OneLaneWidth"/>)에서 0 이 되어 모든 가지가 첫 열에 모인다(그때 한 줄로 접힌다).
+        /// </summary>
+        /// <param name="contentWidth">그래프 칸에서 오른쪽 가지 색 막대를 뺀 폭.</param>
+        /// <param name="laneCount">그릴 열 수.</param>
+        public float SpacingFor(float contentWidth, int laneCount)
+        {
+            if (laneCount <= 1)
+            {
+                return Spacing;
+            }
+            return Mathf.Clamp((contentWidth - Padding * 2f) / (laneCount - 1), 0f, Spacing);
+        }
+
+        /// <summary>
         /// 그래프 칸 폭에 맞춘 첫 열의 x. 가지 묶음을 칸 가운데에 두되 왼쪽 여백은 <see cref="MaxFirstLaneX"/> 를 넘지 않고,
-        /// 칸이 좁아지면 여백부터 줄여 <see cref="Padding"/> 까지 내려간다(그보다 좁으면 오른쪽 가지가 잘린다).
+        /// 칸이 좁아지면 여백부터 줄여 <see cref="Padding"/> 까지 내려간다(그다음은 열 간격이 줄어든다 — <see cref="SpacingFor"/>).
         /// 가지가 하나뿐이면 여백을 줄이지 않고 그 자리에 둔다 — 칸은 원 오른쪽까지만 줄어든다(GitKraken 과 같다).
         /// 폭에 따라 이어서 바뀌므로 칸을 끌어도 원이 튀지 않는다.
         /// </summary>
@@ -112,13 +126,13 @@ namespace GitVersionControl
             {
                 return MaxFirstLaneX;
             }
-            float centered = (contentWidth - (laneCount - 1) * Spacing) * 0.5f;
+            float centered = (contentWidth - (laneCount - 1) * SpacingFor(contentWidth, laneCount)) * 0.5f;
             return Mathf.Clamp(centered, Padding, MaxFirstLaneX);
         }
 
-        public float LaneX(int laneRow, float firstLaneX)
+        public float LaneX(int laneRow, float firstLaneX, float spacing)
         {
-            return firstLaneX + laneRow * Spacing;
+            return firstLaneX + laneRow * spacing;
         }
 
         /// <summary>

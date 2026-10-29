@@ -576,11 +576,11 @@ namespace GitVersionControl
         /// <summary>
         /// 그래프 칸을 줄일 수 있는 가장 좁은 폭.
         /// 가지가 하나면 원을 제자리(<see cref="VerticalGraphLayout.MaxFirstLaneX"/>)에 둔 채 원 오른쪽 + 틈 + 막대까지(GitKraken 과 같다),
-        /// 여럿이면 첫 열 원이 여백을 줄인 자리에서 다 보이는 폭까지(그 아래로는 한 줄로 접힌다).
+        /// 여럿이면 열 간격이 0 이 되어 모든 가지가 첫 열(여백을 줄인 자리)에 모이는 폭까지 — 이 폭에서 한 줄로 접힌다.
         /// </summary>
         private float MinGraphWidth => _layout.LaneCount == 1
             ? _layout.MaxFirstLaneX + _layout.NodeOuterRadius + NodeBarGap + BarWidth
-            : _layout.OneLaneWidth;
+            : _layout.OneLaneWidth + BarWidth;
 
         private float ClampRefsWidth(float width)
         {
@@ -1795,6 +1795,8 @@ namespace GitVersionControl
             {
                 return;
             }
+            // 칸이 좁아 열 간격이 줄면 원만 모이고, 선은 원래 간격 자리에 둔 채 원이 많이 움직인 가지의 선부터 흐려져 사라진다(EdgeAlpha).
+            float spacing = LaneSpacing;
             painter.lineWidth = 2f;
             foreach (GitGraphEdge edge in Graph.Edges)
             {
@@ -1808,11 +1810,18 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                float xc = X(edge.Child.Lane.Row);
-                float xp = X(edge.Parent.Lane.Row);
+                float edgeAlpha = EdgeAlpha(Mathf.Max(edge.Child.Lane.Row, edge.Parent.Lane.Row), spacing);
+                if (edgeAlpha <= 0f)
+                {
+                    continue;
+                }
+                float xc = EdgeX(edge.Child.Lane.Row);
+                float xp = EdgeX(edge.Parent.Lane.Row);
 
                 // 병합으로 들어오는 선은 들어오는 가지(부모) 색, 나머지는 새 커밋 쪽 줄 색(가로 탐색기와 같은 규칙).
-                painter.strokeColor = GraphStyle.LaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
+                Color stroke = GraphStyle.LaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
+                stroke.a *= edgeAlpha;
+                painter.strokeColor = stroke;
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(xc, yc));
                 if (Mathf.Approximately(xc, xp))
@@ -1976,22 +1985,54 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 그래프 칸이 두 번째 열도 못 보일 만큼 좁은지. 그러면 GitKraken 처럼 커밋을 모두 첫 열에 세우고 가지 선을 긋지 않는다
-        /// (줄마다의 가지 색은 원 테두리·띠·막대로 남는다). 첫 열 자리는 그대로라 접히는 순간 원이 옆으로 튀지 않는다.
+        /// 그래프 칸이 가장 좁아 열 간격이 0 이 됐는지(<see cref="VerticalGraphLayout.SpacingFor"/>). 그러면 모든 가지가 이미 첫 열에 모여 있으므로
+        /// GitKraken 처럼 가지 선을 긋지 않는다(줄마다의 가지 색은 원 테두리·띠·막대로 남는다). 간격은 폭을 따라 이어서 줄었으므로 이 순간 원이 움직이지 않는다.
         /// 가지가 하나뿐이면 접을 것이 없으니 선을 그대로 긋는다.
         /// </summary>
-        private bool CompactGraph => _layout.LaneCount > 1 && ColumnWidth(CommitGraphColumn.Graph) < _layout.TwoLaneWidth;
+        private bool CompactGraph => _layout.LaneCount > 1 && LaneSpacing < 0.5f;
+
+        private float GraphContentWidth => ColumnWidth(CommitGraphColumn.Graph) - BarWidth;
 
         /// <summary>
-        /// 가지 열의 x. 칸 폭에 맞춰 가지 묶음을 가운데에 두고(<see cref="VerticalGraphLayout.FirstLaneX"/>),
-        /// 선·원 층이 그래프 왼쪽 이름표 칸부터 시작하면 그만큼 민다.
-        /// 한 줄로 접어도 첫 열 자리는 모든 열이 있을 때와 같게 둬서 접히는 순간 원이 튀지 않는다.
+        /// 가지 선 하나의 진하기. 원래 간격일 때 1. 칸이 좁아 열 간격이 <paramref name="spacing"/> 으로 줄면 n 번째 열의 원은 n × (원래 간격 - spacing) 만큼
+        /// 왼쪽으로 옮겨 가므로, 선이 닿는 가장 오른쪽 열(<paramref name="maxLane"/>)의 원이 옮겨 간 만큼 흐려져 <see cref="EdgeFadeDistance"/> 에서 사라진다 —
+        /// 오른쪽 가지의 선부터 하나씩 빠진다. 첫 열끼리 잇는 선은 원이 움직이지 않으므로, 둘째 열 원이 다가와 겹치기 시작하는 마지막 구간(간격이 그 거리 밑)에서 흐려진다.
+        /// </summary>
+        private float EdgeAlpha(int maxLane, float spacing)
+        {
+            float fade = EdgeFadeDistance;
+            if (maxLane == 0)
+            {
+                return Mathf.Clamp01(spacing / fade);
+            }
+            return Mathf.Clamp01(1f - maxLane * (_layout.Spacing - spacing) / fade);
+        }
+
+        /// <summary>
+        /// 원이 이만큼 옮겨 가면 그 선이 다 사라진다(원래 열 간격의 절반).
+        /// </summary>
+        private float EdgeFadeDistance => _layout.Spacing * 0.5f;
+
+        /// <summary>
+        /// 가지 선의 x: 원래 열 간격 자리(원처럼 모이지 않는다). 칸이 넉넉하면 <see cref="X"/> 와 같다.
+        /// </summary>
+        private float EdgeX(int laneRow)
+        {
+            float first = _layout.FirstLaneX(GraphContentWidth, _layout.LaneCount);
+            return _graphOffset + _layout.LaneX(laneRow, first, _layout.Spacing);
+        }
+
+        private float LaneSpacing => _layout.SpacingFor(GraphContentWidth, _layout.LaneCount);
+
+        /// <summary>
+        /// 가지 열의 x. 칸 폭에 맞춰 가지 묶음을 가운데에 두고(<see cref="VerticalGraphLayout.FirstLaneX"/>), 칸이 묶음보다 좁으면 열 간격을 줄여
+        /// 맨 오른쪽 가지까지 칸 안에 둔다(<see cref="VerticalGraphLayout.SpacingFor"/>). 선·원 층이 그래프 왼쪽 이름표 칸부터 시작하면 그만큼 민다.
         /// </summary>
         private float X(int laneRow)
         {
-            float contentWidth = ColumnWidth(CommitGraphColumn.Graph) - BarWidth;
+            float contentWidth = GraphContentWidth;
             float first = _layout.FirstLaneX(contentWidth, _layout.LaneCount);
-            return _graphOffset + _layout.LaneX(CompactGraph ? 0 : laneRow, first);
+            return _graphOffset + _layout.LaneX(laneRow, first, _layout.SpacingFor(contentWidth, _layout.LaneCount));
         }
 
         /// <summary>
