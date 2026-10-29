@@ -806,20 +806,14 @@
     padding-left: 20px;
 }
 
-/* ── 맨 왼쪽 브랜치/태그 칸이 머리가 아이콘이 될 만큼 좁을 때(CommitGraphList 가 --refs-centered 를 붙인다) ──
+/* ── 맨 왼쪽 브랜치/태그 칸을 끝까지 줄였을 때(최소 폭, CommitGraphList 가 --refs-centered 를 붙인다) ──
    이름표를 상태 아이콘 하나(현재 = 체크, 로컬 = 노트북, 원격 = 구름, 태그 = 태그)로 줄인다. "+n" 은 숨기고 마우스를 올리면 펼치는 목록으로 본다.
-   머리 아이콘·이름표는 왼쪽 들여쓰기 자리(20px·12px)에서 움직이지 않는다. 대신 칸을 끝까지 줄인 폭이
-   들여쓰기 + 아이콘 + 같은 여백(20+14+20 = 12+30+12 = 54, CommitGraphList.MinRefsFirstWidth)이라 그때 가운데 맞춘 것처럼 보인다.
+   이름표의 폭·여백은 강제하지 않는다 — 안쪽 여백(3px·8px)과 첫 아이콘 자리는 넓을 때와 똑같고, 뒤 아이콘만 빠져 이름표가 제 폭으로 줄어든다.
+   (전에는 width 30·padding 0·가운데 맞춤을 강제해 이 순간 이름표 크기가 튀고 아이콘이 몇 px 움직였다.)
+   머리 아이콘(20+14)·아이콘 하나짜리 이름표(12 + 31~34)가 최소 폭 54 안에 들어온다(CommitGraphList.MinRefsFirstWidth).
    위 --no-name 규칙보다 뒤에 둬서 이긴다. */
-.commit-graph--refs-centered .commit-graph-row__refs {
-    padding-right: 0;
-}
-
 .commit-graph--refs-centered .commit-graph-ref {
     flex-shrink: 0;
-    width: 30px;
-    padding: 0;
-    justify-content: center;
 }
 
 .commit-graph--refs-centered .commit-graph-ref__name,
