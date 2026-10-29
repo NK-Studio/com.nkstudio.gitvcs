@@ -61,6 +61,9 @@ namespace GitVersionControl
     /// 모든 호출은 <see cref="RunAsync"/> 로 백그라운드 스레드에서 돌린다. 에디터 메인 스레드에서 프로세스를 기다리면
     /// 큰 저장소의 status 한 번에도 에디터가 멈춘다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitCommand
     {
         private const int DefaultTimeoutMs = 60_000;

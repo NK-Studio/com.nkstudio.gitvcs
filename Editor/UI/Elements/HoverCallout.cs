@@ -22,6 +22,9 @@ namespace GitVersionControl
     /// Unity 기본 tooltip 은 잠시 기다린 뒤 마우스 아래에 뜨고 창 배율·테마를 따르지 않아, 창 위 덮개(<see cref="GitServices.PopupHost"/>)에 직접 띄운다.
     /// 사이드바 밖으로 넘쳐도 잘리지 않고, 배율은 덮개가 함께 키운다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class HoverCallout
     {
         private const string Block = "hover-callout";

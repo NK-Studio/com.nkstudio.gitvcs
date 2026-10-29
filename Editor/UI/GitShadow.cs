@@ -25,6 +25,9 @@ namespace GitVersionControl
     /// 들여 두어 요소 가장자리와 그림자 사이에 밝은 틈이 생기지 않게 한다. 색은 테마 토큰(--git-shadow-large·small)을 GitThemes.uss 가 옮겨 적은
     /// --shadow-color 에서 읽어 테마를 바꾸면 따라간다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitShadow
     {
         private const string Block = "git-shadow";

@@ -13,6 +13,9 @@ namespace GitVersionControl
     /// 설정은 모두 개인 설정이라 Preferences > Git(<see cref="GitPreferences"/>) 에만 있다. git init·이 저장소의 계정은 Git 창에서 한다.
     /// Project 창 상태 배지는 <see cref="EditorApplication.projectWindowItemOnGUI"/> 로 그린다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     [InitializeOnLoad]
     internal static class GitIntegration
     {

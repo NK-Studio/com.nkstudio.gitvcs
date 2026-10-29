@@ -7,6 +7,9 @@ namespace GitVersionControl.Tests
     /// <summary>
     /// Project 창 우클릭 Git 메뉴가 고른 에셋·폴더를 어떤 변경 항목으로 보는지(<see cref="GitProjectSelection"/>).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitProjectSelectionTests
     {
         private static GitStatusEntry Entry(string repoPath, GitFileState state = GitFileState.Modified)

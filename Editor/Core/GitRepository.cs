@@ -311,6 +311,9 @@ namespace GitVersionControl
                 s_testScope = null;
                 GitUndo.OverrideJournal(null);
                 UpdateFileWatcher();
+                // 시험하는 동안 열린 Git 창이 임시 저장소를 읽었을 수 있다 — 실제 저장소로 돌아왔다고 알려 다시 읽게 한다.
+                RequestRefresh(immediate: true);
+                RepositorySwitched?.Invoke();
             }
         }
 

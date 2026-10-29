@@ -393,15 +393,40 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 | 0 인 구역·묶음(스테시·서브모듈·내 리뷰 대기)만 펼침 화살표가 빠져 들쭉날쭉 | 담는 줄은 비어 있어도 화살표(펼친 모양 ⌄)를 그림. TreeView 가 인라인으로 숨기는 것을 줄 그릴 때 덮어씀, 누를 것은 없음 |
 | 브랜치·PR 줄에 마우스를 올리면 ⋮ 가 자리를 만들며 나타나 개수가 왼쪽으로 밀렸다 돌아옴 | 메뉴가 있는 줄은 ⋮ 자리를 늘 두고 보이기만 바꿈(고른 줄에도 보임) |
 | 오른쪽 끝이 셋(필터 버튼 18px·구역 개수 14px·⋮ 4px) | 모두 줄 padding 14px 선. ⋮ 칸 12px 라 [개수 ⋮] 가 필터 버튼(24px) 폭 안 — 개수는 왼쪽 절반, 점은 오른쪽 절반 아래 |
+| 구역 개수가 원 안의 작은 흰 글자라 잘 안 읽힘 | 바탕 없이 13px 강조색(`--git-accent-fg`) 숫자, 굵기 Medium(Bold 는 너무 무거웠다). 묶음 개수도 Medium |
+| 필터 추가 아이콘이 흐린 회색, ⋮ 점이 가늘다 | 아이콘 기본색 `--git-text-secondary`(한 단계 밝게), ⋮ 점 반지름 1.55 |
+| 필터 아이콘의 + 가 꽉 찬 글자 모양 | 꽉 찬 원에 + 를 뚫은 모양(`DrawPlusBadge`, OddEven 채우기). 원은 GitKraken 처럼 깔때기 오른쪽 비탈에 바짝 붙이고 원과 겹치는 오른쪽 다리는 없앰. 그림 18px |
+| 구역 머리 줄(로컬·리모트…)이 선택돼 파랗게 칠해짐 | 머리 줄은 고르는 줄이 아님: 누르면 고른 줄을 그대로 두고 접고 펼침. 키보드 ↑↓ 로 닿으면 그 방향의 다음 줄로 건너뜀(PR 검색 줄도) |
+| 구역 사이 경계가 없음 | 구역 머리 줄 위에 1px `--git-border` 구분선(맨 위 구역은 빼고) |
+| 다크 테마에서 구역 이름이 너무 흐림 | 구역 이름 `--git-text`(브랜치 이름과 같은 색, 굵기로 구분), 아이콘 `--git-text-secondary` |
+| 빈 구역을 누른 뒤 다른 줄을 누르면 다른 빈 구역의 화살표가 > 로 뒤집힘 | 빈 줄을 누르면 TreeView 안의 펼침 상태가 접힘이 되고, 다음에 줄을 다시 그릴 때 화살표가 > 로 돌아갔다 → 빈 담는 줄은 펼침 상태로 고정(`KeepsOpen`), 화살표 안쪽까지 클릭을 막음 |
+| 지금 체크아웃한 브랜치가 어디인지 잘 안 보임 | 현재 브랜치 줄에 한 단계 밝은 회색 바탕(`--git-current-row`) + 왼쪽 3px 강조 막대. 막대만큼 왼쪽 여백을 줄여 글자 자리는 그대로, 고르면 바탕은 고른 색 |
+| PR 검색 칸이 일반 입력칸이라 커서가 칸 위아래에 닿음 | 위 필터와 같은 검색창(`ToolbarSearchField`, 지우기 x·포커스 테두리), 돋보기는 뺌 |
+| 검색창 지우기(x)가 오른쪽 끝에 붙음(브랜치 탐색기 1px, 필터·PR 5px) | 모든 검색창에서 x 와 돋보기를 테두리에서 8px 로 |
+| 다크 테마의 현재 브랜치 알약(커밋 상세 참조) 초록이 너무 밝음 | `--git-graph-pill-head` #5fb865 → #2f6b3a(옆 파랑 알약과 비슷한 깊이) |
+
+### 한글 입력(IME)
+
+모든 입력란(사이드바 필터·PR 검색, 브랜치 탐색기 검색 두 모양, 워크스페이스 필터, 브랜치 고르기 검색, 세 배치의 커밋 제목·설명, GitKraken WIP 제목, 그래프 새 브랜치 칸, 브랜치·태그 대화 상자, 원격·워크트리·서브모듈·PR 만들기·PR 필터 서랍, PR 코멘트)에 한글 IME 로 직접 쳐서 확인했다. Preferences > Git(IMGUI)는 설정이 저장되므로 치지 않았다.
+
+| ID | 증상 | 원인 → 수정 |
+|---|---|---|
+| W-13 | PR 검색 칸에 "내" 를 치면 "ㄴ내" | 글자마다 `TreeView.Rebuild` 가 줄 요소를 새로 만들어 쓰는 중인 검색 칸이 다른 요소로 바뀌어 조합이 끊김 → IME 조합 중(`GUIUtility.compositionString`, internal 이라 리플렉션)에는 다시 그리기를 미루고 글자가 확정되면 한 번 그림. 결과는 한 음절 확정마다 바뀐다 |
+| W-14 | 메뉴로 연 태그·이름 바꾸기 대화 상자에 바로 치면 첫 글자가 영문("sㅐ리") | Unity 는 실제 OS 입력(마우스·키)을 처리할 때에야 창에 IME 를 붙임 → 클릭 없이 코드로 포커스를 받은 입력란은 첫 키를 놓침. 테마를 입히는 창 루트마다 입력란 FocusIn 에서 포커스 창에 기본 IME 를 붙임(Windows, `ImmAssociateContextEx`, `GitIme`). 메뉴 창이 아직 OS 포커스를 쥔 경우를 위해 150ms 뒤 한 번 더 |
+
+### 작은 고침
+
+| 찾은 것 | 고침 |
+|---|---|
+| 상단 도구 막대가 한국어에서도 Fetch·Pull·Push·Branch·Stash·Pop | 페치·풀·푸시·브랜치·스태시·팝 |
+| Draft PR 병합 안내가 "GitHub 에서 Ready for review 로 바꾸면"(바로 옆에 버튼이 있음) | "Ready for review 를 누르면 병합할 수 있습니다" |
+| "{0} 을(를)"·"{0} 이(가)"·"{0} 은(는)" 띄어쓰기 15곳 | 조사를 붙여 씀(W-05 와 같게) |
+| Unity 6.7 분석기 경고(UAL0010·UAL0013) 18개 | 정적 필드가 있는 7개 형식(`GitCommand`·`GitIntegration`·`GitPullRequestFilters`·`GitShadow`·`HoverCallout`·`RefSidebar`·`GitProjectSelectionTests`)에 다른 파일처럼 `NoAutoStaticsCleanup`(UNITY_6000_7_OR_NEWER) |
+| EditMode 테스트 뒤 열린 Git 창이 임시 저장소(GitVcsRebase… 등)에 머묾 | 테스트 범위(`UseRepositoryForTests`)가 끝날 때 새로고침을 요청하고 `RepositorySwitched` 를 알려 실제 저장소를 다시 읽게 함 |
 
 ### 남은 관찰(고치지 않음)
 
-- EditMode 테스트를 돌린 뒤 열린 Git 창이 시험용 임시 저장소(GitVcsRebase… 등)에 머물 때가 있다. 포커스로 돌아오기도 하고, 새로고침을 눌러야 돌아오기도 한다.
-- 패키지를 embedded 로 두면 Unity 6.7 분석기 경고(UAL0010·UAL0013) 16개: `GitCommand`·`GitIntegration`·`GitPullRequestFilter`·`GitShadow`·`HoverCallout` 에 `NoAutoStaticsCleanup` 이 없음. git URL 설치에서는 안 보임.
-- Draft PR 상세의 병합 안내가 "GitHub 에서 Ready for review 로 바꾸면" — 바로 옆에 Ready for review 버튼이 있다.
-- 한국어 글의 "{0} 을(를)" 띄어쓰기가 9곳 더 있다.
 - Push 뒤 Unity 기본 툴팁 글이 잠깐 남는 것(P1-05).
-- EditMode 테스트를 돌린 직후 열려 있던 Git 창 사이드바가 잠깐 시험용 임시 저장소(GitVcsInProgress…, `main`)를 보인다. 창에 포커스가 돌아와 새로고침되면 원래대로 돌아온다.
 
 ## 남은 일과 시험 흔적 (2026-10-29)
 
@@ -411,5 +436,5 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
   - 그 저장소의 PR #2~4(#2 에는 hykim-nk 의 승인·변경 요청 기록이 남아 있다 — GitHub 리뷰는 지울 수 없다), 브랜치 `feature/pr-menu-a`·`feature/pr-menu-b`·`feature/pr-menu-draft`·`test/round2`
   - hykim-nk 협업자 권한은 시험 뒤 뺐다(다시 시험하려면 다시 초대).
 - **하지 않기로 한 것**: PR 상세에서 리뷰어·담당자·라벨 고치기(추가 기능), Unity 기본 툴팁 글이 남는 것(P1-05)·URP 에셋 자동 업그레이드(P0-05)는 Unity 쪽 한계로 종료. 커밋 후 그래프 반영 속도(약 0.9~1.2초)는 요청이 있을 때만 더 다룬다.
-- **미확인**: Preferences 의 로그인 전·로그인 중 화면, 서랍을 손으로 빠르게 바꾸는 체감.
+- **미확인**: Preferences 의 로그인 전·로그인 중 화면, 서랍을 손으로 빠르게 바꾸는 체감, Preferences > Git(IMGUI) 입력란의 한글 입력.
 

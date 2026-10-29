@@ -30,6 +30,9 @@ namespace GitVersionControl
     /// <item>그 밖(review:·reviewed-by:·status:·created:·updated:·milestone 등)은 GitHub 검색 API 의 결과 번호로 거른다(<see cref="NeedsSearch"/>).</item>
     /// </list>
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitPullRequestFilters
     {
         private const string PrefsKey = "GitVersionControl.PullRequestFilters";

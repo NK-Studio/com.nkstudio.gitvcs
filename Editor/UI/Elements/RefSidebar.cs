@@ -16,6 +16,9 @@ namespace GitVersionControl
     /// 우클릭은 종류별 메뉴다 — 브랜치는 <see cref="BranchMenu"/>, 나머지는 <see cref="RefActions"/>.
     /// 펼침 상태와 필터는 <see cref="RefSidebarState"/> 에 남아 창을 다시 열어도 이어진다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class RefSidebar : IDisposable
     {
         private const string Block = "ref-tree";
@@ -35,6 +38,9 @@ namespace GitVersionControl
         private readonly Dictionary<RefSection, int> _sectionCounts = new();
         /// <summary>마지막으로 고른 (구역 머리가 아닌) 줄. 구역 머리를 누르면 이 선택으로 되돌린다.</summary>
         private readonly List<int> _selectedIds = new();
+
+        /// <summary>지금 처리 중인 키보드 이동 방향(↑ -1, ↓ +1, 아니면 0).</summary>
+        private int _navigationStep;
         private GitRefSet _refs = new();
         private int _nextId;
         private bool _rebuilding;
@@ -149,9 +155,13 @@ namespace GitVersionControl
                     return;
                 }
                 // 구역 머리 줄(로컬·리모트…)은 고르는 줄이 아니다: 고른 줄을 그대로 두고, 누르면 접고 펼친다(MakeRow 의 ClickEvent).
-                if (node.Kind == RefNodeKind.Section)
+                // PR 검색 줄도 고르는 줄이 아니다. 키보드 ↑↓ 로 닿았으면 그 방향의 다음 줄로 건너뛴다(되돌리기만 하면 구역을 넘어가지 못한다).
+                if (node.Kind is RefNodeKind.Section or RefNodeKind.PullRequestSearch)
                 {
-                    _tree.SetSelectionByIdWithoutNotify(_selectedIds);
+                    if (_navigationStep == 0 || SelectNextSelectable(_tree.selectedIndex, _navigationStep) == false)
+                    {
+                        _tree.SetSelectionByIdWithoutNotify(_selectedIds);
+                    }
                     return;
                 }
                 _selectedIds.Clear();
@@ -174,6 +184,17 @@ namespace GitVersionControl
                 }
             };
             _tree.itemExpandedChanged += OnExpandedChanged;
+            // ↑↓ 로 고를 때 그 방향을 기억한다(이 이벤트를 처리하는 동안 고른 줄이 바뀐다). 다음 프레임에 지운다.
+            _tree.RegisterCallback<NavigationMoveEvent>(evt =>
+            {
+                _navigationStep = evt.direction switch
+                {
+                    NavigationMoveEvent.Direction.Up => -1,
+                    NavigationMoveEvent.Direction.Down => 1,
+                    _ => 0,
+                };
+                _tree.schedule.Execute(() => _navigationStep = 0);
+            }, TrickleDown.TrickleDown);
             Root.Add(_tree);
 
             _services.Runner.StateChanged += OnRunnerStateChanged;
@@ -435,6 +456,24 @@ namespace GitVersionControl
         /// <summary>
         /// GitKraken 처럼 구역 머리 줄과 PR 묶음만 접는다. 폴더·원격은 늘 펼쳐 둔다.
         /// </summary>
+        /// <summary>
+        /// from 에서 step 방향으로 처음 만나는 고를 수 있는 줄(구역 머리·PR 검색 줄이 아닌 줄)을 고른다. 없으면 false.
+        /// </summary>
+        private bool SelectNextSelectable(int from, int step)
+        {
+            int count = _tree.viewController.itemsSource.Count;
+            for (int index = from + step; index >= 0 && index < count; index += step)
+            {
+                if (_tree.GetItemDataForIndex<RefNode>(index) is { Kind: not (RefNodeKind.Section or RefNodeKind.PullRequestSearch) })
+                {
+                    _tree.SetSelection(index);
+                    _tree.ScrollToItem(index);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static bool IsAlwaysOpen(RefNode node)
         {
             return node.Kind is RefNodeKind.Folder or RefNodeKind.Remote;
