@@ -707,10 +707,13 @@
     color: var(--git-text);
 }
 
+/* 개수는 GitKraken 처럼 바탕 없는 맨 숫자를 오른쪽 세로선(줄 padding 14px)에 맞춘다. 묶음·원격 줄은 12px 회색. */
 .ref-tree__badge {
     flex-shrink: 0;
-    font-size: 10px;
-    margin-left: 4px;
+    margin: 0 0 0 6px;
+    padding: 0;
+    font-size: 12px;
+    -unity-text-align: middle-right;
     color: var(--git-text-muted);
 }
 
@@ -720,21 +723,12 @@
     color: var(--git-text-muted);
 }
 
-/* 구역 개수: 위쪽 탭 개수(.git-sidebar__tab-badge)와 같은 알약. 파란 글자는 사이드바 바탕에서 읽기 어려워 기본 글자색에 회색 바탕을 깐다.
-   0 은 알릴 것이 없으므로 바탕 없이 흐리게(.ref-tree__badge--zero). */
+/* 구역 개수(로컬·리모트…): GitKraken 처럼 크고 굵은 강조색 숫자. 작은 흰 글자를 알약에 넣으면 잘 안 읽혀서 바탕 없이 글자를 키운다.
+   --git-accent-fg 는 글자용 강조색(대비 5:1 이상)이라 사이드바 바탕에서도 읽힌다. 0 도 같은 색(GitKraken 과 같다). */
 .ref-tree__row--section .ref-tree__badge {
-    min-width: 18px;
-    height: 16px;
-    padding: 0 5px;
-    border-radius: 8px;
-    background-color: var(--git-badge-bg);
-    color: var(--git-text);
-    -unity-text-align: middle-center;
-}
-
-.ref-tree__row--section .ref-tree__badge.ref-tree__badge--zero {
-    background-color: rgba(0, 0, 0, 0);
-    color: var(--git-text-muted);
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-accent-fg);
 }
 
 /* PR 묶음·안내 줄: 아이콘 없이 글자만. 안내는 흐리게. */
