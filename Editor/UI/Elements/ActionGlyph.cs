@@ -416,13 +416,10 @@ namespace GitVersionControl
                     Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
                     break;
                 case ActionGlyphKind.FilterAdd:
-                    // "필터 추가": 깔때기 + 그 다리 끝에 겹친 원 안의 더하기(원은 왼쪽 아래). 다른 선 아이콘과 같은 굵기로 긋는다.
-                    // 깔때기 왼쪽 기둥은 원 앞에서 끊고, 오른쪽 기둥 끝은 원 쪽으로 꺾어 둘이 한 덩어리로 보이게 한다.
-                    // 그림 전체(가로 1.3~18.2, 세로 2.4~17.6)를 20 칸 가운데에 맞춰 버튼 가운데에 서게 한다.
-                    Polyline(painter, P(10.2f, 11.3f), P(10.2f, 8.5f), P(4.8f, 2.4f), P(18.2f, 2.4f), P(12.8f, 8.5f), P(12.8f, 15.1f), P(11.0f, 14.1f));
-                    DrawRing(painter, P(5.4f, 13.5f), 4.1f * scale);
-                    Polyline(painter, P(3.5f, 13.5f), P(7.3f, 13.5f));
-                    Polyline(painter, P(5.4f, 11.6f), P(5.4f, 15.4f));
+                    // "필터 추가": 깔때기(선) + 다리 오른쪽 아래의 꽉 찬 원, 원 안의 + 는 비워 바탕이 비친다(짝홀 채우기라 바탕색과 상관없다).
+                    // 깔때기 다리는 원 앞에서 끊어 채운 원과 뭉치지 않게 한다. 그림 전체(가로 1.8~19.2, 세로 2.4~18.1)가 20 칸 가운데에 온다.
+                    Polyline(painter, P(9.8f, 10.6f), P(9.8f, 8.5f), P(15.2f, 2.4f), P(1.8f, 2.4f), P(7.2f, 8.5f), P(7.2f, 15.1f), P(8.6f, 14.3f));
+                    DrawPlusBadge(painter, P, new Vector2(14.6f, 13.5f), scale, resolvedStyle.color);
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;
@@ -486,6 +483,37 @@ namespace GitVersionControl
         {
             DrawRing(painter, p(7.8f, 7.8f), 4.7f * scale);
             Polyline(painter, p(11.2f, 11.2f), p(16.5f, 16.5f));
+        }
+
+        /// <summary>
+        /// 꽉 찬 원에서 + 모양을 뚫어 낸 꼬리표(필터 추가). 원과 + 를 한 경로로 그리고 짝홀 규칙으로 채워 + 자리는 비운다.
+        /// </summary>
+        private static void DrawPlusBadge(Painter2D painter, Func<float, float, Vector2> p, Vector2 center, float scale, Color color)
+        {
+            const float Radius = 4.6f;
+            const float Arm = 2.4f;
+            const float HalfWidth = 0.8f;
+            float cx = center.x;
+            float cy = center.y;
+            painter.fillColor = color;
+            painter.BeginPath();
+            painter.Arc(p(cx, cy), Radius * scale, 0f, 180f);
+            painter.Arc(p(cx, cy), Radius * scale, 180f, 360f);
+            painter.ClosePath();
+            painter.MoveTo(p(cx - HalfWidth, cy - Arm));
+            painter.LineTo(p(cx + HalfWidth, cy - Arm));
+            painter.LineTo(p(cx + HalfWidth, cy - HalfWidth));
+            painter.LineTo(p(cx + Arm, cy - HalfWidth));
+            painter.LineTo(p(cx + Arm, cy + HalfWidth));
+            painter.LineTo(p(cx + HalfWidth, cy + HalfWidth));
+            painter.LineTo(p(cx + HalfWidth, cy + Arm));
+            painter.LineTo(p(cx - HalfWidth, cy + Arm));
+            painter.LineTo(p(cx - HalfWidth, cy + HalfWidth));
+            painter.LineTo(p(cx - Arm, cy + HalfWidth));
+            painter.LineTo(p(cx - Arm, cy - HalfWidth));
+            painter.LineTo(p(cx - HalfWidth, cy - HalfWidth));
+            painter.ClosePath();
+            painter.Fill(FillRule.OddEven);
         }
 
         /// <summary>
