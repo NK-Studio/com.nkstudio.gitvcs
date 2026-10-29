@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -589,9 +590,7 @@ namespace GitVersionControl
             searchField.RegisterValueChangedCallback(evt =>
             {
                 _prSearch = evt.newValue ?? string.Empty;
-                // 다시 그리면 이 칸이 다른 줄 요소로 바뀔 수 있으니 포커스를 되찾을 수 있게 표시해 둔다.
-                _refocusPrSearch = true;
-                Rebuild();
+                RebuildForPrSearch();
             });
             // 트리의 화살표·Enter 처리로 넘어가지 않게 한다(글을 쓰는 칸이다).
             searchField.RegisterCallback<KeyDownEvent>(evt => evt.StopPropagation());
@@ -611,6 +610,43 @@ namespace GitVersionControl
 
         /// <summary>검색 칸에 쓰는 중에 트리를 다시 그렸으면 다시 그린 칸에 포커스를 돌려준다.</summary>
         private bool _refocusPrSearch;
+
+        /// <summary>
+        /// IME 가 조합 중인 글자(없으면 빈 문자열). GUIUtility.compositionString 은 internal 이라 리플렉션으로 읽는다.
+        /// Input.compositionString 은 새 Input System 만 켠 프로젝트에서 예외를 던져 쓰지 않는다. 못 찾으면 늘 빈 문자열(= 바로 다시 그림).
+        /// </summary>
+        private static readonly System.Reflection.PropertyInfo CompositionProperty = typeof(GUIUtility).GetProperty("compositionString",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        private static string ImeComposition => CompositionProperty?.GetValue(null) as string;
+
+        /// <summary>한글 IME 조합이 끝나기를 기다리는 동안 도는 확인(<see cref="RebuildForPrSearch"/>).</summary>
+        private IVisualElementScheduledItem _awaitComposition;
+
+        /// <summary>
+        /// PR 검색어가 바뀌면 트리를 다시 그린다. 다시 그리면 줄 요소가 새로 묶여 검색 칸도 다른 요소로 바뀌는데,
+        /// 한글 IME 가 글자를 조합하는 중이면 조합이 끊겨 "내" 가 "ㄴ내" 가 된다 — 그래서 조합 중에는 미루고 조합이 끝나면(글자 확정) 한 번 그린다.
+        /// </summary>
+        private void RebuildForPrSearch()
+        {
+            if (string.IsNullOrEmpty(ImeComposition) == false)
+            {
+                _awaitComposition ??= Root.schedule.Execute(() =>
+                {
+                    if (string.IsNullOrEmpty(ImeComposition))
+                    {
+                        _awaitComposition.Pause();
+                        RebuildForPrSearch();
+                    }
+                }).Every(100);
+                _awaitComposition.Resume();
+                return;
+            }
+            _awaitComposition?.Pause();
+            // 다시 그리면 이 칸이 다른 줄 요소로 바뀔 수 있으니 포커스를 되찾을 수 있게 표시해 둔다.
+            _refocusPrSearch = true;
+            Rebuild();
+        }
 
         private void BindRow(VisualElement row, int index)
         {
