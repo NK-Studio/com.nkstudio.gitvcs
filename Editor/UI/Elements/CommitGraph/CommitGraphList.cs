@@ -379,18 +379,19 @@ namespace GitVersionControl
             AddHeaderGlyph(CommitGraphColumn.Graph, ActionGlyphKind.Hierarchy);
             AddHeaderGlyph(CommitGraphColumn.Message, ActionGlyphKind.Comment);
             _headerCells[(int)CommitGraphColumn.Refs].AddToClassList("commit-graph__header-cell--refs");
+            // 끌기는 지금 보이는 폭(창이 좁아 줄었으면 줄인 폭)에서 시작한다 — 저장된 폭에서 시작하면 줄인 만큼 끌어도 움직이지 않는다.
             _resizers[(int)CommitGraphColumn.Refs] = new ColumnResizer(
-                () => RefsWidth,
+                () => FixedWidth(CommitGraphColumn.Refs),
                 width => SetColumnWidths(ClampRefsWidth(width), _graphWidthOverride, _messageWidth),
                 () => settings.GraphRefsColumnWidth = _refsWidth,
                 () => SetColumnWidths(DefaultRefsColumnWidth, _graphWidthOverride, _messageWidth));
             _resizers[(int)CommitGraphColumn.Graph] = new ColumnResizer(
-                () => GraphWidth,
+                () => FixedWidth(CommitGraphColumn.Graph),
                 width => SetColumnWidths(_refsWidth, ClampGraphWidth(width), _messageWidth),
                 () => settings.GraphColumnWidth = _graphWidthOverride,
                 () => SetColumnWidths(_refsWidth, 0f, _messageWidth));
             _resizers[(int)CommitGraphColumn.Message] = new ColumnResizer(
-                () => _messageWidth,
+                () => FixedWidth(CommitGraphColumn.Message),
                 width => SetColumnWidths(_refsWidth, _graphWidthOverride, ClampMessageWidth(width)),
                 () => settings.GraphMessageColumnWidth = _messageWidth,
                 () => SetColumnWidths(_refsWidth, _graphWidthOverride, DefaultMessageColumnWidth));
@@ -514,8 +515,15 @@ namespace GitVersionControl
                 SetGraph(Graph, _wip);
                 return;
             }
-            // 브랜치/태그 칸이 맨 오른쪽이면 창 크기에 따라 폭이 바뀐다.
-            UpdateCompactRefs();
+            // 창이 좁아 앞 칸을 줄여야 하는 양이 바뀌면 칸 폭을 다시 넣는다. 그대로면 맨 오른쪽 칸만 창 크기를 따른다.
+            if (Mathf.Abs(TotalSqueeze() - _appliedSqueeze) > 0.01f)
+            {
+                ApplyColumnWidths();
+            }
+            else
+            {
+                UpdateCompactRefs();
+            }
             _overlay.MarkDirtyRepaint();
             PlaceAvatars();
             PlaceBranchInput();
@@ -696,9 +704,17 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 맨 오른쪽이 아닐 때의 칸 폭.
+        /// 맨 오른쪽이 아닐 때의 칸 폭. 창이 좁아 맨 오른쪽 칸이 최소 폭도 못 받으면 이 칸들을 줄여 자리를 내준다(<see cref="Squeeze"/>).
         /// </summary>
         private float FixedWidth(CommitGraphColumn column)
+        {
+            return StoredWidth(column) - Squeeze(column);
+        }
+
+        /// <summary>
+        /// 끌어 정한(또는 기본) 칸 폭.
+        /// </summary>
+        private float StoredWidth(CommitGraphColumn column)
         {
             return column switch
             {
@@ -706,6 +722,66 @@ namespace GitVersionControl
                 CommitGraphColumn.Graph => GraphWidth,
                 _ => _messageWidth,
             };
+        }
+
+        /// <summary>
+        /// 줄 폭이 모자랄 때 이 칸에서 덜어 낼 폭. 맨 오른쪽 칸이 최소 폭을 받도록 메시지 → 브랜치/태그 → 그래프 순으로 각자 최소 폭까지 줄인다
+        /// (그러지 않으면 맨 오른쪽 칸이 줄 밖으로 밀려 스크롤바 밑에서 잘린다). 저장된 폭은 그대로라 창을 넓히면 돌아온다.
+        /// </summary>
+        private float Squeeze(CommitGraphColumn column)
+        {
+            if (IsLast(column))
+            {
+                return 0f;
+            }
+            float rowsWidth = RowsWidth;
+            if (float.IsNaN(rowsWidth) || rowsWidth <= 0f)
+            {
+                return 0f;
+            }
+            float deficit = MinColumnWidth(_order[^1]) + DetailsWidth - rowsWidth;
+            foreach (CommitGraphColumn other in _order)
+            {
+                if (IsLast(other) == false)
+                {
+                    deficit += StoredWidth(other);
+                }
+            }
+            foreach (CommitGraphColumn other in SqueezeOrder)
+            {
+                if (deficit <= 0f)
+                {
+                    return 0f;
+                }
+                if (IsLast(other))
+                {
+                    continue;
+                }
+                float cut = Mathf.Min(deficit, Mathf.Max(StoredWidth(other) - MinColumnWidth(other), 0f));
+                if (other == column)
+                {
+                    return cut;
+                }
+                deficit -= cut;
+            }
+            return 0f;
+        }
+
+        private static readonly CommitGraphColumn[] SqueezeOrder = { CommitGraphColumn.Message, CommitGraphColumn.Refs, CommitGraphColumn.Graph };
+
+        /// <summary>
+        /// 마지막으로 칸에 넣은 줄인 폭의 합. 창 크기가 바뀌어 달라지면 칸 폭을 다시 넣는다(<see cref="Redraw"/>).
+        /// </summary>
+        private float _appliedSqueeze;
+
+        private float TotalSqueeze()
+        {
+            float total = 0f;
+            foreach (CommitGraphColumn column in _order)
+            {
+                total += Squeeze(column);
+            }
+            return total;
         }
 
         /// <summary>
@@ -781,6 +857,7 @@ namespace GitVersionControl
         /// </summary>
         private void ApplyColumnWidths()
         {
+            _appliedSqueeze = TotalSqueeze();
             foreach (CommitGraphColumn column in _order)
             {
                 ApplyCellWidth(_headerCells[(int)column], column);
