@@ -874,6 +874,7 @@ namespace GitVersionControl
             ["connect.description"] = new[] { "Git 창을 쓰기 전에 GitHub 계정을 연결하세요. 로그인하면 비공개 저장소에서도 커밋 작성자의 아바타가 보입니다. 한 번 로그인하면 이 PC 의 모든 Unity 프로젝트에 적용됩니다.", "Connect your GitHub account before using the Git window. Once signed in, commit author avatars show up even in private repositories. One sign-in covers every Unity project on this machine." },
             ["connect.skip"] = new[] { "이번에는 연결하지 않고 계속", "Continue without connecting this time" },
             ["github.title"] = new[] { "GitHub 계정", "GitHub Account" },
+            ["prefs.general"] = new[] { "일반", "General" },
             ["github.description"] = new[] { "로그인하면 비공개 저장소에서도 커밋 작성자의 아바타를 찾고, 아직 푸시하지 않은 내 커밋에는 내 계정 사진을 붙입니다. 이 PC 의 모든 Unity 프로젝트에 같이 적용됩니다.", "When signed in, author avatars are found in private repositories too, and your own unpushed commits get your account picture. Applies to every Unity project on this machine." },
             ["github.notConfigured"] = new[] { "이 패키지에 GitHub OAuth 앱(Client ID)이 아직 설정되지 않아 로그인할 수 없습니다.", "This package has no GitHub OAuth app (Client ID) configured yet, so sign-in is unavailable." },
             ["github.signIn"] = new[] { "GitHub 로 로그인", "Sign in with GitHub" },

@@ -15,6 +15,21 @@ namespace GitVersionControl
     {
         private const float AvatarSize = 40f;
 
+        /// <summary>라벨 칸 폭. 기본값(약 150)이면 "도구 막대에 Git 버튼 표시" 같은 긴 라벨이 체크박스에 붙는다.</summary>
+        private const float LabelWidth = 220f;
+
+        /// <summary>묶음(일반·GitHub 계정) 사이 간격.</summary>
+        private const float SectionGap = 16f;
+
+        private static GUIStyle s_page;
+        private static GUIStyle s_card;
+
+        /// <summary>화면 가장자리에서 띄우는 여백(다른 Preferences 쪽과 같은 들여쓰기).</summary>
+        private static GUIStyle Page => s_page ??= new GUIStyle { padding = new RectOffset(10, 12, 10, 12) };
+
+        /// <summary>계정 칸: 테두리 상자 안에 아바타·이름·버튼을 넉넉한 여백으로 담는다.</summary>
+        private static GUIStyle Card => s_card ??= new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(10, 10, 10, 10), margin = new RectOffset(0, 0, 4, 4) };
+
         private static readonly GitHubDeviceLogin s_login = GitHubDeviceLogin.Shared;
         private static Texture2D s_avatar;
 
@@ -39,14 +54,38 @@ namespace GitVersionControl
 
         private static void Draw()
         {
-            EditorGUILayout.Space();
+            float labelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = LabelWidth;
+            try
+            {
+                using (new EditorGUILayout.VerticalScope(Page))
+                {
+                    DrawGeneral();
+                    GUILayout.Space(SectionGap);
+                    DrawAccount();
+                }
+            }
+            finally
+            {
+                EditorGUIUtility.labelWidth = labelWidth;
+            }
+        }
+
+        private static void DrawGeneral()
+        {
+            EditorGUILayout.LabelField(GitText.Get("prefs.general"), EditorStyles.boldLabel);
+            GUILayout.Space(2);
             GitVcsSettings settings = GitVcsSettings.instance;
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
+            GUILayout.Space(2);
             GitExplorerStyle.DrawPopup();
-            EditorGUILayout.Space();
+        }
+
+        private static void DrawAccount()
+        {
             EditorGUILayout.LabelField(GitText.Get("github.title"), EditorStyles.boldLabel);
             EditorGUILayout.LabelField(GitText.Get("github.description"), EditorStyles.wordWrappedMiniLabel);
-            EditorGUILayout.Space();
+            GUILayout.Space(6);
 
             if (GitHubAccount.IsConfigured == false)
             {
@@ -77,24 +116,35 @@ namespace GitVersionControl
         private static void DrawSignedIn()
         {
             LoadAvatar(GitHubAccount.AvatarUrl);
-            using (new EditorGUILayout.HorizontalScope())
+            using (new EditorGUILayout.HorizontalScope(Card))
             {
                 Rect avatarRect = GUILayoutUtility.GetRect(AvatarSize, AvatarSize, GUILayout.Width(AvatarSize), GUILayout.Height(AvatarSize));
                 if (s_avatar != null)
                 {
-                    GUI.DrawTexture(avatarRect, s_avatar, ScaleMode.ScaleToFit);
+                    // GitHub 처럼 둥글게(모서리 반지름 = 반지름).
+                    GUI.DrawTexture(avatarRect, s_avatar, ScaleMode.ScaleAndCrop, true, 0, Color.white, 0, AvatarSize * 0.5f);
                 }
-                using (new EditorGUILayout.VerticalScope())
+                GUILayout.Space(10);
+                // 이름과 로그아웃 버튼을 아바타 높이 안에서 세로 가운데로.
+                using (new EditorGUILayout.VerticalScope(GUILayout.Height(AvatarSize)))
                 {
+                    GUILayout.FlexibleSpace();
                     EditorGUILayout.LabelField(GitText.Format("github.signedInAs", GitHubAccount.Login), EditorStyles.boldLabel);
-                    if (GUILayout.Button(GitText.Get("github.signOut"), GUILayout.Width(120)))
+                    GUILayout.FlexibleSpace();
+                }
+                GUILayout.FlexibleSpace();
+                using (new EditorGUILayout.VerticalScope(GUILayout.Height(AvatarSize)))
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button(GitText.Get("github.signOut"), GUILayout.Width(120), GUILayout.Height(24)))
                     {
                         GitHubAccount.SignOut();
                         s_login.Cancel();
                     }
+                    GUILayout.FlexibleSpace();
                 }
             }
-            EditorGUILayout.Space();
+            GUILayout.Space(6);
             EditorGUILayout.LabelField(GitText.Get("github.orgHint"), EditorStyles.wordWrappedMiniLabel);
         }
 
