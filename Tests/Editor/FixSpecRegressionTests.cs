@@ -163,6 +163,18 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("PR_kw", GitPullRequestDetails.Parse(PullDetailJson.Replace("{\"number\":3,", "{\"number\":3,\"node_id\":\"PR_kw\",")).NodeId);
         }
 
+        [TestCase("NK wants to merge 1 commits into master", "NK wants to merge 1 commit into master")]
+        [TestCase("1 files changed · +1 −0 · 1 comments", "1 file changed · +1 −0 · 1 comment")]
+        [TestCase("11 files changed", "11 files changed")]
+        [TestCase("2 commits, 1 branches, 1 entries", "2 commits, 1 branch, 1 entry")]
+        [TestCase("Merge pull request #1 files", "Merge pull request #1 files")]
+        [TestCase("v1 files and 0.1 lines", "v1 files and 0.1 lines")]
+        [TestCase("PR 1 is open", "PR 1 is open")]
+        public void Test_SingularizeOne(string text, string expected)
+        {
+            Assert.AreEqual(expected, GitText.SingularizeOne(text));
+        }
+
         [Test]
         public void Test_ParseRepoConfig()
         {

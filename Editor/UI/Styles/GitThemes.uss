@@ -31,6 +31,80 @@
     color: var(--git-selected-text);
 }
 
+/* ── 공통: 스크롤바 ─────────────────────────────── */
+/*
+ * Unity 기본 스크롤바(위아래 화살표·테두리 있는 바탕·각진 막대)를 둥근 막대 하나로 바꾼다. 바탕은 비우고 막대만 반투명 회색으로,
+ * 마우스를 올리거나 끌 때 진해진다. 막대 색은 테마 토큰(--git-scroll-thumb…)을 따른다.
+ */
+.git-themed .unity-scroller {
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-themed .unity-scroller--vertical {
+    width: 10px;
+    min-width: 10px;
+}
+
+.git-themed .unity-scroller--horizontal {
+    height: 10px;
+    min-height: 10px;
+}
+
+.git-themed .unity-scroller .unity-scroller__low-button,
+.git-themed .unity-scroller .unity-scroller__high-button {
+    display: none;
+}
+
+.git-themed .unity-scroller .unity-scroller__slider {
+    margin: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-themed .unity-scroller--vertical > .unity-scroller__slider {
+    margin: 2px 0;
+}
+
+.git-themed .unity-scroller--horizontal > .unity-scroller__slider {
+    margin: 0 2px;
+}
+
+.git-themed .unity-scroller .unity-base-slider__tracker {
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.git-themed .unity-scroller .unity-base-slider__dragger-border {
+    display: none;
+}
+
+.git-themed .unity-scroller .unity-base-slider__dragger {
+    border-width: 0;
+    border-radius: 3px;
+    background-color: var(--git-scroll-thumb);
+}
+
+.git-themed .unity-scroller--vertical .unity-base-slider__dragger {
+    width: 6px;
+    left: 2px;
+    min-height: 24px;
+}
+
+.git-themed .unity-scroller--horizontal .unity-base-slider__dragger {
+    height: 6px;
+    top: 2px;
+    min-width: 24px;
+}
+
+.git-themed .unity-scroller:hover .unity-base-slider__dragger {
+    background-color: var(--git-scroll-thumb-hover);
+}
+
+.git-themed .unity-scroller .unity-base-slider__dragger:active {
+    background-color: var(--git-scroll-thumb-active);
+}
+
 /* ── 공통: 도구 막대 ───────────────────────────────── */
 .git-themed .unity-toolbar {
     background-color: var(--git-toolbar-bg);

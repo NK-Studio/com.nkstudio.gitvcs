@@ -79,8 +79,30 @@ namespace GitVersionControl
 
         public static string Format(string key, params object[] args)
         {
-            return string.Format(Get(key), args);
+            string text = string.Format(Get(key), args);
+            return Language == GitLanguage.English ? SingularizeOne(text) : text;
         }
+
+        /// <summary>
+        /// 영어 문구의 "1 commits" 를 "1 commit" 으로. 문구마다 단수·복수 키를 따로 두지 않으려고, 숫자 1 바로 뒤의 정해진 명사만 바꾼다
+        /// ("#1"·"v1" 같은 번호와 "1 is" 같은 다른 낱말은 그대로). 한국어는 단수·복수가 없어 손대지 않는다. 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static string SingularizeOne(string text)
+        {
+            return string.IsNullOrEmpty(text) || text.IndexOf('1') < 0 ? text : OnePlural.Replace(text, match => "1 " + Singular[match.Groups[1].Value]);
+        }
+
+        private static readonly Dictionary<string, string> Singular = new()
+        {
+            ["commits"] = "commit", ["files"] = "file", ["comments"] = "comment", ["changes"] = "change", ["lines"] = "line",
+            ["conflicts"] = "conflict", ["branches"] = "branch", ["stashes"] = "stash", ["tags"] = "tag", ["remotes"] = "remote",
+            ["items"] = "item", ["entries"] = "entry", ["hunks"] = "hunk", ["lanes"] = "lane", ["assets"] = "asset",
+            ["days"] = "day", ["hours"] = "hour", ["minutes"] = "minute", ["seconds"] = "second", ["reviews"] = "review",
+        };
+
+        // 앞이 글자·숫자·'#'·'.' 이 아닌 "1" 뒤에 한 칸 띄고 정해진 명사가 오는 곳.
+        private static readonly System.Text.RegularExpressions.Regex OnePlural = new(
+            @"(?<![\w#.])1 (" + string.Join("|", Singular.Keys) + @")\b", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         /// <summary>UXML 의 <c>text="@키"</c> 처럼 '@' 로 시작하면 번역하고, 아니면 그대로 둔다.</summary>
         public static string Resolve(string text)

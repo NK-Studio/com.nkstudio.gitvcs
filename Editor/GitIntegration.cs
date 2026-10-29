@@ -35,13 +35,27 @@ namespace GitVersionControl
             // 에디터를 처음 열 때는 설정·에셋이 다 읽히기 전이라 한 프레임 뒤에 시작한다.
             GitHubAccount.Changed -= GitAccounts.ApplyTokenOverride;
             GitHubAccount.Changed += GitAccounts.ApplyTokenOverride;
-            EditorApplication.delayCall += () =>
+            // Unity 가 뒤에 있을 때(외부 IDE 에서 고쳐 다시 컴파일되는 등) delayCall 은 앞으로 돌아올 때까지 늦어질 수 있다.
+            // 업데이트 틱에서도 한 번 시작해, 어느 쪽이 먼저 오든 한 번만 시작한다(Git 창이 "Starting Git integration." 에 머물지 않게).
+            EditorApplication.delayCall += StartOnce;
+            EditorApplication.update += StartOnce;
+        }
+
+        private static bool s_started;
+
+        private static void StartOnce()
+        {
+            EditorApplication.update -= StartOnce;
+            EditorApplication.delayCall -= StartOnce;
+            if (s_started)
             {
-                RestoreVisibleMetaFiles();
-                // 이 저장소에 패키지 로그인을 골라 뒀으면 그 토큰을 git 에 넘긴다(도메인 리로드마다 다시 정한다).
-                GitAccounts.ApplyTokenOverride();
-                GitRepository.Start();
-            };
+                return;
+            }
+            s_started = true;
+            RestoreVisibleMetaFiles();
+            // 이 저장소에 패키지 로그인을 골라 뒀으면 그 토큰을 git 에 넘긴다(도메인 리로드마다 다시 정한다).
+            GitAccounts.ApplyTokenOverride();
+            GitRepository.Start();
         }
 
         /// <summary>

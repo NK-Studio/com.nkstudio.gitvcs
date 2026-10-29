@@ -167,6 +167,9 @@ namespace GitVersionControl
         /// git 이 돌고 있거나 막 끝났는가. Git 창이 그동안 스스로 다시 그려 에디터 틱을 빠르게 둔다 — 입력 없는 에디터는 틱이 약 0.1초 간격이라,
         /// 백그라운드 git 결과를 메인 스레드로 받을 때마다 그만큼 기다려 커밋·전환 뒤 화면이 늦게 바뀐다. 어느 스레드에서든 읽을 수 있다.
         /// </summary>
+        /// <summary>지금 git 프로세스가 하나라도 돌고 있는가. 어느 스레드에서든 읽을 수 있다.</summary>
+        public static bool IsRunning => Volatile.Read(ref s_running) > 0;
+
         public static bool IsBusyOrRecent => Volatile.Read(ref s_running) > 0 || Stopwatch.GetTimestamp() < Interlocked.Read(ref s_hotUntil);
 
         private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)

@@ -2,6 +2,10 @@
 
 /* JetBrains — Light (IntelliJ/Android Studio New UI Light). 색·모서리 토큰을 정의하고, Unity 기본 컨트롤이 이 토큰을 따르게 하는 Styles/GitThemes.uss 를 함께 묶는다. 배치·모양은 Styles/*.uss 가 이 토큰을 쓴다. */
 :root {
+    /* 스크롤바 막대(화살표·바탕 없이 둥근 막대만, macOS·IntelliJ 처럼). 평소·마우스 올림·끄는 중. */
+    --git-scroll-thumb: rgba(0,0,0,0.18);
+    --git-scroll-thumb-hover: rgba(0,0,0,0.30);
+    --git-scroll-thumb-active: rgba(0,0,0,0.42);
     --git-bg: #ffffff;
     --git-sidebar-bg: #f7f8fa;
     --git-toolbar-bg: #f7f8fa;

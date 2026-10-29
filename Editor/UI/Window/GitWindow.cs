@@ -559,18 +559,43 @@ namespace GitVersionControl
             {
                 return;
             }
+            foreach (GitView view in _views)
+            {
+                view.OnRepositoryChanged();
+            }
+            // 사이드바·stash 개수·브랜치 목록 미리 읽기는 git 을 열 개 넘게 띄운다. 보이는 뷰(그래프)의 git 과 같은 순간에 띄우면
+            // 프로세스 띄우기가 서로 줄을 서 둘 다 늦어진다. 뷰의 git 이 끝난 뒤(최대 SidebarWaitMs) 시작한다.
+            _sidebarRefreshFull |= repository.LastRefreshWasWorkingTreeOnly == false;
+            _sidebarRefreshSince = EditorApplication.timeSinceStartup;
+            _sidebarRefresh ??= rootVisualElement.schedule.Execute(RefreshSidebarWhenIdle).Every(SidebarPollMs);
+            _sidebarRefresh.Resume();
+        }
+
+        private const long SidebarPollMs = 30;
+        private const double SidebarWaitSeconds = 1.0;
+        private IVisualElementScheduledItem _sidebarRefresh;
+        private bool _sidebarRefreshFull;
+        private double _sidebarRefreshSince;
+
+        private void RefreshSidebarWhenIdle()
+        {
+            if (GitCommand.IsRunning && EditorApplication.timeSinceStartup - _sidebarRefreshSince < SidebarWaitSeconds)
+            {
+                return;
+            }
+            _sidebarRefresh.Pause();
+            if (_refs == null)
+            {
+                return;
+            }
             // stash 개수는 stash·pop·전환 같은 전체 새로고침 작업에서만 바뀐다. Stage·파일 저장 뒤에는 git 을 또 부르지 않는다.
-            if (repository.LastRefreshWasWorkingTreeOnly == false)
+            if (_sidebarRefreshFull)
             {
                 _toolbar.RefreshStashCount();
                 // 작업 막대 브랜치 목록을 뒤에서 읽어 둔다 — 누르자마자 다 그린 목록이 보이게.
                 _ = GitBranchPicker.Prefetch();
             }
-            // 보이는 뷰(그래프 등)가 먼저 git 읽기를 시작하게 사이드바보다 앞에 알린다.
-            foreach (GitView view in _views)
-            {
-                view.OnRepositoryChanged();
-            }
+            _sidebarRefreshFull = false;
             _refs.OnRepositoryChanged();
         }
 
