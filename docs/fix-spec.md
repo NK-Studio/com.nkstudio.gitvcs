@@ -342,6 +342,31 @@ Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트
 | W-09 | Project Settings > Git 이 남을 까닭이 없음(남은 것은 계정·저장소 정보·git init 뿐, 정보는 Git 창에 이미 있음). Diff 도구·LFS 계정 버튼은 설정이 옮겨 간 뒤에도 Project Settings 를 열었다 | Project Settings > Git 을 없앰. git init 은 Git 창의 "git 저장소가 아닙니다" 안내 줄의 버튼(확인 카드), 이 저장소의 GitHub 계정은 Git 창 ⋮ 메뉴, 설정은 모두 Preferences > Git(도구 막대 메뉴도 한 줄로). git 을 못 찾는 등 오류면 안내 줄 버튼이 Preferences 를 연다. Project Settings 를 가리키던 안내 글 5개 고침 |
 | W-10 | git init 뒤 Library·Temp 등 수천 개가 변경 목록에 잡힘 | .gitignore 가 없으면 Unity 용(github/gitignore 의 Unity.gitignore 바탕)을 함께 만듦. 있던 .gitignore 는 그대로(`GitInit`). 실제로 저장소를 떼어 놓고 Git 창에서 git init → Library·Temp·csproj·UserSettings 가 목록에 없음을 확인한 뒤 원래 저장소로 되돌림 |
 
+### 추가 기능 — Project 창 우클릭 Git 메뉴
+
+Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변경 목록과 같은 작업을 같은 길(같은 확인·같은 실행기)로 한다. 메뉴를 열 때 도는 검사는 읽어 둔 상태만 보고 git 을 부르지 않는다.
+메뉴 글은 Unity 메뉴처럼 영어(MenuItem 은 컴파일 때 정해져 언어 설정을 따를 수 없다), 확인 카드는 언어 설정을 따른다.
+
+| 항목 | 켜지는 때 | 하는 일 |
+|---|---|---|
+| Stage | 고른 것에 Unstaged 변경 | 충돌 표시 확인, 별도 git 저장소 폴더는 뺌, 열린 씬 저장 뒤 Stage |
+| Unstage | Staged 변경 | Unstage |
+| Discard Changes… | 변경이 있고 충돌 파일이 없음 | Git 창 위 확인 카드(파일 목록) 뒤 마지막 커밋 상태로 |
+| Diff | 바뀐 파일 하나 | HEAD ↔ 지금 파일을 Preferences 의 Diff 엔진으로. 내장 뷰어면 이미지는 이미지 diff |
+| Show in Git Window | 변경이 있음 | Git 창 변경 탭에서 그 파일을 골라 diff |
+| File History · Blame | 커밋된 파일 하나 | 히스토리 창·Blame 창 |
+| Add to .gitignore | 고른 것이 모두 새 파일 | 파일(또는 폴더 /…/)과 그 .meta 줄을 더함. 이미 추적 중이면 무시돼도 계속 추적되므로 끔 |
+
+고른 에셋의 .meta, 폴더 아래 전부와 폴더의 .meta 를 한 묶음으로 다룬다(`GitProjectSelection`). 저장소 밖(PackageCache)은 대상이 아니다.
+확인(손): 수정 파일 Stage → Unstage, 새 폴더 Stage(폴더 .meta·안의 파일·.meta 3개) → Discard(카드에 3개만, Notes 는 남음), Show in Git Window(로컬 변경 탭에서 diff), 바꾼 PNG 의 Diff(이미지 diff, 바뀐 픽셀 100%), 항목별 켜짐·꺼짐(추적 파일의 .gitignore·폴더의 History·Blame 꺼짐).
+
+### 보조 창 크기·배율
+
+| ID | 증상 | 원인 → 수정 |
+|---|---|---|
+| W-11 | Project 창에서 연 이미지 diff 가 아주 작게 보임 | diff 창이 Unity 기본(최소 크기 근처)으로 떴다 → 새로 뜰 때 1200×800 을 메인 창의 85% 안으로 줄여 가운데에(`GitWindowPlacement`). 히스토리·blame·비교 창도 같다. 옮기거나 키운 뒤에는 그대로 |
+| W-12 | 창마다 글자 크기가 다름(diff 창 140%, Git 창 130%) | 히스토리·blame·비교 창은 Git 창 배율을 쓰는데 diff 창만 따로(`DiffWindowScale`) → diff 창도 Git 창 배율. 따로 두던 설정은 지움 |
+
 ### 남은 관찰(고치지 않음)
 
 - 패키지를 embedded 로 두면 Unity 6.7 분석기 경고(UAL0010·UAL0013) 16개: `GitCommand`·`GitIntegration`·`GitPullRequestFilter`·`GitShadow`·`HoverCallout` 에 `NoAutoStaticsCleanup` 이 없음. git URL 설치에서는 안 보임.
