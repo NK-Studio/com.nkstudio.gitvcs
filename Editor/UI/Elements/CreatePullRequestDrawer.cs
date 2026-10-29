@@ -27,6 +27,9 @@ namespace GitVersionControl
         private readonly Button _create;
 
         private GitRefSet _refs = new();
+
+        /// <summary>참조를 한 번이라도 읽었는지. 다시 열 때 이 값으로 같은 프레임에 칸을 채운다.</summary>
+        private bool _hasRefs;
         private List<GitHubRemoteRepo> _repos = new();
         private GitBranchRef _initialBranch;
         private bool _titleEdited;
@@ -153,6 +156,16 @@ namespace GitVersionControl
             Show(_note, null);
             _signedOut.SetVisible(GitHubAccount.IsSignedIn == false);
             _signedIn.SetVisible(GitHubAccount.IsSignedIn);
+            // 칸을 비운 채 열면 참조를 다시 읽는 몇 프레임 동안 "Select…"·빈 제목이 보였다가 값으로 바뀌어 글자가 깨져 보였다.
+            // 지난번에 읽은 참조가 있으면 같은 프레임에 바로 채우고(새로 읽은 값으로 조용히 맞춘다), 처음이면 다 읽을 때까지 칸을 숨긴다.
+            if (_hasRefs)
+            {
+                ApplyRefs(_refs);
+            }
+            else
+            {
+                _signedIn.style.visibility = Visibility.Hidden;
+            }
         }
 
         protected override async void LoadAfterOpen(int openCount)
@@ -162,7 +175,14 @@ namespace GitVersionControl
             {
                 return;
             }
+            ApplyRefs(refs);
+            _signedIn.style.visibility = StyleKeyword.Null;
+        }
+
+        private void ApplyRefs(GitRefSet refs)
+        {
             _refs = refs;
+            _hasRefs = true;
             _repos = GitPullRequestForm.GitHubRemotes(refs.RemoteUrls);
             _fromRepo.SetItems(_repos);
             _toRepo.SetItems(_repos);
@@ -258,24 +278,34 @@ namespace GitVersionControl
             string full = _fromRepo.Selected.Remote + "/" + _fromBranch.Selected;
             GitBranchRef tip = _refs.Branches.FirstOrDefault(b => b.IsRemote && b.Name == full);
             string subject = tip?.Subject ?? string.Empty;
-            _title.SetValueWithoutNotify(subject);
-            // 끝 커밋이 병합 커밋이면 그 제목("Merge commit '…' into …")은 PR 제목으로 쓸모가 없다. 병합이 아닌 마지막 커밋 제목으로 바꾼다.
+            // 끝 커밋이 병합 커밋이면 그 제목("Merge commit '…' into …")은 PR 제목으로 쓸모가 없어 병합이 아닌 마지막 커밋 제목을 찾는다.
+            // 병합 제목을 먼저 넣었다가 바꾸면 열 때 글자가 한 번 바뀌어 깨져 보이므로, 찾아 둔 제목이 있으면 그것을, 없으면 빈 칸으로 두고 찾으면 채운다.
             if (subject.StartsWith("Merge ", System.StringComparison.Ordinal) && _toRepo.Selected != null && _toBranch.Selected != null)
             {
-                _ = FillTitleSkippingMergesAsync(full, _toRepo.Selected.Remote + "/" + _toBranch.Selected);
+                string baseRef = _toRepo.Selected.Remote + "/" + _toBranch.Selected;
+                string key = (tip?.Hash ?? full) + ".." + baseRef;
+                _title.SetValueWithoutNotify(_titleCache.TryGetValue(key, out string cached) ? cached : string.Empty);
+                _ = FillTitleSkippingMergesAsync(full, baseRef, key);
+                return;
             }
+            _title.SetValueWithoutNotify(subject);
         }
 
-        private async System.Threading.Tasks.Task FillTitleSkippingMergesAsync(string head, string baseRef)
+        /// <summary>병합 커밋을 건너뛰어 찾은 제목(보내는 끝 커밋·받는 브랜치별). 다시 열 때 같은 프레임에 바로 쓴다.</summary>
+        private readonly Dictionary<string, string> _titleCache = new();
+
+        private async System.Threading.Tasks.Task FillTitleSkippingMergesAsync(string head, string baseRef, string key)
         {
             GitResult result = await GitRepository.RunAsync("log", "--no-merges", "-1", "--format=%s", baseRef + ".." + head, "--");
             string subject = result.Success ? result.Output.Trim() : string.Empty;
-            if (_titleEdited)
+            // 병합 아닌 커밋이 없으면 브랜치 이름을 쓴다("feature/pr-menu" → "pr menu").
+            string title = subject.Length > 0 ? subject : GitPullRequestForm.TitleFromBranch(head);
+            _titleCache[key] = title;
+            if (_titleEdited || _title.value == title)
             {
                 return;
             }
-            // 병합 아닌 커밋이 없으면 브랜치 이름을 쓴다("feature/pr-menu" → "pr menu").
-            _title.SetValueWithoutNotify(subject.Length > 0 ? subject : GitPullRequestForm.TitleFromBranch(head));
+            _title.SetValueWithoutNotify(title);
             Validate();
         }
 
