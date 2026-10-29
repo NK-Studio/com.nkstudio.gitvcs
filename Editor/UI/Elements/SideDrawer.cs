@@ -107,19 +107,34 @@ namespace GitVersionControl
                 return;
             }
             Opening?.Invoke(this);
+            bool instant = _openInstantly;
+            _openInstantly = false;
             int openCount = ++_openCount;
             Reset();
             Validate();
+            // 다른 서랍 위에 그려지게 맨 앞으로(목록상 앞쪽 서랍이 나가는 서랍 밑에 깔려 움직이지 않게).
+            Root.BringToFront();
             Root.RemoveFromClassList(HiddenModifier);
-            // 숨김을 푼 다음 프레임에 열림을 붙여야 움직임(translate 전환)이 보인다.
-            Root.schedule.Execute(() =>
+            if (instant)
             {
-                if (openCount == _openCount)
+                // 다른 서랍에서 바로 넘어왔다: 미끄러지지 않고 그 자리에 바로 나타난다(내용만 바뀌는 느낌).
+                SetTransitions(false);
+                Root.AddToClassList(OpenModifier);
+                FocusFirstField();
+                Root.schedule.Execute(() => SetTransitions(true));
+            }
+            else
+            {
+                // 숨김을 푼 다음 프레임에 열림을 붙여야 움직임(translate 전환)이 보인다.
+                Root.schedule.Execute(() =>
                 {
-                    Root.AddToClassList(OpenModifier);
-                    FocusFirstField();
-                }
-            });
+                    if (openCount == _openCount)
+                    {
+                        Root.AddToClassList(OpenModifier);
+                        FocusFirstField();
+                    }
+                });
+            }
             LoadAfterOpen(openCount);
         }
 
@@ -128,6 +143,32 @@ namespace GitVersionControl
             _openCount++;
             OnClosing();
             Root.RemoveFromClassList(OpenModifier);
+        }
+
+        /// <summary>
+        /// 다른 서랍으로 바꿀 때: 미끄러져 나가는 움직임 없이 바로 닫는다. 두 서랍이 같은 자리에서 0.4초 동안 겹쳐 움직이면 버벅여 보였다.
+        /// </summary>
+        public void CloseInstantly()
+        {
+            _openCount++;
+            OnClosing();
+            SetTransitions(false);
+            Root.RemoveFromClassList(OpenModifier);
+            Root.AddToClassList(HiddenModifier);
+            Root.schedule.Execute(() => SetTransitions(true));
+        }
+
+        /// <summary>바로 다음 <see cref="Open"/> 을 움직임 없이 연다(다른 서랍에서 넘어올 때 창이 부른다).</summary>
+        public void OpenNextInstantly()
+        {
+            _openInstantly = true;
+        }
+
+        private bool _openInstantly;
+
+        private void SetTransitions(bool enabled)
+        {
+            Root.style.transitionDuration = enabled ? new StyleList<TimeValue>(StyleKeyword.Null) : new StyleList<TimeValue>(new System.Collections.Generic.List<TimeValue> { new(0) });
         }
 
         /// <summary>

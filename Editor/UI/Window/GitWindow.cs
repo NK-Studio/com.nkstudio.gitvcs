@@ -435,11 +435,13 @@ namespace GitVersionControl
             _drawers.Add(drawer);
             drawer.Opening += opening =>
             {
+                // 다른 서랍이 열려 있으면 미끄러짐 없이 바꿔 낀다(나가는 서랍과 들어오는 서랍이 같은 자리에서 겹쳐 움직이지 않게).
                 foreach (SideDrawer other in _drawers)
                 {
                     if (other != opening && other.IsOpen)
                     {
-                        other.Close();
+                        other.CloseInstantly();
+                        opening.OpenNextInstantly();
                     }
                 }
             };
