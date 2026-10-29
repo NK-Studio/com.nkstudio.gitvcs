@@ -1,5 +1,5 @@
 /*
- * git-diff: 내장 diff 뷰어(색은 Themes/*.uss 의 --git-diff-* 토큰). 통합 보기(diff-row) 와 나란히 보기(diff-row--split, 양쪽 diff-side) 두 줄 모양을 쓴다.
+ * git-diff: 내장 diff 뷰어(색은 Themes/*.tss 의 --git-diff-* 토큰). 통합 보기(diff-row) 와 나란히 보기(diff-row--split, 양쪽 diff-side) 두 줄 모양을 쓴다.
  * 색은 GitHub·VS Code 의 어두운 테마 diff 색에 맞췄다(초록=더함, 빨강=지움, 진한 칸=줄 안에서 실제로 바뀐 부분).
  */
 
@@ -588,38 +588,38 @@
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
 .diff-row .diff-row__hunk-button--stage {
     border-color: var(--git-success);
-    background-color: rgba(95, 184, 101, 0.18);
+    background-color: var(--git-success-soft);
     color: var(--git-text);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:hover,
 .diff-row .diff-row__hunk-button--stage:hover {
-    background-color: rgba(95, 184, 101, 0.32);
+    background-color: var(--git-success-soft-hover);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active,
 .diff-row .diff-row__hunk-button--stage:active {
-    background-color: rgba(95, 184, 101, 0.45);
+    background-color: var(--git-success-soft-pressed);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
 .diff-row .diff-row__hunk-button--discard {
     border-color: var(--git-danger);
-    background-color: rgba(219, 92, 92, 0.18);
+    background-color: var(--git-danger-soft);
     color: var(--git-text);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:hover,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:hover,
 .diff-row .diff-row__hunk-button--discard:hover {
-    background-color: rgba(219, 92, 92, 0.32);
+    background-color: var(--git-danger-soft-hover);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:active,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:active,
 .diff-row .diff-row__hunk-button--discard:active {
-    background-color: rgba(219, 92, 92, 0.45);
+    background-color: var(--git-danger-soft-pressed);
 }
 
 /* ── 이미지 diff (GitImageDiffView) ─────────────────── */
@@ -1015,20 +1015,19 @@
     margin-left: 6px;
 }
 
-/* 저장은 "이 변경 스테이지"·"변경 묶음 스테이지" 와 한 벌: 초록 테두리에 같은 색을 옅게 깐 바탕, 글자는 보통 글자색.
-   Unity 테마는 GitThemes.uss 가 Stage 버튼과 같이 회색 버튼에 초록을 섞어 그린다. */
+/* 저장은 "이 변경 스테이지"·"변경 묶음 스테이지" 와 한 벌: 초록 테두리에 같은 색을 옅게 깐 바탕, 글자는 보통 글자색. */
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save {
     border-color: var(--git-success);
-    background-color: rgba(95, 184, 101, 0.18);
+    background-color: var(--git-success-soft);
     color: var(--git-text);
 }
 
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:hover {
-    background-color: rgba(95, 184, 101, 0.32);
+    background-color: var(--git-success-soft-hover);
 }
 
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:active {
-    background-color: rgba(95, 184, 101, 0.45);
+    background-color: var(--git-success-soft-pressed);
 }
 
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:disabled {

@@ -8,6 +8,11 @@
     padding: 0 4px;
 }
 
+/* 오른쪽 끝 숫자(폴더 안 개수)·버튼이 창 끝에 붙지 않게. */
+.file-row {
+    padding-right: 8px;
+}
+
 /* ── file-row ─────────────────────────────────────── */
 .file-row__toggle {
     margin: 0;
@@ -101,30 +106,30 @@
 
 .file-row .file-row__action--stage {
     border-color: var(--git-success);
-    background-color: rgba(95, 184, 101, 0.18);
+    background-color: var(--git-success-soft);
 }
 
 .file-row .file-row__action--stage:hover:enabled {
-    background-color: rgba(95, 184, 101, 0.6);
-    color: #ffffff;
+    background-color: var(--git-success-strong);
+    color: var(--git-on-strong);
 }
 
 .file-row .file-row__action--stage:active:enabled {
-    background-color: rgba(95, 184, 101, 0.8);
+    background-color: var(--git-success-strong-pressed);
 }
 
 .file-row .file-row__action--unstage {
     border-color: var(--git-danger);
-    background-color: rgba(219, 92, 92, 0.18);
+    background-color: var(--git-danger-soft);
 }
 
 .file-row .file-row__action--unstage:hover:enabled {
-    background-color: rgba(219, 92, 92, 0.6);
-    color: #ffffff;
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
 }
 
 .file-row .file-row__action--unstage:active:enabled {
-    background-color: rgba(219, 92, 92, 0.8);
+    background-color: var(--git-danger-strong-pressed);
 }
 
 /* git 작업 결과가 보이기 전에는 줄 버튼을 끈다(StagingLists 가 SetRowActionEnabled). 꺼진 게 보이게 흐리게. */

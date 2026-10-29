@@ -478,6 +478,7 @@ namespace GitVersionControl
             }
             label.text = GitDisplay.Nfc(node.Label);
             badge.text = node.Badge;
+            badge.EnableInClassList(Block + "__badge--zero", node.Badge == "0");
             bool isSection = node.Kind == RefNodeKind.Section;
             row.EnableInClassList(Block + "__row--section", isSection);
             // PR 묶음 줄과 안내 줄은 GitKraken 처럼 아이콘 없이 글자만.

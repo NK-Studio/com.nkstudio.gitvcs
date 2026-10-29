@@ -417,14 +417,14 @@
     width: 20px;
     height: 20px;
     flex-shrink: 0;
-    color: var(--git-text);
+    color: var(--git-action-icon);
 }
 
 /* 그림 아이콘(실행 취소·다시 실행): 흰 Material Symbols 그림을 글자색으로 물들인다. 꺼지면 .git-action:disabled 가 흐리게 한다. */
 .git-action__icon--undo,
 .git-action__icon--redo {
     -unity-background-scale-mode: scale-to-fit;
-    -unity-background-image-tint-color: var(--git-text);
+    -unity-background-image-tint-color: var(--git-action-icon);
 }
 
 .git-action__icon--undo {
@@ -697,10 +697,21 @@
     color: var(--git-text-muted);
 }
 
-/* 구역 개수: 10px 는 흐려 보여 한 단계 키운다. 색은 테마 토큰(--git-section-count — JetBrains 는 강조색, Unity 는 흐린 글자색). */
+/* 구역 개수: 위쪽 탭 개수(.git-sidebar__tab-badge)와 같은 알약. 파란 글자는 사이드바 바탕에서 읽기 어려워 기본 글자색에 회색 바탕을 깐다.
+   0 은 알릴 것이 없으므로 바탕 없이 흐리게(.ref-tree__badge--zero). */
 .ref-tree__row--section .ref-tree__badge {
-    font-size: 11px;
-    color: var(--git-section-count);
+    min-width: 18px;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background-color: var(--git-badge-bg);
+    color: var(--git-text);
+    -unity-text-align: middle-center;
+}
+
+.ref-tree__row--section .ref-tree__badge.ref-tree__badge--zero {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
 }
 
 /* PR 묶음·안내 줄: 아이콘 없이 글자만. 안내는 흐리게. */
@@ -732,21 +743,20 @@
     padding: 0;
     border-width: 1px;
     border-radius: 3px;
-    /* 테마와 상관없이 옅은 초록 바탕 + 초록 테두리 + 어두운 + 로 반듯하게. */
-    border-color: #3d9a4f;
-    background-color: #d9e9db;
-    color: #2b2b2b;
+    /* Stage 버튼과 한 벌: 초록 테두리에 옅은 초록 바탕, + 는 보통 글자색. 색은 테마 토큰(Themes/*.tss). */
+    border-color: var(--git-success);
+    background-color: var(--git-success-soft);
+    color: var(--git-text);
     font-size: 13px;
     -unity-text-align: middle-center;
     cursor: link;
 }
 
-/* 버튼 위에 올리면 초록으로 꽉 채운다. */
-/* 마우스를 올리면 GitKraken 처럼 초록으로 칠하고 + 는 흰색. */
+/* 마우스를 올리면 GitKraken 처럼 초록으로 꽉 채우고 + 는 흰색. */
 .ref-tree__add:hover {
-    border-color: #4f9a5c;
-    background-color: #5aa66a;
-    color: #ffffff;
+    border-color: var(--git-success-strong);
+    background-color: var(--git-success-strong);
+    color: var(--git-on-strong);
 }
 
 /* ── hover-callout: 마우스를 올리면 바로 뜨는 말풍선(HoverCallout). GitKraken 처럼 테마와 상관없이 검은 말풍선에 흰 글자.

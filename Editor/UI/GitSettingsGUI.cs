@@ -303,17 +303,17 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 창 모양. 어둡게·밝게는 에디터 스킨을 따르므로 스타일만 고른다.
+        /// 창 밝기(다크·라이트·시스템).
         /// </summary>
         private static void DrawTheme()
         {
-            GitThemeStyle[] styles = (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle));
-            string[] names = styles.Select(GitTheme.DisplayName).ToArray();
-            int current = System.Array.IndexOf(styles, GitTheme.Style);
+            GitThemeMode[] modes = GitTheme.MenuOrder;
+            string[] names = modes.Select(GitTheme.DisplayName).ToArray();
+            int current = System.Array.IndexOf(modes, GitTheme.Mode);
             int picked = EditorGUILayout.Popup(new GUIContent(GitText.Get("window.theme"), GitText.Get("settings.themeTooltip")), current, names.Select(n => new GUIContent(n)).ToArray());
             if (picked >= 0 && picked != current)
             {
-                GitTheme.Style = styles[picked];
+                GitTheme.Mode = modes[picked];
             }
         }
 

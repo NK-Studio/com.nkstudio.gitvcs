@@ -35,7 +35,7 @@ namespace GitVersionControl
         public static void Apply(VisualElement badge, GitFileState state)
         {
             string glyph = GlyphModifierOf(state);
-            Texture2D icon = glyph == null ? GitStatusIcons.Get(state) : null;
+            Texture2D icon = glyph == null ? GitStatusIcons.Get(state, GitTheme.IsDark) : null;
             bool useIcon = icon != null;
             bool useLetter = glyph == null && useIcon == false;
 

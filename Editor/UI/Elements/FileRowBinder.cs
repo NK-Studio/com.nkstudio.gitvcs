@@ -113,7 +113,7 @@ namespace GitVersionControl
             row.Require<Label>("badge").AddToClassList(BadgeHiddenModifier);
             _folderIcon ??= EditorGUIUtility.IconContent("Folder Icon").image;
             Image icon = row.Require<Image>("icon");
-            icon.image = _folderIcon;
+            icon.image = GitTheme.SkinIcon(_folderIcon);
             // 이 줄이 전에 보이던 파일의 썸네일이 늦게 와도 폴더 아이콘을 덮지 않게(IFileIconProvider.BindIcon).
             icon.userData = null;
 

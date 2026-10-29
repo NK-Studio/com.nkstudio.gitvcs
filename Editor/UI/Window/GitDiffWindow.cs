@@ -83,10 +83,10 @@ namespace GitVersionControl
         public void AddItemsToMenu(GenericMenu menu)
         {
             string themeMenu = GitText.Get("window.theme");
-            foreach (GitThemeStyle style in (GitThemeStyle[])Enum.GetValues(typeof(GitThemeStyle)))
+            foreach (GitThemeMode mode in GitTheme.MenuOrder)
             {
-                GitThemeStyle captured = style;
-                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(style))}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+                GitThemeMode captured = mode;
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(mode))}"), GitTheme.Mode == mode, () => GitTheme.Mode = captured);
             }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());

@@ -1,6 +1,6 @@
 /*
- * 테마별 모양. 색은 Themes/*.uss 토큰이 정하고, 여기는 Unity 기본 컨트롤(도구 막대·목록 선택·입력란·버튼)이 그 토큰을 따르게 한다.
- * 창 루트에 GitTheme 이 붙이는 클래스: git-themed(항상), git-theme--unity | git-theme--jetbrains, git-theme--dark | git-theme--light.
+ * 테마별 모양. 색은 Themes/*.tss 토큰이 정하고, 여기는 Unity 기본 컨트롤(도구 막대·목록 선택·입력란·버튼)이 그 토큰을 따르게 한다.
+ * 창 루트에 GitTheme 이 붙이는 클래스: git-themed·git-theme--jetbrains(항상), git-theme--dark | git-theme--light.
  *
  * 선택자에 클래스를 여러 개 붙인 이유: Unity 기본 스킨의 목록 선택 규칙(.unity-collection-view:focus ... --selected)보다
  * 구체적이어야 덮어쓸 수 있다.
@@ -35,6 +35,95 @@
 .git-themed .unity-toolbar {
     background-color: var(--git-toolbar-bg);
     border-bottom-color: var(--git-border);
+}
+
+/* ── 공통: 체크박스 ─────────────────────────────── */
+/* Unity 기본 체크박스는 에디터 스킨 그림이라 창 밝기를 바꾸면 흰 상자가 어두운 바탕에 떠 보인다. 테마 토큰으로 직접 그린다:
+   빈 상자는 입력란 바탕·테두리, 체크·혼합(일부만 고름)은 강조색 바탕에 흰 ✓·−. 기본 스킨의 마우스 올림·포커스 규칙보다 세게 하려고 클래스를 겹쳐 적는다. */
+.git-themed .unity-toggle.unity-base-field .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:focus .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:active .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:focus .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:active .unity-toggle__input .unity-toggle__checkmark {
+    width: 14px;
+    height: 14px;
+    background-image: none;
+    background-color: var(--git-field-bg);
+    border-width: 1px;
+    border-color: var(--git-field-border);
+    border-radius: 3px;
+    -unity-slice-left: 0;
+    -unity-slice-top: 0;
+    -unity-slice-right: 0;
+    -unity-slice-bottom: 0;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-accent-text);
+}
+
+.git-themed .unity-toggle.unity-base-field:hover .unity-toggle__input .unity-toggle__checkmark {
+    border-color: var(--git-accent);
+}
+
+.git-themed .unity-toggle.unity-base-field:checked .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:focus .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-toggle.unity-base-field:checked:active .unity-toggle__input .unity-toggle__checkmark {
+    background-image: url("../Icons/Checkmark.png");
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+}
+
+.git-themed .unity-toggle.unity-base-field .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:hover .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:focus .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:active .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:checked .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:checked:hover .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:checked:focus .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values,
+.git-themed .unity-toggle.unity-base-field:checked:active .unity-toggle__input .unity-toggle__checkmark.unity-toggle__mixed-values {
+    background-image: url("../Icons/CheckMixed.png");
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+}
+
+/* ── 공통: 트리 펼침 화살표 ───────────────────────────── */
+/* Unity 기본 삼각형은 에디터 스킨 색이라 창 밝기를 바꾸면 바탕에 묻힌다. Material Symbols "chevron_right"(흰색 PNG)를
+   글자색으로 물들이고, 펼치면 90° 돌린다. 기본 스킨의 마우스 올림·선택·포커스 규칙보다 세게 하려고 클래스를 겹쳐 적는다. */
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:focus .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked:focus .unity-toggle__input .unity-toggle__checkmark {
+    width: 16px;
+    height: 16px;
+    background-image: url("../Icons/ChevronRight.png");
+    /* 펼침 화살표도 Toggle 이라 위 체크박스 상자(바탕·테두리)를 지운다. */
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--git-text-muted);
+    /* 기본 삼각형 규칙의 9-slice(13px)가 남으면 64px 그림이 점처럼 찌그러진다. */
+    -unity-slice-left: 0;
+    -unity-slice-top: 0;
+    -unity-slice-right: 0;
+    -unity-slice-bottom: 0;
+    transition-property: rotate;
+    transition-duration: 0.12s;
+}
+
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked:hover .unity-toggle__input .unity-toggle__checkmark,
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:checked:focus .unity-toggle__input .unity-toggle__checkmark {
+    rotate: 90deg;
+}
+
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.unity-collection-view__item .unity-tree-view__item-toggle:hover .unity-toggle__input .unity-toggle__checkmark {
+    -unity-background-image-tint-color: var(--git-text);
 }
 
 /* ── JetBrains: 평평한 도구 막대 버튼, 둥근 선택 ─────────── */
@@ -172,135 +261,4 @@
 
 .git-theme--jetbrains .notice--error {
     border-color: var(--git-danger);
-}
-
-/* ── Unity: GitKraken 식 색 버튼 대신 Unity 에디터 기본 버튼 모양 ─────────── */
-/* Stage All·Unstage All·줄 hover 의 Stage File·Unstage File·모든 변경 버리기(휴지통)는 기본 모양(GitStaging.uss·GitRows.uss)이
-   GitKraken 처럼 초록·빨강 테두리라 Unity 에디터 안에서는 겉돈다. Unity 테마에서는 에디터 버튼처럼 회색 바탕·어두운 테두리·작은 모서리로 그리고,
-   마우스를 올리면 한 단계 밝게, 누르면 선택 색. 기본 규칙(:hover:enabled 까지)보다 세게 하려고 클래스를 겹쳐 적는다. */
-.git-theme--unity .staging .staging__button--stage,
-.git-theme--unity .staging .staging__button--unstage,
-.git-theme--unity .file-row .file-row__action--stage,
-.git-theme--unity .file-row .file-row__action--unstage,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
-.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
-.git-theme--unity .diff-row .diff-row__hunk-button--discard,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all {
-    border-width: 1px;
-    border-radius: 3px;
-    border-color: var(--git-button-border);
-    background-color: var(--git-button-bg);
-    color: var(--git-text);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
-    opacity: 1;
-}
-
-.git-theme--unity .staging .staging__button--stage:hover:enabled,
-.git-theme--unity .staging .staging__button--unstage:hover:enabled,
-.git-theme--unity .file-row .file-row__action--stage:hover:enabled,
-.git-theme--unity .file-row .file-row__action--unstage:hover:enabled,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:hover:enabled {
-    border-color: var(--git-button-border);
-    background-color: var(--git-button-hover);
-    color: var(--git-text);
-}
-
-.git-theme--unity .staging .staging__button--stage:active:enabled,
-.git-theme--unity .staging .staging__button--unstage:active:enabled,
-.git-theme--unity .file-row .file-row__action--stage:active:enabled,
-.git-theme--unity .file-row .file-row__action--unstage:active:enabled,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:active:enabled {
-    background-color: var(--git-selected);
-    color: var(--git-selected-text);
-}
-
-.git-theme--unity .staging .staging__button--stage:disabled,
-.git-theme--unity .staging .staging__button--unstage:disabled,
-.git-theme--unity .file-row .file-row__action:disabled,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:disabled {
-    border-color: var(--git-button-border);
-    background-color: var(--git-button-bg);
-    color: var(--git-text-muted);
-    opacity: 0.5;
-}
-
-/* 살짝의 기교: 무엇을 하는 버튼인지 바탕에 옅게 섞은 의미 색으로 알린다(밑줄 같은 한쪽 테두리 강조는 쓰지 않는다).
-   글자는 바탕과 대비가 충분한 밝은 버튼 글자색(--git-action-text) 그대로라 읽기 쉽다. 색은 Unity 테마 토큰(Themes/Unity*.uss):
-   - Stage: 회색 버튼에 차분한 초록을 섞은 바탕(--git-stage-*), Unstage·버리기: 차분한 빨강을 섞은 바탕(--git-unstage-*).
-   - 마우스를 올리면 섞은 색이 한 단계 진해지고, 누르면 의미 색이 또렷한 바탕. 테두리는 Unity 버튼 테두리 그대로. */
-.git-theme--unity .staging .staging__button--stage,
-.git-theme--unity .file-row .file-row__action--stage,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
-.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage {
-    background-color: var(--git-stage-bg);
-    color: var(--git-action-text);
-}
-
-.git-theme--unity .staging .staging__button--unstage,
-.git-theme--unity .file-row .file-row__action--unstage,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
-.git-theme--unity .diff-row .diff-row__hunk-button--discard {
-    background-color: var(--git-unstage-bg);
-    color: var(--git-action-text);
-}
-
-.git-theme--unity .staging .staging__button--stage:hover:enabled,
-.git-theme--unity .file-row .file-row__action--stage:hover:enabled,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:hover:enabled,
-.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:hover:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage:hover:enabled {
-    background-color: var(--git-stage-hover);
-    color: var(--git-action-text);
-}
-
-.git-theme--unity .staging .staging__button--unstage:hover:enabled,
-.git-theme--unity .file-row .file-row__action--unstage:hover:enabled,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:hover:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:hover:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--discard:hover:enabled,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:hover:enabled {
-    background-color: var(--git-unstage-hover);
-    color: var(--git-action-text);
-}
-
-.git-theme--unity .staging .staging__button--stage:active:enabled,
-.git-theme--unity .file-row .file-row__action--stage:active:enabled,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active:enabled,
-.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:active:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage:active:enabled {
-    background-color: var(--git-stage-pressed);
-    color: #ffffff;
-}
-
-/* 저장할 편집이 없으면 저장 버튼은 흐리게(위 기본 규칙의 opacity: 1 보다 세게). */
-.git-theme--unity .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:disabled {
-    opacity: 0.4;
-}
-
-.git-theme--unity .staging .staging__button--unstage:active:enabled,
-.git-theme--unity .file-row .file-row__action--unstage:active:enabled,
-.git-theme--unity .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:active:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:active:enabled,
-.git-theme--unity .diff-row .diff-row__hunk-button--discard:active:enabled,
-.git-theme--unity .graph-workspace__panel-header .graph-workspace__discard-all:active:enabled {
-    background-color: var(--git-unstage-pressed);
-    color: #ffffff;
-}
-
-/* 휴지통: 평소에는 회색 버튼에 밝은 아이콘, 마우스를 올리면 버리기 색(위 :hover). 누르면 흰 아이콘. */
-.git-theme--unity .graph-workspace__discard-all .graph-workspace__discard-all-icon {
-    -unity-background-image-tint-color: var(--git-action-text);
-}
-
-.git-theme--unity .graph-workspace__discard-all:active:enabled .graph-workspace__discard-all-icon {
-    -unity-background-image-tint-color: #ffffff;
-}
-
-.git-theme--unity .graph-workspace__discard-all:disabled .graph-workspace__discard-all-icon {
-    -unity-background-image-tint-color: var(--git-text-muted);
 }

@@ -67,7 +67,7 @@ namespace GitVersionControl
 
         public void BindIcon(Image image, string projectPath, string repoPath)
         {
-            Texture icon = GetIcon(projectPath, repoPath);
+            Texture icon = GitTheme.SkinIcon(GetIcon(projectPath, repoPath));
             image.image = icon;
             string fullPath = ThumbnailSource(projectPath, repoPath);
             string key = fullPath != null ? ThumbnailKey(fullPath) : null;

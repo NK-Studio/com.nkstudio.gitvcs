@@ -1,18 +1,15 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
     <ui:VisualElement class="view pending-changes">
+        <!-- 머리 줄 하나: 모두 선택·개수(왼쪽), 경로/트리 전환(오른쪽). 스테이징 구역 머리 줄과 같은 높이·여백. -->
         <ui:VisualElement class="pending-changes__header">
             <ui:Toggle name="select-all" class="pending-changes__select-all" />
             <ui:Label name="summary" class="pending-changes__summary" />
+            <ui:VisualElement name="view-mode-host" class="pending-changes__tools" />
         </ui:VisualElement>
 
         <!-- 파일 목록(위)·커밋 메시지(아래). 경계선을 끌어 커밋 칸 높이를 바꾼다. -->
         <ui:TwoPaneSplitView name="split" fixed-pane-index="1" fixed-pane-initial-dimension="220" orientation="Vertical" class="view__split">
             <ui:VisualElement class="view__pane">
-                <ui:VisualElement class="list-header">
-                    <ui:Label class="list-header__cell column--toggle" />
-                    <ui:Label text="@column.item" class="list-header__cell list-header__cell--grow" />
-                    <ui:VisualElement name="view-mode-host" class="list-header__tools" />
-                </ui:VisualElement>
                 <ui:VisualElement name="file-list" class="list file-browser pending-changes__list" />
             </ui:VisualElement>
 

@@ -460,9 +460,9 @@ namespace GitVersionControl
         {
             if (row.IsFolder)
             {
-                return EditorGUIUtility.IconContent("Folder Icon").image;
+                return GitTheme.SkinIcon(EditorGUIUtility.IconContent("Folder Icon").image);
             }
-            return InternalEditorUtility.GetIconForFile(row.Name);
+            return GitTheme.SkinIcon(InternalEditorUtility.GetIconForFile(row.Name));
         }
 
         private static void SetStateClass(VisualElement element, GitWorkspaceState state)

@@ -257,10 +257,10 @@ namespace GitVersionControl
             }
             GitExplorerStyle.AddMenuItems(menu);
             string themeMenu = GitText.Get("window.theme");
-            foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
+            foreach (GitThemeMode mode in GitTheme.MenuOrder)
             {
-                GitThemeStyle captured = style;
-                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(style))}"), GitTheme.Style == style, () => GitTheme.Style = captured);
+                GitThemeMode captured = mode;
+                menu.AddItem(new GUIContent($"{themeMenu}/{GitDisplay.MenuSafe(GitTheme.DisplayName(mode))}"), GitTheme.Mode == mode, () => GitTheme.Mode = captured);
             }
             string scaleMenu = GitText.Get("window.uiScale");
             menu.AddItem(new GUIContent($"{scaleMenu}/{GitText.Get("window.uiScaleIn")}"), false, () => _scale?.ZoomIn());
@@ -284,7 +284,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 테마 시트는 창 내용(템플릿) 루트에 붙인다 — 창 USS 와 같은 높이라 토큰이 모든 탭·목록 줄에 닿는다.
-        /// 에디터 스킨(어둡게·밝게)을 바꾸면 창에 포커스가 돌아올 때 맞춘다.
+        /// 테마가 시스템일 때 에디터 스킨(어둡게·밝게)을 바꾸면 창에 포커스가 돌아올 때 맞춘다.
         /// </summary>
         private void ApplyTheme()
         {

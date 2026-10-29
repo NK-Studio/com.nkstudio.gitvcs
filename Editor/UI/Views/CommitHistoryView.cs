@@ -738,7 +738,7 @@ namespace GitVersionControl
         {
             GitPathNode node = _tree.GetItemDataForIndex<GitPathNode>(index);
             Image icon = row.Q<Image>();
-            icon.image = node.IsFolder ? EditorGUIUtility.IconContent("Folder Icon").image : InternalEditorUtility.GetIconForFile(node.Name);
+            icon.image = GitTheme.SkinIcon(node.IsFolder ? EditorGUIUtility.IconContent("Folder Icon").image : InternalEditorUtility.GetIconForFile(node.Name));
             row.Q<Label>().text = node.Name;
             row.tooltip = node.Path;
             row.userData = node;

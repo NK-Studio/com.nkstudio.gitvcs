@@ -28,6 +28,14 @@ namespace GitVersionControl
 
         public static Texture2D Get(GitFileState state)
         {
+            return Get(state, EditorGUIUtility.isProSkin);
+        }
+
+        /// <summary>
+        /// isDark: 아이콘이 놓일 바탕이 어두운지. Git 창은 에디터 스킨과 다른 밝기를 고를 수 있어 따로 받는다.
+        /// </summary>
+        public static Texture2D Get(GitFileState state, bool isDark)
+        {
             string name = state switch
             {
                 GitFileState.Modified => "iconcheckedoutlocaloverlay",
@@ -43,7 +51,7 @@ namespace GitVersionControl
                 return null;
             }
 
-            string prefix = EditorGUIUtility.isProSkin ? "d_" : string.Empty;
+            string prefix = isDark ? "d_" : string.Empty;
             bool hiDpi = EditorGUIUtility.pixelsPerPoint > 1f;
             string key = prefix + name + (hiDpi ? "@2x" : string.Empty);
             if (Cache.TryGetValue(key, out Texture2D cached) && cached != null)

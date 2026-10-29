@@ -286,7 +286,10 @@ namespace GitVersionControl
 
             // ── 테마 ──
             ["window.theme"] = new[] { "테마", "Theme" },
-            ["settings.themeTooltip"] = new[] { "Git 창·diff 뷰어 모양. 어둡게·밝게는 Unity 에디터 스킨을 따릅니다.", "Look of the Git window and diff viewer. Dark/light follows the Unity editor skin." },
+            ["settings.themeTooltip"] = new[] { "Git 창·diff 뷰어의 밝기. 시스템을 고르면 Unity 에디터 스킨을 따릅니다.", "Brightness of the Git window and diff viewer. System follows the Unity editor skin." },
+            ["theme.dark"] = new[] { "다크", "Dark" },
+            ["theme.light"] = new[] { "라이트", "Light" },
+            ["theme.system"] = new[] { "시스템", "System" },
 
             // ── 레이아웃·스테이징 ──
             ["window.layout"] = new[] { "레이아웃", "Layout" },
@@ -428,7 +431,6 @@ namespace GitVersionControl
             ["fileView.collapseAll"] = new[] { "모두 접기", "Collapse All" },
 
             // ── 목록 열 이름 ──
-            ["column.item"] = new[] { "항목", "Item" },
             ["column.hash"] = new[] { "해시", "Hash" },
             ["column.message"] = new[] { "메시지", "Message" },
             ["column.author"] = new[] { "작성자", "Author" },

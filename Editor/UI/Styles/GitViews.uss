@@ -21,16 +21,47 @@
 }
 
 /* ── pending-changes ──────────────────────────────── */
+/* 스테이징 구역 머리 줄(.staging__header)과 같은 34px·좌우 8px. 아래 목록과는 얇은 선으로 나눈다. */
 .pending-changes__header {
     flex-shrink: 0;
     flex-direction: row;
     align-items: center;
-    padding: 2px 6px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0 8px;
+    background-color: var(--git-header-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.pending-changes__select-all {
+    margin: 0;
 }
 
 .pending-changes__summary {
-    margin-left: 4px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 6px;
+    padding: 0;
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     color: var(--git-text);
+}
+
+.pending-changes__tools {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+/* 34px 머리 줄에서는 스테이징 맨 위와 같은 큰 전환(.view-mode-switch--large). */
+.pending-changes__tools .view-mode-switch__button {
+    height: 20px;
+    padding: 0 10px;
+}
+
+.pending-changes__tools .view-mode-switch__label {
+    font-size: 12px;
 }
 
 /* 아래 커밋 칸. 높이는 분할이 정하고(경계선 끌기), 남는 높이는 메시지 칸이 갖는다. */

@@ -1,4 +1,6 @@
-/* JetBrains — Light (IntelliJ/Android Studio New UI Light). 색·모서리 토큰만 정의한다 — 배치·모양은 Styles/*.uss 가 이 토큰을 쓴다. */
+@import url("../Styles/GitThemes.uss");
+
+/* JetBrains — Light (IntelliJ/Android Studio New UI Light). 색·모서리 토큰을 정의하고, Unity 기본 컨트롤이 이 토큰을 따르게 하는 Styles/GitThemes.uss 를 함께 묶는다. 배치·모양은 Styles/*.uss 가 이 토큰을 쓴다. */
 :root {
     --git-bg: #ffffff;
     --git-sidebar-bg: #f7f8fa;
@@ -7,6 +9,8 @@
     --git-list-bg: #ffffff;
     --git-text: #000000;
     --git-text-muted: #6c707e;
+    /* 위 작업 막대(Fetch·Push…) 아이콘. 밝은 테마에서 글자색(검정)을 쓰면 막대가 무거워 보여 IntelliJ 도구 막대처럼 한 단계 흐리게. */
+    --git-action-icon: #5e6270;
     --git-border: #ebecf0;
     --git-divider: #ebecf0;
     --git-hover: #dfe1e5;
@@ -30,6 +34,19 @@
     --git-success: #208a3c;
     --git-warning: #a46704;
     --git-danger: #db3b4b;
+    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 테두리는 --git-success·--git-danger, 바탕은 같은 색을 옅게(soft → 올림 → 누름),
+       꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). 흰 바탕이라 옅은 단계는 어두운 테마보다 묽게. */
+    --git-success-soft: rgba(32, 138, 60, 0.12);
+    --git-success-soft-hover: rgba(32, 138, 60, 0.2);
+    --git-success-soft-pressed: rgba(32, 138, 60, 0.3);
+    --git-success-strong: #208a3c;
+    --git-success-strong-pressed: #1b7733;
+    --git-danger-soft: rgba(219, 59, 75, 0.1);
+    --git-danger-soft-hover: rgba(219, 59, 75, 0.18);
+    --git-danger-soft-pressed: rgba(219, 59, 75, 0.28);
+    --git-danger-strong: #db3b4b;
+    --git-danger-strong-pressed: #c22f3f;
+    --git-on-strong: #ffffff;
     --git-refs: #2e55a3;
     --git-badge-bg: #ebecf0;
     --git-field-bg: #ffffff;

@@ -1,6 +1,6 @@
 /*
  * Git 창 공용 스타일. 클래스 이름은 BEM(block__element--modifier)을 따른다.
- * 색·모서리는 모두 Themes/*.uss 의 --git-* 토큰을 쓴다(창 루트에 테마 시트 하나가 붙는다, GitTheme).
+ * 색·모서리는 모두 Themes/*.tss 의 --git-* 토큰을 쓴다(창 루트에 테마 시트 하나가 붙는다, GitTheme).
  */
 
 /* 글꼴: IBM Plex Sans KR(SIL OFL 1.1, Fonts/IBMPlexSansKR-OFL.txt). TTF 를 직접 참조한다(글꼴 에셋·아틀라스 파일 없음).
@@ -164,6 +164,7 @@
     flex-direction: row;
     flex-shrink: 0;
     align-items: center;
+    margin-right: 4px;
 }
 
 /* ── view-mode-switch: 경로/트리 전환(GitKraken 형태의 두 칸 묶음) ─── */
@@ -255,31 +256,39 @@
     min-height: 0;
 }
 
+/* 트리 줄과 같은 왼쪽 자리(4px)에서 시작하는 보조 줄. 글자 버튼은 머리 글자처럼 흐린 색으로 두고, 올리면 진해진다. */
 .file-tree__toolbar {
     flex-direction: row;
     flex-shrink: 0;
     align-items: center;
-    height: 22px;
-    min-height: 22px;
+    height: 26px;
+    min-height: 26px;
     padding: 0 4px;
     background-color: var(--git-list-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-divider);
 }
 
 .file-tree__expand-toggle {
-    height: 18px;
+    height: 20px;
     margin: 0;
     padding: 0 6px;
     border-width: 0;
     border-radius: var(--git-radius);
     background-color: rgba(0, 0, 0, 0);
     font-size: 11px;
-    color: var(--git-text);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-text-muted);
     -unity-text-align: middle-left;
 }
 
 .file-tree__expand-toggle:hover {
     background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+/* 트리 줄이 목록 왼쪽 끝에 붙지 않게(경로 보기의 줄 여백 4px 와 같은 자리). */
+.file-browser .unity-tree-view__item {
+    padding-left: 4px;
 }
 
 /* ── list: ListView 공용 ───────────────────────────── */

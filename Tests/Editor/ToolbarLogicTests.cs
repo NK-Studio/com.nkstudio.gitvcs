@@ -52,25 +52,29 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(expected, UiScaleController.Clamp(scale), 0.0001f);
         }
 
-        [TestCase(GitThemeStyle.JetBrains, true, "JetBrainsDark")]
-        [TestCase(GitThemeStyle.JetBrains, false, "JetBrainsLight")]
-        [TestCase(GitThemeStyle.Unity, true, "UnityDark")]
-        [TestCase(GitThemeStyle.Unity, false, "UnityLight")]
-        public void Test_GitTheme_SheetName_CombinesStyleAndSkin(GitThemeStyle style, bool isDark, string expected)
+        [TestCase(true, "JetBrainsDark")]
+        [TestCase(false, "JetBrainsLight")]
+        public void Test_GitTheme_SheetName_FollowsBrightness(bool isDark, string expected)
         {
-            Assert.AreEqual(expected, GitTheme.SheetName(style, isDark));
+            Assert.AreEqual(expected, GitTheme.SheetName(isDark));
+        }
+
+        [TestCase(GitThemeMode.Dark, false, true)]
+        [TestCase(GitThemeMode.Light, true, false)]
+        [TestCase(GitThemeMode.System, true, true)]
+        [TestCase(GitThemeMode.System, false, false)]
+        public void Test_GitTheme_ResolveIsDark_SystemFollowsEditorSkin(GitThemeMode mode, bool editorIsDark, bool expected)
+        {
+            Assert.AreEqual(expected, GitTheme.ResolveIsDark(mode, editorIsDark));
         }
 
         [Test]
         public void Test_GitTheme_EverySheetExists()
         {
-            foreach (GitThemeStyle style in (GitThemeStyle[])System.Enum.GetValues(typeof(GitThemeStyle)))
+            foreach (bool isDark in new[] { true, false })
             {
-                foreach (bool isDark in new[] { true, false })
-                {
-                    string path = $"Packages/com.nkstudio.gitvcs/Editor/UI/Themes/{GitTheme.SheetName(style, isDark)}.uss";
-                    Assert.IsNotNull(UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.StyleSheet>(path), path);
-                }
+                string path = $"Packages/com.nkstudio.gitvcs/Editor/UI/Themes/{GitTheme.SheetName(isDark)}.tss";
+                Assert.IsNotNull(UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.ThemeStyleSheet>(path), path);
             }
         }
 

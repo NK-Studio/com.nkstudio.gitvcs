@@ -487,7 +487,7 @@ namespace GitVersionControl
             column.AddToClassList("git-diff-binary__column");
             VisualElement card = new();
             card.AddToClassList("git-diff-binary__card");
-            Image icon = new() { image = UnityEditorInternal.InternalEditorUtility.GetIconForFile(repoPath ?? string.Empty), scaleMode = ScaleMode.ScaleToFit };
+            Image icon = new() { image = GitTheme.SkinIcon(UnityEditorInternal.InternalEditorUtility.GetIconForFile(repoPath ?? string.Empty)), scaleMode = ScaleMode.ScaleToFit };
             icon.AddToClassList("git-diff-binary__icon");
             card.Add(icon);
             string extension = System.IO.Path.GetExtension(repoPath ?? string.Empty);

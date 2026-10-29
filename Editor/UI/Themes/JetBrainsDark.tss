@@ -1,4 +1,6 @@
-/* JetBrains — Dark (IntelliJ/Android Studio 2026 Dark: 모든 패널이 같은 바탕이고 얇은 구분선으로만 나눈다). 색·모서리 토큰만 정의한다 — 배치·모양은 Styles/*.uss 가 이 토큰을 쓴다. */
+@import url("../Styles/GitThemes.uss");
+
+/* JetBrains — Dark (IntelliJ/Android Studio 2026 Dark: 모든 패널이 같은 바탕이고 얇은 구분선으로만 나눈다). 색·모서리 토큰을 정의하고, Unity 기본 컨트롤이 이 토큰을 따르게 하는 Styles/GitThemes.uss 를 함께 묶는다. 배치·모양은 Styles/*.uss 가 이 토큰을 쓴다. */
 :root {
     --git-bg: #191a1c;
     --git-sidebar-bg: #191a1c;
@@ -7,6 +9,8 @@
     --git-list-bg: #191a1c;
     --git-text: #d1d3d9;
     --git-text-muted: #80838a;
+    /* 위 작업 막대(Fetch·Push…) 아이콘. */
+    --git-action-icon: #d1d3d9;
     --git-border: #33353b;
     --git-divider: #26282c;
     --git-hover: #26282c;
@@ -30,6 +34,19 @@
     --git-success: #5fb865;
     --git-warning: #d6ae58;
     --git-danger: #db5c5c;
+    /* 성공(Stage·추가)·위험(Unstage·버리기) 버튼: 테두리는 --git-success·--git-danger, 바탕은 같은 색을 옅게(soft → 올림 → 누름),
+       꽉 채운 바탕(strong, 누름)과 그 위 글자(--git-on-strong). */
+    --git-success-soft: rgba(95, 184, 101, 0.18);
+    --git-success-soft-hover: rgba(95, 184, 101, 0.32);
+    --git-success-soft-pressed: rgba(95, 184, 101, 0.45);
+    --git-success-strong: rgba(95, 184, 101, 0.6);
+    --git-success-strong-pressed: rgba(95, 184, 101, 0.8);
+    --git-danger-soft: rgba(219, 92, 92, 0.18);
+    --git-danger-soft-hover: rgba(219, 92, 92, 0.32);
+    --git-danger-soft-pressed: rgba(219, 92, 92, 0.45);
+    --git-danger-strong: rgba(219, 92, 92, 0.6);
+    --git-danger-strong-pressed: rgba(219, 92, 92, 0.8);
+    --git-on-strong: #ffffff;
     --git-refs: #3876fd;
     --git-badge-bg: #33353b;
     --git-field-bg: #191a1c;

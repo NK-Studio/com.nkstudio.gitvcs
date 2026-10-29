@@ -77,7 +77,8 @@ namespace GitVersionControl
         [SerializeField] private List<string> _diffToolPaths = new();
         [SerializeField] private float _gitWindowScale = 1f;
         [SerializeField] private float _diffWindowScale = 1f;
-        [SerializeField] private int _theme = (int)GitThemeStyle.JetBrains;
+        // 예전 _theme(JetBrains·Unity 모양)과 이름을 달리해, 남아 있던 값이 밝기로 잘못 읽히지 않고 System 에서 시작하게 한다.
+        [SerializeField] private int _themeMode = (int)GitThemeMode.System;
         [SerializeField] private int _layout;
         [SerializeField] private bool _showInMainToolbar = true;
         [SerializeField] private int _menuStyle;
@@ -433,15 +434,15 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 창 모양(JetBrains·Unity). 읽기·바꾸기는 <see cref="GitTheme"/> 를 통한다 — 바꾸면 열린 창이 다시 칠해야 해서.
+        /// 창 밝기(System·Dark·Light). 읽기·바꾸기는 <see cref="GitTheme"/> 를 통한다 — 바꾸면 열린 창이 다시 칠해야 해서.
         /// </summary>
-        public GitThemeStyle Theme
+        public GitThemeMode ThemeMode
         {
-            get => (GitThemeStyle)_theme;
+            get => (GitThemeMode)_themeMode;
             set
             {
                 int index = (int)value;
-                SetAndSave(ref _theme, index);
+                SetAndSave(ref _themeMode, index);
             }
         }
 
