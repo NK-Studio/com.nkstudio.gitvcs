@@ -306,9 +306,49 @@ PR 상세 화면: `#번호`, 제목, 상태 배지(Open/Draft), "작성자 wants
 | 서랍 보조 버튼 | Unity 기본 회색 대신 흰 바탕·얇은 테두리(취소·Browse·View on GitHub…) | Create PR·Create Worktree·PR 상세에서 확인 |
 | PR 서랍 열 때 깜빡임 | 칸을 비웠다 다시 채우며 "Select…"·병합 커밋 제목이 잠깐 보였다 → 지난 참조로 같은 프레임에 채움, 처음엔 다 읽을 때까지 숨김, 병합 아닌 제목은 기억해 바로 씀 | 프레임별 값 기록으로 확인(두 번째부터 첫 프레임에 값이 다 있음, 처음엔 제목만 한 프레임 늦음) |
 
+## 7차 — Windows 확인·설정 정리 (2026-10-29)
+
+Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트(gitTest)에 git URL 로 설치한 뒤 패키지를 Packages/ 에 내려받아(embedded) 고치며 확인.
+원격은 로컬 bare 저장소(`origin`, Windows 경로)와 시험 저장소(`github` = `NK-Studio/gitvcs-pr-test-www`, Push 하지 않음) 둘.
+검증: 설치 직후 EditMode 844/844 통과(건너뜀 0), 아래 수정 뒤 849/849(새 회귀 테스트 5개). Unity 재컴파일 오류 0. 마우스·키보드로 실제 조작.
+
+### 통과
+
+| 영역 | 확인한 것 |
+|---|---|
+| 설정 | Project Settings 의 git init 화면 안 확인 → 저장소 생성, Git 창 바로 반영 |
+| 원격 | 원격 없을 때 Push → 리모트 추가 카드, "/" 거부, `E:\…\gitTest-remote.git` 받음, 빈 원격 표시, GitHub 탭 저장소 목록 |
+| 커밋 | 커밋 직후 입력칸 비움, .meta 없는 새 에셋 경고 → ".meta 도 함께 커밋" 이 Unity 임포트를 돌려 새로 생긴 .meta 까지 커밋 |
+| 바깥 변경 | 탐색기·터미널에서 만든 파일이 Refresh 없이 약 1초 안에 보임(`WindowsDirectoryWatcher`) |
+| 스테이징 | Stage 즉시 이동, 스테이징 뒤 또 고친 파일(MM) 양쪽 표시, 나란히 보기 오른쪽 + 로 수정 짝 함께 스테이징(CRLF 경고 있는 저장소에서도) |
+| 충돌 | 진행 배너·Pull/Push 꺼짐·충돌 구역·병합 메시지 채움, 마커 경고(그대로 Stage), 우클릭 ours 로 해결 → 이어가기, 중단 → 시작 전 상태 |
+| Stash·Pop | 새 파일까지 stash, Pop 때 같은 내용 새 파일은 조용히 치우고 다른 내용만 카드 → 버리고 Pop 으로 끝까지 복원 |
+| 브랜치 | 이름 칸 실시간 검사(공백·`..`), 커밋 안 한 변경 안내 후 전환, 새 브랜치 Push 때 원격 둘이면 고르기 카드 |
+| PR | 묶음·원격 줄·호버 카드·⋮ 메뉴, 그래프로 가기, 상세 서랍, Draft ↔ Ready, 닫기(확인 카드) → 다시 열기(GitHub 에서 상태 확인 후 원래대로) |
+| 콘솔 | 실행 중 경고·오류 없음(FocusController 경고 없음) |
+
+### 새로 찾아 고친 것
+
+| ID | 증상 | 원인 → 수정 |
+|---|---|---|
+| W-01 | 개인 설정(언어·테마·git 경로·Diff 등)이 Project Settings 에 있음 | Project Settings 는 저장소에 매인 것(GitHub 계정·자동 Fetch·rebase 멈추기·.meta 묶기·저장소)만, 나머지는 Preferences > Git 으로. 값은 EditorPrefs 에 두어 모든 프로젝트 공통, 처음 열 때 UserSettings 값을 옮김. git 이 백그라운드에서 읽으므로 필드를 캐시로 씀(`GitVcsSettings.OnEnable`) |
+| W-02 | Windows 에서 갈라진 Pull 이 묻지 않고 바로 병합 | Git for Windows 설치 프로그램이 시스템 gitconfig 에 `pull.rebase=false` 를 늘 써 둠 → 시스템 범위 값은 무시(`ParseScopedPullRebase`, `--show-scope`) |
+| W-03 | Fetch 전 Pull 이 충돌하면 빨간 "Pull 실패"(fetch 줄만 보임) | fetch 줄은 stderr, CONFLICT 는 stdout 인데 `GitResult.Message` 가 stderr 만 씀 → 실패면 둘 다 |
+| W-04 | Fork·Unity VCS 배치에서 [충돌 보기] 무반응 | GitKraken 뷰에만 연결 → `GitView.ShowConflicts` 로 세 배치 모두 |
+| W-05 | 한국어 중단 확인 카드의 두 버튼이 모두 "취소" | `inprogress.abort` → "중단", "{0} 을(를)" 띄어쓰기 |
+| W-06 | Fork 배치 Shift+Stage(전부) 무반응 | Button 의 Clickable 이 수정 키 없는 클릭만 받음 → Shift 활성기 추가(모든 OS) |
+| W-07 | 로컬 폴더 원격에 첫 Push 해도 PR 만들기 제안 → 빈 서랍 | 올린 원격이 GitHub 일 때만 제안(`PushedToGitHubAsync`) |
+
+### 남은 관찰(고치지 않음)
+
+- 패키지를 embedded 로 두면 Unity 6.7 분석기 경고(UAL0010·UAL0013) 16개: `GitCommand`·`GitIntegration`·`GitPullRequestFilter`·`GitShadow`·`HoverCallout` 에 `NoAutoStaticsCleanup` 이 없음. git URL 설치에서는 안 보임.
+- Draft PR 상세의 병합 안내가 "GitHub 에서 Ready for review 로 바꾸면" — 바로 옆에 Ready for review 버튼이 있다.
+- 한국어 글의 "{0} 을(를)" 띄어쓰기가 9곳 더 있다.
+- Push 뒤 Unity 기본 툴팁 글이 잠깐 남는 것(P1-05).
+
 ## 남은 일과 시험 흔적 (2026-10-29)
 
-- **Windows 전체 확인**: macOS 에서 개발을 마친 뒤 마지막에 Windows 로 옮겨 1~6차 항목을 다시 확인한다(사용자 결정).
+- **Windows 전체 확인**: 7차에서 했다. 확인하지 않은 것: 대화·코멘트·리뷰 쓰기(GitHub 에 흔적이 남아 하지 않음), Hunk 버리기, 워크트리, 언어 전환 체감 속도.
 - **시험 흔적은 Windows 확인을 위해 일부러 남겨 둔다**(사용자 결정). Windows 에서도 같은 원격·PR·브랜치로 Push·Pull·충돌·PR 화면(대화·리뷰·Draft·닫기)을 다시 해 보려는 것이다. Windows 확인이 끝나면 지운다.
   - www 저장소의 `origin` 원격 → 시험 저장소 `NK-Studio/gitvcs-pr-test-www`(비공개)
   - 그 저장소의 PR #2~4(#2 에는 hykim-nk 의 승인·변경 요청 기록이 남아 있다 — GitHub 리뷰는 지울 수 없다), 브랜치 `feature/pr-menu-a`·`feature/pr-menu-b`·`feature/pr-menu-draft`·`test/round2`
