@@ -62,6 +62,14 @@ namespace GitVersionControl
         {
         }
 
+        /// <summary>충돌 안내의 "충돌 보기"를 이 탭이 받는지. 레이아웃마다 변경 탭이 다르다(GitKraken·Fork·Unity VCS).</summary>
+        public virtual bool ShowsConflicts => false;
+
+        /// <summary>"충돌 보기": 탭을 앞으로 가져온 뒤에 불린다. 첫 충돌 파일의 diff 를 연다.</summary>
+        public virtual void ShowConflicts()
+        {
+        }
+
         public virtual void Dispose()
         {
         }

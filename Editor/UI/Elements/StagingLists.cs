@@ -145,6 +145,9 @@ namespace GitVersionControl
             _staged.FolderPathContextMenuRequested += PopulateStagedFolderMenu;
 
             // 누른 순간의 Shift 는 클릭 이벤트에서 읽는다(키 추적이 놓쳐도 맞게). null 이면 전부.
+            // Button 의 Clickable 은 기본으로 수정 키 없는 왼쪽 클릭에만 반응하므로 Shift+클릭도 받게 한다.
+            _stageButton.clickable.activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse, modifiers = UnityEngine.EventModifiers.Shift });
+            _unstageButton.clickable.activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse, modifiers = UnityEngine.EventModifiers.Shift });
             _stageButton.clickable.clickedWithEventInfo += evt => Stage(ButtonTargets(_selectedUnstaged, ShiftOf(evt)));
             _unstageButton.clickable.clickedWithEventInfo += evt => Unstage(ButtonTargets(_selectedStaged, ShiftOf(evt)));
 

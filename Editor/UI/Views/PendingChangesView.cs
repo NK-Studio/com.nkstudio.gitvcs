@@ -128,6 +128,18 @@ namespace GitVersionControl
             UpdateCommitArea();
         }
 
+        public override bool ShowsConflicts => true;
+
+        /// <summary>충돌 안내의 "충돌 보기": 첫 충돌 파일을 골라 diff 를 연다.</summary>
+        public override void ShowConflicts()
+        {
+            GitStatusEntry conflict = Services.Repository.Entries.FirstOrDefault(e => e.State == GitFileState.Conflicted);
+            if (conflict != null)
+            {
+                _files.SelectFile(conflict.RepoPath);
+            }
+        }
+
         public override void Dispose()
         {
             GitVcsSettings.MetaGroupingChanged -= OnMetaGroupingChanged;

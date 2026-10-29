@@ -179,7 +179,7 @@ namespace GitVersionControl
             };
             _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
             _services.AddRemoteRequested = addRemote.Open;
-            _services.ShowConflictsRequested = () => SelectTab<GraphWorkspaceView>()?.ShowConflicts();
+            _services.ShowConflictsRequested = ShowConflicts;
             _services.CreatePullRequestRequested = createPullRequest.OpenFor;
             createPullRequest.Created += _refs.ReloadPullRequests;
             foreach (RefSection section in RefTreeBuilder.Sections)
@@ -521,6 +521,20 @@ namespace GitVersionControl
             {
                 _body.UnCollapse();
             }
+        }
+
+        /// <summary>
+        /// 충돌 안내의 "충돌 보기": 지금 레이아웃의 변경 탭(GitKraken 작업 공간·Fork 로컬 변경·Unity VCS 대기 중인 변경)을 열고 첫 충돌 파일을 고른다.
+        /// </summary>
+        private void ShowConflicts()
+        {
+            int index = _views.FindIndex(view => view.ShowsConflicts);
+            if (index < 0)
+            {
+                return;
+            }
+            SelectTab(index);
+            _views[index].ShowConflicts();
         }
 
         public T SelectTab<T>() where T : GitView

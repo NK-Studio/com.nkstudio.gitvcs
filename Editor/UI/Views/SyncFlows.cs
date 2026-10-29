@@ -136,6 +136,7 @@ namespace GitVersionControl
             if (result.Success)
             {
                 if (string.IsNullOrEmpty(newBranch) == false && _services.CreatePullRequestRequested != null
+                    && await PushedToGitHubAsync(newBranch)
                     && await Dialogs.ConfirmAsync(GitText.Get("push.doneTitle"), GitText.Format("push.offerPullRequest", newBranch), GitText.Get("pr.create"),
                         cancel: GitText.Get("common.close"), icon: ActionGlyphKind.PullRequest))
                 {
@@ -156,6 +157,20 @@ namespace GitVersionControl
                 return;
             }
             await ShowErrorAsync(title, result.Message);
+        }
+
+        /// <summary>
+        /// 브랜치를 올린 원격이 GitHub 인지. 로컬 폴더·다른 호스트 원격이면 Pull Request 를 권하지 않는다(서랍이 빈 채로 열린다).
+        /// </summary>
+        private static async Task<bool> PushedToGitHubAsync(string branch)
+        {
+            GitResult remote = await GitRepository.RunAsync("config", "--get", $"branch.{branch}.remote");
+            if (remote.Success == false)
+            {
+                return false;
+            }
+            GitResult url = await GitRepository.RunAsync("remote", "get-url", remote.Output.Trim());
+            return url.Success && GitAvatarSources.TryParseGitHubRemote(url.Output.Trim(), out _, out _);
         }
 
         // ── Stash Pop ─────────────────────────────────────

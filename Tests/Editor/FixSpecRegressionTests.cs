@@ -262,6 +262,18 @@ namespace GitVersionControl.Tests
             Assert.IsNull(GitOperations.ParsePullRebase(value));
         }
 
+        /// <summary>
+        /// Git for Windows 가 시스템 설정에 써 둔 pull.rebase 는 사용자가 고른 값이 아니므로 묻는다(null).
+        /// </summary>
+        [TestCase("system\tfalse\n", null)]
+        [TestCase("global\tfalse\n", GitPullMode.Merge)]
+        [TestCase("local\ttrue\n", GitPullMode.Rebase)]
+        [TestCase("", null)]
+        public void Test_ParseScopedPullRebase(string output, GitPullMode? expected)
+        {
+            Assert.AreEqual(expected, GitOperations.ParseScopedPullRebase(output));
+        }
+
         [TestCase("1\t1\n", true, 1, 1)]
         [TestCase("0 3", true, 0, 3)]
         [TestCase("", false, 0, 0)]
@@ -401,6 +413,22 @@ namespace GitVersionControl.Tests
         public void Test_ParseSearchNumbers()
         {
             CollectionAssert.AreEquivalent(new[] { 3, 9 }, GitPullRequestList.ParseSearchNumbers("{\"total_count\":2,\"items\":[{\"number\":3},{\"number\":9}]}"));
+        }
+
+        /// <summary>
+        /// fetch 하지 않은 채 Pull 하면 git 은 fetch 줄을 stderr 에, 충돌 안내를 stdout 에 쓴다. 둘 다 봐야 빨간 오류 대신 충돌 카드가 뜬다(POP-10, Windows 시험).
+        /// </summary>
+        [Test]
+        public void Test_FailedPull_WithFetchOnStderr_IsConflict()
+        {
+            GitResult result = new(1,
+                "Auto-merging Assets/Notes.txt\nCONFLICT (content): Merge conflict in Assets/Notes.txt\nAutomatic merge failed; fix conflicts and then commit the result.\n",
+                "From E:\\remote\n   aff08ff..83dd91e  master     -> origin/master\n");
+
+            GitErrorAdvice advice = GitErrorAdvice.Explain(result.Message);
+
+            Assert.AreEqual(GitErrorKind.Conflict, advice.Kind);
+            CollectionAssert.Contains(advice.Files, "Assets/Notes.txt");
         }
     }
 }

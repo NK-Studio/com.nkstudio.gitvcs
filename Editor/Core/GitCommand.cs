@@ -33,8 +33,24 @@ namespace GitVersionControl
 
         /// <summary>
         /// 실패 시 사용자에게 보여 줄 한 덩어리 메시지. git 은 오류를 stderr 에, 일부 안내를 stdout 에 쓴다.
+        /// 실패했는데 양쪽에 다 썼으면 둘 다 넣는다 — pull 은 fetch 줄("From … -> origin/main")을 stderr 에,
+        /// "CONFLICT …"·"Automatic merge failed" 를 stdout 에 써서 stderr 만 보면 충돌을 알아보지 못한다.
         /// </summary>
-        public string Message => string.IsNullOrWhiteSpace(Error) ? Output.Trim() : Error.Trim();
+        public string Message
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Error))
+                {
+                    return Output?.Trim() ?? string.Empty;
+                }
+                if (Success || string.IsNullOrWhiteSpace(Output))
+                {
+                    return Error.Trim();
+                }
+                return Error.Trim() + "\n" + Output.Trim();
+            }
+        }
     }
 
     /// <summary>

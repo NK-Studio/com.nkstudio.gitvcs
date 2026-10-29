@@ -76,6 +76,14 @@ namespace GitVersionControl
             _commit.Render();
         }
 
+        public override bool ShowsConflicts => true;
+
+        /// <summary>충돌 안내의 "충돌 보기": 첫 충돌 파일을 골라 diff 를 연다.</summary>
+        public override void ShowConflicts()
+        {
+            _staging.SelectFirstConflict();
+        }
+
         public override void Dispose()
         {
             _staging.Dispose();

@@ -382,8 +382,10 @@ namespace GitVersionControl
             ShowWip();
         }
 
+        public override bool ShowsConflicts => true;
+
         /// <summary>충돌 안내의 "충돌 보기": 작업 변경으로 바꾸고 첫 충돌 파일의 diff 를 연다.</summary>
-        public void ShowConflicts()
+        public override void ShowConflicts()
         {
             ShowWorkingChanges();
             _staging.SelectFirstConflict();

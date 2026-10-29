@@ -202,11 +202,25 @@ namespace GitVersionControl
 
         /// <summary>
         /// 저장소 설정(<c>pull.rebase</c>)이 정한 Pull 방식. 정하지 않았으면 null(먼저 fast-forward 를 해 보고 갈라졌으면 묻는다).
+        /// 시스템 설정의 값은 보지 않는다 — Git for Windows 설치 프로그램이 기본 선택("fast-forward or merge")으로
+        /// 시스템 gitconfig 에 pull.rebase=false 를 늘 써 두어, 그대로 따르면 Windows 에서는 묻는 카드가 뜨지 않는다.
         /// </summary>
         public static async Task<GitPullMode?> ConfiguredPullModeAsync()
         {
-            GitResult result = await GitRepository.RunAsync("config", "--get", "pull.rebase");
-            return ParsePullRebase(result.Success ? result.Output : null);
+            GitResult result = await GitRepository.RunAsync("config", "--show-scope", "--get", "pull.rebase");
+            return ParseScopedPullRebase(result.Success ? result.Output : null);
+        }
+
+        /// <param name="output"><c>git config --show-scope --get</c> 의 출력("global\ttrue").</param>
+        public static GitPullMode? ParseScopedPullRebase(string output)
+        {
+            string line = (output ?? string.Empty).Trim();
+            int tab = line.IndexOf('\t');
+            if (tab < 0)
+            {
+                return ParsePullRebase(line);
+            }
+            return line.Substring(0, tab) == "system" ? null : ParsePullRebase(line.Substring(tab + 1));
         }
 
         public static GitPullMode? ParsePullRebase(string value)
