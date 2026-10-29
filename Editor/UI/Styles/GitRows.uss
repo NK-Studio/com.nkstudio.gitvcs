@@ -112,10 +112,12 @@
 .file-row .file-row__action--stage:hover:enabled {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .file-row .file-row__action--stage:active:enabled {
     background-color: var(--git-success-strong-pressed);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .file-row .file-row__action--unstage {
@@ -126,10 +128,12 @@
 .file-row .file-row__action--unstage:hover:enabled {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .file-row .file-row__action--unstage:active:enabled {
     background-color: var(--git-danger-strong-pressed);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 /* git 작업 결과가 보이기 전에는 줄 버튼을 끈다(StagingLists 가 SetRowActionEnabled). 꺼진 게 보이게 흐리게. */

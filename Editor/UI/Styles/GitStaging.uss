@@ -61,11 +61,13 @@
 .staging__button--stage:hover:enabled {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .staging__button--stage:active:enabled {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .staging__button--unstage {
@@ -76,11 +78,13 @@
 .staging__button--unstage:hover:enabled {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .staging__button--unstage:active:enabled {
     background-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 /* Fork 모드(--fork, StagingLists.ShiftForAll): 초록·빨강 없이 무채색. 위 규칙보다 세게 하려고 같은 꼴에 클래스를 하나 더 얹는다.
@@ -242,11 +246,13 @@
 .graph-workspace__discard-all:hover {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .graph-workspace__discard-all:active {
     background-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 .graph-workspace__discard-all:disabled {

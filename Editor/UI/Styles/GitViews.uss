@@ -793,11 +793,13 @@
 .branch-dialog .branch-dialog__create:hover:enabled {
     background-color: var(--git-accent);
     color: var(--git-accent-text);
+    border-color: var(--git-accent);
 }
 
 .branch-dialog .branch-dialog__create:active:enabled {
     background-color: var(--git-accent-hover);
     color: var(--git-accent-text);
+    border-color: var(--git-accent-hover);
 }
 
 .branch-dialog .branch-dialog__create:disabled {
@@ -838,11 +840,13 @@
 .branch-dialog .branch-dialog__create.confirm-dialog__button--danger:hover:enabled {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .branch-dialog .branch-dialog__create.confirm-dialog__button--danger:active:enabled {
     background-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 .branch-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline {
@@ -967,6 +971,7 @@
     background-color: var(--git-accent);
     color: var(--git-accent-text);
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    border-color: var(--git-accent);
 }
 
 .error-dialog__body {

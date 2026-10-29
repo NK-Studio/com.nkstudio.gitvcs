@@ -628,12 +628,14 @@
 .diff-row .diff-row__hunk-button--stage:hover {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active,
 .diff-row .diff-row__hunk-button--stage:active {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
@@ -649,6 +651,7 @@
 .diff-row .diff-row__hunk-button--discard:hover {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:active,
@@ -656,6 +659,7 @@
 .diff-row .diff-row__hunk-button--discard:active {
     background-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 /* ── 이미지 diff (GitImageDiffView) ─────────────────── */
@@ -1077,11 +1081,13 @@
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:hover {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:active {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .git-diff__bar-button.git-diff__bar-button--outlined.git-diff__edit-save:disabled {

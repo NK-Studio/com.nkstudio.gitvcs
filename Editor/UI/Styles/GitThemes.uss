@@ -326,11 +326,13 @@
 .git-theme--jetbrains .pending-changes__commit-button:hover:enabled {
     background-color: var(--git-accent);
     color: var(--git-accent-text);
+    border-color: var(--git-accent);
 }
 
 .git-theme--jetbrains .pending-changes__commit-button:active:enabled {
     background-color: var(--git-accent-hover);
     color: var(--git-accent-text);
+    border-color: var(--git-accent-hover);
 }
 
 .git-theme--jetbrains .pending-changes__commit-button:disabled {

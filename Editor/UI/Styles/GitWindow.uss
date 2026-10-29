@@ -82,11 +82,13 @@
 .github-connect__primary:hover:enabled {
     background-color: var(--git-accent);
     color: var(--git-accent-text);
+    border-color: var(--git-accent);
 }
 
 .github-connect__primary:active:enabled {
     background-color: var(--git-accent-hover);
     color: var(--git-accent-text);
+    border-color: var(--git-accent-hover);
 }
 
 .github-connect__code {
@@ -1213,11 +1215,13 @@
 .side-drawer__primary:hover:enabled {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .side-drawer__primary:active:enabled {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .side-drawer__primary:disabled {
@@ -1372,6 +1376,7 @@
 .side-drawer__secondary.submodule-edit__open:hover:enabled {
     background-color: var(--git-accent);
     color: var(--git-on-strong);
+    border-color: var(--git-accent);
 }
 
 .side-drawer__secondary.submodule-edit__delete {
@@ -1381,6 +1386,19 @@
 
 .side-drawer__secondary.submodule-edit__delete:hover:enabled {
     background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
+}
+
+.side-drawer__secondary.submodule-edit__open:active:enabled {
+    background-color: var(--git-accent-hover);
+    border-color: var(--git-accent-hover);
+    color: var(--git-on-strong);
+}
+
+.side-drawer__secondary.submodule-edit__delete:active:enabled {
+    background-color: var(--git-danger-strong-pressed);
+    border-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
 }
 
@@ -1649,12 +1667,14 @@
 .side-drawer__secondary.pr-detail__request-changes:hover:enabled {
     background-color: var(--git-danger-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong);
 }
 
 .side-drawer__secondary.pr-detail__danger:active:enabled,
 .side-drawer__secondary.pr-detail__request-changes:active:enabled {
     background-color: var(--git-danger-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-danger-strong-pressed);
 }
 
 .side-drawer__secondary.pr-detail__approve {
@@ -1665,11 +1685,13 @@
 .side-drawer__secondary.pr-detail__approve:hover:enabled {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong);
 }
 
 .side-drawer__secondary.pr-detail__approve:active:enabled {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
+    border-color: var(--git-success-strong-pressed);
 }
 
 .pr-detail__timeline {
