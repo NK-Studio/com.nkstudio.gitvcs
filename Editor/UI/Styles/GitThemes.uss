@@ -164,8 +164,16 @@
     background-color: var(--git-pressed);
 }
 
+/* 토글은 꺼져 있어도 테두리로 "누를 수 있는 켜고 끄는 것" 임을 보이고, 켜지면 강조색으로 채운다(라벨과 헷갈리지 않게). */
+.git-theme--jetbrains .unity-toolbar-toggle {
+    border-width: 1px;
+    border-color: var(--git-button-border);
+}
+
 .git-theme--jetbrains .unity-toolbar-toggle:checked {
-    color: var(--git-text);
+    border-color: var(--git-accent);
+    background-color: var(--git-accent);
+    color: var(--git-accent-fg);
 }
 
 /* 입력란·드롭다운: 얇은 테두리와 둥근 모서리. */

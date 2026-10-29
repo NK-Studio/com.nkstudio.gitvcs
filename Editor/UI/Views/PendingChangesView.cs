@@ -297,7 +297,8 @@ namespace GitVersionControl
         {
             string list = string.Join("\n", entries.Take(10).Select(e => e.ProjectPath ?? e.RepoPath))
                           + (entries.Count > 10 ? GitText.Format("pending.discardMore", entries.Count - 10) : string.Empty);
-            if (Services.Dialogs.Confirm(GitText.Get("pending.discard"), GitText.Format("pending.discardMessage", list), GitText.Get("op.discard")) == false)
+            if (await Services.Dialogs.ConfirmAsync(GitText.Get("pending.discard"), GitText.Format("pending.discardMessage", list), GitText.Get("op.discard"),
+                    danger: true, icon: ActionGlyphKind.Undo) == false)
             {
                 return;
             }

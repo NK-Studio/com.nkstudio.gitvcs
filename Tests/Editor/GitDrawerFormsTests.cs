@@ -176,18 +176,29 @@ namespace GitVersionControl.Tests
                 Login = "me",
                 All = { new GitPullRequestInfo { Number = 7, Title = "Login", Author = "me" }, new GitPullRequestInfo { Number = 8, Title = "Fix", Author = "bob" } },
             };
-            RefNode section = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, null, s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
+            set.Remote = "origin";
+            List<GitPullRequestFilter> filters = GitPullRequestFilters.Defaults();
+            RefNode section = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, null, s => s.ToString(), null, null, filters)
+                .Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual("2", section.Badge);
-            Assert.AreEqual(4, section.Children.Count);
-            Assert.AreEqual("1", section.Children[0].Badge);
-            Assert.AreEqual("#7 Login", section.Children[0].Children[0].Label);
+            // GitKraken 처럼: 맨 위 검색 줄, 그 아래 필터 묶음 넷.
+            Assert.AreEqual(RefNodeKind.PullRequestSearch, section.Children[0].Kind);
+            Assert.AreEqual(5, section.Children.Count);
+            RefNode mine = section.Children[1];
+            Assert.AreEqual("1", mine.Badge);
+            // 묶음 아래 원격(origin) 줄, 그 아래 PR.
+            Assert.AreEqual(RefNodeKind.PullRequestRemote, mine.Children[0].Kind);
+            Assert.AreEqual("origin", mine.Children[0].Label);
+            Assert.AreEqual("#7 Login", mine.Children[0].Children[0].Label);
+            Assert.AreEqual(0, mine.FilterIndex);
 
-            // 검색하면 걸린 PR 이 있는 묶음만 남는다.
-            RefNode filtered = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, "#8", s => s.ToString()).Single(r => r.Section == RefSection.PullRequests);
+            // 검색하면 걸린 PR 이 있는 묶음만 남는다(검색 줄도 뺀다).
+            RefNode filtered = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = set }, "#8", s => s.ToString(), null, null, filters)
+                .Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual(new[] { "prList.groupAll" }, filtered.Children.Select(c => c.Label).ToArray());
 
             // 목록이 없으면 안내 한 줄, 개수는 0.
-            RefNode signIn = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = new GitPullRequestSet { NeedsSignIn = true } }, null, s => s.ToString())
+            RefNode signIn = RefTreeBuilder.Build(new GitRefSet { RemoteUrls = GitHubOrigin(), PullRequests = new GitPullRequestSet { NeedsSignIn = true } }, null, s => s.ToString(), null, null, filters)
                 .Single(r => r.Section == RefSection.PullRequests);
             Assert.AreEqual("0", signIn.Badge);
             Assert.AreEqual(RefNodeKind.Info, signIn.Children.Single().Kind);

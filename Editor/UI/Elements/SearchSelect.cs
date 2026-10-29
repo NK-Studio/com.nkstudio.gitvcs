@@ -6,6 +6,12 @@ using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
+    /// <summary><see cref="SearchSelect{T}"/> 의 클래스 이름(제네릭이라 다른 곳에서 상수를 바로 볼 수 없어 따로 둔다).</summary>
+    public static class SearchSelectClasses
+    {
+        public const string Open = "search-select--open";
+    }
+
     /// <summary>
     /// 서랍의 "Select…" 칸(GitKraken 의 검색 되는 고르기). 테두리 상자 안에 글자 칸 · 구분선 · ⌄ 를 두고(react-select 와 같은 모양),
     /// 누르거나 쓰거나 ↓ 를 누르면 칸 바로 아래에 걸러진 목록을 펼친다. 목록은 아래 칸들을 밀어 내지 않고 그 위를 덮도록 창의 테마 루트(git-themed)에
@@ -17,7 +23,7 @@ namespace GitVersionControl
     {
         private const string Block = "search-select";
         private const string HighlightModifier = Block + "__item--highlight";
-        private const string OpenModifier = Block + "--open";
+        private const string OpenModifier = SearchSelectClasses.Open;
         private const string FocusedModifier = Block + "__box--focused";
         private const float RowHeight = 24f;
         private const int MaxVisibleRows = 8;
@@ -297,6 +303,13 @@ namespace GitVersionControl
 
         private void OnKeyDown(KeyDownEvent evt)
         {
+            // 목록이 열려 있으면 Esc 는 목록만 닫는다(서랍까지 닫지 않는다 — SideDrawer 가 이 경우를 건너뛴다).
+            if (evt.keyCode == UnityEngine.KeyCode.Escape && Root.ClassListContains(OpenModifier))
+            {
+                SetOpen(false);
+                evt.StopPropagation();
+                return;
+            }
             if (Root.ClassListContains(OpenModifier) == false)
             {
                 if (evt.keyCode == UnityEngine.KeyCode.DownArrow)

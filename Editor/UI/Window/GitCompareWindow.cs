@@ -167,7 +167,7 @@ namespace GitVersionControl
             }
 
             _summary.text = error ?? SummaryOf(files.Count);
-            _files.SetItems(files.Select(change => FileListItem.From(change)));
+            _files.SetItems(FileListItem.FromChanges(files));
             _diff.SetTarget(null);
         }
     }

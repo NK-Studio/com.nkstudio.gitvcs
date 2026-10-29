@@ -51,6 +51,26 @@ namespace GitVersionControl
             return (all, null);
         }
 
+        /// <summary>
+        /// 필터 조건으로 GitHub 를 검색해 맞는 열린 PR 의 번호를 받는다(<c>GET /search/issues</c>). <c>@me</c> 는 GitHub 가 푼다.
+        /// 이 패키지가 받은 PR 정보로 풀 수 없는 조건(review:·status:·created: …)에만 쓴다.
+        /// </summary>
+        public static async Task<(HashSet<int> numbers, string error)> SearchNumbersAsync(GitHubRemoteRepo repository, string query)
+        {
+            string q = $"repo:{repository.Owner}/{repository.Repository} is:pr is:open {query}".Trim();
+            string url = "https://api.github.com/search/issues?per_page=100&q=" + UnityWebRequest.EscapeURL(q);
+            using UnityWebRequest request = UnityWebRequest.Get(url);
+            request.SetRequestHeader("User-Agent", UserAgent);
+            request.SetRequestHeader("Accept", "application/vnd.github+json");
+            request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+            await GitHubAccount.SendAsync(request);
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                return (new HashSet<int>(), GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error);
+            }
+            return (GitPullRequestList.ParseSearchNumbers(request.downloadHandler.text), null);
+        }
+
         /// <returns>성공하면 (번호, 주소, null), 실패하면 (0, null, 오류 문구).</returns>
         public static async Task<(int number, string url, string error)> CreateAsync(GitHubRemoteRepo to, string head, string baseBranch, string title, string body, bool draft)
         {

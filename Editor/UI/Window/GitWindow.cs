@@ -128,6 +128,7 @@ namespace GitVersionControl
             CreateViews(layout.Require<VisualElement>("content"), layout.Require<VisualElement>("sidebar-views"));
             _services.InlineBranches = this;
             _services.PopupHost = _window;
+            GitPopupHosts.Register(this, _window);
             GitContextMenu.Attach(layout, _window);
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             _refs.RevealRequested += Reveal;
@@ -138,6 +139,19 @@ namespace GitVersionControl
             AddWorktreeDrawer addWorktree = AddDrawer(new AddWorktreeDrawer(content, _services));
             AddSubmoduleDrawer addSubmodule = AddDrawer(new AddSubmoduleDrawer(content, _services));
             CreatePullRequestDrawer createPullRequest = AddDrawer(new CreatePullRequestDrawer(content, _services));
+            PullRequestFilterDrawer pullRequestFilter = AddDrawer(new PullRequestFilterDrawer(content, _services));
+            _refs.PullRequestFilterRequested += index =>
+            {
+                if (index < 0)
+                {
+                    pullRequestFilter.OpenNew();
+                }
+                else
+                {
+                    pullRequestFilter.OpenEdit(index);
+                }
+            };
+            _refs.CreateWorktreeRequested += addWorktree.OpenFor;
             _refs.AddRequested += section =>
             {
                 switch (section)
@@ -157,6 +171,9 @@ namespace GitVersionControl
                 }
             };
             _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
+            _services.AddRemoteRequested = addRemote.Open;
+            _services.ShowConflictsRequested = () => SelectTab<GraphWorkspaceView>()?.ShowWorkingChanges();
+            _services.CreatePullRequestRequested = createPullRequest.OpenFor;
             createPullRequest.Created += _refs.ReloadPullRequests;
             foreach (RefSection section in RefTreeBuilder.Sections)
             {
@@ -205,6 +222,7 @@ namespace GitVersionControl
             GitExplorerStyle.Changed -= Rebuild;
             GitHubAccount.Changed -= Rebuild;
             GitRepository.RepositorySwitched -= Rebuild;
+            GitPopupHosts.Unregister(this);
             TearDown();
         }
 
@@ -233,11 +251,38 @@ namespace GitVersionControl
         /// <summary>
         /// 언어가 바뀌면 UI 를 통째로 다시 만든다. 탭 상태(선택 탭·체크·메시지·확대)는 직렬화된 <see cref="GitWindowState"/> 에 있어서 그대로 이어진다.
         /// </summary>
+        private bool _rebuildScheduled;
+
+        /// <summary>
+        /// 창 내용을 다시 만든다(언어·배치·테마 스타일 바꾸기). 다시 만드는 데 1초 남짓 걸리므로, 먼저 "다시 그리는 중" 을 덮어 보이고
+        /// 다음 틀에 만든다 — 메뉴를 고른 뒤 아무 반응 없이 멈춘 것처럼 보이지 않게.
+        /// </summary>
         private void Rebuild()
         {
-            TearDown();
-            rootVisualElement.Clear();
-            Build();
+            if (_rebuildScheduled)
+            {
+                return;
+            }
+            _rebuildScheduled = true;
+            Label busy = new(GitText.Get("window.rebuilding"));
+            busy.AddToClassList("git-window__rebuilding");
+            busy.style.position = Position.Absolute;
+            busy.style.left = 0;
+            busy.style.right = 0;
+            busy.style.top = 0;
+            busy.style.bottom = 0;
+            busy.style.unityTextAlign = TextAnchor.MiddleCenter;
+            busy.style.backgroundColor = new Color(0, 0, 0, 0.25f);
+            busy.style.color = Color.white;
+            busy.style.fontSize = 14;
+            rootVisualElement.Add(busy);
+            rootVisualElement.schedule.Execute(() =>
+            {
+                _rebuildScheduled = false;
+                TearDown();
+                rootVisualElement.Clear();
+                Build();
+            });
         }
 
         /// <summary>창 오른쪽 위 ⋮ 메뉴에 언어 선택을 더한다.</summary>
@@ -276,7 +321,7 @@ namespace GitVersionControl
                 string error = GitTerminal.Open(repoRoot);
                 if (error != null)
                 {
-                    EditorUtility.DisplayDialog(GitText.Get("actionbar.terminalFailed"), error, GitText.Get("common.ok"));
+                    _ = _services.Dialogs.AlertAsync(GitText.Get("actionbar.terminalFailed"), error, ActionGlyphKind.Terminal);
                 }
             });
             menu.AddItem(new GUIContent(GitText.Get("common.vcsSettings")), false, () => SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath));

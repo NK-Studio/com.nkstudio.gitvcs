@@ -26,8 +26,14 @@ namespace GitVersionControl
         Worktree,
         Submodule,
 
-        /// <summary>Pull Requests 구역의 묶음(내 PR · 나에게 배정됨 · 내 리뷰 대기 · 전체). 펼치고 접을 수 있다.</summary>
+        /// <summary>Pull Requests 구역의 묶음(필터 하나: 내 PR · 나에게 배정됨 · 내 리뷰 대기 · 전체 · 직접 만든 것). 펼치고 접을 수 있다.</summary>
         PullRequestGroup,
+
+        /// <summary>PR 묶음 아래 원격 줄(GitHub 아이콘 + origin). GitKraken 처럼 PR 을 원격별로 한 번 더 묶는다.</summary>
+        PullRequestRemote,
+
+        /// <summary>Pull Requests 구역 맨 위의 검색 칸·필터 추가 줄.</summary>
+        PullRequestSearch,
 
         PullRequest,
 
@@ -82,7 +88,13 @@ namespace GitVersionControl
         /// <summary>
         /// 아이를 갖는 줄(구역 · 폴더 · 원격 · PR 묶음).
         /// </summary>
-        public bool IsContainer => Kind is RefNodeKind.Section or RefNodeKind.Folder or RefNodeKind.Remote or RefNodeKind.PullRequestGroup;
+        public bool IsContainer => Kind is RefNodeKind.Section or RefNodeKind.Folder or RefNodeKind.Remote or RefNodeKind.PullRequestGroup or RefNodeKind.PullRequestRemote;
+
+        /// <summary>PR 묶음 줄의 필터 순번(<see cref="GitPullRequestFilters"/>). 다른 줄은 -1.</summary>
+        public int FilterIndex = -1;
+
+        /// <summary>PR 묶음 줄이 몇 번째·몇 개 중인지(⋮ 메뉴의 위로·아래로).</summary>
+        public int FilterCount;
     }
 
     /// <summary>
@@ -116,7 +128,10 @@ namespace GitVersionControl
 
         /// <param name="sectionTitle">구역 이름(번역). 테스트는 enum 이름을 넘긴다.</param>
         /// <param name="localize">PR 묶음 이름·안내 문구 번역(키 → 글자). null 이면 키 그대로(테스트).</param>
-        public static List<RefNode> Build(GitRefSet refs, string filter, Func<RefSection, string> sectionTitle, Func<string, string> localize = null)
+        /// <param name="pullRequestSearch">Pull Requests 구역 검색 칸의 글(조건 문법도 된다). 없으면 null.</param>
+        /// <param name="pullRequestFilters">PR 묶음(필터). null 이면 저장된 목록(<see cref="GitPullRequestFilters.Load"/>).</param>
+        public static List<RefNode> Build(GitRefSet refs, string filter, Func<RefSection, string> sectionTitle, Func<string, string> localize = null, string pullRequestSearch = null,
+            IReadOnlyList<GitPullRequestFilter> pullRequestFilters = null)
         {
             localize ??= key => key;
             string needle = string.IsNullOrWhiteSpace(filter) ? null : filter.Trim();
@@ -156,6 +171,18 @@ namespace GitVersionControl
                             }
                             AddByPath(remoteNode, section, "Remote/" + remote, name, BranchLeaf(branch, section));
                         }
+                        // 막 추가해 아직 받은 브랜치가 없는 원격도 보인다(안 보이면 추가가 실패한 줄 안다).
+                        foreach (KeyValuePair<string, string> pair in refs.RemoteUrls.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
+                        {
+                            if (root.Children.Any(c => c.Kind == RefNodeKind.Remote && c.Label == pair.Key) || Matches(pair.Key) == false)
+                            {
+                                continue;
+                            }
+                            root.Children.Add(new RefNode
+                            {
+                                Kind = RefNodeKind.Remote, Section = section, Id = "remote:" + pair.Key, Label = pair.Key, Tooltip = pair.Value, IsGitHub = GitRefs.IsGitHubUrl(pair.Value),
+                            });
+                        }
                         break;
                     case RefSection.Worktrees:
                         foreach (GitWorktreeRef worktree in refs.Worktrees.Where(w => Matches(w.Path) || Matches(w.Branch)))
@@ -188,7 +215,7 @@ namespace GitVersionControl
                         }
                         break;
                     case RefSection.PullRequests:
-                        AddPullRequests(root, refs.PullRequests, needle, Matches, localize);
+                        AddPullRequests(root, refs.PullRequests, needle, Matches, localize, pullRequestSearch, pullRequestFilters ?? GitPullRequestFilters.Load());
                         break;
                     case RefSection.Submodules:
                         foreach (GitSubmoduleRef submodule in refs.Submodules.Where(s => Matches(s.Path)))
@@ -243,7 +270,8 @@ namespace GitVersionControl
         /// <summary>
         /// 목록이 있으면 네 묶음과 그 아래 PR, 없으면 안내 한 줄(검색 중에는 안내를 뺀다).
         /// </summary>
-        private static void AddPullRequests(RefNode root, GitPullRequestSet set, string needle, Func<string, bool> matches, Func<string, string> localize)
+        private static void AddPullRequests(RefNode root, GitPullRequestSet set, string needle, Func<string, bool> matches, Func<string, string> localize, string pullRequestSearch,
+            IReadOnlyList<GitPullRequestFilter> filters)
         {
             string info = set == null || set.IsLoading ? localize("common.loading")
                 : set.NeedsSignIn ? localize("prList.signIn")
@@ -258,10 +286,19 @@ namespace GitVersionControl
                 }
                 return;
             }
-            foreach (GitPullRequestList.Group group in GitPullRequestList.Groups)
+            // GitKraken 처럼 맨 위에 PR 검색 칸과 필터 추가 버튼.
+            if (needle == null)
             {
-                List<GitPullRequestInfo> pulls = GitPullRequestList.InGroup(set, group)
+                root.Children.Add(new RefNode { Kind = RefNodeKind.PullRequestSearch, Section = RefSection.PullRequests, Id = "prsearch", Label = string.Empty });
+            }
+            string search = string.IsNullOrWhiteSpace(pullRequestSearch) ? null : pullRequestSearch.Trim();
+            for (int index = 0; index < filters.Count; index++)
+            {
+                GitPullRequestFilter filter = filters[index];
+                string filterName = string.IsNullOrEmpty(filter.NameKey) ? filter.Name : localize(filter.NameKey);
+                List<GitPullRequestInfo> pulls = GitPullRequestFilters.InFilter(set, filter)
                     .Where(pr => matches(pr.Title) || matches("#" + pr.Number) || matches(pr.Author) || matches(pr.HeadRef))
+                    .Where(pr => search == null || GitPullRequestFilters.Matches(pr, search, set.Login))
                     .ToList();
                 if (needle != null && pulls.Count == 0)
                 {
@@ -271,22 +308,39 @@ namespace GitVersionControl
                 {
                     Kind = RefNodeKind.PullRequestGroup,
                     Section = RefSection.PullRequests,
-                    Id = "prgroup:" + group,
-                    Label = localize("prList.group" + group),
+                    Id = "prgroup:" + index + ":" + filterName,
+                    Label = filterName,
                     Badge = pulls.Count.ToString(),
+                    Tooltip = string.IsNullOrEmpty(filter.Query) ? filterName : filterName + "\n" + filter.Query,
+                    FilterIndex = index,
+                    FilterCount = filters.Count,
                 };
-                foreach (GitPullRequestInfo pr in pulls)
+                if (pulls.Count > 0)
                 {
-                    groupNode.Children.Add(new RefNode
+                    RefNode remoteNode = new()
                     {
-                        Kind = RefNodeKind.PullRequest,
+                        Kind = RefNodeKind.PullRequestRemote,
                         Section = RefSection.PullRequests,
-                        Id = "pr:" + group + ":" + pr.Number,
-                        Label = $"#{pr.Number} {pr.Title}",
-                        Badge = pr.IsDraft ? localize("prList.draft") : pr.Author,
-                        Tooltip = $"#{pr.Number} {pr.Title}\n{pr.Author}  ·  {pr.HeadRef} → {pr.BaseRef}",
-                        PullRequest = pr,
-                    });
+                        Id = "prremote:" + index + ":" + set.Remote,
+                        Label = set.Remote ?? set.Repository,
+                        Tooltip = set.Repository,
+                        IsGitHub = true,
+                    };
+                    foreach (GitPullRequestInfo pr in pulls)
+                    {
+                        remoteNode.Children.Add(new RefNode
+                        {
+                            Kind = RefNodeKind.PullRequest,
+                            Section = RefSection.PullRequests,
+                            Id = "pr:" + index + ":" + pr.Number,
+                            // GitKraken 처럼 번호와 제목만(초안은 툴팁에).
+                            Label = $"#{pr.Number} {pr.Title}",
+                            Badge = string.Empty,
+                            Tooltip = $"#{pr.Number} {pr.Title}" + (pr.IsDraft ? " (" + localize("prList.draft") + ")" : string.Empty) + $"\n{pr.Author}  ·  {pr.HeadRef} → {pr.BaseRef}",
+                            PullRequest = pr,
+                        });
+                    }
+                    groupNode.Children.Add(remoteNode);
                 }
                 root.Children.Add(groupNode);
             }

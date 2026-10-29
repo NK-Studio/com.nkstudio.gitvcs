@@ -31,18 +31,24 @@ namespace GitVersionControl
 
         /// <summary>
         /// 팝업을 띄우고 닫을 때까지 기다린다.
-        /// 띄울 Git 창이 없으면(<see cref="GitServices.PopupHost"/> 가 없음) 운영체제 대화상자로 알린다.
+        /// 띄울 곳은 <see cref="GitServices.PopupHost"/>, 없으면 <see cref="GitPopupHosts"/> 가 찾거나 Git 창을 연다.
         /// </summary>
-        public static Task ShowAsync(GitServices services, string title, string message)
+        public static async Task ShowAsync(GitServices services, string title, string message)
         {
-            VisualElement host = services.PopupHost;
-            if (host == null || host.panel == null)
+            // 충돌은 실패가 아니라 해결을 기다리는 중간 단계다: 빨간 오류 대신 안내와 "충돌 보기" 를 보인다.
+            GitErrorAdvice advice = GitErrorAdvice.Explain(message, GitRepository.Branch?.Name);
+            if (advice.Kind == GitErrorKind.Conflict)
             {
-                services.Dialogs.Alert(title, message);
-                return Task.CompletedTask;
+                string files = advice.Files.Count == 0 ? string.Empty : "\n\n" + string.Join("\n", advice.Files.Take(10));
+                bool show = await GitConfirmDialog.ConfirmAsync(services.PopupHost, ActionGlyphKind.Branch, GitText.Get("conflict.title"),
+                    GitText.Format("conflict.message", advice.Files.Count) + files, GitText.Get("conflict.show"), cancel: GitText.Get("common.close"));
+                if (show)
+                {
+                    services.ShowConflictsRequested?.Invoke();
+                }
+                return;
             }
-            GitErrorDialog dialog = new(host, title, message);
-            return dialog._done.Task;
+            await GitPopupHosts.ShowAsync(services.PopupHost, host => new GitErrorDialog(host, title, message)._done.Task, false);
         }
 
         private GitErrorDialog(VisualElement host, string title, string message)
@@ -203,7 +209,7 @@ namespace GitVersionControl
         private void Finish()
         {
             _done.TrySetResult(true);
-            _overlay.RemoveFromHierarchy();
+            GitPopupHosts.Close(_overlay, null);
         }
     }
 }

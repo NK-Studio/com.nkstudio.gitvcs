@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
@@ -69,7 +70,7 @@ namespace GitVersionControl
         public override string Title => GitText.Get("tab.graph");
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
 
-        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}";
+        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{Services.Repository.RefsFingerprint}";
 
         public GraphWorkspaceView(GitServices services, StagingState state, ITabNavigator navigator) : base(services, "GraphWorkspaceView")
         {
@@ -190,8 +191,21 @@ namespace GitVersionControl
             ReloadIfNeeded();
         }
 
+        /// <summary>마지막으로 본 진행 중 작업. 병합·cherry-pick 이 멈추는 순간을 알아 충돌 목록을 보인다.</summary>
+        private GitOperationKind _seenOperation;
+
         public override void OnRepositoryChanged()
         {
+            // 병합·리베이스가 충돌로 멈추면 오른쪽을 커밋 상세에서 작업 변경(충돌 파일)으로 바꾼다.
+            GitOperationKind operation = Services.Repository.InProgressOperation;
+            if (operation != _seenOperation)
+            {
+                _seenOperation = operation;
+                if (operation != GitOperationKind.None)
+                {
+                    ShowWorkingChanges();
+                }
+            }
             // 보이지 않으면 작업 패널 목록·그래프를 다시 만들지 않는다 — 탭을 열 때(OnActivated) 만든다. 탭 옆 개수는 바로 바꾼다.
             if (IsActive == false)
             {
@@ -317,7 +331,17 @@ namespace GitVersionControl
                 _pendingBranchStart = startPoint;
                 return true;
             }
+            List<string> existing = new();
+            _graph.BranchNameValidator = value => BranchActions.BranchNameProblemText(value, existing);
+            // 같은 이름 검사용 로컬 브랜치 목록은 뒤에서 읽어 채운다(입력란은 바로 띄운다).
+            _ = FillLocalBranchNamesAsync(existing);
             return _graph.BeginBranchInput(startPoint, name => _ = _actions.CreateAndSwitchAsync(name, startPoint));
+        }
+
+        private async Task FillLocalBranchNamesAsync(List<string> target)
+        {
+            (List<GitBranchRef> branches, _) = await Services.History.BranchesAsync();
+            target.AddRange(branches?.Where(b => b.IsRemote == false).Select(b => b.Name) ?? Enumerable.Empty<string>());
         }
 
         /// <summary>
@@ -342,11 +366,18 @@ namespace GitVersionControl
             string list = string.Join("\n", entries.Take(10).Select(e => e.ProjectPath ?? e.RepoPath))
                           + (entries.Count > 10 ? GitText.Format("pending.discardMore", entries.Count - 10) : string.Empty);
             string message = GitText.Format("graph.discardAllMessage", Services.Repository.Branch?.Name ?? "-", entries.Count, list);
-            if (Services.Dialogs.Confirm(GitText.Get("graph.discardAll"), message, GitText.Get("op.discard")) == false)
+            if (await Services.Dialogs.ConfirmAsync(GitText.Get("graph.discardAll"), message, GitText.Get("op.discard"), danger: true, icon: ActionGlyphKind.Undo) == false)
             {
                 return;
             }
             await Services.Runner.RunAsync(GitText.Get("op.discard"), () => Services.Commands.DiscardAsync(entries), refreshAssets: true);
+        }
+
+        /// <summary>오른쪽을 작업 변경(Unstaged·Staged·커밋)으로 바꾼다. 충돌 안내의 "충돌 보기" 도 여기로 온다.</summary>
+        public void ShowWorkingChanges()
+        {
+            CloseFileHistory();
+            ShowWip();
         }
 
         private void ShowWip()

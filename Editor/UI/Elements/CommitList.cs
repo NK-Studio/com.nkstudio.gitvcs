@@ -23,7 +23,7 @@ namespace GitVersionControl
             refs.EnableInClassList(RefsHiddenModifier, string.IsNullOrEmpty(commit.Refs));
 
             Label subject = row.Require<Label>("subject");
-            subject.text = commit.IsMerge ? GitText.Format("commit.merge", commit.Subject) : commit.Subject;
+            subject.text = commit.IsMerge ? GitText.Format("commitList.merge", commit.Subject) : commit.Subject;
             subject.tooltip = commit.Subject;
 
             Label author = row.Require<Label>("author");

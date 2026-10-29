@@ -33,17 +33,7 @@ namespace GitVersionControl
         /// <param name="failure">실패한 작업의 git 오류 글. null 이면 계정 바꾸기로 연다.</param>
         public static Task<bool> ShowAsync(GitServices services, string failure)
         {
-            VisualElement host = services.PopupHost;
-            if (host == null || host.panel == null)
-            {
-                if (failure != null)
-                {
-                    services.Dialogs.Alert(GitText.Get("account.failedTitle"), GitText.Format("account.failedFallback", FirstLines(failure)));
-                }
-                return Task.FromResult(false);
-            }
-            GitAccountDialog dialog = new(host, failure);
-            return dialog._done.Task;
+            return GitPopupHosts.ShowAsync(services.PopupHost, host => new GitAccountDialog(host, failure)._done.Task, false);
         }
 
         private GitAccountDialog(VisualElement host, string failure)
@@ -158,6 +148,8 @@ namespace GitVersionControl
             {
                 _list.Add(Row(candidate));
             }
+            // UI Toolkit 은 :last-child 를 모른다. 마지막 줄의 밑줄은 클래스로 지운다.
+            _list[_list.childCount - 1].AddToClassList("account-dialog__row--last");
         }
 
         private VisualElement Row(GitAccountCandidate candidate)
@@ -235,7 +227,7 @@ namespace GitVersionControl
         private void Finish(bool chosen)
         {
             _done.TrySetResult(chosen);
-            _overlay.RemoveFromHierarchy();
+            GitPopupHosts.Close(_overlay, null);
         }
     }
 }

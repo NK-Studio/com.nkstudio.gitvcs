@@ -257,7 +257,26 @@ namespace GitVersionControl
             }
             string full = _fromRepo.Selected.Remote + "/" + _fromBranch.Selected;
             GitBranchRef tip = _refs.Branches.FirstOrDefault(b => b.IsRemote && b.Name == full);
-            _title.SetValueWithoutNotify(tip?.Subject ?? string.Empty);
+            string subject = tip?.Subject ?? string.Empty;
+            _title.SetValueWithoutNotify(subject);
+            // 끝 커밋이 병합 커밋이면 그 제목("Merge commit '…' into …")은 PR 제목으로 쓸모가 없다. 병합이 아닌 마지막 커밋 제목으로 바꾼다.
+            if (subject.StartsWith("Merge ", System.StringComparison.Ordinal) && _toRepo.Selected != null && _toBranch.Selected != null)
+            {
+                _ = FillTitleSkippingMergesAsync(full, _toRepo.Selected.Remote + "/" + _toBranch.Selected);
+            }
+        }
+
+        private async System.Threading.Tasks.Task FillTitleSkippingMergesAsync(string head, string baseRef)
+        {
+            GitResult result = await GitRepository.RunAsync("log", "--no-merges", "-1", "--format=%s", baseRef + ".." + head, "--");
+            string subject = result.Success ? result.Output.Trim() : string.Empty;
+            if (_titleEdited)
+            {
+                return;
+            }
+            // 병합 아닌 커밋이 없으면 브랜치 이름을 쓴다("feature/pr-menu" → "pr menu").
+            _title.SetValueWithoutNotify(subject.Length > 0 ? subject : GitPullRequestForm.TitleFromBranch(head));
+            Validate();
         }
 
         private void InputChanged()
@@ -306,11 +325,14 @@ namespace GitVersionControl
             }
             Services.Runner.SetStatus(GitText.Format("pr.created", number, to.FullName));
             Created?.Invoke();
-            if (string.IsNullOrEmpty(url) == false)
+            Close();
+            // 브라우저를 멋대로 앞으로 가져오지 않는다. 열지 고르게 한다.
+            if (string.IsNullOrEmpty(url) == false
+                && await Services.Dialogs.ConfirmAsync(GitText.Get("pr.createdTitle"), GitText.Format("pr.created", number, to.FullName), GitText.Get("pr.openInBrowser"),
+                    cancel: GitText.Get("common.close"), icon: ActionGlyphKind.PullRequest))
             {
                 Application.OpenURL(url);
             }
-            Close();
         }
     }
 }

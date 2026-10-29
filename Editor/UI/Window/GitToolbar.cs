@@ -97,16 +97,13 @@ namespace GitVersionControl
                     Render();
                 }
             };
-            _pull.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pull"), commands.PullAsync, refreshAssets: true);
-            _push.Clicked += () =>
-            {
-                GitBranchInfo branch = services.Repository.Branch;
-                _ = runner.RunAsync(GitText.Get("op.push"), () => commands.PushAsync(branch), refreshAssets: false);
-            };
+            SyncFlows sync = new(services);
+            _pull.Clicked += () => _ = sync.PullAsync();
+            _push.Clicked += () => _ = sync.PushAsync(services.Repository.Branch);
             BranchActions branchActions = new(services);
             _newBranch.Clicked += () => _ = CreateBranchAsync(branchActions);
             _stash.Clicked += Stash;
-            _pop.Clicked += () => _ = runner.RunAsync(GitText.Get("op.pop"), commands.StashPopAsync, refreshAssets: true);
+            _pop.Clicked += () => _ = sync.StashPopAsync();
             _terminal.Clicked += OpenTerminal;
             _refresh.Clicked += () =>
             {
@@ -174,12 +171,15 @@ namespace GitVersionControl
             // 자동 fetch 가 계정 문제로 실패했으면 경고(!)를 단다. 눌러서 수동 Fetch 하면 계정 고르기 팝업이 뜬다.
             _fetch.SetWarning(GitAutoFetch.LastFailureWasAuth);
             _fetch.Tooltip = GitAutoFetch.LastFailureWasAuth ? GitText.Get("actionbar.fetchAuthFailed") : GitText.Get("actionbar.fetchTooltip");
-            _pull.SetEnabled(idle && ready && hasUpstream);
+            // 병합·리베이스가 충돌로 멈춘 동안 Pull·Push 를 하면 진행 중인 작업이 꼬인다. 끝내거나 취소할 때까지 막는다.
+            bool inProgress = repository.InProgressOperation != GitOperationKind.None;
+            string blocked = inProgress ? GitText.Get("actionbar.blockedInProgress") : null;
+            _pull.SetEnabled(idle && ready && hasUpstream && inProgress == false);
             _pull.SetBadge(behind);
-            _pull.Tooltip = GitText.Format("actionbar.pullTooltip", behind);
-            _push.SetEnabled(idle && ready && branch != null && branch.Detached == false && branch.HasCommits);
+            _pull.Tooltip = blocked ?? GitText.Format("actionbar.pullTooltip", behind);
+            _push.SetEnabled(idle && ready && branch != null && branch.Detached == false && branch.HasCommits && inProgress == false);
             _push.SetBadge(ahead);
-            _push.Tooltip = GitText.Format("actionbar.pushTooltip", ahead);
+            _push.Tooltip = blocked ?? GitText.Format("actionbar.pushTooltip", ahead);
             _newBranch.SetEnabled(idle && ready && branch != null && branch.HasCommits);
             _stash.SetEnabled(idle && ready && repository.Entries.Count > 0);
             _pop.SetEnabled(idle && ready && _stashCount > 0);
@@ -241,7 +241,7 @@ namespace GitVersionControl
             string error = GitTerminal.Open(GitRepository.RepoRoot ?? GitRepository.ProjectRoot);
             if (error != null)
             {
-                _services.Dialogs.Alert(GitText.Get("actionbar.terminalFailed"), error);
+                _ = _services.Dialogs.AlertAsync(GitText.Get("actionbar.terminalFailed"), error, ActionGlyphKind.Terminal);
             }
         }
 

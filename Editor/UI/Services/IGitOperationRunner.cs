@@ -58,7 +58,7 @@ namespace GitVersionControl
         public Func<string, Task<bool>> AuthFailureHandler { get; set; }
 
         /// <summary>
-        /// 실패를 알릴 때(제목, git 오류 글) 부른다. null 이면 운영체제 대화상자로 알린다. 창이 <see cref="GitErrorDialog"/> 를 넣는다.
+        /// 실패를 알릴 때(제목, git 오류 글) 부른다. null 이면 <see cref="IDialogService.AlertAsync"/> 로 알린다. 창이 <see cref="GitErrorDialog"/> 를 넣는다.
         /// </summary>
         public Func<string, string, Task> ErrorHandler { get; set; }
         public event Action StateChanged;
@@ -71,10 +71,16 @@ namespace GitVersionControl
             GitResult result;
             try
             {
+                // 작업 트리를 바꾸는 작업 전에 에디터 메모리의 수정을 디스크에 써 둔다. 그러지 않으면 git 이 파일을 되돌린 뒤
+                // 에디터가 메모리에 남은 (더러운) 에셋을 다시 저장해 방금 한 일(stash·버리기·전환)을 덮어쓴다.
+                if (refreshAssets)
+                {
+                    AssetDatabase.SaveAssets();
+                }
                 result = await operation();
                 // 앞서 git 이 도중에 끝나 잠금 파일이 남았으면, 지우고 다시 할지 묻는다(Fork·SourceTree 처럼).
                 if (result.Success == false && GitLockFile.TryFind(result.Message, GitRepository.GitDir, out string lockPath)
-                    && ConfirmRemoveLock(lockPath))
+                    && await ConfirmRemoveLockAsync(lockPath))
                 {
                     result = await operation();
                 }
@@ -91,6 +97,10 @@ namespace GitVersionControl
                     }
                 }
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
+                if (result.Success == false)
+                {
+                    ClearStatusLater(StatusText);
+                }
                 if (result.Success == false && showErrorDialog && authHandled == false)
                 {
                     if (ErrorHandler != null)
@@ -99,12 +109,13 @@ namespace GitVersionControl
                     }
                     else
                     {
-                        _dialogs.Alert(GitText.Format("runner.failed", title), result.Message);
+                        await _dialogs.AlertAsync(GitText.Format("runner.failed", title), result.Message);
                     }
                 }
                 if (refreshAssets)
                 {
-                    AssetDatabase.Refresh();
+                    // git 이 바꾼 파일을 다시 읽어 메모리를 디스크에 맞춘다.
+                    AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
                 }
             }
             finally
@@ -123,7 +134,7 @@ namespace GitVersionControl
         /// <summary>
         /// 남은 잠금 파일을 지울지 묻고, 그러라면 지운다. 정말 다른 git 이 돌고 있으면 그쪽이 망가질 수 있어 늘 묻는다.
         /// </summary>
-        private bool ConfirmRemoveLock(string lockPath)
+        private async Task<bool> ConfirmRemoveLockAsync(string lockPath)
         {
             if (File.Exists(lockPath) == false)
             {
@@ -132,7 +143,7 @@ namespace GitVersionControl
             }
             TimeSpan age = DateTime.Now - File.GetLastWriteTime(lockPath);
             string ageText = age.TotalMinutes >= 1 ? GitText.Format("lock.ageMinutes", (int)age.TotalMinutes) : GitText.Format("lock.ageSeconds", Math.Max(0, (int)age.TotalSeconds));
-            if (_dialogs.Confirm(GitText.Get("lock.title"), GitText.Format("lock.message", lockPath, ageText), GitText.Get("lock.remove")) == false)
+            if (await _dialogs.ConfirmAsync(GitText.Get("lock.title"), GitText.Format("lock.message", lockPath, ageText), GitText.Get("lock.remove"), danger: true) == false)
             {
                 return false;
             }
@@ -143,8 +154,20 @@ namespace GitVersionControl
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
-                _dialogs.Alert(GitText.Get("lock.title"), e.Message);
+                await _dialogs.AlertAsync(GitText.Get("lock.title"), e.Message);
                 return false;
+            }
+        }
+
+        /// <summary>실패 문구가 화면에 남는 시간. 그 뒤(그 사이 다른 문구가 없으면) 지운다.</summary>
+        private const int FailureStatusLifetimeMs = 10000;
+
+        private async void ClearStatusLater(string text)
+        {
+            await Task.Delay(FailureStatusLifetimeMs);
+            if (StatusText == text && IsBusy == false)
+            {
+                SetStatus(string.Empty);
             }
         }
 

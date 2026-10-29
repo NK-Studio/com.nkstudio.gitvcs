@@ -83,10 +83,11 @@ namespace GitVersionControl
             menu.AppendSeparator();
         }
 
-        private void Resolve(GitStatusEntry entry, GitConflictSide side)
+        private async void Resolve(GitStatusEntry entry, GitConflictSide side)
         {
             if (side == GitConflictSide.AsIs && GitInProgress.HasConflictMarkers(FullPath(entry.RepoPath))
-                && _services.Dialogs.Confirm(GitText.Get("inprogress.resolveMarked"), GitText.Format("inprogress.resolveMarkersConfirm", entry.RepoPath), GitText.Get("inprogress.resolveMarked")) == false)
+                && await _services.Dialogs.ConfirmAsync(GitText.Get("inprogress.resolveMarked"), GitText.Format("inprogress.resolveMarkersConfirm", entry.RepoPath),
+                    GitText.Get("inprogress.resolveMarked"), danger: true) == false)
             {
                 return;
             }
@@ -156,7 +157,7 @@ namespace GitVersionControl
 
         // ── 동작 ──────────────────────────────────────────
 
-        private static string FullPath(string repoPath)
+        public static string FullPath(string repoPath)
         {
             return Path.GetFullPath(Path.Combine(GitRepository.RepoRoot, repoPath));
         }
@@ -200,7 +201,7 @@ namespace GitVersionControl
             (string patch, string error) = await GitFileOperations.CreatePatchAsync(entries, _source);
             if (error != null)
             {
-                _services.Dialogs.Alert(GitText.Get("menu.createPatch"), error);
+                await _services.Dialogs.AlertAsync(GitText.Get("menu.createPatch"), error);
                 return;
             }
             File.WriteAllText(path, patch, new System.Text.UTF8Encoding(false));
@@ -224,12 +225,12 @@ namespace GitVersionControl
         /// <summary>
         /// 에셋은 휴지통으로 옮긴다(.meta 도 같이, 되살릴 수 있다). 에셋이 아닌 파일은 확인 뒤 지운다.
         /// </summary>
-        private void DeleteFile(GitStatusEntry entry)
+        private async void DeleteFile(GitStatusEntry entry)
         {
             string assetPath = entry.ProjectPath == null ? null : GitDisplay.AssetPathOf(entry.ProjectPath);
             bool isAsset = assetPath != null && AssetDatabase.LoadMainAssetAtPath(assetPath) != null;
             string message = GitText.Format(isAsset ? "menu.deleteAssetMessage" : "menu.deleteFileMessage", entry.RepoPath);
-            if (_services.Dialogs.Confirm(GitText.Get("menu.deleteFile"), message, GitText.Get("common.delete")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("menu.deleteFile"), message, GitText.Get("common.delete"), danger: isAsset == false) == false)
             {
                 return;
             }
@@ -244,24 +245,25 @@ namespace GitVersionControl
             _services.Repository.RequestRefresh(immediate: true);
         }
 
-        private void CreateFileIn(string repoFolder)
+        private async void CreateFileIn(string repoFolder)
         {
-            string name = GitTextPromptWindow.Ask(GitText.Get("menu.createFile"), GitText.Format("menu.createFileMessage", repoFolder.TrimEnd('/') + "/"), string.Empty);
-            if (string.IsNullOrWhiteSpace(name))
+            string folder = FullPath(repoFolder);
+            // 잘못된 이름·이미 있는 파일은 쓰는 동안 막는다(입력이 닫히지 않고 남는다).
+            string name = (await _services.Dialogs.PromptAsync(GitText.Get("menu.createFile"), GitText.Format("menu.createFileMessage", repoFolder.TrimEnd('/') + "/"), string.Empty,
+                validate: value =>
+                {
+                    string trimmed = value.Trim();
+                    if (trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    {
+                        return GitText.Format("menu.invalidFileName", trimmed);
+                    }
+                    return File.Exists(Path.Combine(folder, trimmed)) ? GitText.Format("menu.fileExists", trimmed) : null;
+                }))?.Trim();
+            if (string.IsNullOrEmpty(name))
             {
                 return;
             }
-            if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            {
-                _services.Dialogs.Alert(GitText.Get("menu.createFile"), GitText.Format("menu.invalidFileName", name));
-                return;
-            }
-            string path = Path.Combine(FullPath(repoFolder), name.Trim());
-            if (File.Exists(path))
-            {
-                _services.Dialogs.Alert(GitText.Get("menu.createFile"), GitText.Format("menu.fileExists", name));
-                return;
-            }
+            string path = Path.Combine(folder, name);
             File.WriteAllText(path, string.Empty);
             AssetDatabase.Refresh();
             _services.Repository.RequestRefresh(immediate: true);

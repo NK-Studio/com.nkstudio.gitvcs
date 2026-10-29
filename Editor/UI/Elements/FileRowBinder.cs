@@ -62,12 +62,17 @@ namespace GitVersionControl
             Label badge = row.Require<Label>("badge");
             badge.RemoveFromClassList(BadgeHiddenModifier);
             StateBadge.Apply(badge, item.State);
-            _icons.BindIcon(row.Require<Image>("icon"), item.ProjectPath, item.RepoPath);
+            Image icon = row.Require<Image>("icon");
+            _icons.BindIcon(icon, item.ProjectPath, item.RepoPath);
 
+            // 툴팁은 상태 배지·아이콘에만 단다. Unity 툴팁은 커서 바로 밑에 따로 뜬 창이라, 줄 전체(이름)에 달면
+            // 바로 아래 줄을 덮어 그 줄을 누른 것이 툴팁에 먹힌다.
+            badge.tooltip = item.Tooltip;
+            icon.tooltip = item.Tooltip;
             Label path = row.Require<Label>("path");
             path.text = GitDisplay.Nfc(nameOnly ? item.DisplayPath.Split('/').Last() : item.DisplayPath)
                         + (item.MetaSource != null ? GitText.Get("file.metaSuffix") : string.Empty);
-            path.tooltip = item.Tooltip;
+            path.tooltip = null;
 
             Label original = row.Require<Label>("original");
             original.text = item.OriginalRepoPath != null ? $"← {GitDisplay.Nfc(item.OriginalRepoPath)}" : string.Empty;
@@ -110,16 +115,19 @@ namespace GitVersionControl
             bool? isChecked = showToggle ? checkedFiles == folder.FileCount : null;
             BindToggle(row, isChecked, mixed: showToggle && checkedFiles > 0 && checkedFiles < folder.FileCount);
 
-            row.Require<Label>("badge").AddToClassList(BadgeHiddenModifier);
+            Label folderBadge = row.Require<Label>("badge");
+            folderBadge.AddToClassList(BadgeHiddenModifier);
+            folderBadge.tooltip = null;
             _folderIcon ??= EditorGUIUtility.IconContent("Folder Icon").image;
             Image icon = row.Require<Image>("icon");
             icon.image = GitTheme.SkinIcon(_folderIcon);
+            icon.tooltip = folder.Path;
             // 이 줄이 전에 보이던 파일의 썸네일이 늦게 와도 폴더 아이콘을 덮지 않게(IFileIconProvider.BindIcon).
             icon.userData = null;
 
             Label path = row.Require<Label>("path");
             path.text = GitDisplay.Nfc(folder.Name);
-            path.tooltip = folder.Path;
+            path.tooltip = null;
 
             row.Require<Label>("original").SetVisible(false);
 

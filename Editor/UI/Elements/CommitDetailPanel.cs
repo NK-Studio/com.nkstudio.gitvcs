@@ -88,7 +88,7 @@ namespace GitVersionControl
                 return;
             }
             _message.SetValueWithoutNotify(message);
-            _files.SetItems(files.Select(FileListItem.From));
+            _files.SetItems(FileListItem.FromChanges(files));
         }
     }
 }

@@ -103,6 +103,12 @@ namespace GitVersionControl
                 : new[] { "push", remote, branch };
         }
 
+        /// <summary>로컬 브랜치를 원격의 다른 이름으로 올리고 그 브랜치를 추적한다.</summary>
+        public static string[] PushBranchTo(string remote, string branch, string remoteBranch)
+        {
+            return new[] { "push", "-u", remote, branch + ":" + remoteBranch };
+        }
+
         public static string[] DeleteRemoteBranch(string remote, string branch)
         {
             return new[] { "push", remote, "--delete", branch };

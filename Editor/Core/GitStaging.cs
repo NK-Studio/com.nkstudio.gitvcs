@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GitVersionControl
 {
@@ -10,6 +12,62 @@ namespace GitVersionControl
     /// </summary>
     public static class GitStaging
     {
+        /// <summary>
+        /// 새로 추가해 stage 한 Assets 아래 에셋인데 그 .meta(또는 새로 생긴 상위 폴더의 .meta)가 stage 되지 않은 것의 .meta 경로(저장소 기준).
+        /// .meta 없이 커밋하면 다른 사람 쪽에서 Unity 가 새 GUID 를 만들어 참조가 깨진다. 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static List<string> MissingMetaPaths(IReadOnlyList<GitStatusEntry> entries)
+        {
+            HashSet<string> staged = new(entries.Where(e => e.IndexCode != ' ' && e.IndexCode != '?' && e.IndexCode != '!').Select(e => e.RepoPath));
+            HashSet<string> untracked = new(entries.Where(e => e.State == GitFileState.Untracked).Select(e => e.RepoPath));
+            List<string> missing = new();
+            foreach (GitStatusEntry entry in entries)
+            {
+                if (entry.IndexCode != 'A' || entry.RepoPath.EndsWith(".meta", StringComparison.Ordinal) || IsUnderAssets(entry.ProjectPath) == false)
+                {
+                    continue;
+                }
+                AddIfMissing(entry.RepoPath + ".meta", always: true);
+                // 새 폴더 안의 첫 파일이면 폴더 .meta 도 새 파일이다(이미 추적 중이면 untracked 목록에 없다).
+                string repoFolder = entry.RepoPath;
+                string projectFolder = entry.ProjectPath;
+                while (true)
+                {
+                    int repoSlash = repoFolder.LastIndexOf('/');
+                    int projectSlash = projectFolder.LastIndexOf('/');
+                    if (repoSlash < 0 || projectSlash < 0)
+                    {
+                        break;
+                    }
+                    repoFolder = repoFolder.Substring(0, repoSlash);
+                    projectFolder = projectFolder.Substring(0, projectSlash);
+                    if (IsUnderAssets(projectFolder) == false)
+                    {
+                        break;
+                    }
+                    AddIfMissing(repoFolder + ".meta", always: false);
+                }
+            }
+            return missing;
+
+            void AddIfMissing(string metaPath, bool always)
+            {
+                if (staged.Contains(metaPath) || missing.Contains(metaPath))
+                {
+                    return;
+                }
+                if (always || untracked.Contains(metaPath))
+                {
+                    missing.Add(metaPath);
+                }
+            }
+        }
+
+        private static bool IsUnderAssets(string projectPath)
+        {
+            return projectPath != null && projectPath.StartsWith("Assets/", StringComparison.Ordinal);
+        }
+
         public static List<GitStatusEntry> Unstaged(IEnumerable<GitStatusEntry> entries)
         {
             List<GitStatusEntry> result = new();

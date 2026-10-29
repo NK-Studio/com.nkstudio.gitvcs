@@ -26,7 +26,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 창 안에 덮어 띄우는 팝업(브랜치 만들기 등)을 얹을 요소. Git 창이 자기 본체를 넣는다 — 테마·UI 배율이 같이 적용된다.
-        /// null 이면(Git 창 밖) 따로 뜨는 입력 창으로 묻는다.
+        /// null 이면(Git 창 밖) <see cref="GitPopupHosts"/> 가 열린 창을 찾거나 Git 창을 연다.
         /// </summary>
         public UnityEngine.UIElements.VisualElement PopupHost { get; set; }
 
@@ -35,6 +35,15 @@ namespace GitVersionControl
         /// null 이면(Fork·Unity VCS 레이아웃, Git 창 밖) 따로 뜨는 히스토리 창을 쓴다.
         /// </summary>
         public IFileHistoryPresenter FileHistory { get; set; }
+
+        /// <summary>충돌 파일 목록(작업 변경)을 보인다. Git 창이 넣는다.</summary>
+        public System.Action ShowConflictsRequested { get; set; }
+
+        /// <summary>리모트 추가 서랍을 연다(리모트가 없어 Push 하지 못했을 때 등). Git 창이 넣는다. null 이면 안내만 한다.</summary>
+        public System.Action AddRemoteRequested { get; set; }
+
+        /// <summary>브랜치의 Pull Request 만들기 서랍을 연다(첫 Push 뒤 제안). Git 창이 넣는다.</summary>
+        public System.Action<GitBranchRef> CreatePullRequestRequested { get; set; }
 
         /// <summary>
         /// 파일 히스토리를 연다. GitKraken 레이아웃이면 창 안에 크게, 아니면 따로 뜨는 창으로.
@@ -70,10 +79,11 @@ namespace GitVersionControl
         public static GitServices CreateDefault()
         {
             GitRepositoryState repository = new();
-            EditorDialogService dialogs = new();
+            OverlayDialogService dialogs = new();
             GitOperationRunner runner = new(repository, dialogs);
             GitServices services = new(repository, new GitHistoryService(), new GitCommandService(),
                 runner, dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
+            dialogs.HostProvider = () => services.PopupHost;
             runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
             runner.ErrorHandler = (title, message) => GitErrorDialog.ShowAsync(services, title, message);
             return services;

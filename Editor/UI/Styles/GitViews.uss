@@ -696,6 +696,65 @@
     font-size: 13px;
 }
 
+/* 여러 개 중 하나를 고르는 팝업(GitPickDialog). */
+.pick-dialog__list {
+    margin-top: 10px;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: var(--git-border);
+    overflow: hidden;
+}
+
+.branch-dialog .pick-dialog__option {
+    margin: 0;
+    height: 30px;
+    padding: 0 12px;
+    border-width: 0;
+    border-radius: 0;
+    -unity-text-align: middle-left;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text);
+}
+
+.branch-dialog .pick-dialog__option:hover {
+    background-color: var(--git-hover);
+}
+
+.branch-dialog .pick-dialog__option--selected {
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+/* 글 하나를 받는 팝업(GitPromptDialog). 여러 줄이면 입력란을 키운다. */
+.prompt-dialog {
+    width: 440px;
+}
+
+.prompt-dialog--multiline {
+    width: 520px;
+}
+
+.prompt-dialog .prompt-dialog__field {
+    flex-grow: 0;
+    margin-top: 10px;
+}
+
+.prompt-dialog--multiline .prompt-dialog__field {
+    height: 160px;
+    align-items: stretch;
+    padding: 6px 8px;
+}
+
+.prompt-dialog--multiline .prompt-dialog__input > .unity-base-text-field__input {
+    -unity-text-align: upper-left;
+    white-space: normal;
+}
+
+.prompt-dialog__problem {
+    min-height: 16px;
+    margin-top: 4px;
+}
+
 .branch-dialog__problem {
     flex-grow: 1;
     margin: 0;
@@ -980,7 +1039,7 @@
     border-bottom-color: var(--git-border);
 }
 
-.account-dialog__row:last-child {
+.account-dialog__row--last {
     border-bottom-width: 0;
 }
 

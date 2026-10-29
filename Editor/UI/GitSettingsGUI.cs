@@ -27,6 +27,12 @@ namespace GitVersionControl
         private static string s_versionText;
         private static bool s_isBusy;
 
+        /// <summary>git init 을 눌러 확인을 기다리는 중(화면 안에 안내와 만들기·취소를 보인다).</summary>
+        private static bool s_initConfirming;
+
+        /// <summary>마지막 git init 의 실패 글. 없으면 null.</summary>
+        private static string s_initError;
+
         /// <summary>
         /// "GitHub 계정(이 저장소)": 지금 쓰는 계정과 바꾸기. 계정은 git 을 불러 알아내므로 처음 그릴 때 한 번 읽고, 바꾸기 뒤에는 다시 읽는다.
         /// </summary>
@@ -364,11 +370,37 @@ namespace GitVersionControl
                     return;
                 }
                 EditorGUILayout.HelpBox(GitText.Get("settings.notRepository"), MessageType.Info);
+                // 묻고 알리는 것은 운영체제 대화상자 대신 이 화면 안에서 한다.
+                if (string.IsNullOrEmpty(s_initError) == false)
+                {
+                    EditorGUILayout.HelpBox(GitText.Get("settings.initFailed") + "\n" + s_initError, MessageType.Error);
+                }
+                if (s_initConfirming)
+                {
+                    bool hasGitignore = File.Exists(Path.Combine(GitRepository.ProjectRoot, ".gitignore"));
+                    EditorGUILayout.HelpBox(GitText.Format("settings.initMessage", GitRepository.ProjectRoot)
+                                            + (hasGitignore ? string.Empty : GitText.Get("settings.initNoGitignore")), MessageType.Warning);
+                    using (new EditorGUILayout.HorizontalScope())
+                    using (new EditorGUI.DisabledScope(s_isBusy))
+                    {
+                        if (GUILayout.Button(GitText.Get("common.create")))
+                        {
+                            s_initConfirming = false;
+                            InitAsync();
+                        }
+                        if (GUILayout.Button(GitText.Get("common.cancel")))
+                        {
+                            s_initConfirming = false;
+                        }
+                    }
+                    return;
+                }
                 using (new EditorGUI.DisabledScope(s_isBusy))
                 {
                     if (GUILayout.Button("git init"))
                     {
-                        InitAsync();
+                        s_initError = null;
+                        s_initConfirming = true;
                     }
                 }
                 return;
@@ -420,22 +452,12 @@ namespace GitVersionControl
 
         private static async void InitAsync()
         {
-            bool hasGitignore = File.Exists(Path.Combine(GitRepository.ProjectRoot, ".gitignore"));
-            string message = GitText.Format("settings.initMessage", GitRepository.ProjectRoot)
-                             + (hasGitignore ? string.Empty : GitText.Get("settings.initNoGitignore"));
-            if (EditorUtility.DisplayDialog("git init", message, GitText.Get("common.create"), GitText.Get("common.cancel")) == false)
-            {
-                return;
-            }
-
             s_isBusy = true;
             GitResult result = await GitCommand.RunAsync(GitRepository.ProjectRoot, new[] { "init" });
             s_isBusy = false;
-            if (result.Success == false)
-            {
-                EditorUtility.DisplayDialog(GitText.Get("settings.initFailed"), result.Message, GitText.Get("common.ok"));
-            }
+            s_initError = result.Success ? null : result.Message;
             GitRepository.RequestRefresh(immediate: true);
+            SettingsService.RepaintAllSettingsWindow();
         }
     }
 }

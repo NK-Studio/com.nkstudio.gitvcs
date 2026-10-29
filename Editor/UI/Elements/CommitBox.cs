@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEditor;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -162,7 +166,9 @@ namespace GitVersionControl
             bool canCommit = _services.Runner.IsBusy == false && hasAuthor
                              && (isAmend || (_stagedCount > 0 && HasSubject()));
             _commitButton.SetEnabled(canCommit);
-            _commitPushButton.SetEnabled(canCommit && repository.Branch != null && repository.Branch.Detached == false);
+            // 원격이 없으면 커밋만 되고 Push 는 실패한다 — 누르기 전에 막고 까닭을 보인다.
+            _commitPushButton.SetEnabled(canCommit && repository.Branch != null && repository.Branch.Detached == false && repository.HasRemote);
+            _commitPushButton.tooltip = repository.HasRemote ? string.Empty : GitText.Get("staging.commitPushNoRemote");
         }
 
         /// <summary>
@@ -247,23 +253,42 @@ namespace GitVersionControl
                 message = GitCommitTemplate.StripComments(message);
             }
             bool isAmend = _amend.value;
-            GitBranchInfo branch = _services.Repository.Branch;
-            string title = GitText.Get(push ? "staging.commitAndPush" : "op.commit");
-
-            GitResult result = await _services.Runner.RunAsync(title, async () =>
+            // .meta 없이 새 에셋을 커밋하면 다른 사람 쪽에서 GUID 가 새로 생긴다. 빠진 .meta 가 있으면 함께 올릴지 묻는다.
+            List<string> missingMeta = GitStaging.MissingMetaPaths(_services.Repository.Entries);
+            if (missingMeta.Count > 0)
             {
-                GitResult commit = await _services.Commands.CommitStagedAsync(message, isAmend);
-                if (commit.Success == false || push == false)
+                string list = string.Join("\n", missingMeta.Take(10)) + (missingMeta.Count > 10 ? $"\n… +{missingMeta.Count - 10}" : string.Empty);
+                int choice = await _services.Dialogs.ChooseAsync(GitText.Get("commit.missingMetaTitle"), GitText.Format("commit.missingMetaMessage", list),
+                    GitText.Get("commit.missingMetaInclude"), GitText.Get("commit.missingMetaSkip"), altDanger: true);
+                if (choice == 1)
                 {
-                    return commit;
+                    return;
                 }
-                return await _services.Commands.PushAsync(branch);
-            }, refreshAssets: false);
-
-            if (result.Success)
+                if (choice == 0)
+                {
+                    // Unity 가 아직 임포트하지 않아 .meta 가 없을 수 있다. 임포트해 만들게 한 뒤 있는 것만 올린다.
+                    AssetDatabase.Refresh();
+                    string root = GitRepository.RepoRoot;
+                    string[] present = missingMeta.Where(path => File.Exists(Path.Combine(root, path))).ToArray();
+                    if (present.Length > 0)
+                    {
+                        await _services.Runner.RunAsync(GitText.Get("op.stage"), () => GitRepository.RunAsync(new[] { "add", "--" }.Concat(present).ToArray()),
+                            refreshAssets: false, workingTreeOnly: true);
+                    }
+                }
+            }
+            // 커밋과 Push 를 따로 돌린다: 커밋이 되면 Push 결과와 상관없이 입력란을 바로 비운다
+            // (Push 가 실패해도 "커밋 실패" 로 보이지 않고, 같은 메시지로 다시 누를 일이 없게).
+            GitResult result = await _services.Runner.RunAsync(GitText.Get("op.commit"), () => _services.Commands.CommitStagedAsync(message, isAmend), refreshAssets: false);
+            if (result.Success == false)
             {
-                _amend.value = false;
-                FillTemplate();
+                return;
+            }
+            _amend.value = false;
+            FillTemplate();
+            if (push)
+            {
+                await new SyncFlows(_services).PushAsync(_services.Repository.Branch);
             }
         }
     }

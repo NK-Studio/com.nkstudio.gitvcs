@@ -115,7 +115,8 @@ namespace GitVersionControl
                 _gitHubName.SetValueWithoutNotify(suggested);
             }
             Validate();
-            if (GitHubAccount.IsSignedIn && _repositoriesLoaded == false)
+            // 열 때마다 다시 읽는다(방금 GitHub 에서 만든 저장소도 보이게). 읽는 동안에는 지난 목록을 그대로 보인다.
+            if (GitHubAccount.IsSignedIn)
             {
                 LoadRepositories();
             }
@@ -173,11 +174,20 @@ namespace GitVersionControl
 
         private async void LoadRepositories()
         {
-            _repositoriesLoaded = true;
+            if (_repositoriesLoading)
+            {
+                return;
+            }
             _repositoriesLoading = true;
             _repositoriesError = null;
+            // 먼저 기억해 둔 목록을 바로 보이고(빈 칸으로 기다리지 않게), 새로 읽은 것으로 바꾼다.
+            (List<GitHubRepository> cached, _) = await GitHubRepositories.ListAsync();
+            if (cached.Count > 0)
+            {
+                _repository.SetItems(cached);
+            }
             UpdateRepoStatus();
-            (List<GitHubRepository> repositories, string error) = await GitHubRepositories.ListAsync();
+            (List<GitHubRepository> repositories, string error) = await GitHubRepositories.ListAsync(reload: true);
             _repositoriesLoading = false;
             _repositoriesError = error;
             // 실패했으면 다음에 열 때 다시 시도한다.
@@ -191,7 +201,7 @@ namespace GitVersionControl
         /// </summary>
         private void UpdateRepoStatus()
         {
-            Show(_repoStatus, _repositoriesLoading ? GitText.Get("common.loading")
+            Show(_repoStatus, _repositoriesLoading && _repository.ItemCount == 0 ? GitText.Get("common.loading")
                 : _repositoriesError != null ? GitText.Format("remote.repoError", _repositoriesError)
                 : _repository.HasMatches == false ? GitText.Get(_repository.ItemCount == 0 ? "remote.repoNone" : "remote.repoEmpty")
                 : null);

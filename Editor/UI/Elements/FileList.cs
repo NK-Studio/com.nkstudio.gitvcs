@@ -62,6 +62,40 @@ namespace GitVersionControl
             return GitVcsSettings.instance.GroupMetaPairs ? GitStaging.GroupMetaPairs(entries).Select(From) : entries.Select(From);
         }
 
+        /// <summary>
+        /// 커밋·비교의 바뀐 파일 줄. 변경 목록과 같은 설정(<see cref="GitVcsSettings.GroupMetaPairs"/>)이면 에셋과 그 .meta 를 한 줄로 묶는다.
+        /// .meta 만 바뀌었으면(짝 에셋이 목록에 없으면) 따로 한 줄이다.
+        /// </summary>
+        public static IEnumerable<FileListItem> FromChanges(IReadOnlyList<GitFileChange> changes)
+        {
+            if (GitVcsSettings.instance.GroupMetaPairs == false)
+            {
+                return changes.Select(From);
+            }
+            Dictionary<string, GitFileChange> byPath = new();
+            foreach (GitFileChange change in changes)
+            {
+                byPath[change.RepoPath] = change;
+            }
+            List<FileListItem> items = new();
+            foreach (GitFileChange change in changes)
+            {
+                bool isMeta = change.RepoPath.EndsWith(".meta", StringComparison.Ordinal);
+                if (isMeta && byPath.ContainsKey(change.RepoPath.Substring(0, change.RepoPath.Length - ".meta".Length)))
+                {
+                    continue;
+                }
+                FileListItem item = From(change);
+                if (isMeta == false && byPath.TryGetValue(change.RepoPath + ".meta", out GitFileChange meta))
+                {
+                    item.MetaSource = meta;
+                    item.Tooltip += $"\n+ {meta.RepoPath}";
+                }
+                items.Add(item);
+            }
+            return items;
+        }
+
         public static FileListItem From(GitFileChange change)
         {
             return new FileListItem

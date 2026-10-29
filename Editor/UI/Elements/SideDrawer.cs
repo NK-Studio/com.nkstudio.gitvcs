@@ -53,7 +53,9 @@ namespace GitVersionControl
             });
             Root.RegisterCallback<KeyDownEvent>(evt =>
             {
-                if (evt.keyCode == UnityEngine.KeyCode.Escape)
+                // 서랍 안 고르기 상자의 목록이 열려 있으면 그 Esc 는 목록을 닫는 데 쓴다(한 번에 하나만 닫는다).
+                bool fromOpenSelect = IsInOpenSelect(evt.target as VisualElement);
+                if (evt.keyCode == UnityEngine.KeyCode.Escape && fromOpenSelect == false)
                 {
                     Close();
                     evt.StopPropagation();
@@ -68,6 +70,7 @@ namespace GitVersionControl
             Label titleLabel = new(title);
             titleLabel.AddToClassList(Block + "__title");
             header.Add(titleLabel);
+            _titleLabel = titleLabel;
             Button close = new(Close) { text = "✕", tooltip = GitText.Get("common.close") };
             close.AddToClassList(Block + "__close");
             header.Add(close);
@@ -83,6 +86,14 @@ namespace GitVersionControl
             Services.Runner.StateChanged += Validate;
             Root.RegisterCallback<DetachFromPanelEvent>(_ => Services.Runner.StateChanged -= Validate);
             host.Add(Root);
+        }
+
+        private readonly Label _titleLabel;
+
+        /// <summary>머리 제목을 바꾼다(같은 서랍으로 만들기·고치기를 할 때).</summary>
+        protected void SetTitle(string title)
+        {
+            _titleLabel.text = title;
         }
 
         /// <summary>
@@ -254,6 +265,19 @@ namespace GitVersionControl
             SecondaryButton(prompt, GitText.Get("remote.signIn"), () => UnityEditor.SettingsService.OpenUserPreferences(GitMainToolbarMenu.PreferencesPath));
             parent.Add(prompt);
             return prompt;
+        }
+
+        /// <summary>목록이 열린 고르기 상자(<see cref="SearchSelect{T}"/>) 안에서 온 입력인지.</summary>
+        private static bool IsInOpenSelect(VisualElement element)
+        {
+            for (VisualElement current = element; current != null; current = current.parent)
+            {
+                if (current.ClassListContains(SearchSelectClasses.Open))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

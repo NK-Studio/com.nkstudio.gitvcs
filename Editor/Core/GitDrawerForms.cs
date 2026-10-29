@@ -152,6 +152,14 @@ namespace GitVersionControl
         /// <summary>
         /// GitHub 를 가리키는 원격들(원격 이름 순, origin 먼저).
         /// </summary>
+        /// <summary>브랜치 이름으로 만든 PR 제목: 마지막 '/' 뒤, '-'·'_' 는 띄어쓰기("origin/feature/pr-menu" → "pr menu").</summary>
+        public static string TitleFromBranch(string branch)
+        {
+            string name = branch ?? string.Empty;
+            int slash = name.LastIndexOf('/');
+            return (slash >= 0 ? name.Substring(slash + 1) : name).Replace('-', ' ').Replace('_', ' ').Trim();
+        }
+
         public static List<GitHubRemoteRepo> GitHubRemotes(IDictionary<string, string> remoteUrls)
         {
             List<GitHubRemoteRepo> repos = new();

@@ -9,8 +9,19 @@ namespace GitVersionControl
         Task<GitResult> CommitAsync(IReadOnlyCollection<GitStatusEntry> entries, string message);
         Task<GitResult> DiscardAsync(IReadOnlyCollection<GitStatusEntry> entries);
         Task<GitResult> FetchAsync();
-        Task<GitResult> PullAsync();
-        Task<GitResult> PushAsync(GitBranchInfo branch);
+        Task<GitResult> PullAsync(GitPullMode mode);
+
+        /// <param name="remote">upstream 이 없는 새 브랜치를 올릴 원격.</param>
+        Task<GitResult> PushAsync(GitBranchInfo branch, string remote);
+
+        /// <summary>등록된 원격 이름들.</summary>
+        Task<List<string>> RemotesAsync();
+
+        /// <summary>저장소 설정이 정한 Pull 방식. 없으면 null.</summary>
+        Task<GitPullMode?> ConfiguredPullModeAsync();
+
+        /// <summary>현재 브랜치가 upstream 과 갈라졌는지.</summary>
+        Task<bool> IsDivergedFromUpstreamAsync();
         Task<GitResult> SwitchAsync(GitBranchRef branch);
         Task<GitResult> CreateBranchAsync(string name, bool switchTo);
         Task<GitResult> DeleteBranchAsync(string name, bool force);
@@ -44,6 +55,9 @@ namespace GitVersionControl
 
         Task<GitResult> RenameBranchAsync(string oldName, string newName);
         Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream);
+
+        /// <summary>로컬 브랜치를 원격의 <paramref name="remoteBranch"/> 로 올리고 추적한다.</summary>
+        Task<GitResult> PushBranchToAsync(string remote, string branch, string remoteBranch);
         Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch);
         Task<GitResult> FastForwardBranchAsync(string branch, string upstream);
         Task<GitResult> SetUpstreamAsync(string branch, string upstream);
@@ -89,6 +103,9 @@ namespace GitVersionControl
         /// 리비전(브랜치·태그·해시·HEAD~2)의 커밋 해시. 없으면 null.
         /// </summary>
         Task<string> ResolveCommitAsync(string revision);
+
+        /// <summary>로컬 태그 이름들.</summary>
+        Task<List<string>> TagNamesAsync();
         Task<GitResult> StashAsync();
         Task<GitResult> StashPopAsync();
         Task<int> StashCountAsync();
@@ -130,9 +147,15 @@ namespace GitVersionControl
 
         public Task<GitResult> FetchAsync() => GitOperations.FetchAsync();
 
-        public Task<GitResult> PullAsync() => GitUndo.PullAsync();
+        public Task<GitResult> PullAsync(GitPullMode mode) => GitUndo.PullAsync(mode);
 
-        public Task<GitResult> PushAsync(GitBranchInfo branch) => GitOperations.PushAsync(branch);
+        public Task<GitResult> PushAsync(GitBranchInfo branch, string remote) => GitOperations.PushAsync(branch, remote);
+
+        public Task<List<string>> RemotesAsync() => GitOperations.RemotesAsync();
+
+        public Task<GitPullMode?> ConfiguredPullModeAsync() => GitOperations.ConfiguredPullModeAsync();
+
+        public Task<bool> IsDivergedFromUpstreamAsync() => GitOperations.IsDivergedFromUpstreamAsync();
 
         public Task<GitResult> SwitchAsync(GitBranchRef branch) => GitUndo.SwitchAsync(branch);
 
@@ -164,6 +187,8 @@ namespace GitVersionControl
         public Task<GitResult> RenameBranchAsync(string oldName, string newName) => GitRepository.RunAsync(GitCommitCommands.RenameBranch(oldName, newName));
 
         public Task<GitResult> PushBranchAsync(string remote, string branch, bool setUpstream) => GitOperations.RunNetworkAsync(GitCommitCommands.PushBranch(remote, branch, setUpstream));
+
+        public Task<GitResult> PushBranchToAsync(string remote, string branch, string remoteBranch) => GitOperations.RunNetworkAsync(GitCommitCommands.PushBranchTo(remote, branch, remoteBranch));
 
         public Task<GitResult> DeleteRemoteBranchAsync(string remote, string branch) => GitOperations.RunNetworkAsync(GitCommitCommands.DeleteRemoteBranch(remote, branch));
 
@@ -218,6 +243,23 @@ namespace GitVersionControl
         public Task<GitResult> UpdateSubmoduleAsync(string path) => GitOperations.RunNetworkAsync(GitCommitCommands.UpdateSubmodule(path));
 
         public Task<GitResult> RewriteAsync(GitRewriteKind kind, string commit, string newMessage, string undoTitle) => GitRewrite.RunAsync(kind, commit, newMessage, undoTitle);
+
+        public async Task<List<string>> TagNamesAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("tag", "--list");
+            List<string> names = new();
+            if (result.Success)
+            {
+                foreach (string line in result.Output.Split('\n'))
+                {
+                    if (line.Trim().Length > 0)
+                    {
+                        names.Add(line.Trim());
+                    }
+                }
+            }
+            return names;
+        }
 
         public async Task<string> ResolveCommitAsync(string revision)
         {

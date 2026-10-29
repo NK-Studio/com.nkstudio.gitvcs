@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GitVersionControl
@@ -44,16 +46,22 @@ namespace GitVersionControl
         /// <param name="description">물을 때 보일 대상 설명.</param>
         public async Task CompareWithRevisionAsync(string target, string description, string defaultRevision)
         {
-            string revision = GitTextPromptWindow.Ask(GitText.Get("commit.compareTitle"), GitText.Format("commit.compareWithPrompt", description), defaultRevision);
-            if (string.IsNullOrWhiteSpace(revision))
+            string title = GitText.Get("commit.compareTitle");
+            string other = null;
+            // 모르는 리비전이면 입력 팝업으로 돌아가 쓴 글을 고치게 한다.
+            for (string revision = defaultRevision; ;)
             {
-                return;
-            }
-            string other = await _services.Commands.ResolveCommitAsync(revision.Trim());
-            if (other == null)
-            {
-                _services.Dialogs.Alert(GitText.Get("commit.compareTitle"), GitText.Format("commit.unknownRevision", revision.Trim()));
-                return;
+                revision = (await _services.Dialogs.PromptAsync(title, GitText.Format("commit.compareWithPrompt", description), revision, icon: ActionGlyphKind.Search))?.Trim();
+                if (string.IsNullOrEmpty(revision))
+                {
+                    return;
+                }
+                other = await _services.Commands.ResolveCommitAsync(revision);
+                if (other != null)
+                {
+                    break;
+                }
+                await _services.Dialogs.AlertAsync(title, GitText.Format("commit.unknownRevision", revision), ActionGlyphKind.Search);
             }
             GitCompareWindow.OpenRange(other, target);
         }
@@ -87,7 +95,7 @@ namespace GitVersionControl
             GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
             if (valid.Success == false)
             {
-                _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
+                await _services.Dialogs.AlertAsync(title, GitText.Format("branches.invalidName", name), ActionGlyphKind.Branch);
                 return;
             }
             bool atHead = startPoint == _services.Repository.HeadCommit;
@@ -113,7 +121,7 @@ namespace GitVersionControl
             GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
             if (valid.Success == false)
             {
-                _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
+                await _services.Dialogs.AlertAsync(title, GitText.Format("branches.invalidName", name), ActionGlyphKind.Branch);
                 return;
             }
             if (switchTo && await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
@@ -132,7 +140,19 @@ namespace GitVersionControl
         public async Task CreateTagAtAsync(string commit, string description)
         {
             string title = GitText.Get("commit.tagTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("commit.tagPrompt", description), string.Empty)?.Trim();
+            // 이미 있는 태그 이름은 쓰는 동안 막는다(git 오류로 알게 되지 않게).
+            HashSet<string> existing = new(await _services.Commands.TagNamesAsync());
+            string name = (await _services.Dialogs.PromptAsync(title, GitText.Format("commit.tagPrompt", description), string.Empty,
+                validate: value =>
+                {
+                    string trimmed = value.Trim();
+                    if (existing.Contains(trimmed))
+                    {
+                        return GitText.Format("commit.tagExists", trimmed);
+                    }
+                    BranchNameProblem problem = GitBranchNames.Check(trimmed, null);
+                    return problem is BranchNameProblem.None or BranchNameProblem.Empty ? null : GitText.Get("branchDialog.problem" + problem);
+                }, icon: ActionGlyphKind.Tag))?.Trim();
             if (string.IsNullOrEmpty(name))
             {
                 return;
@@ -140,7 +160,7 @@ namespace GitVersionControl
             GitResult valid = await _services.Commands.ValidateTagNameAsync(name);
             if (valid.Success == false)
             {
-                _services.Dialogs.Alert(title, GitText.Format("commit.invalidTag", name));
+                await _services.Dialogs.AlertAsync(title, GitText.Format("commit.invalidTag", name), ActionGlyphKind.Tag);
                 return;
             }
             await _services.Runner.RunAsync(GitText.Format("op.tag", name), () => _services.Commands.CreateTagAsync(name, commit), refreshAssets: false);
@@ -184,7 +204,8 @@ namespace GitVersionControl
         /// </summary>
         public async Task RebaseOntoAsync(string revision, string shortName, string description)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("branch.rebaseTitle"), GitText.Format("branch.rebaseConfirm", CurrentBranchName(), description), GitText.Get("common.continue")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("branch.rebaseTitle"), GitText.Format("branch.rebaseConfirm", CurrentBranchName(), description), GitText.Get("common.continue"),
+                    icon: ActionGlyphKind.Branch) == false)
             {
                 return;
             }
@@ -194,15 +215,15 @@ namespace GitVersionControl
             }
             string operation = GitText.Format("op.rebase", CurrentBranchName(), shortName);
             GitResult result = await _services.Runner.RunAsync(operation, () => _services.Commands.RebaseAsync(operation, revision), refreshAssets: true);
-            AlertNotice(GitText.Get("branch.rebaseTitle"), result);
+            await AlertNoticeAsync(GitText.Get("branch.rebaseTitle"), result);
         }
 
         /// <summary>성공했지만 알려야 할 일이 있을 때(rebase 의 autostash 충돌). 실패는 Runner 가 이미 알린다.</summary>
-        private void AlertNotice(string title, GitResult result)
+        private async Task AlertNoticeAsync(string title, GitResult result)
         {
             if (result.Success && string.IsNullOrEmpty(result.Error) == false)
             {
-                _services.Dialogs.Alert(title, result.Error);
+                await _services.Dialogs.AlertAsync(title, result.Error);
             }
         }
 
@@ -254,7 +275,7 @@ namespace GitVersionControl
             });
             if (unsupported != null)
             {
-                _services.Dialogs.Alert(title, GitText.Get(unsupported));
+                await _services.Dialogs.AlertAsync(title, GitText.Get(unsupported), ActionGlyphKind.Pencil);
                 return;
             }
 
@@ -264,7 +285,7 @@ namespace GitVersionControl
                 case GitRewriteKind.Reword:
                 {
                     string current = await _services.History.CommitMessageAsync(commit.Hash) ?? commit.Subject;
-                    message = GitTextPromptWindow.AskMultiline(title, GitText.Format("rewrite.rewordPrompt", Describe(commit)), current.TrimEnd());
+                    message = await _services.Dialogs.PromptAsync(title, GitText.Format("rewrite.rewordPrompt", Describe(commit)), current.TrimEnd(), multiline: true);
                     if (message == null || message.Trim() == current.Trim())
                     {
                         return;
@@ -276,7 +297,7 @@ namespace GitVersionControl
                     string parentMessage = await _services.History.CommitMessageAsync(commit.Parents[0]) ?? string.Empty;
                     string ownMessage = await _services.History.CommitMessageAsync(commit.Hash) ?? commit.Subject;
                     string combined = GitRewrite.CombinedMessage(GitRewriteKind.Squash, parentMessage, ownMessage).TrimEnd();
-                    message = GitTextPromptWindow.AskMultiline(title, GitText.Format("rewrite.squashPrompt", Describe(commit)), combined);
+                    message = await _services.Dialogs.PromptAsync(title, GitText.Format("rewrite.squashPrompt", Describe(commit)), combined, multiline: true);
                     if (message == null)
                     {
                         return;
@@ -284,13 +305,14 @@ namespace GitVersionControl
                     break;
                 }
                 case GitRewriteKind.Fixup:
-                    if (_services.Dialogs.Confirm(title, GitText.Format("rewrite.fixupConfirm", Describe(commit)), GitText.Get("common.continue")) == false)
+                    if (await _services.Dialogs.ConfirmAsync(title, GitText.Format("rewrite.fixupConfirm", Describe(commit)), GitText.Get("common.continue"), icon: ActionGlyphKind.Pencil) == false)
                     {
                         return;
                     }
                     break;
                 case GitRewriteKind.Drop:
-                    if (_services.Dialogs.Confirm(title, GitText.Format("rewrite.dropConfirm", Describe(commit), CurrentBranchName()), GitText.Get("common.continue")) == false)
+                    if (await _services.Dialogs.ConfirmAsync(title, GitText.Format("rewrite.dropConfirm", Describe(commit), CurrentBranchName()), GitText.Get("common.continue"),
+                            danger: true, icon: ActionGlyphKind.Pencil) == false)
                     {
                         return;
                     }
@@ -303,7 +325,7 @@ namespace GitVersionControl
             }
             if (message != null && string.IsNullOrWhiteSpace(message))
             {
-                _services.Dialogs.Alert(title, GitText.Get("rewrite.emptyMessage"));
+                await _services.Dialogs.AlertAsync(title, GitText.Get("rewrite.emptyMessage"), ActionGlyphKind.Pencil);
                 return;
             }
 
@@ -317,7 +339,7 @@ namespace GitVersionControl
             GitResult result = await _services.Runner.RunAsync(operation, () => _services.Commands.RewriteAsync(kind, commit.Hash, message, operation), refreshAssets: kind == GitRewriteKind.Drop);
             if (kind == GitRewriteKind.Drop)
             {
-                AlertNotice(title, result);
+                await AlertNoticeAsync(title, result);
             }
         }
 
@@ -347,7 +369,9 @@ namespace GitVersionControl
 
         private async Task MoveHeadAsync(string title, string confirm, string operation, string[] args, string undoResetMode)
         {
-            if (_services.Dialogs.Confirm(title, confirm, GitText.Get("common.continue")) == false)
+            // hard reset 은 커밋하지 않은 변경을 지운다: 빨간 확인, 기본은 취소.
+            bool danger = args.Contains("--hard");
+            if (await _services.Dialogs.ConfirmAsync(title, confirm, GitText.Get("common.continue"), danger, icon: ActionGlyphKind.Branch) == false)
             {
                 return;
             }

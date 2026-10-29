@@ -48,7 +48,7 @@ namespace GitVersionControl
 
         private void CreateGUI()
         {
-            _diffService ??= new GitDiffService(new EditorDialogService());
+            _diffService ??= new GitDiffService(new OverlayDialogService());
             CreateContent();
 
             _summary = new Label();

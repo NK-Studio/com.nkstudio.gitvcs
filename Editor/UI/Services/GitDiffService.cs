@@ -276,7 +276,7 @@ namespace GitVersionControl
             // --no-index 는 차이가 있으면 1 로 끝난다.
             if (result.Success == false && (tempDirectory == null || result.ExitCode != 1))
             {
-                _dialogs.Alert(GitText.Get("diff.difftoolFailed"), string.IsNullOrWhiteSpace(result.Message) ? GitText.Get("diff.difftoolHint") : result.Message);
+                await _dialogs.AlertAsync(GitText.Get("diff.difftoolFailed"), string.IsNullOrWhiteSpace(result.Message) ? GitText.Get("diff.difftoolHint") : result.Message);
             }
         }
 
@@ -290,7 +290,7 @@ namespace GitVersionControl
             }
             if (string.IsNullOrEmpty(executable))
             {
-                if (_dialogs.Confirm(GitText.Get("diff.toolNotFound"), GitText.Format("diff.toolNotFoundMessage", GitText.Get("diffEngine." + engine)), GitText.Get("common.openVcsSettings")))
+                if (await _dialogs.ConfirmAsync(GitText.Get("diff.toolNotFound"), GitText.Format("diff.toolNotFoundMessage", GitText.Get("diffEngine." + engine)), GitText.Get("common.openVcsSettings")))
                 {
                     SettingsService.OpenProjectSettings(GitIntegration.ProjectSettingsPath);
                 }
@@ -300,7 +300,7 @@ namespace GitVersionControl
             (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, CreateTempDirectory());
             if (error != null)
             {
-                _dialogs.Alert(GitText.Get("diff.prepareFailed"), error);
+                await _dialogs.AlertAsync(GitText.Get("diff.prepareFailed"), error);
                 return;
             }
             string leftTitle = $"{target.LeftPath} ({leftLabel})";
@@ -319,7 +319,7 @@ namespace GitVersionControl
             }
             catch (Exception e) when (e is System.ComponentModel.Win32Exception || e is InvalidOperationException)
             {
-                _dialogs.Alert(GitText.Get("diff.toolStartFailed"), $"{executable}\n{e.Message}");
+                await _dialogs.AlertAsync(GitText.Get("diff.toolStartFailed"), $"{executable}\n{e.Message}");
             }
         }
 

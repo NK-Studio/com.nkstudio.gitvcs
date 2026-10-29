@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
@@ -69,12 +70,21 @@ namespace GitVersionControl
         /// </summary>
         public event Action<GitBranchRef> CreatePullRequestRequested;
 
+        /// <summary>PR 필터(묶음)를 새로 만들 서랍을 연다(-1) 또는 그 순번을 고칠 서랍을 연다.</summary>
+        public event Action<int> PullRequestFilterRequested;
+
+        /// <summary>참조(원격 브랜치)를 골라 둔 워크트리 만들기 서랍을 연다(PR 메뉴).</summary>
+        public event Action<string> CreateWorktreeRequested;
+
+        /// <summary>Pull Requests 구역 검색 칸의 글.</summary>
+        private string _prSearch = string.Empty;
+
         /// <summary>
         /// 참조를 다시 읽었을 때. 접힌 사이드바(<see cref="SidebarRail"/>)가 구역별 개수(<see cref="SectionCount"/>)를 새로 칠한다.
         /// </summary>
         public event Action Loaded;
 
-        private string CurrentKey => $"{_services.Repository.HeadCommit}|{_services.Repository.UpstreamCommit}|{_services.Repository.Branch?.Name}|{_services.Repository.LastFetchTime}";
+        private string CurrentKey => $"{_services.Repository.HeadCommit}|{_services.Repository.UpstreamCommit}|{_services.Repository.Branch?.Name}|{_services.Repository.LastFetchTime}|{_services.Repository.RefsFingerprint}";
 
         public RefSidebar(VisualElement host, GitServices services, RefSidebarState state)
         {
@@ -139,11 +149,13 @@ namespace GitVersionControl
             Root.Add(_tree);
 
             _services.Runner.StateChanged += OnRunnerStateChanged;
+            GitPullRequestFilters.Changed += OnPullRequestFiltersChanged;
         }
 
         public void Dispose()
         {
             _services.Runner.StateChanged -= OnRunnerStateChanged;
+            GitPullRequestFilters.Changed -= OnPullRequestFiltersChanged;
         }
 
         public void OnRepositoryChanged()
@@ -270,7 +282,8 @@ namespace GitVersionControl
         {
             List<GitHubRemoteRepo> remotes = GitPullRequestForm.GitHubRemotes(_refs.RemoteUrls);
             GitHubRemoteRepo target = remotes.FirstOrDefault(r => r.Remote == "upstream") ?? remotes.FirstOrDefault();
-            string key = $"{GitHubAccount.Login}|{target?.FullName}";
+            // Fetch 할 때마다(수동·자동) 다시 받는다 — GitHub 에서 병합·닫힌 PR 이 목록에 남지 않게.
+            string key = $"{GitHubAccount.Login}|{target?.FullName}|{_services.Repository.LastFetchTime}";
             if (key == _pullRequestsKey)
             {
                 return;
@@ -297,7 +310,50 @@ namespace GitVersionControl
                 // 다음 새로고침 때 다시 시도한다.
                 _pullRequestsKey = null;
             }
-            ApplyPullRequests(new GitPullRequestSet { Repository = target.FullName, Login = GitHubAccount.Login, All = pulls, Error = error });
+            GitPullRequestSet set = new() { Repository = target.FullName, Remote = target.Remote, Login = GitHubAccount.Login, All = pulls, Error = error };
+            ApplyPullRequests(set);
+            if (error == null)
+            {
+                await SearchFiltersAsync(set, target, request);
+            }
+        }
+
+        /// <summary>
+        /// 받은 PR 정보로 풀 수 없는 필터 조건(review:·status:·created: …)을 GitHub 검색으로 푼다. 받는 대로 다시 그린다.
+        /// </summary>
+        private async Task SearchFiltersAsync(GitPullRequestSet set, GitHubRemoteRepo target, int request)
+        {
+            foreach (string query in GitPullRequestFilters.Load().Select(f => f.Query ?? string.Empty).Distinct())
+            {
+                if (GitPullRequestFilters.NeedsSearch(query) == false || set.SearchResults.ContainsKey(query))
+                {
+                    continue;
+                }
+                (HashSet<int> numbers, string error) = await GitHubPullRequests.SearchNumbersAsync(target, query);
+                if (request != _pullRequestsRequest || _pullRequests != set)
+                {
+                    return;
+                }
+                if (error == null)
+                {
+                    set.SearchResults[query] = numbers;
+                    Rebuild();
+                }
+            }
+        }
+
+        private void OnPullRequestFiltersChanged()
+        {
+            Rebuild();
+            if (_pullRequests != null && _pullRequests.Error == null && _pullRequests.IsLoading == false)
+            {
+                List<GitHubRemoteRepo> remotes = GitPullRequestForm.GitHubRemotes(_refs.RemoteUrls);
+                GitHubRemoteRepo target = remotes.FirstOrDefault(r => r.Remote == _pullRequests.Remote) ?? remotes.FirstOrDefault();
+                if (target != null)
+                {
+                    _ = SearchFiltersAsync(_pullRequests, target, _pullRequestsRequest);
+                }
+            }
         }
 
         private void ApplyPullRequests(GitPullRequestSet set)
@@ -311,7 +367,7 @@ namespace GitVersionControl
 
         private void Rebuild()
         {
-            List<RefNode> roots = RefTreeBuilder.Build(_refs, _state.Filter, section => GitText.Get("refs.section" + section), GitText.Get);
+            List<RefNode> roots = RefTreeBuilder.Build(_refs, _state.Filter, section => GitText.Get("refs.section" + section), GitText.Get, _prSearch);
             List<int> selected = _tree.selectedIds.ToList();
             _rebuilding = true;
             _tree.SetRootItems(roots.Select(ToItemData).ToList());
@@ -458,8 +514,37 @@ namespace GitVersionControl
                     PopulateMenu(evt.menu, _tree.GetItemDataForIndex<RefNode>(index));
                 }
             }));
+            // Pull Requests 구역 맨 위 줄: GitKraken 처럼 PR 검색 칸과 필터 추가(깔때기+) 버튼. 그 줄에서만 보인다.
+            VisualElement search = new();
+            search.AddToClassList(Block + "__pr-search");
+            TextField searchField = new();
+            searchField.AddToClassList(Block + "__pr-search-field");
+            searchField.textEdition.placeholder = GitText.Get("prList.searchPlaceholder");
+            searchField.textEdition.hidePlaceholderOnFocus = false;
+            searchField.RegisterValueChangedCallback(evt =>
+            {
+                _prSearch = evt.newValue ?? string.Empty;
+                // 다시 그리면 이 칸이 다른 줄 요소로 바뀔 수 있으니 포커스를 되찾을 수 있게 표시해 둔다.
+                _refocusPrSearch = true;
+                Rebuild();
+            });
+            // 트리의 화살표·Enter 처리로 넘어가지 않게 한다(글을 쓰는 칸이다).
+            searchField.RegisterCallback<KeyDownEvent>(evt => evt.StopPropagation());
+            searchField.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            search.Add(searchField);
+            Button addFilter = new(() => PullRequestFilterRequested?.Invoke(-1));
+            addFilter.AddToClassList(Block + "__pr-filter-add");
+            addFilter.Add(new ActionGlyph(ActionGlyphKind.Search));
+            addFilter.tooltip = GitText.Get("prFilter.createTitle");
+            addFilter.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            search.Add(addFilter);
+            search.SetVisible(false);
+            row.Add(search);
             return row;
         }
+
+        /// <summary>검색 칸에 쓰는 중에 트리를 다시 그렸으면 다시 그린 칸에 포커스를 돌려준다.</summary>
+        private bool _refocusPrSearch;
 
         private void BindRow(VisualElement row, int index)
         {
@@ -490,7 +575,31 @@ namespace GitVersionControl
             {
                 row[3].userData = node.Section;
             }
-            row.EnableInClassList(Block + "__row--menu", node.Kind == RefNodeKind.Branch);
+            // GitKraken 처럼 브랜치·PR 묶음(필터)·PR 줄 끝에 ⋮ 메뉴.
+            row.EnableInClassList(Block + "__row--menu", node.Kind is RefNodeKind.Branch or RefNodeKind.PullRequestGroup or RefNodeKind.PullRequest);
+            bool isSearch = node.Kind == RefNodeKind.PullRequestSearch;
+            row.EnableInClassList(Block + "__row--pr-search", isSearch);
+            VisualElement searchRow = row[5];
+            searchRow.SetVisible(isSearch);
+            // 검색 줄에서만 끈다. 다른 줄은 인라인 값을 지워 USS(묶음·안내 줄은 아이콘 없음)가 정하게 둔다.
+            StyleEnum<DisplayStyle> hidden = isSearch ? DisplayStyle.None : StyleKeyword.Null;
+            icon.style.display = hidden;
+            label.style.display = hidden;
+            badge.style.display = hidden;
+            if (isSearch)
+            {
+                TextField field = searchRow.Q<TextField>();
+                field.SetValueWithoutNotify(_prSearch);
+                if (_refocusPrSearch)
+                {
+                    _refocusPrSearch = false;
+                    field.schedule.Execute(() =>
+                    {
+                        field.Focus();
+                        field.SelectRange(field.value.Length, field.value.Length);
+                    });
+                }
+            }
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
             // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서와 화살표 숨김은 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
             // 폴더·원격은 늘 펼쳐 두므로 화살표를 감추고 누를 수 없게 한다(자리는 남겨 형제 브랜치와 들여쓰기를 맞춘다).
@@ -584,6 +693,8 @@ namespace GitVersionControl
                     return ActionGlyphKind.Submodule;
                 case RefNodeKind.PullRequest:
                     return ActionGlyphKind.PullRequest;
+                case RefNodeKind.PullRequestRemote:
+                    return ActionGlyphKind.GitHub;
                 default:
                     return ActionGlyphKind.Branch;
             }
@@ -634,8 +745,20 @@ namespace GitVersionControl
                     PopulateSectionMenu(menu, node.Section, writable);
                     break;
                 case RefNodeKind.Remote:
-                    menu.AppendAction(GitText.Get("refs.fetch"), action => _ = _actions.FetchAsync(), writable);
+                {
+                    string remote = node.Label;
+                    _refs.RemoteUrls.TryGetValue(remote, out string url);
+                    menu.AppendAction(GitText.Format("remote.fetchOne", GitDisplay.MenuSafe(remote)), action => _ = _actions.FetchRemoteAsync(remote), writable);
+                    menu.AppendAction(GitText.Get("remote.prune"), action => _ = _actions.PruneRemoteAsync(remote), writable);
+                    menu.AppendSeparator();
+                    menu.AppendAction(GitText.Get("remote.rename"), action => _ = _actions.RenameRemoteAsync(remote, _refs.RemoteUrls.Keys), writable);
+                    menu.AppendAction(GitText.Get("remote.editUrl"), action => _ = _actions.EditRemoteUrlAsync(remote, url), writable);
+                    menu.AppendAction(GitText.Get("remote.copyUrl"), action => _services.Assets.CopyToClipboard(url ?? string.Empty),
+                        string.IsNullOrEmpty(url) ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+                    menu.AppendSeparator();
+                    menu.AppendAction(GitText.Format("remote.remove", GitDisplay.MenuSafe(remote)), action => _ = _actions.RemoveRemoteAsync(remote), writable);
                     break;
+                }
                 case RefNodeKind.Branch:
                     _branchMenu.Populate(menu, node.Branch, new BranchMenu.Hooks
                     {
@@ -655,6 +778,9 @@ namespace GitVersionControl
                     break;
                 case RefNodeKind.PullRequest:
                     PopulatePullRequestMenu(menu, node.PullRequest, writable);
+                    break;
+                case RefNodeKind.PullRequestGroup:
+                    PopulatePullRequestFilterMenu(menu, node);
                     break;
                 case RefNodeKind.Submodule:
                     menu.AppendAction(GitText.Get("refs.openSubmodule"), action => GitRepository.OpenRepository(RefActions.SubmoduleFullPath(node.Submodule)),
@@ -705,15 +831,64 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// GitKraken 의 PR ⋮ 메뉴와 같은 구성: GitHub 에서 보기·링크 복사 / 바뀐 것 보기·그래프에서 보기 / 체크아웃·워크트리 만들기.
+        /// </summary>
         private void PopulatePullRequestMenu(DropdownMenu menu, GitPullRequestInfo pr, DropdownMenuAction.Status writable)
         {
-            menu.AppendAction(GitText.Get("prList.openInBrowser"), action => UnityEngine.Application.OpenURL(pr.Url));
             GitBranchRef head = PullRequestHead(pr);
-            menu.AppendAction(head == null ? GitText.Get("prList.checkoutUnavailable") : GitText.Format("prList.checkout", GitDisplay.MenuSafe(pr.HeadRef)),
-                action => _ = _branchActions.SwitchAsync(head, LocalNames()), head == null ? DropdownMenuAction.Status.Disabled : writable);
+            string headName = GitDisplay.MenuSafe(pr.HeadRef ?? string.Empty);
+            DropdownMenuAction.Status needsHead = head == null ? DropdownMenuAction.Status.Disabled : writable;
+            menu.AppendAction(GitText.Format("prList.viewOnGitHub", pr.Number), action => UnityEngine.Application.OpenURL(pr.Url));
+            menu.AppendAction(GitText.Format("prList.copyLink", pr.Number), action => _services.Assets.CopyToClipboard(pr.Url));
             menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("prList.copyUrl"), action => _services.Assets.CopyToClipboard(pr.Url));
-            menu.AppendAction(GitText.Get("prList.copyBranch"), action => _services.Assets.CopyToClipboard(pr.HeadRef ?? string.Empty));
+            menu.AppendAction(GitText.Format("prList.viewChanges", pr.Number), action => ViewPullRequestChanges(pr, head),
+                head == null ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+            menu.AppendAction(GitText.Format("prList.goToInGraph", headName), action => RevealRequested?.Invoke(head.Hash),
+                head == null ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+            menu.AppendSeparator();
+            menu.AppendAction(head == null ? GitText.Get("prList.checkoutUnavailable") : GitText.Format("prList.checkoutRemote", GitDisplay.MenuSafe(head.Name)),
+                action => _ = _branchActions.SwitchAsync(head, LocalNames()), needsHead);
+            menu.AppendAction(GitText.Get("prList.createWorktree"), action => CreateWorktreeRequested?.Invoke(head.Name), needsHead);
+        }
+
+        /// <summary>PR 이 바꾼 것: 받는 브랜치와 갈라진 곳부터 보내는 브랜치 끝까지(GitHub 의 Files changed 와 같다).</summary>
+        private void ViewPullRequestChanges(GitPullRequestInfo pr, GitBranchRef head)
+        {
+            string baseRef = string.IsNullOrEmpty(_refs.PullRequests?.Remote) ? pr.BaseRef : _refs.PullRequests.Remote + "/" + pr.BaseRef;
+            GitCompareWindow.OpenSinceMergeBase(baseRef, head.Name);
+        }
+
+        /// <summary>
+        /// GitKraken 의 PR 묶음(필터) ⋮ 메뉴: 고치기·지우기 / 위로·아래로(맨 위·맨 아래면 그쪽은 없다).
+        /// </summary>
+        private void PopulatePullRequestFilterMenu(DropdownMenu menu, RefNode node)
+        {
+            int index = node.FilterIndex;
+            if (index < 0)
+            {
+                return;
+            }
+            menu.AppendAction(GitText.Get("prFilter.editMenu"), action => PullRequestFilterRequested?.Invoke(index));
+            menu.AppendAction(GitText.Get("prFilter.removeMenu"), action => _ = RemoveFilterAsync(index, node.Label));
+            menu.AppendSeparator();
+            if (index > 0)
+            {
+                menu.AppendAction(GitText.Get("prFilter.moveUp"), action => GitPullRequestFilters.Move(index, -1));
+            }
+            if (index < node.FilterCount - 1)
+            {
+                menu.AppendAction(GitText.Get("prFilter.moveDown"), action => GitPullRequestFilters.Move(index, +1));
+            }
+        }
+
+        private async Task RemoveFilterAsync(int index, string name)
+        {
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("prFilter.removeTitle"), GitText.Format("prFilter.removeConfirm", name), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.PullRequest))
+            {
+                GitPullRequestFilters.Remove(index);
+            }
         }
 
         /// <summary>
@@ -730,13 +905,20 @@ namespace GitVersionControl
         {
             string name = GitDisplay.MenuSafe(tag.Name);
             string current = GitDisplay.MenuSafe(_services.Repository.Branch?.Name ?? "HEAD");
-            string remote = DefaultRemote();
+            List<string> remotes = Remotes();
             menu.AppendAction(GitText.Format("refs.tagCheckout", name), action => _ = _actions.CheckoutTagAsync(tag), writable);
             menu.AppendAction(GitText.Format("fork.mergeInto", name, current), action => _ = _actions.MergeTagAsync(tag), writable);
             menu.AppendSeparator();
-            menu.AppendAction(GitText.Format("refs.tagPush", name, remote), action => _ = _actions.PushTagAsync(tag, remote), writable);
+            // 원격이 여럿이면 원격마다 고를 수 있게 한다(어느 하나로 정해 올리지 않는다).
+            foreach (string remote in remotes)
+            {
+                menu.AppendAction(GitText.Format("refs.tagPush", name, remote), action => _ = _actions.PushTagAsync(tag, remote), writable);
+            }
             menu.AppendAction(GitText.Format("fork.delete", name), action => _ = _actions.DeleteTagAsync(tag), writable);
-            menu.AppendAction(GitText.Format("refs.tagDeleteRemote", name, remote), action => _ = _actions.DeleteRemoteTagAsync(tag, remote), writable);
+            foreach (string remote in remotes)
+            {
+                menu.AppendAction(GitText.Format("refs.tagDeleteRemote", name, remote), action => _ = _actions.DeleteRemoteTagAsync(tag, remote), writable);
+            }
             menu.AppendSeparator();
             menu.AppendAction(GitText.Get("common.copyName"), action => _services.Assets.CopyToClipboard(tag.Name));
             menu.AppendAction(GitText.Get("fork.copySha"), action => _services.Assets.CopyToClipboard(tag.Commit));
@@ -771,12 +953,13 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 태그를 올리고 지울 원격. origin 이 있으면 origin, 없으면 첫 원격.
+        /// 태그를 올리고 지울 원격들(origin 을 앞에). 원격 브랜치를 아직 받지 않은 원격도 넣는다.
         /// </summary>
-        private string DefaultRemote()
+        private List<string> Remotes()
         {
-            List<string> remotes = _refs.Branches.Where(b => b.IsRemote).Select(b => GitCommitCommands.SplitRemoteBranch(b.Name).remote).Distinct().ToList();
-            return remotes.Contains("origin") || remotes.Count == 0 ? "origin" : remotes[0];
+            IEnumerable<string> fromBranches = _refs.Branches.Where(b => b.IsRemote).Select(b => GitCommitCommands.SplitRemoteBranch(b.Name).remote);
+            List<string> remotes = fromBranches.Concat(_refs.RemoteUrls.Keys).Distinct().ToList();
+            return remotes.OrderBy(r => r == "origin" ? 0 : 1).ThenBy(r => r, System.StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 }

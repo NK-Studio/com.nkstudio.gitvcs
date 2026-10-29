@@ -39,6 +39,8 @@ namespace GitVersionControl
             GitVcsSettings settings = GitVcsSettings.instance;
             _scale = new UiScaleController(scaleHost, Content, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
             GitContextMenu.Attach(Content, Content);
+            // 이 창에서 시작한 확인·입력 팝업은 이 창 위에 뜬다(Git 창으로 넘어가지 않게).
+            GitPopupHosts.Register(this, Content);
             GitTheme.Apply(Content);
             GitTheme.Changed -= ApplyTheme;
             GitTheme.Changed += ApplyTheme;
@@ -46,6 +48,7 @@ namespace GitVersionControl
 
         protected virtual void OnDisable()
         {
+            GitPopupHosts.Unregister(this);
             GitTheme.Changed -= ApplyTheme;
         }
 

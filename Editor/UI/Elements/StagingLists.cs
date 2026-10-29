@@ -41,6 +41,17 @@ namespace GitVersionControl
         /// 진행 중인 Stage·Unstage 의 결과 짐작. 끝나면 null.
         /// </summary>
         private Func<IReadOnlyList<GitStatusEntry>, List<GitStatusEntry>> _prediction;
+
+        /// <summary>
+        /// 짐작을 얹어 보이는 마지막 시각. 작업이 어떤 이유로 끝을 알리지 못해도 짐작이 진짜 status 를 계속 가리지 않게 한다.
+        /// </summary>
+        private double _predictionDeadline;
+
+        /// <summary>짐작이 진짜 status 를 덮을 수 있는 최대 시간(초).</summary>
+        private const double PredictionLifetime = 3.0;
+
+        /// <summary>바쁜 동안 누른 "모두 Stage/Unstage" — 앞 작업이 끝나면 실행한다(버린 것처럼 보이지 않게).</summary>
+        private Action _queuedBulk;
         private readonly FileActionMenu _unstagedMenu;
         private readonly FileActionMenu _stagedMenu;
 
@@ -235,6 +246,10 @@ namespace GitVersionControl
         public void SetEntries(IReadOnlyList<GitStatusEntry> entries)
         {
             _lastEntries = entries;
+            if (_prediction != null && UnityEditor.EditorApplication.timeSinceStartup > _predictionDeadline)
+            {
+                _prediction = null;
+            }
             ShowEntries(_prediction != null ? _prediction(entries) : entries);
         }
 
@@ -247,23 +262,52 @@ namespace GitVersionControl
         /// GitKraken 처럼 누르자마자 목록을 옮겨 보이고(<paramref name="predict"/>), git 이 끝난 뒤 오는 진짜 status 로 맞춘다.
         /// 실패하면 새로고침이 원래 상태를 그대로 보이므로 따로 되돌릴 것이 없다.
         /// </summary>
-        private async void RunPredicted(string title, Func<Task<GitResult>> operation, Func<IReadOnlyList<GitStatusEntry>, List<GitStatusEntry>> predict)
+        /// <param name="saveFirst">git 을 부르기 전에 열린 씬·에셋을 저장한다. 짐작을 먼저 보인 뒤 저장해 누른 순간 목록이 움직이게 한다.</param>
+        private async void RunPredicted(string title, Func<Task<GitResult>> operation, Func<IReadOnlyList<GitStatusEntry>, List<GitStatusEntry>> predict, bool saveFirst = false)
         {
-            _prediction = predict;
+            Func<IReadOnlyList<GitStatusEntry>, List<GitStatusEntry>> mine = predict;
+            _prediction = mine;
+            _predictionDeadline = UnityEditor.EditorApplication.timeSinceStartup + PredictionLifetime;
             ShowEntries(predict(_lastEntries));
             try
             {
+                if (saveFirst)
+                {
+                    // 그림이 바뀐 틀을 먼저 내보낸 뒤 저장한다(저장이 메인 스레드를 잡는 동안에도 누른 결과가 보이게).
+                    await Task.Yield();
+                    if (_services.Dialogs.SaveOpenWork() == false)
+                    {
+                        return;
+                    }
+                }
                 await _services.Runner.RunAsync(title, operation, refreshAssets: false, workingTreeOnly: true);
             }
             finally
             {
-                _prediction = null;
+                // 그 사이 다른 작업이 새 짐작을 걸었으면 그것은 남긴다.
+                if (_prediction == mine)
+                {
+                    _prediction = null;
+                    ShowEntries(_lastEntries);
+                }
             }
+        }
+
+        private void RunQueuedBulk()
+        {
+            if (_queuedBulk == null || _services.Runner.IsBusy)
+            {
+                return;
+            }
+            Action queued = _queuedBulk;
+            _queuedBulk = null;
+            queued();
         }
 
         private void ShowEntries(IReadOnlyList<GitStatusEntry> entries)
         {
-            _unstagedEntries = GitStaging.Unstaged(entries);
+            // 충돌 파일을 맨 위로(먼저 해결할 것이 먼저 보이게).
+            _unstagedEntries = GitStaging.Unstaged(entries).OrderBy(e => e.State == GitFileState.Conflicted ? 0 : 1).ToList();
             _stagedEntries = GitStaging.Staged(entries);
             _unstaged.SetItems(FileListItem.FromStatus(_unstagedEntries));
             _staged.SetItems(FileListItem.FromStatus(_stagedEntries));
@@ -297,6 +341,7 @@ namespace GitVersionControl
         public void OnBusyChanged()
         {
             Render();
+            RunQueuedBulk();
         }
 
         public void ClearSelection()
@@ -314,7 +359,9 @@ namespace GitVersionControl
 
         private void Render()
         {
-            _unstagedTitle.text = GitText.Format("staging.unstagedTitle", _unstagedEntries.Count);
+            int conflicts = _unstagedEntries.Count(e => e.State == GitFileState.Conflicted);
+            _unstagedTitle.text = GitText.Format("staging.unstagedTitle", _unstagedEntries.Count)
+                                  + (conflicts > 0 ? GitText.Format("staging.conflictCount", conflicts) : string.Empty);
             _stagedTitle.text = GitText.Format("staging.stagedTitle", _stagedEntries.Count);
             bool idle = _services.Runner.IsBusy == false;
             RenderButton(_stageButton, _selectedUnstaged.Count, _unstagedEntries.Count, idle, "staging.stage", "staging.stageSelected", "staging.stageAll");
@@ -446,7 +493,7 @@ namespace GitVersionControl
 
         private void PopulateUnstagedFolderMenu(DropdownMenu menu, string displayFolder, IReadOnlyList<FileListItem> items)
         {
-            List<GitStatusEntry> entries = items.Select(i => (GitStatusEntry)i.Source).ToList();
+            List<GitStatusEntry> entries = WithFolderMeta(items, displayFolder, _unstagedEntries);
             menu.AppendAction(GitText.Get("menu.stageFolder"), _ => Stage(entries), StatusOfIdle());
             menu.AppendAction(GitText.Get("menu.discardFolder"), _ => Discard(entries), StatusOfIdle());
             _unstagedMenu.AppendFolderItems(menu, FileActionMenu.RepoFolderOf(displayFolder, items[0]), entries);
@@ -454,9 +501,29 @@ namespace GitVersionControl
 
         private void PopulateStagedFolderMenu(DropdownMenu menu, string displayFolder, IReadOnlyList<FileListItem> items)
         {
-            List<GitStatusEntry> entries = items.Select(i => (GitStatusEntry)i.Source).ToList();
+            List<GitStatusEntry> entries = WithFolderMeta(items, displayFolder, _stagedEntries);
             menu.AppendAction(GitText.Get("menu.unstageFolder"), _ => Unstage(entries), StatusOfIdle());
             _stagedMenu.AppendFolderItems(menu, FileActionMenu.RepoFolderOf(displayFolder, items[0]), entries);
+        }
+
+        /// <summary>
+        /// 폴더 안 파일들에 폴더 자신의 .meta(<c>Folder.meta</c>)를 더한다. Unity 에서 폴더와 그 .meta 는 한 몸이라,
+        /// 빠뜨리면 폴더 없이 .meta 만 남거나(다른 브랜치로 바꾸면 빈 폴더가 다시 생긴다) 그 반대가 된다.
+        /// </summary>
+        private static List<GitStatusEntry> WithFolderMeta(IReadOnlyList<FileListItem> items, string displayFolder, IReadOnlyList<GitStatusEntry> sameSide)
+        {
+            List<GitStatusEntry> entries = items.Select(i => (GitStatusEntry)i.Source).ToList();
+            if (items.Count == 0)
+            {
+                return entries;
+            }
+            string folderMeta = FileActionMenu.RepoFolderOf(displayFolder, items[0]).TrimEnd('/') + ".meta";
+            GitStatusEntry meta = sameSide.FirstOrDefault(e => e.RepoPath == folderMeta);
+            if (meta != null && entries.All(e => e.RepoPath != folderMeta))
+            {
+                entries.Add(meta);
+            }
+            return entries;
         }
 
         /// <summary>
@@ -482,17 +549,21 @@ namespace GitVersionControl
 
         /// <param name="entries">null 이면 전부.</param>
         /// <param name="withPairs">false 면 .meta 짝을 더하지 않고 고른 그대로(우클릭 "에셋만"·".meta 만").</param>
-        private void Stage(IEnumerable<GitStatusEntry> entries, bool withPairs = true)
+        private async void Stage(IEnumerable<GitStatusEntry> entries, bool withPairs = true)
         {
-            // 앞 작업의 결과가 보이기 전(버튼이 꺼진 동안) 더블클릭·hover 버튼·메뉴로 들어온 입력은 무시한다.
-            // 빈 목록도 무시한다 — 경로 없는 git add -A 는 전부를 올린다.
-            if (_services.Runner.IsBusy || (entries != null && entries.Any() == false))
+            // 빈 목록은 무시한다 — 경로 없는 git add -A 는 전부를 올린다.
+            if (entries != null && entries.Any() == false)
             {
                 return;
             }
-            // 열린 씬·프리팹의 저장 안 된 수정은 stage 되지 않는다. 저장을 거부하면 멈춘다.
-            if (_services.Dialogs.SaveOpenWork() == false)
+            if (_services.Runner.IsBusy)
             {
+                // "모두 Stage" 는 자리가 움직이지 않는 머리 버튼이라 앞 작업이 끝나면 이어서 한다.
+                // 파일 하나씩은 무시한다 — 목록이 밀려 커서 밑에 온 다른 파일을 두 번째 클릭으로 올리지 않게.
+                if (entries == null)
+                {
+                    _queuedBulk = () => Stage(null, withPairs);
+                }
                 return;
             }
             // 별도 git 저장소 폴더가 끼어 있으면 묻는다. 기본은 빼고 나머지만 올린다(그대로 올리면 파일이 아니라 gitlink 가 올라간다).
@@ -502,13 +573,28 @@ namespace GitVersionControl
             if (embedded.Count > 0)
             {
                 string list = string.Join("\n", embedded.Take(10).Select(e => e.RepoPath));
-                int choice = _services.Dialogs.Choose(GitText.Get("staging.embeddedTitle"), GitText.Format("staging.embeddedMessage", list),
+                int choice = await _services.Dialogs.ChooseAsync(GitText.Get("staging.embeddedTitle"), GitText.Format("staging.embeddedMessage", list),
                     GitText.Get("staging.embeddedSkip"), GitText.Get("staging.embeddedInclude"));
                 if (choice == 1)
                 {
                     return;
                 }
                 skipEmbedded = choice == 0;
+            }
+            // 충돌 표시(<<<<<<< ======= >>>>>>>)가 남은 파일을 올리면 git 은 그 파일을 해결된 것으로 본다. 어느 경로로 올리든 먼저 묻는다.
+            List<string> marked = candidates.Where(e => GitInProgress.HasConflictMarkers(FileActionMenu.FullPath(e.RepoPath))).Select(e => e.RepoPath).ToList();
+            if (marked.Count > 0)
+            {
+                string list = string.Join("\n", marked.Take(10));
+                if (await _services.Dialogs.ConfirmAsync(GitText.Get("staging.markersTitle"), GitText.Format("staging.markersMessage", list), GitText.Get("staging.markersOk"),
+                        danger: true) == false)
+                {
+                    return;
+                }
+            }
+            if (_services.Runner.IsBusy)
+            {
+                return;
             }
             if (skipEmbedded)
             {
@@ -521,12 +607,13 @@ namespace GitVersionControl
             }
             else if (entries == null)
             {
-                RunPredicted(GitText.Get("op.stage"), _services.Commands.StageAllAsync, status => GitStaging.PredictStage(status, null));
+                RunPredicted(GitText.Get("op.stage"), _services.Commands.StageAllAsync, status => GitStaging.PredictStage(status, null), saveFirst: true);
                 return;
             }
             List<GitStatusEntry> targets = candidates;
             HashSet<string> paths = new(targets.Select(e => e.RepoPath));
-            RunPredicted(GitText.Get("op.stage"), () => _services.Commands.StageAsync(targets), status => GitStaging.PredictStage(status, paths));
+            // 열린 씬·프리팹의 저장 안 된 수정은 stage 되지 않는다. 저장은 목록을 먼저 옮겨 보인 뒤에 한다.
+            RunPredicted(GitText.Get("op.stage"), () => _services.Commands.StageAsync(targets), status => GitStaging.PredictStage(status, paths), saveFirst: true);
         }
 
         /// <param name="entries">null 이면 전부.</param>
@@ -534,8 +621,16 @@ namespace GitVersionControl
         private void Unstage(IEnumerable<GitStatusEntry> entries, bool withPairs = true)
         {
             // 빈 목록도 무시한다 — 경로 없는 restore·rm 이 엉뚱하게 돌지 않게.
-            if (_services.Runner.IsBusy || (entries != null && entries.Any() == false))
+            if (entries != null && entries.Any() == false)
             {
+                return;
+            }
+            if (_services.Runner.IsBusy)
+            {
+                if (entries == null)
+                {
+                    _queuedBulk = () => Unstage(null, withPairs);
+                }
                 return;
             }
             if (entries == null)

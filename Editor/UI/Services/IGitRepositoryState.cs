@@ -18,6 +18,12 @@ namespace GitVersionControl
         IReadOnlyList<GitStatusEntry> Entries { get; }
         string HeadCommit { get; }
         string UpstreamCommit { get; }
+
+        /// <summary>등록된 원격이 하나라도 있는지.</summary>
+        bool HasRemote { get; }
+
+        /// <summary>모든 참조의 지문. 브랜치·태그·stash 가 움직이면 바뀐다.</summary>
+        string RefsFingerprint { get; }
         DateTime? LastFetchTime { get; }
         string UserName { get; }
         string UserEmail { get; }
@@ -52,6 +58,8 @@ namespace GitVersionControl
         public IReadOnlyList<GitStatusEntry> Entries => GitRepository.Entries;
         public string HeadCommit => GitRepository.HeadCommit;
         public string UpstreamCommit => GitRepository.UpstreamCommit;
+        public bool HasRemote => GitRepository.HasRemote;
+        public string RefsFingerprint => GitRepository.RefsFingerprint;
         public DateTime? LastFetchTime => GitRepository.LastFetchTime;
         public string UserName => GitRepository.UserName;
         public string UserEmail => GitRepository.UserEmail;

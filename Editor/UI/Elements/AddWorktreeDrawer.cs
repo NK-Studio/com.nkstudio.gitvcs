@@ -76,8 +76,29 @@ namespace GitVersionControl
             }
             _refs = refs;
             _localNames = new HashSet<string>(refs.Branches.Where(b => b.IsRemote == false).Select(b => b.Name));
-            _reference.SetItems(GitWorktreeForm.Choices(refs.Branches, refs.Tags));
+            List<GitRefChoice> choices = GitWorktreeForm.Choices(refs.Branches, refs.Tags);
+            _reference.SetItems(choices);
+            // PR 메뉴의 "Pull Request 에서 워크트리 만들기" 로 열었으면 그 브랜치를 골라 둔다.
+            if (_pendingReference != null)
+            {
+                GitRefChoice pending = choices.FirstOrDefault(c => c.Name == _pendingReference);
+                _pendingReference = null;
+                if (pending != null)
+                {
+                    _reference.Select(pending);
+                    OnReferenceChosen(pending);
+                }
+            }
             Validate();
+        }
+
+        private string _pendingReference;
+
+        /// <summary>참조(원격 브랜치 이름 등)를 골라 둔 채로 연다.</summary>
+        public void OpenFor(string reference)
+        {
+            _pendingReference = reference;
+            Open();
         }
 
         protected override void FocusFirstField()
@@ -115,8 +136,16 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>만드는 중. 그동안은 검사하지 않는다 — git 이 막 만든 폴더를 "비어 있지 않다" 로 잘못 알리지 않게.</summary>
+        private bool _creating;
+
         protected override void Validate()
         {
+            if (_creating)
+            {
+                _create.SetEnabled(false);
+                return;
+            }
             GitRefChoice choice = _reference.Selected;
             string branch = _branch.value?.Trim();
             string path = _path.value?.Trim();
@@ -151,12 +180,23 @@ namespace GitVersionControl
             }
             string branch = string.IsNullOrWhiteSpace(_branch.value) ? null : _branch.value.Trim();
             string path = _path.value.Trim();
-            GitResult result = await Services.Runner.RunAsync(GitText.Format("op.addWorktree", branch ?? choice.Name),
-                () => Services.Commands.AddWorktreeAsync(path, choice.Name, branch), refreshAssets: false);
+            _creating = true;
+            GitResult result;
+            try
+            {
+                result = await Services.Runner.RunAsync(GitText.Format("op.addWorktree", branch ?? choice.Name),
+                    () => Services.Commands.AddWorktreeAsync(path, choice.Name, branch), refreshAssets: false);
+            }
+            finally
+            {
+                _creating = false;
+            }
             if (result.Success)
             {
                 Close();
+                return;
             }
+            Validate();
         }
     }
 }

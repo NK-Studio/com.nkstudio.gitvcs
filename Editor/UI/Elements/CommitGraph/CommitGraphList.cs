@@ -471,6 +471,7 @@ namespace GitVersionControl
             _branchInput.textEdition.placeholder = GitText.Get("graph.branchNamePlaceholder");
             _branchInput.SetVisible(false);
             _branchInput.RegisterCallback<KeyDownEvent>(OnBranchInputKeyDown, TrickleDown.TrickleDown);
+            _branchInput.RegisterValueChangedCallback(_ => ValidateBranchInput());
             // 다른 곳을 누르면(줄 선택·다른 창) 만들지 않고 닫는다.
             _branchInput.RegisterCallback<FocusOutEvent>(_ => CloseBranchInput());
             body.Add(_branchInput);
@@ -1048,6 +1049,7 @@ namespace GitVersionControl
             _branchInputHash = hash;
             _branchInputSubmit = submit;
             _branchInput.SetValueWithoutNotify(string.Empty);
+            ValidateBranchInput();
             _branchInput.SetVisible(true);
             _list.ScrollToItem(index);
             PlaceBranchInput();
@@ -1087,11 +1089,35 @@ namespace GitVersionControl
             _branchInput.style.width = Mathf.Max(ColumnWidth(CommitGraphColumn.Refs) - BranchInputMargin * 2f, MinBranchInputWidth);
         }
 
+        /// <summary>
+        /// 쓰는 동안 이름을 검사한다(<see cref="BranchNameValidator"/>). 문제가 있으면 칸을 빨갛게 하고 툴팁에 까닭을 단다.
+        /// </summary>
+        public Func<string, string> BranchNameValidator { get; set; }
+
+        private string BranchInputProblem()
+        {
+            string value = _branchInput.value?.Trim();
+            return string.IsNullOrEmpty(value) ? null : BranchNameValidator?.Invoke(value);
+        }
+
+        private void ValidateBranchInput()
+        {
+            string problem = BranchInputProblem();
+            _branchInput.EnableInClassList("commit-graph__branch-input--invalid", problem != null);
+            _branchInput.tooltip = problem;
+        }
+
         private void OnBranchInputKeyDown(KeyDownEvent evt)
         {
             if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
             {
                 evt.StopPropagation();
+                // 잘못된 이름이면 닫지 않고 쓴 글을 그대로 둔다(빨간 테두리·툴팁으로 까닭을 보인다).
+                if (BranchInputProblem() != null)
+                {
+                    ValidateBranchInput();
+                    return;
+                }
                 string name = _branchInput.value?.Trim();
                 Action<string> submit = _branchInputSubmit;
                 CloseBranchInput();

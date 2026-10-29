@@ -66,20 +66,20 @@ namespace GitVersionControl
             _ = _services.Runner.RunAsync(title, () => _services.Commands.ContinueOperationAsync(), refreshAssets: true);
         }
 
-        private void Skip()
+        private async void Skip()
         {
             string name = GitInProgress.DisplayName(_kind);
-            if (_services.Dialogs.Confirm(GitText.Get("inprogress.skip"), GitText.Get("inprogress.skipConfirm"), GitText.Get("inprogress.skip")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("inprogress.skip"), GitText.Get("inprogress.skipConfirm"), GitText.Get("inprogress.skip"), danger: true) == false)
             {
                 return;
             }
             _ = _services.Runner.RunAsync(GitText.Format("inprogress.opSkip", name), () => _services.Commands.SkipOperationAsync(), refreshAssets: true);
         }
 
-        private void Abort()
+        private async void Abort()
         {
             string name = GitInProgress.DisplayName(_kind);
-            if (_services.Dialogs.Confirm(GitText.Get("inprogress.abort"), GitText.Format("inprogress.abortConfirm", name), GitText.Get("inprogress.abort")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("inprogress.abort"), GitText.Format("inprogress.abortConfirm", name), GitText.Get("inprogress.abort"), danger: true) == false)
             {
                 return;
             }

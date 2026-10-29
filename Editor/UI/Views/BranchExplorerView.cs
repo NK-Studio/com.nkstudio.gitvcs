@@ -38,7 +38,7 @@ namespace GitVersionControl
         private bool _isLoading;
         private int _searchCursor = -1;
 
-        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{_state.RangeIndex}";
+        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{Services.Repository.RefsFingerprint}|{_state.RangeIndex}";
 
         public BranchExplorerView(GitServices services, BranchExplorerState state, ITabNavigator navigator) : base(services, "BranchExplorerView")
         {

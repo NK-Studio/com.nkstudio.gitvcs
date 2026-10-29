@@ -21,7 +21,15 @@ namespace GitVersionControl
             Error = error;
         }
 
+        /// <summary>사용자가 확인 팝업에서 취소해 git 을 부르지 않은 결과의 종료 코드.</summary>
+        public const int CancelledExitCode = int.MinValue;
+
+        /// <summary>사용자가 취소한 결과(실패로 알리지 않는다).</summary>
+        public static GitResult Cancelled => new(CancelledExitCode, string.Empty, string.Empty);
+
         public bool Success => ExitCode == 0;
+
+        public bool IsCancelled => ExitCode == CancelledExitCode;
 
         /// <summary>
         /// 실패 시 사용자에게 보여 줄 한 덩어리 메시지. git 은 오류를 stderr 에, 일부 안내를 stdout 에 쓴다.
@@ -40,6 +48,23 @@ namespace GitVersionControl
     public static class GitCommand
     {
         private const int DefaultTimeoutMs = 60_000;
+
+        /// <summary>
+        /// git 의 안내·오류 글을 영어로 받는다. 오류 해설(<see cref="GitErrorAdvice"/>)이 영어 문구로 원인을 알아보고,
+        /// 사용자에게는 그 해설을 Git 창 언어로 보인다 — 운영체제 언어가 한국어여도 "알 수 없는 오류" 로 떨어지지 않게.
+        /// 메시지만 바꾸고(LC_MESSAGES) 글자 인코딩(LC_CTYPE)은 그대로 둔다 — 한글 파일 이름이 깨지지 않게.
+        /// </summary>
+        private static void UseEnglishMessages(ProcessStartInfo startInfo)
+        {
+            string all = startInfo.EnvironmentVariables["LC_ALL"];
+            if (string.IsNullOrEmpty(all) == false && string.IsNullOrEmpty(startInfo.EnvironmentVariables["LC_CTYPE"]))
+            {
+                startInfo.EnvironmentVariables["LC_CTYPE"] = all;
+            }
+            startInfo.EnvironmentVariables.Remove("LC_ALL");
+            startInfo.EnvironmentVariables.Remove("LANGUAGE");
+            startInfo.EnvironmentVariables["LC_MESSAGES"] = "C";
+        }
 
         public static Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
         {
@@ -101,6 +126,7 @@ namespace GitVersionControl
             startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = "1";
             // 에디터 PATH 에 git 이 없어서 시스템 PATH 로 찾은 경우에도 git-lfs·credential manager 를 찾게 한다.
             startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+            UseEnglishMessages(startInfo);
             if (string.IsNullOrEmpty(tokenOverride) == false)
             {
                 startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;
@@ -185,6 +211,7 @@ namespace GitVersionControl
                 startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
                 startInfo.EnvironmentVariables["GIT_OPTIONAL_LOCKS"] = "0";
                 startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
+                UseEnglishMessages(startInfo);
                 if (string.IsNullOrEmpty(tokenOverride) == false)
                 {
                     startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;

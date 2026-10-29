@@ -144,7 +144,7 @@ namespace GitVersionControl
             SetMessage(message);
             BindCoAuthors(CoAuthors(message));
             BindSummary(files);
-            _files.SetItems(files.Select(FileListItem.From));
+            _files.SetItems(FileListItem.FromChanges(files));
         }
 
         /// <summary>

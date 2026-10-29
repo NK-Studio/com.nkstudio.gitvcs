@@ -156,7 +156,12 @@ namespace GitVersionControl.Tests
             List<RefNode> roots = RefTreeBuilder.Build(refs, null, section => section.ToString());
 
             Assert.AreEqual(RefTreeBuilder.Sections.Length, roots.Count);
-            Assert.IsTrue(roots.Where(r => r.Section != RefSection.PullRequests).All(r => r.Children.Count == 0));
+            Assert.IsTrue(roots.Where(r => r.Section is not (RefSection.PullRequests or RefSection.Remote)).All(r => r.Children.Count == 0));
+            // 받은 브랜치가 없어도 등록된 원격 줄은 보인다(막 추가한 원격이 사라진 것처럼 보이지 않게).
+            RefNode remote = roots.Single(r => r.Section == RefSection.Remote).Children.Single();
+            Assert.AreEqual(RefNodeKind.Remote, remote.Kind);
+            Assert.AreEqual("origin", remote.Label);
+            Assert.AreEqual(0, remote.Children.Count);
             // PR 목록을 아직 모르면 "읽는 중" 안내 한 줄.
             Assert.AreEqual(RefNodeKind.Info, roots.Single(r => r.Section == RefSection.PullRequests).Children.Single().Kind);
         }

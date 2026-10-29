@@ -174,9 +174,18 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 오류 글에 나온 파일: "would be overwritten by …:" 아래 탭으로 들인 줄, "Merge conflict in …", 큰 파일 이름.
+        /// "Your local changes … would be overwritten by …:" 아래에 나온, 작업이 덮어쓸 수 없어 멈춘 파일들(Pop·전환·Pull).
         /// </summary>
-        private static List<string> FindFiles(string message)
+        public static List<string> OverwrittenPaths(string message)
+        {
+            if (Classify(message) != GitErrorKind.LocalChanges)
+            {
+                return new List<string>();
+            }
+            return OverwrittenList(message ?? string.Empty);
+        }
+
+        private static List<string> OverwrittenList(string message)
         {
             List<string> files = new();
             bool inList = false;
@@ -198,6 +207,15 @@ namespace GitVersionControl
                     inList = false;
                 }
             }
+            return files;
+        }
+
+        /// <summary>
+        /// 오류 글에 나온 파일: "would be overwritten by …:" 아래 탭으로 들인 줄, "Merge conflict in …", 큰 파일 이름.
+        /// </summary>
+        private static List<string> FindFiles(string message)
+        {
+            List<string> files = OverwrittenList(message);
             files.AddRange(ConflictFile.Matches(message).Select(m => m.Groups["file"].Value.Trim()));
             files.AddRange(LargeFile.Matches(message).Select(m => m.Groups["file"].Value.Trim()));
             return files.Distinct().ToList();

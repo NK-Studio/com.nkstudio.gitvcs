@@ -44,14 +44,7 @@ namespace GitVersionControl
             (List<GitBranchRef> branches, _) = await GitHistory.BranchesAsync();
             List<string> existing = branches?.Where(b => b.IsRemote == false).Select(b => b.Name).ToList() ?? new List<string>();
 
-            VisualElement host = services.PopupHost;
-            if (host == null || host.panel == null)
-            {
-                string name = GitTextPromptWindow.Ask(GitText.Get("branches.createTitle"), GitText.Format("actionbar.newBranchPrompt", startLabel), string.Empty)?.Trim();
-                return string.IsNullOrEmpty(name) ? null : new GitBranchDialogResult { Name = name, Checkout = GitVcsSettings.instance.CheckoutNewBranch };
-            }
-            GitBranchDialog dialog = new(host, startLabel, existing);
-            return await dialog._done.Task;
+            return await GitPopupHosts.ShowAsync(services.PopupHost, host => new GitBranchDialog(host, startLabel, existing)._done.Task, null);
         }
 
         private GitBranchDialog(VisualElement host, string startLabel, List<string> existing)
@@ -183,7 +176,7 @@ namespace GitVersionControl
         private void Finish(GitBranchDialogResult result)
         {
             _done.TrySetResult(result);
-            _overlay.RemoveFromHierarchy();
+            GitPopupHosts.Close(_overlay, null);
         }
 
         /// <summary>

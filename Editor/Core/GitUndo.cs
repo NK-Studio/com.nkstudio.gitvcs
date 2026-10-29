@@ -625,10 +625,10 @@ namespace GitVersionControl
             return result;
         }
 
-        public static async Task<GitResult> PullAsync()
+        public static async Task<GitResult> PullAsync(GitPullMode mode)
         {
             string before = await HeadAsync();
-            GitResult result = await GitOperations.PullAsync();
+            GitResult result = await GitOperations.PullAsync(mode);
             string after = await HeadAsync();
             if (result.Success && string.IsNullOrEmpty(before) == false && after != before)
             {

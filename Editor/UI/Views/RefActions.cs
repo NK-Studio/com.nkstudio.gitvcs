@@ -1,4 +1,6 @@
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GitVersionControl
@@ -66,7 +68,8 @@ namespace GitVersionControl
 
         public async Task PushTagAsync(GitTagRef tag, string remote)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("refs.tagPushTitle"), GitText.Format("refs.tagPushConfirm", tag.Name, remote), GitText.Get("op.push")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("refs.tagPushTitle"), GitText.Format("refs.tagPushConfirm", tag.Name, remote), GitText.Get("op.push"),
+                    icon: ActionGlyphKind.Tag) == false)
             {
                 return;
             }
@@ -75,7 +78,8 @@ namespace GitVersionControl
 
         public async Task DeleteTagAsync(GitTagRef tag)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("refs.tagDeleteTitle"), GitText.Format("refs.tagDeleteConfirm", tag.Name), GitText.Get("common.delete")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("refs.tagDeleteTitle"), GitText.Format("refs.tagDeleteConfirm", tag.Name), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.Tag) == false)
             {
                 return;
             }
@@ -84,11 +88,68 @@ namespace GitVersionControl
 
         public async Task DeleteRemoteTagAsync(GitTagRef tag, string remote)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("refs.tagDeleteTitle"), GitText.Format("refs.tagDeleteRemoteConfirm", tag.Name, remote), GitText.Get("common.delete")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("refs.tagDeleteTitle"), GitText.Format("refs.tagDeleteRemoteConfirm", tag.Name, remote), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.Tag) == false)
             {
                 return;
             }
             await _services.Runner.RunAsync(GitText.Format("op.deleteRemoteTag", tag.Name), () => _services.Commands.DeleteRemoteTagAsync(remote, tag.Name), refreshAssets: false);
+        }
+
+        // ── 원격 ──
+
+        public Task FetchRemoteAsync(string remote)
+        {
+            return _services.Runner.RunAsync(GitText.Format("op.fetchRemote", remote), () => GitOperations.RunNetworkAsync(new[] { "fetch", "--prune", remote }), refreshAssets: false);
+        }
+
+        /// <summary>원격에서 지워진 브랜치의 로컬 추적 참조를 정리한다(<c>git remote prune</c>).</summary>
+        public Task PruneRemoteAsync(string remote)
+        {
+            return _services.Runner.RunAsync(GitText.Format("op.pruneRemote", remote), () => GitOperations.RunNetworkAsync(new[] { "remote", "prune", remote }), refreshAssets: false);
+        }
+
+        public async Task RenameRemoteAsync(string remote, IEnumerable<string> existing)
+        {
+            HashSet<string> taken = new(existing);
+            taken.Remove(remote);
+            string name = (await _services.Dialogs.PromptAsync(GitText.Get("remote.rename"), GitText.Format("remote.renamePrompt", remote), remote,
+                validate: value =>
+                {
+                    string trimmed = value.Trim();
+                    if (taken.Contains(trimmed))
+                    {
+                        return GitText.Format("remote.nameTaken", trimmed);
+                    }
+                    BranchNameProblem problem = GitBranchNames.Check(trimmed, null);
+                    return problem is BranchNameProblem.None or BranchNameProblem.Empty && trimmed.Contains("/") == false ? null : GitText.Get("remote.invalidName");
+                }, icon: ActionGlyphKind.Cloud))?.Trim();
+            if (string.IsNullOrEmpty(name) || name == remote)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.renameRemote", remote, name), () => GitRepository.RunAsync("remote", "rename", remote, name), refreshAssets: false);
+        }
+
+        public async Task EditRemoteUrlAsync(string remote, string url)
+        {
+            string next = (await _services.Dialogs.PromptAsync(GitText.Get("remote.editUrl"), GitText.Format("remote.editUrlPrompt", remote), url ?? string.Empty,
+                icon: ActionGlyphKind.Cloud))?.Trim();
+            if (string.IsNullOrEmpty(next) || next == url)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.editRemoteUrl", remote), () => GitRepository.RunAsync("remote", "set-url", remote, next), refreshAssets: false);
+        }
+
+        public async Task RemoveRemoteAsync(string remote)
+        {
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("remote.removeTitle"), GitText.Format("remote.removeConfirm", remote), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.Cloud) == false)
+            {
+                return;
+            }
+            await _services.Runner.RunAsync(GitText.Format("op.removeRemote", remote), () => GitRepository.RunAsync("remote", "remove", remote), refreshAssets: false);
         }
 
         // ── 스태시 ──
@@ -106,7 +167,8 @@ namespace GitVersionControl
 
         public async Task DropStashAsync(GitStashRef stash)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("refs.stashDropTitle"), GitText.Format("refs.stashDropConfirm", stash.Name, stash.Message), GitText.Get("common.delete")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("refs.stashDropTitle"), GitText.Format("refs.stashDropConfirm", stash.Name, stash.Message), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.Stash) == false)
             {
                 return;
             }
@@ -121,15 +183,12 @@ namespace GitVersionControl
         public async Task BranchFromStashAsync(GitStashRef stash)
         {
             string title = GitText.Get("refs.stashBranchTitle");
-            string name = GitTextPromptWindow.Ask(title, GitText.Format("refs.stashBranchPrompt", stash.Name), string.Empty)?.Trim();
+            (List<GitBranchRef> branches, _) = await _services.History.BranchesAsync();
+            List<string> existing = branches?.Where(b => b.IsRemote == false).Select(b => b.Name).ToList() ?? new List<string>();
+            string name = (await _services.Dialogs.PromptAsync(title, GitText.Format("refs.stashBranchPrompt", stash.Name), string.Empty,
+                validate: value => BranchActions.BranchNameProblemText(value, existing), icon: ActionGlyphKind.Branch))?.Trim();
             if (string.IsNullOrEmpty(name))
             {
-                return;
-            }
-            GitResult valid = await _services.Commands.ValidateBranchNameAsync(name);
-            if (valid.Success == false)
-            {
-                _services.Dialogs.Alert(title, GitText.Format("branches.invalidName", name));
                 return;
             }
             if (await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
@@ -151,13 +210,14 @@ namespace GitVersionControl
             string error = GitTerminal.Open(path);
             if (error != null)
             {
-                _services.Dialogs.Alert(GitText.Get("actionbar.terminalFailed"), error);
+                _ = _services.Dialogs.AlertAsync(GitText.Get("actionbar.terminalFailed"), error, ActionGlyphKind.Terminal);
             }
         }
 
         public async Task RemoveWorktreeAsync(GitWorktreeRef worktree)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("refs.worktreeRemoveTitle"), GitText.Format("refs.worktreeRemoveConfirm", worktree.Path), GitText.Get("common.delete")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("refs.worktreeRemoveTitle"), GitText.Format("refs.worktreeRemoveConfirm", worktree.Path), GitText.Get("common.delete"),
+                    danger: true, icon: ActionGlyphKind.Worktree) == false)
             {
                 return;
             }

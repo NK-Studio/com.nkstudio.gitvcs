@@ -7,6 +7,15 @@ using System.Threading.Tasks;
 
 namespace GitVersionControl
 {
+    /// <summary>Pull 이 원격 커밋을 받아 붙이는 방식.</summary>
+    public enum GitPullMode
+    {
+        /// <summary>앞으로 감기만. 갈라졌으면 실패한다.</summary>
+        FastForwardOnly,
+        Merge,
+        Rebase,
+    }
+
     /// <summary>
     /// Git 창이 쓰는 쓰기·네트워크 명령. 모두 저장소 루트에서 실행하고, 경로는 저장소 루트 기준이다.
     /// </summary>
@@ -172,18 +181,91 @@ namespace GitVersionControl
             return result;
         }
 
-        public static Task<GitResult> PullAsync()
+        /// <summary>
+        /// Pull 의 git 인자. 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static string[] PullArgs(GitPullMode mode)
         {
-            return GitCommand.RunAsync(GitRepository.RepoRoot, new[] { "pull", "--ff-only" }, NetworkTimeoutMs);
+            return mode switch
+            {
+                GitPullMode.Merge => new[] { "pull", "--no-rebase" },
+                GitPullMode.Rebase => new[] { "pull", "--rebase" },
+                _ => new[] { "pull", "--ff-only" },
+            };
         }
 
-        public static Task<GitResult> PushAsync(GitBranchInfo branch)
+        public static Task<GitResult> PullAsync(GitPullMode mode)
         {
-            // upstream 이 없는 새 브랜치는 origin 의 같은 이름으로 올리고 추적을 건다.
-            string[] args = branch == null || string.IsNullOrEmpty(branch.Upstream)
-                ? new[] { "push", "-u", "origin", "HEAD" }
+            return GitCommand.RunAsync(GitRepository.RepoRoot, PullArgs(mode), NetworkTimeoutMs);
+        }
+
+        /// <summary>
+        /// 저장소 설정(<c>pull.rebase</c>)이 정한 Pull 방식. 정하지 않았으면 null(먼저 fast-forward 를 해 보고 갈라졌으면 묻는다).
+        /// </summary>
+        public static async Task<GitPullMode?> ConfiguredPullModeAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("config", "--get", "pull.rebase");
+            return ParsePullRebase(result.Success ? result.Output : null);
+        }
+
+        public static GitPullMode? ParsePullRebase(string value)
+        {
+            return (value ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "true" or "merges" or "interactive" or "i" or "m" => GitPullMode.Rebase,
+                "false" => GitPullMode.Merge,
+                _ => null,
+            };
+        }
+
+        /// <summary>
+        /// 현재 브랜치가 upstream 과 갈라졌는지(양쪽에 서로 없는 커밋). git 메시지는 언어마다 달라 개수로 판단한다.
+        /// </summary>
+        public static async Task<bool> IsDivergedFromUpstreamAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("rev-list", "--left-right", "--count", "HEAD...@{upstream}");
+            return result.Success && ParseLeftRight(result.Output, out int ahead, out int behind) && ahead > 0 && behind > 0;
+        }
+
+        public static bool ParseLeftRight(string output, out int ahead, out int behind)
+        {
+            ahead = behind = 0;
+            string[] parts = (output ?? string.Empty).Split(new[] { ' ', '\t' }, System.StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 2 && int.TryParse(parts[0], out ahead) && int.TryParse(parts[1], out behind);
+        }
+
+        /// <summary>
+        /// Push 의 git 인자. upstream 이 없는 새 브랜치는 <paramref name="remote"/> 의 같은 이름으로 올리고 추적을 건다.
+        /// </summary>
+        public static string[] PushArgs(GitBranchInfo branch, string remote)
+        {
+            return branch == null || string.IsNullOrEmpty(branch.Upstream)
+                ? new[] { "push", "-u", string.IsNullOrEmpty(remote) ? "origin" : remote, "HEAD" }
                 : new[] { "push" };
-            return GitCommand.RunAsync(GitRepository.RepoRoot, args, NetworkTimeoutMs);
+        }
+
+        public static Task<GitResult> PushAsync(GitBranchInfo branch, string remote)
+        {
+            return GitCommand.RunAsync(GitRepository.RepoRoot, PushArgs(branch, remote), NetworkTimeoutMs);
+        }
+
+        /// <summary>등록된 원격 이름들(<c>git remote</c>).</summary>
+        public static async Task<List<string>> RemotesAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("remote");
+            List<string> remotes = new();
+            if (result.Success)
+            {
+                foreach (string line in result.Output.Split('\n'))
+                {
+                    string name = line.Trim();
+                    if (name.Length > 0)
+                    {
+                        remotes.Add(name);
+                    }
+                }
+            }
+            return remotes;
         }
 
         public static Task<GitResult> FetchAsync()

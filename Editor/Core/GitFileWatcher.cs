@@ -60,6 +60,8 @@ namespace GitVersionControl
         {
             "index", "HEAD", "packed-refs", "FETCH_HEAD", "logs/HEAD",
             "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer",
+            // 터미널에서 stash·태그·원격을 바꿔도 그래프·사이드바가 따라오게 한다.
+            "refs/stash", "config",
         };
 
         private static readonly List<WindowsDirectoryWatcher> s_watchers = new();

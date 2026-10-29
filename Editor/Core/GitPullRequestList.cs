@@ -29,6 +29,7 @@ namespace GitVersionControl
 
         public string[] Assignees = Array.Empty<string>();
         public string[] Reviewers = Array.Empty<string>();
+        public string[] Labels = Array.Empty<string>();
     }
 
     /// <summary>
@@ -44,10 +45,18 @@ namespace GitVersionControl
         /// <summary>목록을 읽은 저장소("Org/Game").</summary>
         public string Repository;
 
+        /// <summary>그 저장소를 가리키는 원격 이름("origin"). 묶음 아래 원격 줄과 체크아웃에 쓴다.</summary>
+        public string Remote;
+
         /// <summary>로그인한 계정 이름. "내 PR" 등을 가를 때 쓴다.</summary>
         public string Login;
 
         public List<GitPullRequestInfo> All = new();
+
+        /// <summary>
+        /// GitHub 검색으로만 풀 수 있는 필터 조건 → 맞는 PR 번호(<see cref="GitPullRequestFilters.NeedsSearch"/>). 검색 전이거나 실패했으면 없다.
+        /// </summary>
+        public Dictionary<string, HashSet<int>> SearchResults = new();
     }
 
     /// <summary>
@@ -107,6 +116,7 @@ namespace GitVersionControl
                     BaseRef = item.@base?.@ref,
                     Assignees = Logins(item.assignees),
                     Reviewers = Logins(item.requested_reviewers),
+                    Labels = (item.labels ?? Array.Empty<LabelJson>()).Select(l => l?.name).Where(n => string.IsNullOrEmpty(n) == false).ToArray(),
                 });
             }
             return pulls;
@@ -135,6 +145,46 @@ namespace GitVersionControl
             public UserJson[] requested_reviewers;
             public RefJson head;
             public RefJson @base;
+            public LabelJson[] labels;
+        }
+
+        [Serializable]
+        private sealed class LabelJson
+        {
+            public string name;
+        }
+
+        /// <summary>
+        /// <c>/search/issues</c> 응답에서 번호들. 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static HashSet<int> ParseSearchNumbers(string json)
+        {
+            HashSet<int> numbers = new();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return numbers;
+            }
+            SearchJson page = JsonUtility.FromJson<SearchJson>(json);
+            foreach (SearchItemJson item in page?.items ?? Array.Empty<SearchItemJson>())
+            {
+                if (item != null && item.number > 0)
+                {
+                    numbers.Add(item.number);
+                }
+            }
+            return numbers;
+        }
+
+        [Serializable]
+        private sealed class SearchJson
+        {
+            public SearchItemJson[] items;
+        }
+
+        [Serializable]
+        private sealed class SearchItemJson
+        {
+            public int number;
         }
 
         [Serializable]

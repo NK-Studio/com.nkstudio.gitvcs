@@ -25,6 +25,9 @@ namespace GitVersionControl
         private readonly TaskCompletionSource<int> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly VisualElement _overlay;
 
+        /// <summary>팝업을 띄우기 전에 포커스가 있던 요소. 닫을 때 돌려준다.</summary>
+        private readonly Focusable _restoreFocus;
+
         /// <summary>
         /// 팝업에 넣을 버튼들. 없는 버튼은 null(글자 대신).
         /// </summary>
@@ -39,12 +42,12 @@ namespace GitVersionControl
 
         /// <summary>
         /// 팝업을 띄우고 고를 때까지 기다린다. 확인이면 true.
-        /// 띄울 Git 창이 없으면(<see cref="GitServices.PopupHost"/> 가 없음) 운영체제 대화상자로 묻는다.
+        /// 띄울 곳은 <see cref="GitServices.PopupHost"/>, 없으면 <see cref="GitPopupHosts"/> 가 찾거나 Git 창을 연다.
         /// </summary>
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
         public static Task<bool> ShowAsync(GitServices services, ActionGlyphKind icon, string title, string message, string ok, string cancel = null)
         {
-            return ConfirmAsync(services.PopupHost, services.Dialogs, icon, title, message, ok, okDanger: false, cancel);
+            return ConfirmAsync(services.PopupHost, icon, title, message, ok, okDanger: false, cancel);
         }
 
         /// <summary>
@@ -52,73 +55,50 @@ namespace GitVersionControl
         /// × 는 없다(Esc 로 취소).
         /// </summary>
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
-        public static Task<bool> ShowAlertAsync(GitServices services, ActionGlyphKind icon, string title, string message, string ok, string cancel = null)
+        public static async Task<bool> ShowAlertAsync(GitServices services, ActionGlyphKind icon, string title, string message, string ok, string cancel = null, bool okDanger = false)
         {
-            VisualElement host = services.PopupHost;
-            if (CanShowOn(host) == false)
-            {
-                return Task.FromResult(services.Dialogs.Confirm(title, message, ok, cancel));
-            }
-            GitConfirmDialog dialog = new(host, icon, title, message, new Buttons { Ok = ok, Cancel = cancel ?? GitText.Get("common.cancel") }, alert: true);
-            return IsOkAsync(dialog._done.Task);
+            Buttons buttons = new() { Ok = ok, OkDanger = okDanger, Cancel = cancel ?? GitText.Get("common.cancel") };
+            return await ShowCoreAsync(services.PopupHost, icon, title, message, buttons, alert: true) == ResultOk;
         }
 
         /// <summary>
-        /// <paramref name="host"/> 위에 확인·취소 팝업을 띄운다. 띄울 수 없으면 <paramref name="fallback"/>(운영체제 대화상자)으로 묻는다.
+        /// <paramref name="host"/> 위에 확인·취소 팝업을 띄운다.
         /// </summary>
-        /// <param name="okDanger">확인이 되돌릴 수 없는 일(버리기·덮어쓰기)이면 true. 강조색 대신 빨강.</param>
+        /// <param name="okDanger">확인이 되돌릴 수 없는 일(버리기·덮어쓰기)이면 true. 빨강이고 기본 포커스는 취소.</param>
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
-        public static Task<bool> ConfirmAsync(VisualElement host, IDialogService fallback, ActionGlyphKind icon, string title, string message, string ok, bool okDanger = false, string cancel = null)
+        public static async Task<bool> ConfirmAsync(VisualElement host, ActionGlyphKind icon, string title, string message, string ok, bool okDanger = false, string cancel = null)
         {
-            if (CanShowOn(host) == false)
-            {
-                return Task.FromResult(fallback.Confirm(title, message, ok, cancel));
-            }
-            GitConfirmDialog dialog = new(host, icon, title, message, new Buttons { Ok = ok, OkDanger = okDanger, Cancel = cancel ?? GitText.Get("common.cancel") }, alert: false);
-            return IsOkAsync(dialog._done.Task);
+            Buttons buttons = new() { Ok = ok, OkDanger = okDanger, Cancel = cancel ?? GitText.Get("common.cancel") };
+            return await ShowCoreAsync(host, icon, title, message, buttons, alert: false) == ResultOk;
         }
 
         /// <summary>
-        /// 세 갈래로 묻는다: [확인][다른 쪽][취소]. <see cref="IDialogService.Choose"/> 와 같게 0 = 확인, 1 = 취소, 2 = 다른 쪽.
-        /// 띄울 수 없으면 <paramref name="fallback"/> 으로 묻는다.
+        /// 세 갈래로 묻는다: [확인][다른 쪽][취소]. 0 = 확인, 1 = 취소, 2 = 다른 쪽.
         /// </summary>
         /// <param name="okDanger">확인이 되돌릴 수 없는 일이면 true(빨강).</param>
         /// <param name="altDanger">다른 쪽이 되돌릴 수 없는 일(버리기)이면 true(빨강).</param>
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
-        public static Task<int> ChooseAsync(VisualElement host, IDialogService fallback, ActionGlyphKind icon, string title, string message, string ok, string alt,
+        public static Task<int> ChooseAsync(VisualElement host, ActionGlyphKind icon, string title, string message, string ok, string alt,
             bool okDanger = false, bool altDanger = false, string cancel = null)
         {
-            if (CanShowOn(host) == false)
-            {
-                return Task.FromResult(fallback.Choose(title, message, ok, alt, cancel));
-            }
-            GitConfirmDialog dialog = new(host, icon, title, message,
-                new Buttons { Ok = ok, OkDanger = okDanger, Alt = alt, AltDanger = altDanger, Cancel = cancel ?? GitText.Get("common.cancel") }, alert: false);
-            return dialog._done.Task;
+            Buttons buttons = new() { Ok = ok, OkDanger = okDanger, Alt = alt, AltDanger = altDanger, Cancel = cancel ?? GitText.Get("common.cancel") };
+            return ShowCoreAsync(host, icon, title, message, buttons, alert: false);
         }
 
         /// <summary>
-        /// 알림: 안내와 [확인] 하나. 띄울 수 없으면 <paramref name="fallback"/> 으로 알린다.
+        /// 알림: 안내와 [확인] 하나.
         /// </summary>
-        public static Task AlertAsync(VisualElement host, IDialogService fallback, ActionGlyphKind icon, string title, string message)
+        public static Task AlertAsync(VisualElement host, ActionGlyphKind icon, string title, string message)
         {
-            if (CanShowOn(host) == false)
-            {
-                fallback.Alert(title, message);
-                return Task.CompletedTask;
-            }
-            GitConfirmDialog dialog = new(host, icon, title, message, new Buttons { Ok = GitText.Get("common.ok") }, alert: false);
-            return dialog._done.Task;
+            return ShowCoreAsync(host, icon, title, message, new Buttons { Ok = GitText.Get("common.ok") }, alert: false);
         }
 
-        private static bool CanShowOn(VisualElement host)
+        /// <summary>
+        /// 대기열(<see cref="GitPopupHosts.ShowAsync{T}"/>)을 거쳐 띄운다. 띄울 곳이 없으면 취소로 본다.
+        /// </summary>
+        private static Task<int> ShowCoreAsync(VisualElement host, ActionGlyphKind icon, string title, string message, Buttons buttons, bool alert)
         {
-            return host != null && host.panel != null;
-        }
-
-        private static async Task<bool> IsOkAsync(Task<int> result)
-        {
-            return await result == ResultOk;
+            return GitPopupHosts.ShowAsync(host, resolved => new GitConfirmDialog(resolved, icon, title, message, buttons, alert)._done.Task, ResultCancel);
         }
 
         private GitConfirmDialog(VisualElement host, ActionGlyphKind icon, string title, string message, Buttons choices, bool alert)
@@ -191,12 +171,15 @@ namespace GitVersionControl
             }
             card.Add(buttons);
 
-            // Enter = 확인, Esc = 취소. 팝업 안 어디에 포커스가 있든 받고, 밑의 창으로는 넘기지 않는다.
+            // 위험한 확인(버리기·강제)은 실수로 Enter 를 눌러도 일어나지 않게 취소가 기본이다.
+            Button defaultButton = choices.OkDanger && cancelButton != null ? cancelButton : okButton;
+            int enterResult = defaultButton == okButton ? ResultOk : ResultCancel;
+            // Enter = 기본 버튼, Esc = 취소. 팝업 안 어디에 포커스가 있든 받고, 밑의 창으로는 넘기지 않는다.
             _overlay.RegisterCallback<KeyDownEvent>(evt =>
             {
                 if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
                 {
-                    Finish(ResultOk);
+                    Finish(enterResult);
                     evt.StopPropagation();
                 }
                 else if (evt.keyCode == KeyCode.Escape)
@@ -208,9 +191,10 @@ namespace GitVersionControl
             // 창이 닫히거나 다시 만들어지면(도메인 리로드·언어 전환) 취소로 풀어 준다.
             _overlay.RegisterCallback<DetachFromPanelEvent>(_ => _done.TrySetResult(ResultCancel));
 
+            _restoreFocus = host.focusController?.focusedElement;
             host.Add(_overlay);
-            // 키를 바로 받도록 확인 버튼에 포커스한다.
-            okButton.schedule.Execute(() => okButton.Focus());
+            // 키를 바로 받도록 기본 버튼에 포커스한다.
+            defaultButton.schedule.Execute(() => defaultButton.Focus());
         }
 
         private static void AddIfAny(VisualElement parent, Button button)
@@ -224,7 +208,7 @@ namespace GitVersionControl
         private void Finish(int result)
         {
             _done.TrySetResult(result);
-            _overlay.RemoveFromHierarchy();
+            GitPopupHosts.Close(_overlay, _restoreFocus);
         }
     }
 }

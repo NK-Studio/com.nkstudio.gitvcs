@@ -161,8 +161,35 @@ namespace GitVersionControl
             }
             if (lane.LastColumn >= 0)
             {
-                lane.ColorIndex = Lanes.Count;
+                lane.ColorIndex = StableColorIndex(lane.Name, Lanes.Count);
                 Lanes.Add(lane);
+            }
+        }
+
+        /// <summary>
+        /// 줄 색 번호. 브랜치 이름에서 정해 새 커밋·새 브랜치가 생겨도 같은 브랜치는 같은 색을 지킨다(만든 순서로 매기면 매번 뒤섞인다).
+        /// 원격 브랜치는 로컬과 같은 색("origin/main" → "main"). 이름이 없으면 순서를 쓴다.
+        /// </summary>
+        public static int StableColorIndex(string laneName, int fallback)
+        {
+            if (string.IsNullOrEmpty(laneName))
+            {
+                return fallback;
+            }
+            string name = laneName;
+            int slash = name.IndexOf('/');
+            if (name.StartsWith("origin/", StringComparison.Ordinal) && slash >= 0)
+            {
+                name = name.Substring(slash + 1);
+            }
+            unchecked
+            {
+                int hash = 17;
+                foreach (char c in name)
+                {
+                    hash = hash * 31 + c;
+                }
+                return hash & 0x7fffffff;
             }
         }
 

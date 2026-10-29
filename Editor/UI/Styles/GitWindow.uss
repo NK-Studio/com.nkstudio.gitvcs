@@ -132,16 +132,17 @@
     overflow: hidden;
 }
 
-/* 왼쪽 "저장소 / 브랜치": 작은 제목 아래 큰 이름. */
+/* 왼쪽 "저장소 / 브랜치": 작은 제목 아래 큰 이름.
+   폭을 고정한다 — 이름 길이에 따라 폭이 바뀌면 가운데 버튼 묶음이 좌우로 밀려 같은 자리를 눌러도 다른 버튼이 눌린다. 긴 이름은 말줄임. */
 .git-actionbar__context {
     flex-shrink: 1;
+    width: 120px;
     min-width: 40px;
-    max-width: 200px;
     margin-right: 12px;
 }
 
 .git-actionbar__context--branch {
-    max-width: 260px;
+    width: 180px;
 }
 
 .git-actionbar__caption {
@@ -369,16 +370,19 @@
     border-left-width: 0;
 }
 
+/* 오른쪽 상태 문구 자리도 폭을 고정한다(문구가 뜨고 지거나 길어져도 가운데 버튼이 움직이지 않게). */
 .git-actionbar__side {
     flex-direction: row;
     flex-shrink: 1;
     align-items: center;
+    justify-content: flex-end;
+    width: 220px;
     min-width: 24px;
 }
 
 .git-actionbar__status {
     flex-shrink: 1;
-    max-width: 220px;
+    max-width: 100%;
     font-size: 10px;
     color: var(--git-text-muted);
     -unity-text-align: middle-right;
@@ -736,10 +740,10 @@
 .ref-tree__add {
     display: none;
     flex-shrink: 0;
-    /* 줄(24px)을 꽉 채우지 않게 위아래 4px 씩 남긴다. */
-    width: 16px;
-    height: 16px;
-    margin: 0 0 0 8px;
+    /* 누르기 쉬운 크기(조금 빗나가도 맞게). 줄(24px)은 꽉 채우지 않게 위아래 2px 씩 남긴다. */
+    width: 22px;
+    height: 20px;
+    margin: 0 0 0 4px;
     padding: 0;
     border-width: 1px;
     border-radius: 3px;
@@ -757,6 +761,59 @@
     border-color: var(--git-success-strong);
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
+}
+
+/* Pull Requests 구역 맨 위 줄: PR 검색 칸 + 필터 추가 버튼(GitKraken). */
+.ref-tree__pr-search {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: 100%;
+    min-width: 0;
+    margin-right: 4px;
+}
+
+.ref-tree__pr-search-field {
+    flex-grow: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.ref-tree__pr-search-field > .unity-base-text-field__input {
+    height: 20px;
+    padding: 0 6px;
+    border-width: 1px;
+    border-radius: 4px;
+    border-color: var(--git-field-border);
+    background-color: var(--git-field-bg);
+    font-size: 11px;
+}
+
+.ref-tree__pr-filter-add {
+    width: 22px;
+    height: 20px;
+    margin: 0 0 0 4px;
+    padding: 2px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+}
+
+.ref-tree__pr-filter-add > .action-glyph {
+    width: 14px;
+    height: 14px;
+}
+
+.ref-tree__pr-filter-add:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.pr-filter__syntax {
+    white-space: normal;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    font-size: 11px;
 }
 
 /* ── hover-callout: 마우스를 올리면 바로 뜨는 말풍선(HoverCallout). GitKraken 처럼 테마와 상관없이 검은 말풍선에 흰 글자.

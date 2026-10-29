@@ -101,9 +101,10 @@ namespace GitVersionControl
         /// <summary>
         /// 파일 하나를 그 시점 내용으로 되돌린다. 작업 폴더의 고친 내용을 덮어쓰므로 먼저 묻는다.
         /// </summary>
-        private void ResetFile(string repoPath, string revision, string revisionLabel)
+        private async void ResetFile(string repoPath, string revision, string revisionLabel)
         {
-            if (_services.Dialogs.Confirm(GitText.Get("history.resetFileTo"), GitText.Format("history.resetConfirm", repoPath, revisionLabel), GitText.Get("history.resetOk")) == false)
+            if (await _services.Dialogs.ConfirmAsync(GitText.Get("history.resetFileTo"), GitText.Format("history.resetConfirm", repoPath, revisionLabel), GitText.Get("history.resetOk"),
+                    danger: true) == false)
             {
                 return;
             }

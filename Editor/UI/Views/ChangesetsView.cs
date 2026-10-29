@@ -37,7 +37,7 @@ namespace GitVersionControl
         public override string Title => GitText.Get("tab.changesets");
 
         private bool HasHistory => Services.Repository.HeadCommit != null || _state.AllBranches;
-        private string CurrentKey => $"{Services.Repository.HeadCommit}|{(_state.AllBranches ? Services.Repository.UpstreamCommit + "|" + Services.Repository.LastFetchTime : string.Empty)}|{_state.AllBranches}";
+        private string CurrentKey => $"{Services.Repository.HeadCommit}|{(_state.AllBranches ? Services.Repository.UpstreamCommit + "|" + Services.Repository.LastFetchTime + "|" + Services.Repository.RefsFingerprint : string.Empty)}|{_state.AllBranches}";
 
         public ChangesetsView(GitServices services, ChangesetsState state, ITabNavigator navigator) : base(services, "ChangesetsView")
         {
@@ -186,6 +186,8 @@ namespace GitVersionControl
         {
             _summary.text = _isLoading ? GitText.Get("common.loading") : GitText.Format("changesets.summary", _loaded.Count, _hasMore ? "+" : string.Empty);
             _moreButton.SetEnabled(_isLoading == false && _hasMore);
+            // 더 읽을 것이 없으면 숨긴다(꺼진 버튼은 눌러도 되는 것처럼 보였다).
+            _moreButton.SetVisible(_hasMore);
             _commits.SetLoading(_isLoading);
             _errorNotice.SetVisible(string.IsNullOrEmpty(_error) == false);
             _errorText.text = _error ?? string.Empty;

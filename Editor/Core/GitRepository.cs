@@ -113,6 +113,28 @@ namespace GitVersionControl
 
         public static string UpstreamCommit { get; private set; }
 
+        /// <summary>등록된 원격이 하나라도 있는지(마지막 전체 새로고침 기준).</summary>
+        public static bool HasRemote { get; private set; }
+
+        /// <summary>
+        /// 모든 참조의 지문(마지막 전체 새로고침 기준). 그래프가 stash·태그·다른 브랜치 변화를 알아 다시 그리게 한다.
+        /// </summary>
+        public static string RefsFingerprint { get; private set; }
+
+        private static string Fingerprint(string text)
+        {
+            unchecked
+            {
+                // 내용 비교용이라 충돌에 강할 필요는 없다(FNV-1a 64비트).
+                ulong hash = 14695981039346656037UL;
+                foreach (char c in text ?? string.Empty)
+                {
+                    hash = (hash ^ c) * 1099511628211UL;
+                }
+                return hash.ToString("x16");
+            }
+        }
+
         public static IReadOnlyList<GitStatusEntry> Entries => s_entries;
         public static string LastError { get; private set; }
         public static DateTime LastRefreshTime { get; private set; }
@@ -297,6 +319,11 @@ namespace GitVersionControl
             s_requestedGeneration++;
             s_fullRefreshPending |= workingTreeOnly == false;
             s_refreshDueTime = EditorApplication.timeSinceStartup + (immediate ? 0 : DebounceSeconds);
+            if (immediate)
+            {
+                // 에디터가 뒤에 있으면 업데이트 틱이 몇 초씩 늦어진다. 바로 한 번 돌게 깨워, 누른 Refresh 가 기다리지 않게 한다.
+                EditorApplication.QueuePlayerLoopUpdate();
+            }
         }
 
         public static bool TryGetState(string assetPath, out GitFileState state)
@@ -379,6 +406,8 @@ namespace GitVersionControl
                     GitDir = result.GitDir;
                     HeadCommit = result.HeadCommit;
                     UpstreamCommit = result.UpstreamCommit;
+                    HasRemote = result.HasRemote;
+                    RefsFingerprint = result.RefsFingerprint;
                 }
                 Apply(result.IsRepository, result.RepoRoot, result.Prefix, result.RepoInProject, result.Branch, result.Entries, result.Error);
             }
@@ -417,6 +446,12 @@ namespace GitVersionControl
             public string GitDir;
             public string HeadCommit;
             public string UpstreamCommit;
+
+            /// <summary>등록된 원격이 하나라도 있는지. 작업 트리만 읽었으면 지난 값 그대로.</summary>
+            public bool HasRemote;
+
+            /// <summary>모든 참조(브랜치·태그·stash·원격)의 지문. 하나라도 움직이면 바뀐다.</summary>
+            public string RefsFingerprint;
             public string Error;
         }
 
@@ -477,6 +512,8 @@ namespace GitVersionControl
             result.UserName = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.name" }).Output.Trim();
             result.UserEmail = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.email" }).Output.Trim();
             result.HeadCommit = RevParse(gitPath, result.RepoRoot, "HEAD");
+            result.HasRemote = GitCommand.Run(gitPath, result.RepoRoot, new[] { "remote" }).Output.Trim().Length > 0;
+            result.RefsFingerprint = Fingerprint(GitCommand.Run(gitPath, result.RepoRoot, new[] { "for-each-ref", "--format=%(refname) %(objectname)" }).Output);
             if (result.Branch != null && string.IsNullOrEmpty(result.Branch.Upstream) == false)
             {
                 result.UpstreamCommit = RevParse(gitPath, result.RepoRoot, "@{u}");

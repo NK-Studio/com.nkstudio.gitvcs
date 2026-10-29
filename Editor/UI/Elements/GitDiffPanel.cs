@@ -212,7 +212,6 @@ namespace GitVersionControl
         private VisualElement _editingGroup;
         private Label _editingLabel;
         private Button _saveButton;
-        private IDialogService _fallbackDialogs;
 
         /// <summary>
         /// 닫기(×)를 눌렀을 때. <see cref="ShowCloseButton"/> 로 버튼을 켠 곳(GitKraken 레이아웃의 가운데)만 쓴다.
@@ -307,6 +306,8 @@ namespace GitVersionControl
                 horizontalScrollingEnabled = false,
             };
             _list.AddToClassList("git-diff__list");
+            // 휠 한 칸에 세 줄(코드 편집기와 같다). 기본값은 한 줄 남짓이라 큰 파일에서 끝없이 굴려야 했다.
+            _list.Q<ScrollView>().mouseWheelScrollSize = RowHeight * 3f;
             // 줄 끌어 고르기는 줄 요소의 PointerDown·PointerEnter 로 하고, 버튼을 떼거나 목록 밖으로 나가면 끝낸다.
             _list.RegisterCallback<PointerUpEvent>(_ => _dragSelecting = false, TrickleDown.TrickleDown);
             _list.RegisterCallback<PointerLeaveEvent>(_ => _dragSelecting = false);
@@ -959,10 +960,8 @@ namespace GitVersionControl
 
         // ── 이 파일 편집(이 자리에서 고치기) ─────────────
 
-        private IDialogService Dialogs => _dialogs ?? (_fallbackDialogs ??= new EditorDialogService());
-
         /// <summary>
-        /// 편집 확인 팝업(<see cref="GitConfirmDialog"/>)을 덮어 띄울 곳(Git 창). null 을 돌려주거나 없으면 운영체제 대화상자로 묻는다(따로 뜬 diff 창 등).
+        /// 편집 확인 팝업(<see cref="GitConfirmDialog"/>)을 덮어 띄울 곳(Git 창). null 이면 <see cref="GitPopupHosts"/> 가 열린 창을 고른다(따로 뜬 diff 창 등).
         /// </summary>
         public Func<VisualElement> PopupHostProvider { get; set; }
 
@@ -1017,13 +1016,13 @@ namespace GitVersionControl
             }
             catch (Exception exception)
             {
-                await GitConfirmDialog.AlertAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"), exception.Message);
+                await GitConfirmDialog.AlertAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"), exception.Message);
                 return;
             }
             GitTextFile file = GitTextFile.TryDecode(bytes);
             if (file == null)
             {
-                if (await GitConfirmDialog.ConfirmAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"),
+                if (await GitConfirmDialog.ConfirmAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsupportedTitle"),
                         GitText.Format("diff.editUnsupportedMessage", GitDisplay.Nfc(target.RepoPath)), GitText.Get("diff.openInExternalEditor")))
                 {
                     OpenInEditor();
@@ -1086,7 +1085,7 @@ namespace GitVersionControl
             int choice;
             try
             {
-                choice = await GitConfirmDialog.ChooseAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
+                choice = await GitConfirmDialog.ChooseAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
                     GitText.Format("diff.editUnsavedMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editSave"), GitText.Get("diff.editDiscard"), altDanger: true);
                 // 0 = 저장, 2 = 버리기, 1 = 취소. 저장하지 못했으면(취소·실패) 편집을 이어 간다.
                 if (choice == 0 && await SaveEditAsync() == false)
@@ -1128,7 +1127,7 @@ namespace GitVersionControl
                 bool discard;
                 try
                 {
-                    discard = await GitConfirmDialog.ConfirmAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
+                    discard = await GitConfirmDialog.ConfirmAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editUnsavedTitle"),
                         GitText.Format("diff.editDiscardMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editDiscard"), okDanger: true);
                 }
                 finally
@@ -1202,7 +1201,7 @@ namespace GitVersionControl
             }
             if (onDisk == null || onDisk.AsSpan().SequenceEqual(_editBytes) == false)
             {
-                int choice = await GitConfirmDialog.ChooseAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editChangedOnDiskTitle"),
+                int choice = await GitConfirmDialog.ChooseAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editChangedOnDiskTitle"),
                     GitText.Format("diff.editChangedOnDiskMessage", GitDisplay.Nfc(_editRepoPath)), GitText.Get("diff.editOverwrite"), GitText.Get("diff.editReloadFromDisk"), okDanger: true);
                 if (_isEditing == false)
                 {
@@ -1226,7 +1225,7 @@ namespace GitVersionControl
             }
             catch (Exception exception)
             {
-                await GitConfirmDialog.AlertAsync(PopupHost, Dialogs, ActionGlyphKind.Pencil, GitText.Get("diff.editSaveFailedTitle"),
+                await GitConfirmDialog.AlertAsync(PopupHost, ActionGlyphKind.Pencil, GitText.Get("diff.editSaveFailedTitle"),
                     GitText.Format("diff.editSaveFailedMessage", GitDisplay.Nfc(_editRepoPath), exception.Message));
                 return false;
             }
@@ -1825,10 +1824,43 @@ namespace GitVersionControl
                 {
                     return;
                 }
-                // 고른 줄 중 하나를 누르면 고른 줄을 모두, 아니면 그 줄 하나만.
-                ApplyLinesAsync(_selectedLines.Contains(index) ? new List<int>(_selectedLines) : new List<int> { index });
+                // 고른 줄 중 하나를 누르면 고른 줄을 모두, 아니면 그 줄 하나만. 나란히 보기면 같은 행의 짝(삭제↔추가)도 함께.
+                ApplyLinesAsync(WithSplitPartners(_selectedLines.Contains(index) ? new List<int>(_selectedLines) : new List<int> { index }));
             };
             return button;
+        }
+
+        /// <summary>
+        /// 나란히 보기의 한 행은 바뀐 줄 한 쌍(왼쪽 '-', 오른쪽 '+')이다. 한쪽만 올리면 원래 줄과 새 줄이 둘 다 인덱스에 남으므로
+        /// 고른 줄과 같은 행에 있는 반대쪽 바뀐 줄을 더한다. 통합 보기에서는 그대로 둔다(줄마다 따로 고를 수 있다).
+        /// </summary>
+        private List<int> WithSplitPartners(List<int> lines)
+        {
+            if (_shownSplit != true)
+            {
+                return lines;
+            }
+            HashSet<int> result = new(lines);
+            foreach (GitDiffRow row in _rows)
+            {
+                int left = IndexOfChange(row.Left);
+                int right = IndexOfChange(row.Right);
+                if (left < 0 || right < 0)
+                {
+                    continue;
+                }
+                if (result.Contains(left) || result.Contains(right))
+                {
+                    result.Add(left);
+                    result.Add(right);
+                }
+            }
+            return result.OrderBy(i => i).ToList();
+        }
+
+        private int IndexOfChange(GitDiffLine line)
+        {
+            return line != null && GitPartialPatch.IsChange(line) && _lineIndexes.TryGetValue(line, out int index) ? index : -1;
         }
 
         /// <summary>
@@ -1930,6 +1962,10 @@ namespace GitVersionControl
             {
                 return;
             }
+            if (reverse == false && (await ConfirmConflictMarkersAsync(target) == false || _runner.IsBusy || _target != target))
+            {
+                return;
+            }
             // 문맥 줄 없이(-U0) 읽은 diff 에서 만든 패치는 git apply 가 따로 허락해야 받는다.
             bool zeroContext = _loadedContextLines == 0;
             // git 이 모르는 파일은 인덱스에 항목이 없어 패치가 붙을 곳이 없다. add -N 으로 빈 항목을 먼저 만든다.
@@ -1961,7 +1997,9 @@ namespace GitVersionControl
             {
                 return;
             }
-            if (_dialogs.Confirm(GitText.Get("diff.discardHunkTitle"), GitText.Format("diff.discardHunkMessage", GitDisplay.Nfc(target.RepoPath)), GitText.Get("staging.discardAlertOk")) == false)
+            if (await GitConfirmDialog.ConfirmAsync(PopupHost, ActionGlyphKind.Undo, GitText.Get("diff.discardHunkTitle"),
+                    GitText.Format("diff.discardHunkMessage", GitDisplay.Nfc(target.RepoPath)), GitText.Get("staging.discardAlertOk"), okDanger: true) == false
+                || _runner.IsBusy)
             {
                 return;
             }
@@ -1997,6 +2035,20 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 충돌 표시(<<<<<<< ======= >>>>>>>)가 남은 파일을 올리려 하면 먼저 묻는다(목록의 Stage 와 같은 규칙). 올려도 되면 true.
+        /// </summary>
+        private async Task<bool> ConfirmConflictMarkersAsync(GitDiffTarget target)
+        {
+            string fullPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(GitRepository.RepoRoot, target.RepoPath));
+            if (GitInProgress.HasConflictMarkers(fullPath) == false)
+            {
+                return true;
+            }
+            return await GitConfirmDialog.ConfirmAsync(PopupHost, ActionGlyphKind.Branch, GitText.Get("staging.markersTitle"),
+                GitText.Format("staging.markersMessage", target.RepoPath), GitText.Get("staging.markersOk"), okDanger: true);
+        }
+
+        /// <summary>
         /// 이 파일 전체를 올리거나(Unstaged) 내린다(Staged). 목록의 Stage·Unstage 와 같은 명령이다.
         /// </summary>
         private async void StageWholeFileAsync()
@@ -2012,6 +2064,10 @@ namespace GitVersionControl
                 return;
             }
             bool unstage = target.Source == GitDiffSource.Staged;
+            if (unstage == false && await ConfirmConflictMarkersAsync(target) == false)
+            {
+                return;
+            }
             GitStatusEntry[] entries = { entry };
             await _runner.RunAsync(GitText.Get(unstage ? "op.unstage" : "op.stage"),
                 () => unstage ? _commands.UnstageAsync(entries) : _commands.StageAsync(entries), refreshAssets: false, workingTreeOnly: true);
@@ -2030,7 +2086,8 @@ namespace GitVersionControl
                 case GitDiffSource.Staged:
                     return GitText.Get("diff.revisionsStaged");
                 case GitDiffSource.Unstaged:
-                    return GitText.Get("diff.revisionsUnstaged");
+                    // git 이 아직 모르는 새 파일은 비교할 스테이지 쪽이 없다.
+                    return GitText.Get(target.State == GitFileState.Untracked ? "diff.revisionsUntracked" : "diff.revisionsUnstaged");
                 case GitDiffSource.Commit:
                     return GitText.Format("diff.revisionsCommit", target.Commit.Substring(0, Math.Min(8, target.Commit.Length)));
                 case GitDiffSource.MergeBaseRange:
@@ -2611,6 +2668,29 @@ namespace GitVersionControl
         /// </summary>
         private void OnTextKeyDown(KeyDownEvent evt)
         {
+            // Cmd/Ctrl+Home·End, Home·End: 처음·끝으로. PageUp·PageDown: 한 화면씩.
+            ScrollView scroll = _list.Q<ScrollView>();
+            if (scroll != null && _rows.Count > 0)
+            {
+                float page = Mathf.Max(RowHeight, scroll.contentViewport.layout.height - RowHeight);
+                float? target = evt.keyCode switch
+                {
+                    KeyCode.Home => 0f,
+                    KeyCode.End => float.MaxValue,
+                    KeyCode.UpArrow when evt.actionKey => 0f,
+                    KeyCode.DownArrow when evt.actionKey => float.MaxValue,
+                    KeyCode.PageUp => scroll.scrollOffset.y - page,
+                    KeyCode.PageDown => scroll.scrollOffset.y + page,
+                    _ => null,
+                };
+                if (target.HasValue)
+                {
+                    float max = Mathf.Max(0, _rows.Count * RowHeight - scroll.contentViewport.layout.height);
+                    scroll.scrollOffset = new Vector2(scroll.scrollOffset.x, Mathf.Clamp(target.Value, 0, max));
+                    evt.StopPropagation();
+                    return;
+                }
+            }
             if (evt.actionKey && evt.keyCode == KeyCode.C && HasTextSelection)
             {
                 CopySelection();
