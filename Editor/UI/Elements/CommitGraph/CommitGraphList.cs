@@ -129,9 +129,10 @@ namespace GitVersionControl
         private const float DefaultRefsColumnWidth = 170f;
 
         /// <summary>
-        /// 칸 왼쪽 여백(8)과 이름표 앞쪽 아이콘이 보일 만큼. 이보다 좁게는 끌리지 않는다.
+        /// 맨 왼쪽이 아닐 때의 최소 폭. 들여쓰기 6 + 아이콘 상자 28 + 자르는 경계 6 + 반올림 1 — 맨 왼쪽 칸(<see cref="MinRefsFirstWidth"/>)과 같은 방식으로
+        /// 이름표가 그 자리에서 줄어들다가 머리 아이콘(들여쓰기 13 + 14)과 같은 칸 가운데에 닿는다. USS 의 들여쓰기·경계를 바꾸면 같이 맞춘다.
         /// </summary>
-        private const float MinRefsColumnWidth = 32f;
+        private const float MinRefsColumnWidth = 41f;
 
         /// <summary>
         /// 브랜치/태그 칸이 맨 왼쪽일 때의 최소 폭. 들여쓰기 13 + 아이콘 상자 28 + 자르는 경계 13 — 칸을 줄이는 동안 이름표는 그 자리에서 오른쪽부터 가려지다가
@@ -807,9 +808,9 @@ namespace GitVersionControl
             UpdateIconHeader(CommitGraphColumn.Refs);
             UpdateIconHeader(CommitGraphColumn.Graph);
             UpdateIconHeader(CommitGraphColumn.Message);
-            // 맨 왼쪽 브랜치/태그 칸만: 머리가 아이콘이 될 만큼 좁으면 머리 아이콘·이름표를 칸 가운데에 둔다(모양은 USS).
-            // 다른 자리에서는 왼쪽 여백에 그대로 둔다(글자 자리에서 아이콘으로 바뀌어 보이게).
-            bool centered = _order[0] == CommitGraphColumn.Refs && _headerCells[(int)CommitGraphColumn.Refs].ClassListContains(IconHeaderModifier);
+            // 브랜치/태그 칸이 최소 폭이면(머리가 아이콘) 이름표를 아이콘 하나로 둔다(모양은 USS). 칸 순서와 상관없이 같다 —
+            // 들여쓰기·자르는 경계·최소 폭이 맞춰져 있어 이름표와 머리 아이콘은 옮기지 않아도 칸 가운데에 있다.
+            bool centered = _headerCells[(int)CommitGraphColumn.Refs].ClassListContains(IconHeaderModifier);
             Root.EnableInClassList(CenteredRefsModifier, centered);
             // 그래프가 맨 오른쪽이면 막대가 가를 다음 칸이 없으므로 띠만 칸 끝까지 깐다(GitKraken 과 같다).
             Root.EnableInClassList(GraphLastModifier, IsLast(CommitGraphColumn.Graph));
