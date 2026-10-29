@@ -743,12 +743,13 @@
 
 /* 원격: 바탕 없이 테두리만(로컬과 구분). */
 .commit-graph-ref--remote {
-    color: var(--git-text-muted);
+    color: var(--git-text);
 }
 
+/* 태그도 브랜치처럼 테두리와 바탕이 한 색인 평평한 채움. */
 .commit-graph-ref--tag {
-    background-color: rgba(229, 192, 123, 0.25);
-    border-color: rgb(229, 192, 123);
+    background-color: rgba(229, 192, 123, 0.3);
+    border-color: rgba(0, 0, 0, 0);
 }
 
 /* "+n": 이름표와 같은 높이의 옅은 가지 색 상자(바탕은 CommitGraphList 가 넣는다). 앞 틈(6)에는 커밋까지 잇는 선이 지나간다(GitKraken 과 같다).
@@ -906,10 +907,12 @@
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.16);
 }
 
-.commit-graph-refs-popup > .commit-graph-ref:hover > .commit-graph-ref__veil {
+/* 줄 이름표·펼친 목록 모두 마우스를 올리면 밝아진다. */
+.commit-graph-ref:hover > .commit-graph-ref__veil {
     display: flex;
 }
 
@@ -1005,7 +1008,7 @@
 }
 
 .git-themed .commit-graph .unity-collection-view .unity-collection-view__item--selected .commit-graph-ref--remote > .commit-graph-ref__name {
-    color: var(--git-text-muted);
+    color: var(--git-text);
 }
 
 .git-themed .commit-graph .unity-collection-view .unity-collection-view__item--selected .commit-graph-ref--current > .commit-graph-ref__name {

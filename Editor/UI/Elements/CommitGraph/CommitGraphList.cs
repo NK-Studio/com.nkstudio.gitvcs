@@ -194,6 +194,9 @@ namespace GitVersionControl
         private const float CurrentRefAlpha = 0.7f;
         private const float LocalRefAlpha = 0.35f;
 
+        /// <summary>원격에만 있는 브랜치 이름표: 로컬보다 한 단계 어둡게 채운다(GitKraken). 테두리 없이 채움만.</summary>
+        private const float RemoteRefAlpha = 0.2f;
+
         /// <summary>
         /// 칸 폭이 최소 폭에서 이만큼 안이면 끝까지 줄인 것으로 본다(끌어 놓은 폭의 소수점 오차).
         /// </summary>
@@ -1538,6 +1541,10 @@ namespace GitVersionControl
             ActionGlyph tag = new(ActionGlyphKind.Tag);
             tag.AddToClassList("commit-graph-ref__tag-icon");
             pill.Add(tag);
+            // 마우스를 올리면 밝게(USS :hover). 이름표 바탕이 가지 색 인라인 스타일이라 USS 로 바꿀 수 없어 위에 얇은 막을 깐다.
+            VisualElement veil = new() { pickingMode = PickingMode.Ignore };
+            veil.AddToClassList("commit-graph-ref__veil");
+            pill.Add(veil);
             // 커서(USS cursor)는 포인터 바로 밑 요소 것을 쓰므로 안쪽 요소는 포인터를 받지 않게 해 이름표 어디서나 손가락 커서가 되게 한다.
             check.pickingMode = PickingMode.Ignore;
             name.pickingMode = PickingMode.Ignore;
@@ -1557,18 +1564,19 @@ namespace GitVersionControl
             pill.EnableInClassList("commit-graph-ref--remote", commitRef.Kind == CommitRefKind.Remote);
             pill.EnableInClassList("commit-graph-ref--tag", commitRef.Kind == CommitRefKind.Tag);
             pill.EnableInClassList("commit-graph-ref--synced", commitRef.HasRemote);
-            // 브랜치 이름표는 GitKraken 처럼 가지 색을 입혀 선과 같은 색으로 잇는다: 현재 브랜치는 진하게, 로컬은 옅게(테두리 없이 채움만),
-            // 원격은 채움 없이 테두리만. 태그는 USS 의 고정 색.
+            // 브랜치 이름표는 GitKraken 처럼 가지 색을 입혀 선과 같은 색으로 잇는다: 현재 브랜치는 진하게, 로컬은 옅게, 원격은 더 옅게.
+            // 모두 테두리와 바탕이 한 색인 평평한 채움(테두리는 투명). 태그는 USS 의 고정 색.
             bool usesLaneColor = commitRef.Kind != CommitRefKind.Tag;
             Color fill = laneColor;
             fill.a = commitRef.Kind switch
             {
                 CommitRefKind.Current => CurrentRefAlpha,
                 CommitRefKind.Local => LocalRefAlpha,
+                CommitRefKind.Remote => RemoteRefAlpha,
                 _ => 0f,
             };
-            // 테두리 폭(1px)은 남겨 두어 종류마다 이름표 크기가 같다. 채운 이름표는 테두리를 투명하게 해 바탕과 겹쳐 진해지지 않게 한다.
-            Color border = commitRef.Kind == CommitRefKind.Remote ? laneColor : Color.clear;
+            // 테두리 폭(1px)은 남겨 두어 종류마다 이름표 크기가 같다. 테두리는 투명하게 해 바탕과 한 색으로 보인다.
+            Color border = Color.clear;
             pill.style.backgroundColor = usesLaneColor ? fill : StyleKeyword.Null;
             pill.style.borderLeftColor = usesLaneColor ? border : StyleKeyword.Null;
             pill.style.borderRightColor = usesLaneColor ? border : StyleKeyword.Null;
@@ -1597,10 +1605,6 @@ namespace GitVersionControl
             while (_refsPopup.childCount < refs.Count)
             {
                 VisualElement item = CreateRefPill();
-                // 마우스가 올라간 참조를 밝게(USS :hover). 이름표 바탕이 가지 색 인라인 스타일이라 위에 얇은 막을 깐다.
-                VisualElement veil = new() { pickingMode = PickingMode.Ignore };
-                veil.AddToClassList("commit-graph-ref__veil");
-                item.Add(veil);
                 // 두 번 누르면 그 참조로 전환한다.
                 int refIndex = _refsPopup.childCount;
                 item.RegisterCallback<PointerDownEvent>(evt =>
