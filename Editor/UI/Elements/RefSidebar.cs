@@ -587,10 +587,11 @@ namespace GitVersionControl
             // 줄에 마우스를 올리면 GitKraken 처럼 줄 아래에 전체 이름(sample/main, origin/main)이나 워크트리 폴더를 바로 띄운다.
             HoverCallout.Attach(row, () => row.userData is int index ? HoverText(_tree.GetItemDataForIndex<RefNode>(index)) : null,
                 () => _services.PopupHost, HoverCalloutPlacement.Below);
-            // 구역 머리 줄은 GitKraken 처럼 줄 어디를 눌러도 접고 펼친다.
+            // 구역 머리 줄은 GitKraken 처럼 줄 어디를 눌러도 접고 펼친다. 줄 안의 버튼(+ 등)을 누른 것은 빼고 — 그 클릭도 줄로 올라온다.
             row.RegisterCallback<ClickEvent>(evt =>
             {
-                if (evt.button != 0 || row.userData is not int index || _tree.GetItemDataForIndex<RefNode>(index) is not { Kind: RefNodeKind.Section } section || IsEmptyContainer(section))
+                bool onButton = evt.target is VisualElement target && (target is Button || target.GetFirstAncestorOfType<Button>() is { } button && row.Contains(button));
+                if (evt.button != 0 || onButton || row.userData is not int index || _tree.GetItemDataForIndex<RefNode>(index) is not { Kind: RefNodeKind.Section } section || IsEmptyContainer(section))
                 {
                     return;
                 }
