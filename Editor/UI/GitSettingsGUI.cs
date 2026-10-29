@@ -75,35 +75,14 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// Project Settings > Git: 이 프로젝트 저장소에 매인 설정만 둔다. 언어·테마·git 경로·Diff 같은 개인 설정은 Preferences > Git(<see cref="DrawPersonal"/>).
+        /// Project Settings > Git: 이 저장소에 쓸 GitHub 계정과 저장소 상태(git init)만 둔다. 나머지 설정은 모두 개인 설정이라 Preferences > Git(<see cref="DrawPersonal"/>).
         /// </summary>
         public static void Draw()
         {
-            GitVcsSettings settings = GitVcsSettings.instance;
-
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Git", EditorStyles.boldLabel);
 
             DrawAccount();
-            settings.AutoFetch = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.autoFetch"), GitText.Get("settings.autoFetchTooltip")), settings.AutoFetch);
-            using (new EditorGUI.DisabledScope(settings.AutoFetch == false))
-            using (new EditorGUI.IndentLevelScope())
-            {
-                settings.AutoFetchMinutes = EditorGUILayout.DelayedIntField(
-                    new GUIContent(GitText.Get("settings.autoFetchMinutes"), GitText.Format("settings.autoFetchMinutesTooltip", GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes)),
-                    settings.AutoFetchMinutes);
-            }
-            settings.StopOnRebaseConflict = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stopOnRebaseConflict"), GitText.Get("settings.stopOnRebaseConflictTooltip")), settings.StopOnRebaseConflict);
-            settings.GroupMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.groupMetaPairs"), GitText.Get("settings.groupMetaPairsTooltip")), settings.GroupMetaPairs);
-            using (new EditorGUI.DisabledScope(settings.GroupMetaPairs))
-            {
-                // 묶어 보기를 켜면 짝은 늘 함께 옮기므로 켜진 채로 잠근다.
-                bool movesPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.MovesMetaPairs);
-                if (settings.GroupMetaPairs == false)
-                {
-                    settings.StageMetaPairs = movesPairs;
-                }
-            }
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -119,7 +98,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// Preferences > Git 의 개인 설정: 화면(언어·테마·배치), git 실행 파일, 에디터 동작, 표시 방식. 값은 EditorPrefs 에 있어 모든 프로젝트에 같이 적용된다.
+        /// Preferences > Git 의 개인 설정: 화면(언어·테마·배치), git 실행 파일, 에디터 동작, 표시 방식, 자동 Fetch·rebase·.meta 짝 다루기. 값은 EditorPrefs 에 있어 모든 프로젝트에 같이 적용된다.
         /// </summary>
         public static void DrawPersonal()
         {
@@ -195,7 +174,25 @@ namespace GitVersionControl
             GitMainToolbar.SetShown(EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.mainToolbar"), GitText.Get("settings.mainToolbarTooltip")), settings.ShowInMainToolbar));
             settings.MenuStyle = EnumPopup(GitText.Get("settings.menuStyle"), GitText.Get("settings.menuStyleTooltip"), settings.MenuStyle, "menuStyle.");
             settings.ErrorDetailMode = EnumPopup(GitText.Get("settings.errorDetail"), GitText.Get("settings.errorDetailTooltip"), settings.ErrorDetailMode, "errorDetail.");
-
+            settings.AutoFetch = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.autoFetch"), GitText.Get("settings.autoFetchTooltip")), settings.AutoFetch);
+            using (new EditorGUI.DisabledScope(settings.AutoFetch == false))
+            using (new EditorGUI.IndentLevelScope())
+            {
+                settings.AutoFetchMinutes = EditorGUILayout.DelayedIntField(
+                    new GUIContent(GitText.Get("settings.autoFetchMinutes"), GitText.Format("settings.autoFetchMinutesTooltip", GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes)),
+                    settings.AutoFetchMinutes);
+            }
+            settings.StopOnRebaseConflict = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stopOnRebaseConflict"), GitText.Get("settings.stopOnRebaseConflictTooltip")), settings.StopOnRebaseConflict);
+            settings.GroupMetaPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.groupMetaPairs"), GitText.Get("settings.groupMetaPairsTooltip")), settings.GroupMetaPairs);
+            using (new EditorGUI.DisabledScope(settings.GroupMetaPairs))
+            {
+                // 묶어 보기를 켜면 짝은 늘 함께 옮기므로 켜진 채로 잠근다.
+                bool movesPairs = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.stageMetaPairs"), GitText.Get("settings.stageMetaPairsTooltip")), settings.MovesMetaPairs);
+                if (settings.GroupMetaPairs == false)
+                {
+                    settings.StageMetaPairs = movesPairs;
+                }
+            }
         }
 
         /// <summary>Preferences > Git 의 Diff 묶음.</summary>

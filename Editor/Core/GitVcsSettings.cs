@@ -133,14 +133,14 @@ namespace GitVersionControl
         public bool AutoFetch
         {
             get => _autoFetch;
-            set => SetAndSave(ref _autoFetch, value);
+            set => SetAndSave(ref _autoFetch, value, nameof(AutoFetch));
         }
 
         /// <summary>자동 fetch 간격(분). <see cref="GitAutoFetch.MinIntervalMinutes"/>~<see cref="GitAutoFetch.MaxIntervalMinutes"/>.</summary>
         public int AutoFetchMinutes
         {
             get => Math.Clamp(_autoFetchMinutes, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes);
-            set => SetAndSave(ref _autoFetchMinutes, Math.Clamp(value, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes));
+            set => SetAndSave(ref _autoFetchMinutes, Math.Clamp(value, GitAutoFetch.MinIntervalMinutes, GitAutoFetch.MaxIntervalMinutes), nameof(AutoFetchMinutes));
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace GitVersionControl
         public bool StopOnRebaseConflict
         {
             get => _stopOnRebaseConflict;
-            set => SetAndSave(ref _stopOnRebaseConflict, value);
+            set => SetAndSave(ref _stopOnRebaseConflict, value, nameof(StopOnRebaseConflict));
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace GitVersionControl
         public bool StageMetaPairs
         {
             get => _stageMetaPairs;
-            set => SetAndSave(ref _stageMetaPairs, value);
+            set => SetAndSave(ref _stageMetaPairs, value, nameof(StageMetaPairs));
         }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace GitVersionControl
                 {
                     return;
                 }
-                SetAndSave(ref _groupMetaPairs, value);
+                SetAndSave(ref _groupMetaPairs, value, nameof(GroupMetaPairs));
                 MetaGroupingChanged?.Invoke();
             }
         }
@@ -561,6 +561,11 @@ namespace GitVersionControl
             SyncPref(nameof(ShowInMainToolbar), ref _showInMainToolbar);
             SyncPref(nameof(MenuStyle), ref _menuStyle);
             SyncPref(nameof(ErrorDetailMode), ref _errorDetailMode);
+            SyncPref(nameof(AutoFetch), ref _autoFetch);
+            SyncPref(nameof(AutoFetchMinutes), ref _autoFetchMinutes);
+            SyncPref(nameof(StopOnRebaseConflict), ref _stopOnRebaseConflict);
+            SyncPref(nameof(StageMetaPairs), ref _stageMetaPairs);
+            SyncPref(nameof(GroupMetaPairs), ref _groupMetaPairs);
 
             string paths = string.Join("\n", _diffToolPaths);
             SyncPref(DiffToolPathsKey, ref paths);

@@ -338,6 +338,7 @@ Windows 11 · Unity 6000.7.0b5 · Git for Windows 2.53.0. 새 Unity 프로젝트
 | W-05 | 한국어 중단 확인 카드의 두 버튼이 모두 "취소" | `inprogress.abort` → "중단", "{0} 을(를)" 띄어쓰기 |
 | W-06 | Fork 배치 Shift+Stage(전부) 무반응 | Button 의 Clickable 이 수정 키 없는 클릭만 받음 → Shift 활성기 추가(모든 OS) |
 | W-07 | 로컬 폴더 원격에 첫 Push 해도 PR 만들기 제안 → 빈 서랍 | 올린 원격이 GitHub 일 때만 제안(`PushedToGitHubAsync`) |
+| W-08 | 자동 Fetch·간격, rebase 충돌 시 멈추기, .meta 묶어 보기·짝 옮기기가 Project Settings 에 남음 | 이 값들도 원래 UserSettings(저장소에 안 올라감)라 팀 공유가 아니었다 → Preferences > Git·EditorPrefs 로. Project Settings 에는 이 저장소의 GitHub 계정과 저장소 상태(git init)만 |
 
 ### 남은 관찰(고치지 않음)
 
