@@ -140,6 +140,14 @@ namespace GitVersionControl
             AddSubmoduleDrawer addSubmodule = AddDrawer(new AddSubmoduleDrawer(content, _services));
             CreatePullRequestDrawer createPullRequest = AddDrawer(new CreatePullRequestDrawer(content, _services));
             PullRequestFilterDrawer pullRequestFilter = AddDrawer(new PullRequestFilterDrawer(content, _services));
+            PullRequestDetailDrawer pullRequestDetail = AddDrawer(new PullRequestDetailDrawer(content, _services));
+            _refs.PullRequestOpened += pullRequestDetail.OpenFor;
+            pullRequestDetail.Merged += () =>
+            {
+                _refs.ReloadPullRequests();
+                // 병합 커밋을 그래프·Pull 숫자에 바로 보이게 원격을 받아 온다.
+                _ = GitAutoFetch.FetchNowAsync();
+            };
             _refs.PullRequestFilterRequested += index =>
             {
                 if (index < 0)
@@ -212,6 +220,15 @@ namespace GitVersionControl
                 SessionState.SetBool(SkipConnectKey, true);
                 Rebuild();
             });
+        }
+
+        private void Update()
+        {
+            // git 이 도는 동안·막 끝난 직후만 스스로 다시 그려 에디터 틱을 빠르게 둔다(GitCommand.IsBusyOrRecent). 평소에는 아무것도 하지 않는다.
+            if (GitCommand.IsBusyOrRecent)
+            {
+                Repaint();
+            }
         }
 
         private void OnDisable()
@@ -551,11 +568,12 @@ namespace GitVersionControl
                 // 작업 막대 브랜치 목록을 뒤에서 읽어 둔다 — 누르자마자 다 그린 목록이 보이게.
                 _ = GitBranchPicker.Prefetch();
             }
-            _refs.OnRepositoryChanged();
+            // 보이는 뷰(그래프 등)가 먼저 git 읽기를 시작하게 사이드바보다 앞에 알린다.
             foreach (GitView view in _views)
             {
                 view.OnRepositoryChanged();
             }
+            _refs.OnRepositoryChanged();
         }
 
         private void OnRunnerStateChanged()

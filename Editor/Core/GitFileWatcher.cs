@@ -27,7 +27,8 @@ namespace GitVersionControl
     /// Unity Mono 의 <see cref="FileSystemWatcher"/> 는 OS 알림이 아니라 폴더를 통째로 훑는 폴링 구현이라 쓰지 않는다.
     /// <list type="bullet">
     /// <item>Windows: <see cref="WindowsDirectoryWatcher"/>(ReadDirectoryChangesW)로 작업 트리와 git 폴더의 모든 변경을 받는다.</item>
-    /// <item>그 밖: git 폴더의 몇 파일(HEAD·index·packed-refs…)의 수정 시각만 폴링한다 — 커밋·브랜치 전환·stage 는 잡지만 작업 트리 파일 저장은 포커스 복귀 때 읽는다.</item>
+    /// <item>macOS: <see cref="MacDirectoryWatcher"/>(FSEvents)로 같은 변경을 받는다.</item>
+    /// <item>그 밖(또는 감시를 못 켰을 때): git 폴더의 몇 파일(HEAD·index·packed-refs…)의 수정 시각만 폴링한다 — 커밋·브랜치 전환·stage 는 잡지만 작업 트리 파일 저장은 포커스 복귀 때 읽는다.</item>
     /// </list>
     /// 이벤트는 백그라운드 스레드에서 오므로 플래그만 세우고, 메인 스레드(<see cref="EditorApplication.update"/>)에서 모아 한 번 새로고침한다.
     /// 우리 git status 는 <c>GIT_OPTIONAL_LOCKS=0</c> 이라 index 를 쓰지 않으므로 새로고침이 다시 이벤트를 부르는 고리는 없다.
@@ -64,7 +65,7 @@ namespace GitVersionControl
             "refs/stash", "config",
         };
 
-        private static readonly List<WindowsDirectoryWatcher> s_watchers = new();
+        private static readonly List<IDisposable> s_watchers = new();
 
         // 감시 기준 경로(슬래시 구분, 끝에 '/'). 이벤트 스레드가 읽으므로 감시를 멈춘 뒤에만 바꾼다.
         private static string s_repoRoot;
@@ -114,17 +115,19 @@ namespace GitVersionControl
             s_projectPrefix = prefix;
             s_active = true;
 
-            if (WindowsDirectoryWatcher.IsSupported)
+            bool watched = false;
+            if (WindowsDirectoryWatcher.IsSupported || MacDirectoryWatcher.IsSupported)
             {
-                Watch(root);
+                watched = Watch(root);
                 // worktree 의 git 폴더는 작업 트리 밖에 있다.
-                if (git.StartsWith(root, StringComparison.OrdinalIgnoreCase) == false && Directory.Exists(git))
+                if (watched && git.StartsWith(root, StringComparison.OrdinalIgnoreCase) == false && Directory.Exists(git))
                 {
-                    Watch(git);
+                    watched = Watch(git);
                 }
             }
-            else
+            if (watched == false)
             {
+                // OS 알림을 못 받으면 git 폴더 몇 파일의 수정 시각만 폴링한다(작업 트리 저장은 포커스 복귀 때 읽는다).
                 s_polledTimes = ReadPolledTimes();
             }
             EditorApplication.update += OnUpdate;
@@ -134,7 +137,7 @@ namespace GitVersionControl
         {
             EditorApplication.update -= OnUpdate;
             // Dispose 가 감시 스레드를 기다리는 동안 들어온 이벤트도 버린다.
-            foreach (WindowsDirectoryWatcher watcher in s_watchers)
+            foreach (IDisposable watcher in s_watchers)
             {
                 watcher.Dispose();
             }
@@ -145,16 +148,21 @@ namespace GitVersionControl
             s_fullDirty = 0;
         }
 
-        private static void Watch(string path)
+        private static bool Watch(string path)
         {
             try
             {
                 // 버퍼가 넘쳐 이벤트를 잃었다(onOverflow). 무엇이 바뀌었는지 모르니 전부 다시 읽는다.
-                s_watchers.Add(new WindowsDirectoryWatcher(path.TrimEnd('/'), Mark, () => Interlocked.Exchange(ref s_fullDirty, 1)));
+                void Overflow() => Interlocked.Exchange(ref s_fullDirty, 1);
+                s_watchers.Add(WindowsDirectoryWatcher.IsSupported
+                    ? new WindowsDirectoryWatcher(path.TrimEnd('/'), Mark, Overflow)
+                    : new MacDirectoryWatcher(path.TrimEnd('/'), Mark, Overflow));
+                return true;
             }
             catch (Exception e)
             {
                 Debug.LogWarning(GitText.Format("watcher.failed", path, e.Message));
+                return false;
             }
         }
 

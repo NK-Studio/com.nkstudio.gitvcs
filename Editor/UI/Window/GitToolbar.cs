@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEngine.UIElements;
 
@@ -176,7 +177,8 @@ namespace GitVersionControl
             string blocked = inProgress ? GitText.Get("actionbar.blockedInProgress") : null;
             _pull.SetEnabled(idle && ready && hasUpstream && inProgress == false);
             _pull.SetBadge(behind);
-            _pull.Tooltip = blocked ?? GitText.Format("actionbar.pullTooltip", behind);
+            // 받을 커밋 수는 마지막 fetch 기준이다. 0 이 "확인했더니 없음" 인지 "아직 안 봄" 인지 알 수 있게 언제 봤는지 붙인다.
+            _pull.Tooltip = blocked ?? GitText.Format("actionbar.pullTooltip", behind) + "\n" + FetchAgeText(GitRepository.LastFetchTime, DateTime.Now);
             _push.SetEnabled(idle && ready && branch != null && branch.Detached == false && branch.HasCommits && inProgress == false);
             _push.SetBadge(ahead);
             _push.Tooltip = blocked ?? GitText.Format("actionbar.pushTooltip", ahead);
@@ -187,6 +189,31 @@ namespace GitVersionControl
             _pop.Tooltip = GitText.Format("actionbar.popTooltip", _stashCount);
             _terminal.SetEnabled(ready);
             _refresh.SetEnabled(repository.IsRefreshing == false);
+        }
+
+        /// <summary>
+        /// "마지막 Fetch: 3분 전" / "아직 Fetch 하지 않음". 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static string FetchAgeText(DateTime? lastFetch, DateTime now)
+        {
+            if (lastFetch.HasValue == false)
+            {
+                return GitText.Get("actionbar.neverFetched");
+            }
+            TimeSpan age = now - lastFetch.Value;
+            if (age < TimeSpan.FromMinutes(1))
+            {
+                return GitText.Get("actionbar.fetchedJustNow");
+            }
+            if (age < TimeSpan.FromHours(1))
+            {
+                return GitText.Format("actionbar.fetchedMinutesAgo", (int)age.TotalMinutes);
+            }
+            if (age < TimeSpan.FromDays(1))
+            {
+                return GitText.Format("actionbar.fetchedHoursAgo", (int)age.TotalHours);
+            }
+            return GitText.Format("actionbar.fetchedDaysAgo", (int)age.TotalDays);
         }
 
         /// <summary>

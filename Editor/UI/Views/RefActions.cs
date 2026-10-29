@@ -134,6 +134,7 @@ namespace GitVersionControl
         public async Task EditRemoteUrlAsync(string remote, string url)
         {
             string next = (await _services.Dialogs.PromptAsync(GitText.Get("remote.editUrl"), GitText.Format("remote.editUrlPrompt", remote), url ?? string.Empty,
+                validate: value => GitRemoteForm.IsPlausibleUrl(value, GitRemoteForm.PathExistsFromRepo) ? null : GitText.Get("remote.invalidUrl"),
                 icon: ActionGlyphKind.Cloud))?.Trim();
             if (string.IsNullOrEmpty(next) || next == url)
             {

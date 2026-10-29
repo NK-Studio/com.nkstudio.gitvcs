@@ -71,6 +71,72 @@ namespace GitVersionControl
             return (GitPullRequestList.ParseSearchNumbers(request.downloadHandler.text), null);
         }
 
+        /// <summary>PR 하나의 자세한 정보. GitHub 가 병합 가능 여부를 아직 계산 중이면 <see cref="GitPullRequestDetail.Mergeable"/> 이 null.</summary>
+        public static async Task<(GitPullRequestDetail detail, string error)> GetAsync(GitHubRemoteRepo repository, int number)
+        {
+            using UnityWebRequest request = Get($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/pulls/{number}");
+            await GitHubAccount.SendAsync(request);
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                return (null, GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error);
+            }
+            return (GitPullRequestDetails.Parse(request.downloadHandler.text), null);
+        }
+
+        /// <summary>PR 이 바꾼 파일(최대 300개 — GitHub 가 한 번에 주는 만큼).</summary>
+        public static async Task<(List<GitPullRequestFile> files, string error)> FilesAsync(GitHubRemoteRepo repository, int number)
+        {
+            List<GitPullRequestFile> all = new();
+            for (int page = 1; page <= MaxPages; page++)
+            {
+                using UnityWebRequest request = Get($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/pulls/{number}/files?per_page={PageSize}&page={page}");
+                await GitHubAccount.SendAsync(request);
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    return (all, GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error);
+                }
+                List<GitPullRequestFile> items = GitPullRequestDetails.ParseFiles(request.downloadHandler.text);
+                all.AddRange(items);
+                if (items.Count < PageSize)
+                {
+                    break;
+                }
+            }
+            return (all, null);
+        }
+
+        /// <summary>
+        /// PR 을 병합한다(<c>PUT …/pulls/{number}/merge</c>). <paramref name="headSha"/> 를 주면 그 사이 새 커밋이 올라왔을 때 GitHub 가 거절한다.
+        /// </summary>
+        /// <returns>성공하면 null, 실패하면 오류 문구.</returns>
+        public static async Task<string> MergeAsync(GitHubRemoteRepo repository, int number, GitPullRequestMergeMethod method, string headSha)
+        {
+            string json = GitPullRequestDetails.MergeRequestJson(method, headSha);
+            using UnityWebRequest request = new($"https://api.github.com/repos/{repository.Owner}/{repository.Repository}/pulls/{number}/merge", UnityWebRequest.kHttpVerbPUT)
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json)),
+                downloadHandler = new DownloadHandlerBuffer(),
+            };
+            SetHeaders(request);
+            request.SetRequestHeader("Content-Type", "application/json");
+            await GitHubAccount.SendAsync(request);
+            return request.result == UnityWebRequest.Result.Success ? null : GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error;
+        }
+
+        private static UnityWebRequest Get(string url)
+        {
+            UnityWebRequest request = UnityWebRequest.Get(url);
+            SetHeaders(request);
+            return request;
+        }
+
+        private static void SetHeaders(UnityWebRequest request)
+        {
+            request.SetRequestHeader("User-Agent", UserAgent);
+            request.SetRequestHeader("Accept", "application/vnd.github+json");
+            request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+        }
+
         /// <returns>성공하면 (번호, 주소, null), 실패하면 (0, null, 오류 문구).</returns>
         public static async Task<(int number, string url, string error)> CreateAsync(GitHubRemoteRepo to, string head, string baseBranch, string title, string body, bool draft)
         {

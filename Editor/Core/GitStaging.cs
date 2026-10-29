@@ -13,7 +13,8 @@ namespace GitVersionControl
     public static class GitStaging
     {
         /// <summary>
-        /// 새로 추가해 stage 한 Assets 아래 에셋인데 그 .meta(또는 새로 생긴 상위 폴더의 .meta)가 stage 되지 않은 것의 .meta 경로(저장소 기준).
+        /// stage 한 Assets 아래 에셋인데 그 .meta(또는 새로 생긴 상위 폴더의 .meta)가 stage 되지 않은 것의 .meta 경로(저장소 기준).
+        /// 새로 추가한 에셋은 늘, 이미 추적 중인 에셋은 .meta 가 아직 추적되지 않았을 때(예전에 .meta 없이 커밋된 파일) 넣는다.
         /// .meta 없이 커밋하면 다른 사람 쪽에서 Unity 가 새 GUID 를 만들어 참조가 깨진다. 순수 함수라 테스트로 확인한다.
         /// </summary>
         public static List<string> MissingMetaPaths(IReadOnlyList<GitStatusEntry> entries)
@@ -23,7 +24,16 @@ namespace GitVersionControl
             List<string> missing = new();
             foreach (GitStatusEntry entry in entries)
             {
-                if (entry.IndexCode != 'A' || entry.RepoPath.EndsWith(".meta", StringComparison.Ordinal) || IsUnderAssets(entry.ProjectPath) == false)
+                if (entry.RepoPath.EndsWith(".meta", StringComparison.Ordinal) || IsUnderAssets(entry.ProjectPath) == false)
+                {
+                    continue;
+                }
+                if (entry.IndexCode is 'M' or 'R' or 'C' or 'T')
+                {
+                    AddIfMissing(entry.RepoPath + ".meta", always: false);
+                    continue;
+                }
+                if (entry.IndexCode != 'A')
                 {
                     continue;
                 }

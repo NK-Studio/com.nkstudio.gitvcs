@@ -1136,6 +1136,176 @@
     align-self: auto;
 }
 
+/* ── pr-detail: Pull Request 화면 서랍(GitKraken 의 PR 화면) ── */
+.side-drawer.pr-detail {
+    width: 560px;
+}
+
+.pr-detail__title-row {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.pr-detail__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    -unity-font-style: bold;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.pr-detail__badge {
+    flex-shrink: 0;
+    margin: 2px 8px 0 0;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: var(--git-on-strong);
+    background-color: var(--git-text-muted);
+}
+
+.pr-detail__badge--open {
+    background-color: var(--git-success-strong);
+}
+
+.pr-detail__badge--merged {
+    background-color: var(--git-accent);
+}
+
+.pr-detail__badge--closed {
+    background-color: var(--git-danger-strong);
+}
+
+.pr-detail__readiness {
+    margin: 2px 0 8px 0;
+    white-space: normal;
+    color: var(--git-text-muted);
+}
+
+.pr-detail__readiness--ok {
+    color: var(--git-success);
+}
+
+.pr-detail__readiness--bad {
+    color: var(--git-danger);
+}
+
+.pr-detail__methods {
+    flex-direction: row;
+}
+
+.pr-detail__method {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 26px;
+    margin: 0 2px;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-button-border);
+    background-color: var(--git-button-bg);
+    color: var(--git-text);
+    font-size: 11px;
+}
+
+.pr-detail__method:hover:enabled {
+    background-color: var(--git-hover);
+}
+
+.pr-detail__method--selected,
+.pr-detail__method--selected:hover:enabled {
+    border-color: var(--git-accent);
+    background-color: var(--git-selected);
+    color: var(--git-selected-text);
+}
+
+.pr-detail__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.pr-detail__body {
+    margin: 4px 0 0 0;
+    padding: 8px;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-border);
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.pr-detail__body--empty {
+    color: var(--git-text-muted);
+    -unity-font-style: italic;
+}
+
+.pr-detail__fact {
+    flex-direction: row;
+    min-height: 22px;
+    align-items: flex-start;
+}
+
+.pr-detail__fact-name {
+    flex-shrink: 0;
+    width: 90px;
+    margin: 0;
+    color: var(--git-text-muted);
+}
+
+.pr-detail__fact-value {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin: 0;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.pr-detail__fact-value--empty {
+    color: var(--git-text-muted);
+}
+
+.pr-detail__file {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+}
+
+.pr-detail__file-status {
+    flex-shrink: 0;
+    width: 18px;
+    margin: 0;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    color: var(--git-state-modified);
+}
+
+.pr-detail__file-status--added {
+    color: var(--git-state-added);
+}
+
+.pr-detail__file-status--removed {
+    color: var(--git-state-deleted);
+}
+
+.pr-detail__file-path {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 6px;
+    color: var(--git-text);
+}
+
+.pr-detail__file-counts {
+    flex-shrink: 0;
+    margin: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
 /* ── search-select: 서랍의 검색 되는 고르기 칸 ── */
 /* react-select 와 같은 모양: 테두리 상자 하나 안에 글자 칸(테두리 없음) · 얇은 구분선 · ⌄. 포커스면 상자 테두리가 강조색, 펼치면 ⌄ 가 위를 본다. */
 .search-select {

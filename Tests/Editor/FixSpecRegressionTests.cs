@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -55,6 +57,119 @@ namespace GitVersionControl.Tests
             GitPullRequestFilter builtIn = new() { NameKey = "prList.groupMine", Query = "author:@me" };
             Assert.IsTrue(GitPullRequestFilters.KeepsDefaultName(builtIn, builtIn.DisplayName));
             Assert.IsFalse(GitPullRequestFilters.KeepsDefaultName(builtIn, "Renamed"));
+        }
+
+        private const string PullDetailJson = "{\"number\":3,\"title\":\"Test B\",\"body\":\"line\\r\\nnext\",\"state\":\"open\",\"merged\":false,\"draft\":false,"
+            + "\"mergeable\":true,\"mergeable_state\":\"clean\",\"html_url\":\"https://github.com/o/r/pull/3\",\"commits\":2,\"additions\":5,\"deletions\":1,"
+            + "\"changed_files\":1,\"comments\":1,\"review_comments\":2,\"user\":{\"login\":\"me\"},\"requested_reviewers\":[{\"login\":\"rev\"}],"
+            + "\"labels\":[{\"name\":\"bug\"}],\"head\":{\"ref\":\"feature/b\",\"sha\":\"abc\",\"repo\":{\"full_name\":\"o/r\"}},\"base\":{\"ref\":\"master\"}}";
+
+        [Test]
+        public void Test_PullRequestDetail_Parse()
+        {
+            GitPullRequestDetail pr = GitPullRequestDetails.Parse(PullDetailJson);
+            Assert.AreEqual(3, pr.Number);
+            Assert.AreEqual("line\nnext", pr.Body);
+            Assert.AreEqual(true, pr.Mergeable);
+            Assert.AreEqual(3, pr.Comments);
+            Assert.AreEqual("feature/b", pr.HeadRef);
+            Assert.AreEqual("abc", pr.HeadSha);
+            CollectionAssert.AreEqual(new[] { "rev" }, pr.Reviewers);
+            CollectionAssert.AreEqual(new[] { "bug" }, pr.Labels);
+            Assert.AreEqual(GitPullRequestReadiness.Ready, GitPullRequestDetails.Readiness(pr));
+        }
+
+        [Test]
+        public void Test_PullRequestDetail_MergeableNullIsChecking()
+        {
+            // JsonUtility 는 null 을 false 로 읽는다. 계산 중(null)을 충돌(false)로 잘못 보이면 안 된다.
+            GitPullRequestDetail pr = GitPullRequestDetails.Parse(PullDetailJson.Replace("\"mergeable\":true", "\"mergeable\": null").Replace("clean", "unknown"));
+            Assert.IsNull(pr.Mergeable);
+            Assert.AreEqual(GitPullRequestReadiness.Checking, GitPullRequestDetails.Readiness(pr));
+        }
+
+        [TestCase("dirty", false, GitPullRequestReadiness.Conflicts)]
+        [TestCase("blocked", true, GitPullRequestReadiness.Blocked)]
+        [TestCase("behind", true, GitPullRequestReadiness.Behind)]
+        [TestCase("unstable", true, GitPullRequestReadiness.Unstable)]
+        [TestCase("clean", true, GitPullRequestReadiness.Ready)]
+        public void Test_PullRequestDetail_Readiness(string state, bool mergeable, GitPullRequestReadiness expected)
+        {
+            GitPullRequestDetail pr = new() { IsOpen = true, Mergeable = mergeable, MergeableState = state };
+            Assert.AreEqual(expected, GitPullRequestDetails.Readiness(pr));
+            Assert.AreEqual(expected is GitPullRequestReadiness.Ready or GitPullRequestReadiness.Unstable, GitPullRequestDetails.CanMerge(expected));
+        }
+
+        [Test]
+        public void Test_PullRequestDetail_ClosedDraftMerged()
+        {
+            Assert.AreEqual(GitPullRequestReadiness.Merged, GitPullRequestDetails.Readiness(new GitPullRequestDetail { IsMerged = true }));
+            Assert.AreEqual(GitPullRequestReadiness.Closed, GitPullRequestDetails.Readiness(new GitPullRequestDetail { IsOpen = false }));
+            Assert.AreEqual(GitPullRequestReadiness.Draft, GitPullRequestDetails.Readiness(new GitPullRequestDetail { IsOpen = true, IsDraft = true, Mergeable = true }));
+        }
+
+        [Test]
+        public void Test_PullRequestDetail_MergeRequestJson()
+        {
+            Assert.AreEqual("{\"merge_method\":\"squash\",\"sha\":\"abc\"}", GitPullRequestDetails.MergeRequestJson(GitPullRequestMergeMethod.Squash, "abc"));
+            Assert.AreEqual("{\"merge_method\":\"merge\"}", GitPullRequestDetails.MergeRequestJson(GitPullRequestMergeMethod.Merge, null));
+        }
+
+        [Test]
+        public void Test_PullRequestDetail_ParseFiles()
+        {
+            List<GitPullRequestFile> files = GitPullRequestDetails.ParseFiles(
+                "[{\"filename\":\"a.txt\",\"status\":\"added\",\"additions\":3,\"deletions\":0},{\"filename\":\"b.txt\",\"previous_filename\":\"old.txt\",\"status\":\"renamed\"}]");
+            Assert.AreEqual(2, files.Count);
+            Assert.AreEqual("added", files[0].Status);
+            Assert.AreEqual(3, files[0].Additions);
+            Assert.AreEqual("old.txt", files[1].PreviousPath);
+            Assert.IsNull(files[0].PreviousPath);
+        }
+
+        [Test]
+        public void Test_ParseRepoConfig()
+        {
+            string output = "user.name\n김한용\0user.email\nme@example.com\0remote.origin.url\nhttps://github.com/o/r.git\0";
+            Assert.AreEqual(("김한용", "me@example.com", true), GitRepository.ParseRepoConfig(output));
+            Assert.AreEqual((string.Empty, string.Empty, false), GitRepository.ParseRepoConfig(string.Empty));
+            Assert.AreEqual(("b", string.Empty, false), GitRepository.ParseRepoConfig("user.name\na\0user.name\nb\0"));
+        }
+
+        [Test]
+        public void Test_FindRef_ExactNameOnly()
+        {
+            string refs = "refs/heads/main 111\nrefs/heads/main-old 222\nrefs/remotes/origin/main 333";
+            Assert.AreEqual("111", GitRepository.FindRef(refs, "refs/heads/main"));
+            Assert.AreEqual("333", GitRepository.FindRef(refs, "refs/remotes/origin/main"));
+            Assert.IsNull(GitRepository.FindRef(refs, "refs/heads/ma"));
+        }
+
+        [Test]
+        public void Test_FetchAgeText()
+        {
+            DateTime now = new(2026, 10, 29, 12, 0, 0);
+            Assert.AreEqual(GitText.Get("actionbar.neverFetched"), GitToolbar.FetchAgeText(null, now));
+            Assert.AreEqual(GitText.Get("actionbar.fetchedJustNow"), GitToolbar.FetchAgeText(now.AddSeconds(-20), now));
+            Assert.AreEqual(GitText.Format("actionbar.fetchedMinutesAgo", 3), GitToolbar.FetchAgeText(now.AddMinutes(-3.5), now));
+            Assert.AreEqual(GitText.Format("actionbar.fetchedHoursAgo", 2), GitToolbar.FetchAgeText(now.AddHours(-2.2), now));
+            Assert.AreEqual(GitText.Format("actionbar.fetchedDaysAgo", 4), GitToolbar.FetchAgeText(now.AddDays(-4), now));
+        }
+
+        [TestCase("https://github.com/NK-Studio/www.git", true)]
+        [TestCase("ssh://git@github.com/o/r.git", true)]
+        [TestCase("file:///Users/me/repo.git", true)]
+        [TestCase("git@github.com:NK-Studio/www.git", true)]
+        [TestCase("host:repo", true)]
+        [TestCase("/", false)]
+        [TestCase(".", false)]
+        [TestCase("https://", false)]
+        [TestCase("not a url", false)]
+        [TestCase("C:/repos/www", false)]
+        [TestCase("/tmp/exists.git", true)]
+        public void Test_IsPlausibleUrl(string url, bool expected)
+        {
+            Assert.AreEqual(expected, GitRemoteForm.IsPlausibleUrl(url, path => path == "/tmp/exists.git"));
         }
 
         [TestCase("stash push --include-untracked", true)]
@@ -166,6 +281,20 @@ namespace GitVersionControl.Tests
             GitStatusEntry[] entries = { Entry("Assets/a.txt", 'A', ' '), Entry("Assets/a.txt.meta", 'A', ' ') };
 
             Assert.IsEmpty(GitStaging.MissingMetaPaths(entries));
+        }
+
+        [Test]
+        public void Test_MissingMetaPaths_TrackedAssetWithUntrackedMeta()
+        {
+            // 예전에 .meta 없이 커밋된 파일을 고쳐 stage 했다. .meta 가 추적 중이면(목록에 없음) 경고하지 않는다.
+            GitStatusEntry[] entries =
+            {
+                Entry("Assets/T2/b.txt", 'M', ' '),
+                Entry("Assets/T2/b.txt.meta", '?', '?'),
+                Entry("Assets/T2/lines.txt", 'M', ' '),
+            };
+
+            CollectionAssert.AreEquivalent(new[] { "Assets/T2/b.txt.meta" }, GitStaging.MissingMetaPaths(entries));
         }
 
         [Test]

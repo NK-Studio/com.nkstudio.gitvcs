@@ -212,8 +212,10 @@ namespace GitVersionControl
                 NotifyBadgeChanged();
                 return;
             }
-            RefreshWorkingTree();
+            // 그래프 git 읽기를 먼저 백그라운드로 시작해 두고 작업 목록을 다시 그린다. 반대 순서면 목록 그리기(파일이 많으면 수백 ms)가
+            // 끝날 때까지 git 이 시작조차 하지 않아 커밋 뒤 그래프가 그만큼 늦게 바뀐다.
             ReloadIfNeeded();
+            RefreshWorkingTree();
         }
 
         public override void OnBusyChanged(bool isBusy)

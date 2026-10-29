@@ -37,7 +37,21 @@ namespace GitVersionControl
 
         public static string ResolvePath(string path, string repoRoot)
         {
-            return Path.IsPathRooted(path) || string.IsNullOrEmpty(repoRoot) ? path : Path.Combine(repoRoot, path);
+            return IsAbsolute(path) || string.IsNullOrEmpty(repoRoot) ? path : Path.Combine(repoRoot, path);
+        }
+
+        /// <summary>
+        /// 절대 경로인가. "C:/…" 처럼 드라이브 문자로 시작하는 경로는 macOS·Linux 의 <see cref="Path.IsPathRooted"/> 가 상대 경로로 보므로 따로 본다
+        /// (Windows 에서 만든 설정을 함께 쓰는 저장소).
+        /// </summary>
+        private static bool IsAbsolute(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+            bool drive = path.Length >= 3 && char.IsLetter(path[0]) && path[1] == ':' && (path[2] == '/' || path[2] == '\\');
+            return drive || Path.IsPathRooted(path);
         }
 
         /// <summary>

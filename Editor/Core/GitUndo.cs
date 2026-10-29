@@ -397,8 +397,15 @@ namespace GitVersionControl
         /// </summary>
         public static async Task<GitResult> CommitStagedAsync(string message, bool amend)
         {
-            string before = await HeadAsync();
-            GitResult result = await GitOperations.CommitStagedAsync(message, amend);
+            // 커밋 전 HEAD → 커밋 → 커밋 뒤 HEAD 를 백그라운드에서 이어 부르고 메인 스레드로는 한 번만 돌아온다.
+            // 한 단계마다 돌아오면 입력 없는 에디터의 틱 간격(약 0.1초)이 쌓여 커밋 뒤 화면이 늦게 바뀐다.
+            (string before, GitResult result, string after) = await Task.Run(async () =>
+            {
+                string head = await HeadAsync();
+                GitResult commit = await GitOperations.CommitStagedAsync(message, amend);
+                string next = commit.Success && string.IsNullOrEmpty(head) == false ? await HeadAsync() : null;
+                return (head, commit, next);
+            });
             if (result.Success && string.IsNullOrEmpty(before) == false)
             {
                 string subject = string.IsNullOrWhiteSpace(message) ? before.Substring(0, 7) : GitDisplay.FirstLine(message);
@@ -407,7 +414,7 @@ namespace GitVersionControl
                     Kind = GitUndoKind.Commit,
                     Title = GitText.Format(amend ? "undo.amend" : "undo.commit", subject),
                     HeadBefore = before,
-                    HeadAfter = await HeadAsync(),
+                    HeadAfter = after,
                 });
             }
             return result;

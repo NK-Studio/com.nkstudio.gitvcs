@@ -66,16 +66,39 @@ namespace GitVersionControl
             startInfo.EnvironmentVariables["LC_MESSAGES"] = "C";
         }
 
+        private static volatile string s_gitPath;
+        private static int s_mainThreadId = -1;
+
+        [UnityEditor.InitializeOnLoadMethod]
+        private static void CaptureMainThread()
+        {
+            s_mainThreadId = Thread.CurrentThread.ManagedThreadId;
+        }
+
+        /// <summary>
+        /// 설정의 git 경로. 설정(ScriptableSingleton)은 메인 스레드에서만 읽고 값을 기억해 둔다 —
+        /// 그래서 백그라운드 작업 안에서도 <see cref="RunAsync(string, IReadOnlyList{string}, int)"/> 를 이어 부를 수 있다
+        /// (작업마다 메인 스레드로 돌아오면 입력 없는 에디터의 틱 간격(약 0.1초)만큼씩 늦어진다).
+        /// </summary>
+        private static string CurrentGitPath()
+        {
+            if (s_gitPath == null || Thread.CurrentThread.ManagedThreadId == s_mainThreadId)
+            {
+                s_gitPath = GitVcsSettings.instance.GitExecutable;
+            }
+            return s_gitPath;
+        }
+
         public static Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
         {
-            string gitPath = GitVcsSettings.instance.GitExecutable;
+            string gitPath = CurrentGitPath();
             return Task.Run(() => Run(gitPath, workingDirectory, args, timeoutMs));
         }
 
         /// <param name="environment">더할 환경 변수(커밋을 다시 만들 때 원래 작성자·날짜를 지키는 <c>GIT_AUTHOR_*</c>).</param>
         public static Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, IReadOnlyDictionary<string, string> environment)
         {
-            string gitPath = GitVcsSettings.instance.GitExecutable;
+            string gitPath = CurrentGitPath();
             return Task.Run(() => Run(gitPath, workingDirectory, args, DefaultTimeoutMs, environment));
         }
 
@@ -134,7 +157,33 @@ namespace GitVersionControl
             return args.Select((arg, i) => i > separator && arg.StartsWith(":(", StringComparison.Ordinal) == false ? ":(literal)" + arg : arg).ToList();
         }
 
+        private static int s_running;
+        private static long s_hotUntil;
+
+        /// <summary>얼마 동안 더 에디터 틱을 빠르게 둘지(git 이 끝난 직후, 결과를 받는 메인 스레드 이어 하기가 기다리지 않게).</summary>
+        private static readonly long HotTailTicks = Stopwatch.Frequency * 3 / 10;
+
+        /// <summary>
+        /// git 이 돌고 있거나 막 끝났는가. Git 창이 그동안 스스로 다시 그려 에디터 틱을 빠르게 둔다 — 입력 없는 에디터는 틱이 약 0.1초 간격이라,
+        /// 백그라운드 git 결과를 메인 스레드로 받을 때마다 그만큼 기다려 커밋·전환 뒤 화면이 늦게 바뀐다. 어느 스레드에서든 읽을 수 있다.
+        /// </summary>
+        public static bool IsBusyOrRecent => Volatile.Read(ref s_running) > 0 || Stopwatch.GetTimestamp() < Interlocked.Read(ref s_hotUntil);
+
         private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
+        {
+            Interlocked.Increment(ref s_running);
+            try
+            {
+                return RunProcessCore(executablePath, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref s_hotUntil, Stopwatch.GetTimestamp() + HotTailTicks);
+                Interlocked.Decrement(ref s_running);
+            }
+        }
+
+        private static GitResult RunProcessCore(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
         {
             string gitPath = executablePath;
             // 이 저장소에 "패키지 로그인 쓰기" 를 골랐으면 그 토큰을 돌려주는 도우미를 앞에 붙인다. 토큰은 환경 변수로만 넘긴다(GitAuth).
@@ -228,7 +277,7 @@ namespace GitVersionControl
         /// <param name="inputPath">표준 입력으로 흘려 넣을 파일(<c>git lfs smudge</c> 에 주소 파일을 줄 때). null 이면 바로 닫는다.</param>
         public static Task<GitResult> RunToFileAsync(string workingDirectory, IReadOnlyList<string> args, string outputPath, int timeoutMs = DefaultTimeoutMs, string inputPath = null)
         {
-            string gitPath = GitVcsSettings.instance.GitExecutable;
+            string gitPath = CurrentGitPath();
             string tokenOverride = GitAuth.TokenOverride;
             return Task.Run(() =>
             {

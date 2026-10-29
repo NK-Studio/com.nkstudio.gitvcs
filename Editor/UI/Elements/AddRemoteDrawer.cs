@@ -60,6 +60,7 @@ namespace GitVersionControl
             _urlAdd = PrimaryButton(_urlPage, GitText.Get("remote.add"), AddFromUrl);
             _urlName.RegisterValueChangedCallback(_ => Validate());
             _pullUrl.RegisterValueChangedCallback(_ => Validate());
+            _pushUrl.RegisterValueChangedCallback(_ => Validate());
 
             // ── GitHub ──
             _gitHubPage = Section(Body);
@@ -224,8 +225,12 @@ namespace GitVersionControl
         {
             bool busy = Services.Runner.IsBusy;
             BranchNameProblem urlProblem = GitRemoteForm.CheckName(_urlName.value?.Trim(), _existing);
-            Show(_urlProblem, NameProblemText(urlProblem, "remote.problemExists"));
-            _urlAdd.SetEnabled(busy == false && urlProblem == BranchNameProblem.None && string.IsNullOrWhiteSpace(_pullUrl.value) == false);
+            // 이름 문제를 먼저 보이고, 이름이 괜찮으면 주소(받기·올리기)를 본다. 빈 주소는 설명 없이 버튼만 끈다.
+            bool pullBad = string.IsNullOrWhiteSpace(_pullUrl.value) == false && GitRemoteForm.IsPlausibleUrl(_pullUrl.value, GitRemoteForm.PathExistsFromRepo) == false;
+            bool pushBad = string.IsNullOrWhiteSpace(_pushUrl.value) == false && GitRemoteForm.IsPlausibleUrl(_pushUrl.value, GitRemoteForm.PathExistsFromRepo) == false;
+            string nameText = NameProblemText(urlProblem, "remote.problemExists");
+            Show(_urlProblem, nameText ?? (pullBad || pushBad ? GitText.Get("remote.invalidUrl") : null));
+            _urlAdd.SetEnabled(busy == false && urlProblem == BranchNameProblem.None && string.IsNullOrWhiteSpace(_pullUrl.value) == false && pullBad == false && pushBad == false);
 
             BranchNameProblem gitHubProblem = GitRemoteForm.CheckName(_gitHubName.value?.Trim(), _existing);
             Show(_gitHubProblem, NameProblemText(gitHubProblem, "remote.problemExists"));

@@ -121,6 +121,52 @@ namespace GitVersionControl
         /// </summary>
         public static string RefsFingerprint { get; private set; }
 
+        /// <summary>새로고침이 한 번에 읽는 저장소 설정: 작성자 이름·이메일과 원격 주소들.</summary>
+        public const string RepoConfigPattern = @"^(user\.(name|email)|remote\..*\.url)$";
+
+        /// <summary>
+        /// <c>git config -z --get-regexp</c> 출력("키\n값\0" 반복)에서 이름·이메일·원격 유무. 같은 키가 여럿이면 git 처럼 마지막 값. 순수 함수라 테스트로 확인한다.
+        /// </summary>
+        public static (string userName, string userEmail, bool hasRemote) ParseRepoConfig(string output)
+        {
+            string name = string.Empty;
+            string email = string.Empty;
+            bool hasRemote = false;
+            foreach (string record in (output ?? string.Empty).Split('\0'))
+            {
+                int newline = record.IndexOf('\n');
+                string key = (newline < 0 ? record : record.Substring(0, newline)).Trim().ToLowerInvariant();
+                string value = newline < 0 ? string.Empty : record.Substring(newline + 1).Trim();
+                if (key == "user.name")
+                {
+                    name = value;
+                }
+                else if (key == "user.email")
+                {
+                    email = value;
+                }
+                else if (key.StartsWith("remote.", StringComparison.Ordinal) && key.EndsWith(".url", StringComparison.Ordinal))
+                {
+                    hasRemote = true;
+                }
+            }
+            return (name, email, hasRemote);
+        }
+
+        /// <summary><c>for-each-ref --format="%(refname) %(objectname)"</c> 출력에서 그 참조의 커밋. 없으면 null.</summary>
+        public static string FindRef(string refsOutput, string refName)
+        {
+            foreach (string line in (refsOutput ?? string.Empty).Split('\n'))
+            {
+                int space = line.LastIndexOf(' ');
+                if (space == refName.Length && line.StartsWith(refName, StringComparison.Ordinal))
+                {
+                    return line.Substring(space + 1).Trim();
+                }
+            }
+            return null;
+        }
+
         private static string Fingerprint(string text)
         {
             unchecked
@@ -321,6 +367,9 @@ namespace GitVersionControl
             s_refreshDueTime = EditorApplication.timeSinceStartup + (immediate ? 0 : DebounceSeconds);
             if (immediate)
             {
+                // 다른 새로고침이 돌고 있지 않으면 다음 틱을 기다리지 않고 바로 시작한다(입력 없는 에디터는 틱이 약 0.1초 간격이라
+                // 커밋·전환 뒤 화면이 그만큼 늦게 바뀐다). 돌고 있으면 끝난 뒤 틱에서 이어 한다.
+                TryStartPendingRefresh();
                 // 에디터가 뒤에 있으면 업데이트 틱이 몇 초씩 늦어진다. 바로 한 번 돌게 깨워, 누른 Refresh 가 기다리지 않게 한다.
                 EditorApplication.QueuePlayerLoopUpdate();
             }
@@ -356,14 +405,20 @@ namespace GitVersionControl
             {
                 return;
             }
-            if (s_refreshPending && IsRefreshing == false && EditorApplication.timeSinceStartup >= s_refreshDueTime)
+            TryStartPendingRefresh();
+        }
+
+        private static void TryStartPendingRefresh()
+        {
+            if (s_testScope != null || s_refreshPending == false || IsRefreshing || EditorApplication.timeSinceStartup < s_refreshDueTime)
             {
-                s_refreshPending = false;
-                // 아직 저장소 루트를 모르면(첫 새로고침·저장소가 아닐 때) 작업 트리만 읽을 수 없다.
-                bool full = s_fullRefreshPending || IsRepository == false || RepoRoot == null;
-                s_fullRefreshPending = false;
-                RefreshAsync(full, s_requestedGeneration);
+                return;
             }
+            s_refreshPending = false;
+            // 아직 저장소 루트를 모르면(첫 새로고침·저장소가 아닐 때) 작업 트리만 읽을 수 없다.
+            bool full = s_fullRefreshPending || IsRepository == false || RepoRoot == null;
+            s_fullRefreshPending = false;
+            RefreshAsync(full, s_requestedGeneration);
         }
 
         /// <param name="generation">시작할 때까지 들어온 요청 번호. 끝나면(실패해도) 이 번호까지 반영된 것으로 알린다.</param>
@@ -500,8 +555,17 @@ namespace GitVersionControl
                 result.MainRepoRoot = result.RepoRoot;
             }
 
-            GitResult status = GitCommand.Run(gitPath, result.RepoRoot,
-                new[] { "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all" });
+            // Unity(Mono) 안에서는 git 프로세스를 띄우는 것만으로 한 번에 30~50ms 가 들고, 동시에 띄워도 거의 줄을 선다.
+            // 그래서 띄우는 수를 줄인다: 이름·이메일·원격 유무는 config 한 번, HEAD·upstream 커밋은 이미 읽는 for-each-ref 에서 꺼낸다.
+            // 셋은 서로 기다릴 것이 없어 함께 돌린다(모두 읽기 전용, GIT_OPTIONAL_LOCKS=0).
+            string root = result.RepoRoot;
+            Task<GitResult> Start(params string[] args) => Task.Run(() => GitCommand.Run(gitPath, root, args));
+            Task<GitResult> statusTask = Start("status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all");
+            Task<GitResult> configTask = Start("config", "-z", "--get-regexp", RepoConfigPattern);
+            Task<GitResult> refsTask = Start("for-each-ref", "--format=%(refname) %(objectname)");
+            Task.WaitAll(statusTask, configTask, refsTask);
+
+            GitResult status = statusTask.Result;
             if (status.Success == false)
             {
                 result.Error = status.Message;
@@ -509,14 +573,24 @@ namespace GitVersionControl
             }
 
             result.Entries = GitStatusParser.Parse(status.Output, result.Prefix, out result.Branch, result.RepoInProject);
-            result.UserName = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.name" }).Output.Trim();
-            result.UserEmail = GitCommand.Run(gitPath, result.RepoRoot, new[] { "config", "--get", "user.email" }).Output.Trim();
-            result.HeadCommit = RevParse(gitPath, result.RepoRoot, "HEAD");
-            result.HasRemote = GitCommand.Run(gitPath, result.RepoRoot, new[] { "remote" }).Output.Trim().Length > 0;
-            result.RefsFingerprint = Fingerprint(GitCommand.Run(gitPath, result.RepoRoot, new[] { "for-each-ref", "--format=%(refname) %(objectname)" }).Output);
-            if (result.Branch != null && string.IsNullOrEmpty(result.Branch.Upstream) == false)
+            (result.UserName, result.UserEmail, result.HasRemote) = ParseRepoConfig(configTask.Result.Success ? configTask.Result.Output : string.Empty);
+            string refs = refsTask.Result.Output;
+            result.RefsFingerprint = Fingerprint(refs);
+            GitBranchInfo branch = result.Branch;
+            if (branch != null && branch.Detached == false)
             {
-                result.UpstreamCommit = RevParse(gitPath, result.RepoRoot, "@{u}");
+                result.HeadCommit = branch.HasCommits ? FindRef(refs, "refs/heads/" + branch.Name) : null;
+            }
+            else
+            {
+                // 분리된 HEAD 는 참조 목록에 없다. 드물어 그때만 따로 묻는다.
+                GitResult head = GitCommand.Run(gitPath, root, new[] { "rev-parse", "--verify", "--quiet", "HEAD" });
+                result.HeadCommit = head.Success ? head.Output.Trim() : null;
+            }
+            if (branch != null && string.IsNullOrEmpty(branch.Upstream) == false)
+            {
+                // upstream 은 보통 원격 브랜치("origin/main")지만 로컬 브랜치를 따라갈 수도 있다.
+                result.UpstreamCommit = FindRef(refs, "refs/remotes/" + branch.Upstream) ?? FindRef(refs, "refs/heads/" + branch.Upstream);
             }
             return result;
         }
@@ -553,13 +627,6 @@ namespace GitVersionControl
             string project = projectRoot.Replace('\\', '/').TrimEnd('/') + "/";
             string repo = repoRoot.Replace('\\', '/').TrimEnd('/') + "/";
             return repo.StartsWith(project, StringComparison.OrdinalIgnoreCase) ? repo.Substring(project.Length) : null;
-        }
-
-        /// <summary>커밋이 없거나 참조가 없으면 null.</summary>
-        private static string RevParse(string gitPath, string repoRoot, string revision)
-        {
-            GitResult result = GitCommand.Run(gitPath, repoRoot, new[] { "rev-parse", "--verify", "--quiet", revision });
-            return result.Success ? result.Output.Trim() : null;
         }
 
         /// <summary>파일 감시를 설정·저장소 상태에 맞춘다(설정 화면에서 켜고 끌 때도 부른다).</summary>

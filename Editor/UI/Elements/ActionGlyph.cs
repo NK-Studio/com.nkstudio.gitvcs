@@ -134,6 +134,11 @@ namespace GitVersionControl
         /// 더 보기(세로로 늘어선 점 셋). 사이드바 브랜치 줄의 메뉴 버튼. Material Symbols "more_vert".
         /// </summary>
         MoreVert,
+
+        /// <summary>
+        /// 필터 추가(깔때기와 오른쪽 아래 +). 사이드바 Pull Requests 검색 칸 옆 버튼. Material Symbols "filter_alt" + 더하기("filter_plus").
+        /// </summary>
+        FilterAdd,
     }
 
     /// <summary>
@@ -437,6 +442,52 @@ namespace GitVersionControl
                     painter.Stroke();
                     painter.lineCap = LineCap.Butt;
                     Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
+                    break;
+                case ActionGlyphKind.FilterAdd:
+                    // Material Symbols "filter_plus"(FILL0 wght400 opsz48) SVG 경로(viewBox 0 -960 960 960)를 그대로 20 칸으로 옮겼다.
+                    // 깔때기 바깥·안쪽 윤곽을 홀짝 규칙으로 채워 테두리만 남기고, 겹치지 않는 + 는 그대로 채워진다.
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.MoveTo(P(7.646f, 16.667f));
+                    painter.QuadraticCurveTo(P(7.292f, 16.667f), P(7.052f, 16.427f));
+                    painter.QuadraticCurveTo(P(6.812f, 16.188f), P(6.812f, 15.833f));
+                    painter.LineTo(P(6.812f, 10.833f));
+                    painter.LineTo(P(1.833f, 4.479f));
+                    painter.QuadraticCurveTo(P(1.750f, 4.375f), P(1.719f, 4.261f));
+                    painter.QuadraticCurveTo(P(1.688f, 4.147f), P(1.688f, 4.042f));
+                    painter.QuadraticCurveTo(P(1.688f, 3.750f), P(1.882f, 3.542f));
+                    painter.QuadraticCurveTo(P(2.077f, 3.333f), P(2.396f, 3.333f));
+                    painter.LineTo(P(14.562f, 3.333f));
+                    painter.QuadraticCurveTo(P(14.881f, 3.333f), P(15.076f, 3.542f));
+                    painter.QuadraticCurveTo(P(15.271f, 3.750f), P(15.271f, 4.033f));
+                    painter.QuadraticCurveTo(P(15.271f, 4.146f), P(15.240f, 4.260f));
+                    painter.QuadraticCurveTo(P(15.208f, 4.375f), P(15.125f, 4.479f));
+                    painter.LineTo(P(10.146f, 10.833f));
+                    painter.LineTo(P(10.146f, 15.833f));
+                    painter.QuadraticCurveTo(P(10.146f, 16.188f), P(9.906f, 16.427f));
+                    painter.QuadraticCurveTo(P(9.667f, 16.667f), P(9.312f, 16.667f));
+                    painter.LineTo(P(7.646f, 16.667f));
+                    painter.ClosePath();
+                    painter.MoveTo(P(8.479f, 10.917f));
+                    painter.LineTo(P(13.479f, 4.583f));
+                    painter.LineTo(P(3.479f, 4.583f));
+                    painter.LineTo(P(8.479f, 10.917f));
+                    painter.ClosePath();
+                    painter.MoveTo(P(14.646f, 16.667f));
+                    painter.LineTo(P(14.646f, 14.208f));
+                    painter.LineTo(P(12.188f, 14.208f));
+                    painter.LineTo(P(12.188f, 12.958f));
+                    painter.LineTo(P(14.646f, 12.958f));
+                    painter.LineTo(P(14.646f, 10.521f));
+                    painter.LineTo(P(15.896f, 10.521f));
+                    painter.LineTo(P(15.896f, 12.958f));
+                    painter.LineTo(P(18.333f, 12.958f));
+                    painter.LineTo(P(18.333f, 14.208f));
+                    painter.LineTo(P(15.896f, 14.208f));
+                    painter.LineTo(P(15.896f, 16.667f));
+                    painter.LineTo(P(14.646f, 16.667f));
+                    painter.ClosePath();
+                    painter.Fill(FillRule.OddEven);
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;

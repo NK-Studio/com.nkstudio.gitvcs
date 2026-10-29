@@ -32,6 +32,42 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// git 이 원격 주소로 받을 만한 글인가: <c>https://…</c>·<c>ssh://…</c>·<c>file://…</c> 같은 URL, <c>git@host:owner/repo.git</c> 같은 scp 꼴,
+        /// 또는 있는 폴더·파일 경로(<paramref name="pathExists"/>, 상대 경로는 부른 쪽이 저장소 기준으로 푼다). "/" 처럼 뜻 없는 글은 막는다.
+        /// </summary>
+        /// <summary>로컬 경로 원격이 있는지(상대 경로는 저장소 루트 기준).</summary>
+        public static bool PathExistsFromRepo(string path)
+        {
+            string root = GitRepository.RepoRoot ?? GitRepository.ProjectRoot ?? string.Empty;
+            string full = System.IO.Path.IsPathRooted(path) ? path : System.IO.Path.Combine(root, path);
+            return System.IO.Directory.Exists(full) || System.IO.File.Exists(full);
+        }
+
+        public static bool IsPlausibleUrl(string url, Func<string, bool> pathExists)
+        {
+            string text = url?.Trim() ?? string.Empty;
+            if (text.Length == 0 || text.Any(char.IsWhiteSpace))
+            {
+                return false;
+            }
+            int scheme = text.IndexOf("://", StringComparison.Ordinal);
+            if (scheme > 0)
+            {
+                string name = text.Substring(0, scheme);
+                string rest = text.Substring(scheme + 3).Trim('/');
+                return char.IsLetter(name[0]) && name.All(c => char.IsLetterOrDigit(c) || c is '+' or '-' or '.') && rest.Length > 0;
+            }
+            // scp 꼴: 콜론 앞에 '/' 가 없고, 한 글자(Windows 드라이브 "C:")가 아니며, 콜론 뒤에 경로가 있다.
+            int colon = text.IndexOf(':');
+            if (colon > 1 && text.IndexOf('/') is var slash && (slash < 0 || slash > colon) && colon < text.Length - 1)
+            {
+                return true;
+            }
+            string trimmed = text.TrimEnd('/', '\\');
+            return trimmed.Length > 0 && trimmed != "." && pathExists != null && pathExists(text);
+        }
+
+        /// <summary>
         /// 처음 채울 원격 이름. 원격이 하나도 없으면 origin, 있으면 저장소 주인(겹치면 뒤에 2, 3…), 주인을 모르면 remote.
         /// </summary>
         public static string SuggestName(ICollection<string> existingRemotes, string owner)

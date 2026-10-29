@@ -73,6 +73,12 @@ namespace GitVersionControl
         /// <summary>PR 필터(묶음)를 새로 만들 서랍을 연다(-1) 또는 그 순번을 고칠 서랍을 연다.</summary>
         public event Action<int> PullRequestFilterRequested;
 
+        /// <summary>
+        /// PR 을 눌렀을 때 상세 서랍을 연다: PR, 그 PR 이 있는 GitHub 저장소, 로컬에서 바뀐 것 보기, 보내는 브랜치 체크아웃
+        /// (보내는 브랜치를 아직 fetch 하지 않았으면 뒤 둘은 null).
+        /// </summary>
+        public event Action<GitPullRequestInfo, GitHubRemoteRepo, Action, Action> PullRequestOpened;
+
         /// <summary>참조(원격 브랜치)를 골라 둔 워크트리 만들기 서랍을 연다(PR 메뉴).</summary>
         public event Action<string> CreateWorktreeRequested;
 
@@ -133,9 +139,18 @@ namespace GitVersionControl
             _tree.AddToClassList(Block + "__tree");
             _tree.selectionChanged += selected =>
             {
-                if (selected.FirstOrDefault() is RefNode node && node.Commit != null)
+                if (selected.FirstOrDefault() is not RefNode node)
+                {
+                    return;
+                }
+                if (node.Commit != null)
                 {
                     RevealRequested?.Invoke(node.Commit);
+                }
+                // GitKraken 처럼 PR 을 누르면 PR 화면(상세 서랍)을 연다.
+                if (node.Kind == RefNodeKind.PullRequest)
+                {
+                    OpenPullRequest(node.PullRequest);
                 }
             };
             _tree.itemsChosen += chosen =>
@@ -534,7 +549,7 @@ namespace GitVersionControl
             search.Add(searchField);
             Button addFilter = new(() => PullRequestFilterRequested?.Invoke(-1));
             addFilter.AddToClassList(Block + "__pr-filter-add");
-            addFilter.Add(new ActionGlyph(ActionGlyphKind.Search));
+            addFilter.Add(new ActionGlyph(ActionGlyphKind.FilterAdd));
             addFilter.tooltip = GitText.Get("prFilter.createTitle");
             addFilter.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
             search.Add(addFilter);
@@ -850,6 +865,16 @@ namespace GitVersionControl
             menu.AppendAction(head == null ? GitText.Get("prList.checkoutUnavailable") : GitText.Format("prList.checkoutRemote", GitDisplay.MenuSafe(head.Name)),
                 action => _ = _branchActions.SwitchAsync(head, LocalNames()), needsHead);
             menu.AppendAction(GitText.Get("prList.createWorktree"), action => CreateWorktreeRequested?.Invoke(head.Name), needsHead);
+        }
+
+        private void OpenPullRequest(GitPullRequestInfo pr)
+        {
+            List<GitHubRemoteRepo> remotes = GitPullRequestForm.GitHubRemotes(_refs.RemoteUrls);
+            GitHubRemoteRepo repository = remotes.FirstOrDefault(r => r.Remote == _refs.PullRequests?.Remote) ?? remotes.FirstOrDefault();
+            GitBranchRef head = PullRequestHead(pr);
+            Action changes = head == null ? null : () => ViewPullRequestChanges(pr, head);
+            Action checkout = head == null ? null : () => _ = _branchActions.SwitchAsync(head, LocalNames());
+            PullRequestOpened?.Invoke(pr, repository, changes, checkout);
         }
 
         /// <summary>PR 이 바꾼 것: 받는 브랜치와 갈라진 곳부터 보내는 브랜치 끝까지(GitHub 의 Files changed 와 같다).</summary>
