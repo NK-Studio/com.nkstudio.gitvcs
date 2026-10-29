@@ -134,10 +134,11 @@ namespace GitVersionControl
         private const float MinRefsColumnWidth = 32f;
 
         /// <summary>
-        /// 브랜치/태그 칸이 맨 왼쪽일 때의 최소 폭. 들여쓰기 12 + 아이콘 상자 30 + 12 — 이름표와 머리 아이콘(20 + 14)이 넓을 때 자리 그대로 칸 가운데(27)에 온다.
-        /// USS 의 들여쓰기·--refs-centered 이름표 폭을 바꾸면 같이 맞춘다.
+        /// 브랜치/태그 칸이 맨 왼쪽일 때의 최소 폭. 들여쓰기 13 + 아이콘 상자 28 + 자르는 경계 13 — 칸을 줄이는 동안 이름표는 그 자리에서 오른쪽부터 가려지다가
+        /// 이 폭에서 아이콘 상자만 남아, 옮기지 않아도 머리 아이콘(20 + 14)과 같은 칸 가운데에 온다. 1 을 더 둬 화면 배율 반올림에도 상자 오른쪽 둥근 모서리가 잘리지 않는다.
+        /// USS 의 들여쓰기·경계·이름표 폭을 바꾸면 같이 맞춘다.
         /// </summary>
-        private const float MinRefsFirstWidth = 54f;
+        private const float MinRefsFirstWidth = 55f;
 
         private float MinRefsWidth => _order[0] == CommitGraphColumn.Refs ? MinRefsFirstWidth : MinRefsColumnWidth;
 
@@ -149,8 +150,8 @@ namespace GitVersionControl
         private const float MaxRefsColumnWidth = 480f;
 
         // ── 칸이 좁아질 때(GitKraken 과 같다) ──
-        // 이름만 말줄임으로 계속 깎이고, 다 깎이면 이름표는 아이콘 폭에서 멈춘 채 칸 경계가 오른쪽부터 자른다(KeepIconsWidth,
-        // .commit-graph-row__refs 의 overflow: hidden). 한 번에 모양을 바꾸는 단계가 없어 서서히 가려진다(GitKraken 과 같다).
+        // 이름과 이름 뒤 틈이 함께 깎이고, 이름표가 최소 폭(첫 아이콘 상자 28, USS)에 닿을 때까지 둥근 오른쪽 끝이 칸 경계를 따라 줄어든다.
+        // 남는 아이콘은 이름표 안에서 가려진다. 한 번에 모양을 바꾸거나 다시 맞추는 단계가 없다.
 
         private const string FirstHeaderModifier = "commit-graph__header-cell--first";
 
@@ -1454,6 +1455,10 @@ namespace GitVersionControl
             name.AddToClassList("commit-graph-ref__name");
             name.AddToClassList("ellipsis");
             pill.Add(name);
+            // 이름과 뒤 아이콘 사이 틈. 이름과 함께 0 까지 줄어 아이콘이 상자 가운데 자리에 닿는다(USS).
+            VisualElement gap = new() { pickingMode = PickingMode.Ignore };
+            gap.AddToClassList("commit-graph-ref__gap");
+            pill.Add(gap);
             // 로컬에 있는 브랜치(현재·로컬) 이름 뒤의 노트북 표시(GitKraken 과 같다). 그림과 보이고 숨기는 것은 USS(--current·--local).
             VisualElement local = new() { pickingMode = PickingMode.Ignore };
             local.AddToClassList("commit-graph-ref__local");
@@ -1467,14 +1472,6 @@ namespace GitVersionControl
             pill.Add(tag);
             // 마우스를 올리면 그 이름표의 가지 색을 더 밝고 진하게(흰 막을 덮으면 색이 회색빛으로 바랬다). 바탕이 인라인 가지 색이라 USS :hover 대신 여기서 바꾼다.
             pill.RegisterCallback<PointerEnterEvent>(_ => SetRefHover(pill, true));
-            // 칸이 좁아지면 이름만 깎이고(말줄임), 이름이 다 깎이면 이름표는 아이콘 폭에서 멈춘 채 칸 경계가 오른쪽부터 자른다(GitKraken).
-            // 이름표가 아이콘 폭 밑으로 줄지 않게 이름 밖 요소 폭을 실제 배치에서 재 최소 폭으로 둔다(USS 여백을 바꿔도 맞는다).
-            // 아이콘이 숨거나 보이면(가장 좁은 칸·펼친 목록) 이름표 크기는 이 최소 폭에 묶여 그대로라, 아이콘 쪽 변화에서도 다시 잰다.
-            pill.RegisterCallback<GeometryChangedEvent>(_ => KeepIconsWidth(pill));
-            foreach (VisualElement icon in new[] { check, local, remote, tag })
-            {
-                icon.RegisterCallback<GeometryChangedEvent>(_ => KeepIconsWidth(pill));
-            }
             pill.RegisterCallback<PointerLeaveEvent>(_ => SetRefHover(pill, false));
             // 커서(USS cursor)는 포인터 바로 밑 요소 것을 쓰므로 안쪽 요소는 포인터를 받지 않게 해 이름표 어디서나 손가락 커서가 되게 한다.
             check.pickingMode = PickingMode.Ignore;
@@ -1519,28 +1516,6 @@ namespace GitVersionControl
         }
 
         private const string RefHoverModifier = "commit-graph-ref--hover";
-
-        /// <summary>
-        /// 이름표의 최소 폭 = 테두리·안쪽 여백 + 이름을 뺀 보이는 요소(체크·아이콘)의 폭과 바깥 여백. 이름만 0 까지 깎이고 그 밑으로는 줄지 않는다.
-        /// </summary>
-        private static void KeepIconsWidth(VisualElement pill)
-        {
-            IResolvedStyle style = pill.resolvedStyle;
-            float width = style.borderLeftWidth + style.borderRightWidth + style.paddingLeft + style.paddingRight;
-            foreach (VisualElement child in pill.Children())
-            {
-                if (child.ClassListContains("commit-graph-ref__name") || child.resolvedStyle.display == DisplayStyle.None)
-                {
-                    continue;
-                }
-                width += child.layout.width + child.resolvedStyle.marginLeft + child.resolvedStyle.marginRight;
-            }
-            if (float.IsNaN(width) || Mathf.Abs(pill.resolvedStyle.minWidth.value - width) < 0.5f)
-            {
-                return;
-            }
-            pill.style.minWidth = width;
-        }
 
         /// <summary>
         /// 마우스를 올린 이름표: 가지 색 바탕을 밝기는 1.3 배, 진하기는 +0.2 로(GitKraken 처럼 같은 색이 밝아진다). 내리면 원래 색.
@@ -1870,7 +1845,8 @@ namespace GitVersionControl
                 {
                     return;
                 }
-                float cellEnd = refsCell.worldBound.xMax;
+                // 자르는 경계는 오른쪽 테두리 안쪽(맨 왼쪽 칸이면 칸 끝 - 13, USS).
+                float cellEnd = refsCell.LocalToWorld(new Vector2(refsCell.layout.width - refsCell.resolvedStyle.borderRightWidth, 0f)).x;
                 float pillEnd = Mathf.Min(pill.worldBound.xMax, cellEnd);
                 if (float.IsNaN(pillEnd))
                 {
