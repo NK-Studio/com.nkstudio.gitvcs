@@ -734,9 +734,28 @@ namespace GitVersionControl
             {
                 return FixedWidth(column);
             }
-            float bodyWidth = _body.contentRect.width;
-            return float.IsNaN(bodyWidth) || bodyWidth <= 0f ? FixedWidth(column) : Mathf.Max(bodyWidth - ColumnStart(column) - DetailsWidth, MinLastColumnWidth);
+            float bodyWidth = RowsWidth;
+            return float.IsNaN(bodyWidth) || bodyWidth <= 0f ? FixedWidth(column) : Mathf.Max(bodyWidth - ColumnStart(column) - DetailsWidth, MinColumnWidth(column));
         }
+
+        /// <summary>
+        /// 줄 안에서 칸들이 차지하는 폭. 세로 스크롤바와 줄 오른쪽 여백(<see cref="RowEndPadding"/>)만큼 머리 줄보다 좁다 —
+        /// 맨 오른쪽 칸의 폭(머리 아이콘으로 바뀌는 때, 이름표가 가운데에 닿는 때)을 실제 줄 칸에 맞춘다.
+        /// </summary>
+        private float RowsWidth
+        {
+            get
+            {
+                _rowsViewport ??= _list.Q<ScrollView>()?.contentViewport;
+                float width = _rowsViewport?.layout.width ?? float.NaN;
+                return float.IsNaN(width) || width <= 0f ? _body.contentRect.width : width - RowEndPadding;
+            }
+        }
+
+        /// <summary>줄 오른쪽 여백(USS .commit-graph-row 의 padding-right). 바꾸면 같이 맞춘다.</summary>
+        private const float RowEndPadding = 4f;
+
+        private VisualElement _rowsViewport;
 
         /// <summary>
         /// 이름표 칸이 그래프 칸 바로 왼쪽인지. 이때만 이름표에서 커밋까지 선을 잇는다(GitKraken 과 같다 —
@@ -823,7 +842,8 @@ namespace GitVersionControl
         {
             if (IsLast(column))
             {
-                return MinLastColumnWidth;
+                // 브랜치/태그는 맨 오른쪽이어도 아이콘 상자가 칸 가운데에 닿는 폭까지만(다른 자리와 같다).
+                return column == CommitGraphColumn.Refs ? Mathf.Max(MinLastColumnWidth, MinRefsColumnWidth) : MinLastColumnWidth;
             }
             return column switch
             {
@@ -890,7 +910,7 @@ namespace GitVersionControl
             if (IsLast(column))
             {
                 cell.style.width = StyleKeyword.Null;
-                cell.style.minWidth = MinLastColumnWidth;
+                cell.style.minWidth = MinColumnWidth(column);
                 cell.style.flexGrow = 1f;
                 cell.style.flexShrink = 1f;
                 cell.style.flexBasis = 0f;
@@ -1456,6 +1476,8 @@ namespace GitVersionControl
             name.AddToClassList("commit-graph-ref__name");
             name.AddToClassList("ellipsis");
             pill.Add(name);
+            // 이름이 몇 px 만 남으면 말줄임표가 잘려 점(.)만 보인다 — 남은 폭에 따라 글자를 서서히 흐려 0 에서 사라지게 한다.
+            name.RegisterCallback<GeometryChangedEvent>(evt => name.style.opacity = Mathf.Clamp01((evt.newRect.width - NameFadeStart) / NameFadeWidth));
             // 이름과 뒤 아이콘 사이 틈. 이름과 함께 0 까지 줄어 아이콘이 상자 가운데 자리에 닿는다(USS).
             VisualElement gap = new() { pickingMode = PickingMode.Ignore };
             gap.AddToClassList("commit-graph-ref__gap");
@@ -1517,6 +1539,11 @@ namespace GitVersionControl
         }
 
         private const string RefHoverModifier = "commit-graph-ref--hover";
+
+        /// <summary>이름이 <see cref="NameFadeStart"/> + <see cref="NameFadeWidth"/>(말줄임표 하나 남짓) 밑으로 깎이면 흐려지기 시작해 이 폭에서 사라진다.</summary>
+        private const float NameFadeStart = 2f;
+
+        private const float NameFadeWidth = 10f;
 
         /// <summary>
         /// 마우스를 올린 이름표: 가지 색 바탕을 밝기는 1.3 배, 진하기는 +0.2 로(GitKraken 처럼 같은 색이 밝아진다). 내리면 원래 색.
