@@ -102,6 +102,14 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// 편집하며 기본 묶음의 이름을 그대로 두었는가(그러면 번역 키를 남긴다). 저장(JsonUtility)을 거치면 null 키가 "" 가 되므로 빈 키도 직접 만든 묶음이다.
+        /// </summary>
+        public static bool KeepsDefaultName(GitPullRequestFilter old, string name)
+        {
+            return old != null && string.IsNullOrEmpty(old.NameKey) == false && name == old.DisplayName;
+        }
+
         public static void Remove(int index)
         {
             List<GitPullRequestFilter> filters = Load();

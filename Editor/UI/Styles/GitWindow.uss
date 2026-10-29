@@ -664,8 +664,15 @@
     flex-direction: row;
     align-items: center;
     flex-grow: 1;
+    min-width: 0;
     height: 24px;
     padding-right: 14px;
+}
+
+/* TreeView 의 줄 내용은 기본이 줄어들지 않는다(flex-shrink 0). 깊이 들여쓴 긴 줄(PR 제목)이 사이드바 밖으로 늘어나 끝의 ⋮ 가 잘리지 않게 줄인다. */
+.ref-tree__tree .unity-tree-view__item-content {
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .ref-tree__icon {

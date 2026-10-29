@@ -172,7 +172,7 @@ namespace GitVersionControl
             };
             _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
             _services.AddRemoteRequested = addRemote.Open;
-            _services.ShowConflictsRequested = () => SelectTab<GraphWorkspaceView>()?.ShowWorkingChanges();
+            _services.ShowConflictsRequested = () => SelectTab<GraphWorkspaceView>()?.ShowConflicts();
             _services.CreatePullRequestRequested = createPullRequest.OpenFor;
             createPullRequest.Created += _refs.ReloadPullRequests;
             foreach (RefSection section in RefTreeBuilder.Sections)

@@ -163,7 +163,20 @@ namespace GitVersionControl
         public async Task<GitResult> StashPopAsync()
         {
             string title = GitText.Get("op.pop");
-            GitResult result = await _services.Runner.RunAsync(title, _services.Commands.StashPopAsync, refreshAssets: true, showErrorDialog: false);
+            // stash 에 든 새 파일(untracked)이 작업 폴더에 이미 있으면 git 은 추적 파일만 되돌린 채 멈춰 반쪽 상태가 된다.
+            // 그래서 Pop 전에 겹치는 파일을 찾는다: 내용이 같으면 조용히 치우고, 다르면 버릴지 묻는다.
+            (List<string> same, List<string> differ) = await UntrackedCollisionsAsync();
+            if (differ.Count > 0 && await Dialogs.ConfirmAsync(GitText.Get("pop.blockedTitle"), GitText.Format("pop.blockedMessage", string.Join("\n", differ)),
+                    GitText.Get("pop.discardAndPop"), danger: true, icon: ActionGlyphKind.Pop) == false)
+            {
+                return GitResult.Cancelled;
+            }
+            List<string> clear = same.Concat(differ).ToList();
+            GitResult result = await _services.Runner.RunAsync(title, () =>
+            {
+                DeleteWorkingFiles(clear);
+                return _services.Commands.StashPopAsync();
+            }, refreshAssets: true, showErrorDialog: false);
             if (result.Success || result.IsCancelled)
             {
                 return result;
@@ -184,8 +197,74 @@ namespace GitVersionControl
             return await _services.Runner.RunAsync(title, async () =>
             {
                 GitResult discard = await GitRepository.RunAsync(new[] { "checkout", "--" }.Concat(blocking).ToArray());
-                return discard.Success ? await _services.Commands.StashPopAsync() : discard;
+                if (discard.Success == false)
+                {
+                    return discard;
+                }
+                // 멈춘 Pop 이 새 파일만 먼저 되돌려 놓았을 수 있다(stash 는 남는다). 다시 겹치지 않게 치운다 — 내용은 stash 에 그대로 있다.
+                (List<string> restoredSame, List<string> restoredDiffer) = await UntrackedCollisionsAsync();
+                DeleteWorkingFiles(restoredSame.Concat(restoredDiffer));
+                return await _services.Commands.StashPopAsync();
             }, refreshAssets: true);
+        }
+
+        /// <summary>
+        /// 맨 위 stash 의 새 파일(stash@{0}^3) 중 작업 폴더에 이미 있는 것. 내용이 stash 와 같은 것과 다른 것으로 나눈다.
+        /// </summary>
+        private static async Task<(List<string> same, List<string> differ)> UntrackedCollisionsAsync()
+        {
+            List<string> same = new();
+            List<string> differ = new();
+            GitResult tree = await GitRepository.RunAsync("ls-tree", "-r", "-z", "stash@{0}^3");
+            if (tree.Success == false)
+            {
+                // 새 파일 없이 만든 stash 다.
+                return (same, differ);
+            }
+            List<(string path, string blob)> existing = new();
+            foreach (string entry in tree.Output.Split('\0'))
+            {
+                // "<mode> blob <hash>\t<path>"
+                int tab = entry.IndexOf('\t');
+                string[] head = tab > 0 ? entry.Substring(0, tab).Split(' ') : null;
+                if (head == null || head.Length < 3)
+                {
+                    continue;
+                }
+                string path = entry.Substring(tab + 1);
+                if (System.IO.File.Exists(System.IO.Path.Combine(GitRepository.RepoRoot, path)))
+                {
+                    existing.Add((path, head[2].Trim()));
+                }
+            }
+            if (existing.Count == 0)
+            {
+                return (same, differ);
+            }
+            GitResult hashes = await GitRepository.RunAsync(new[] { "hash-object", "--" }.Concat(existing.Select(e => e.path)).ToArray());
+            string[] lines = hashes.Success ? hashes.Output.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToArray() : new string[0];
+            for (int i = 0; i < existing.Count; i++)
+            {
+                bool identical = i < lines.Length && lines[i] == existing[i].blob;
+                (identical ? same : differ).Add(existing[i].path);
+            }
+            return (same, differ);
+        }
+
+        private static void DeleteWorkingFiles(IEnumerable<string> repoPaths)
+        {
+            foreach (string path in repoPaths)
+            {
+                string full = System.IO.Path.Combine(GitRepository.RepoRoot, path);
+                try
+                {
+                    System.IO.File.Delete(full);
+                }
+                catch (System.Exception e) when (e is System.IO.IOException || e is System.UnauthorizedAccessException)
+                {
+                    // 못 지운 파일은 git 이 Pop 에서 "already exists" 로 알린다.
+                }
+            }
         }
 
         private Task ShowErrorAsync(string title, string message)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -39,9 +40,10 @@ namespace GitVersionControl
             GitErrorAdvice advice = GitErrorAdvice.Explain(message, GitRepository.Branch?.Name);
             if (advice.Kind == GitErrorKind.Conflict)
             {
-                string files = advice.Files.Count == 0 ? string.Empty : "\n\n" + string.Join("\n", advice.Files.Take(10));
+                IReadOnlyList<string> conflicted = advice.Files.Count > 0 ? advice.Files : await ConflictedPathsAsync();
+                string files = conflicted.Count == 0 ? string.Empty : "\n\n" + string.Join("\n", conflicted.Take(10));
                 bool show = await GitConfirmDialog.ConfirmAsync(services.PopupHost, ActionGlyphKind.Branch, GitText.Get("conflict.title"),
-                    GitText.Format("conflict.message", advice.Files.Count) + files, GitText.Get("conflict.show"), cancel: GitText.Get("common.close"));
+                    GitText.Format("conflict.message", conflicted.Count) + files, GitText.Get("conflict.show"), cancel: GitText.Get("common.close"));
                 if (show)
                 {
                     services.ShowConflictsRequested?.Invoke();
@@ -49,6 +51,19 @@ namespace GitVersionControl
                 return;
             }
             await GitPopupHosts.ShowAsync(services.PopupHost, host => new GitErrorDialog(host, title, message)._done.Task, false);
+        }
+
+        /// <summary>
+        /// 지금 충돌 중인 파일. git 출력에 "Merge conflict in" 줄이 없을 때(rebase·autostash 출력 등) 저장소에 직접 묻는다.
+        /// </summary>
+        private static async Task<IReadOnlyList<string>> ConflictedPathsAsync()
+        {
+            GitResult result = await GitRepository.RunAsync("diff", "--name-only", "--diff-filter=U");
+            if (result.Success == false)
+            {
+                return System.Array.Empty<string>();
+            }
+            return result.Output.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
         }
 
         private GitErrorDialog(VisualElement host, string title, string message)

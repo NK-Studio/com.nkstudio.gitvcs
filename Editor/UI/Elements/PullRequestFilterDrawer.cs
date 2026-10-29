@@ -85,7 +85,7 @@ namespace GitVersionControl
             {
                 // 기본 묶음 이름을 그대로 두었으면 언어를 계속 따라가게 번역 키를 남긴다.
                 GitPullRequestFilter old = GitPullRequestFilters.Load().ElementAtOrDefault(_editing);
-                if (old?.NameKey != null && name == old.DisplayName)
+                if (GitPullRequestFilters.KeepsDefaultName(old, name))
                 {
                     filter.NameKey = old.NameKey;
                     filter.Name = null;

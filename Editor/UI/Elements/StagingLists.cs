@@ -350,6 +350,15 @@ namespace GitVersionControl
             _staged.ClearSelection();
         }
 
+        /// <summary>
+        /// 첫 충돌 파일을 골라 그 diff 를 연다("충돌 보기"). 충돌 파일이 없으면 false.
+        /// </summary>
+        public bool SelectFirstConflict()
+        {
+            GitStatusEntry conflict = _unstagedEntries.FirstOrDefault(e => e.State == GitFileState.Conflicted);
+            return conflict != null && _unstaged.SelectFile(conflict.RepoPath);
+        }
+
         public void Dispose()
         {
             GitVcsSettings.MetaGroupingChanged -= OnMetaGroupingChanged;

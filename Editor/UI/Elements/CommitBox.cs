@@ -26,9 +26,6 @@ namespace GitVersionControl
         private string _template;
         private GitOperationKind _seenOperation;
 
-        /// <summary>마지막으로 채운 준비 메시지. 작업이 배너(이어가기·취소)로 끝났는데 그대로 남아 있으면 템플릿으로 되돌린다.</summary>
-        private string _preparedMessage;
-
         public VisualElement Root { get; }
 
         /// <summary>
@@ -184,8 +181,8 @@ namespace GitVersionControl
                 return;
             }
             _seenOperation = kind;
-            string prepared = _preparedMessage;
-            _preparedMessage = null;
+            string prepared = _state.PreparedMessage;
+            _state.PreparedMessage = null;
             if (prepared != null && JoinMessage(_subject.value, _description.value) == prepared)
             {
                 FillTemplate();
@@ -200,7 +197,7 @@ namespace GitVersionControl
                 (string subject, string description) = SplitMessage(message);
                 _subject.value = subject;
                 _description.value = description;
-                _preparedMessage = JoinMessage(subject, description);
+                _state.PreparedMessage = JoinMessage(subject, description);
             }
         }
 

@@ -170,7 +170,7 @@ PR 상세 화면: `#번호`, 제목, 상태 배지(Open/Draft), "작성자 wants
 
 ## 진행 상태
 
-검증: `dotnet build`(패키지·테스트 csproj) 오류 0, Unity 재컴파일 오류 0, EditMode 테스트 804개 중 795 통과·8 건너뜀·1 실패
+검증(1차): `dotnet build`(패키지·테스트 csproj) 오류 0, Unity 재컴파일 오류 0, EditMode 테스트 804개 중 795 통과·8 건너뜀·1 실패
 (`GitCommitTemplateTests` 의 `C:/` Windows 경로 케이스 — 이번에 건드리지 않은 코드, macOS 에서만 실패). 새 회귀 테스트 41개(`FixSpecRegressionTests`) 모두 통과.
 화면 확인은 화면이 잠긴 상태라 마우스 대신 에디터 명령(창 캡처·코드 실행)으로 했다.
 
@@ -197,3 +197,45 @@ PR 상세 화면: `#번호`, 제목, 상태 배지(Open/Draft), "작성자 wants
 | P3-06 | 의도된 동작 | 그 파일에 남은 Unstaged 변경이 없을 때만 닫힘 |
 | PR 패널 | 완료 | 검색 칸·필터 추가, 필터(묶음) ⋮: 고치기/지우기/위로/아래로, 원격 줄, PR ⋮: GitHub 보기·링크 복사·변경 보기·그래프로 가기·체크아웃·워크트리. 필터 조건은 로컬 평가 + GitHub 검색 API |
 | PR 상세 화면 | 미구현 | PR 클릭은 보내는 브랜치를 그래프에서 고른다. GitKraken 의 PR 상세(설명·코멘트·Merge 버튼)는 다음 작업 |
+
+## 2차 실사용 테스트 (2026-10-29)
+
+마우스·키보드로 실제 조작. 다른 환경(Windows, Git 창 닫힘, 보조 창)은 제외.
+검증: Unity 재컴파일 오류 0, EditMode 테스트 810개 중 801 통과·8 건너뜀·1 실패(1차와 같은 `C:/` 경로 케이스). 새 회귀 테스트 6개 추가.
+
+### 통과
+
+| 영역 | 확인한 것 |
+|---|---|
+| 스테이징 | Stage File 누르자마자 Staged 로 이동, 스테이징 뒤 또 고친 파일(MM)은 양쪽 목록에, 나란히 보기에서 한 줄 Stage 시 `-row 3`/`+row 3 CHANGED` 짝이 함께 들어감, 충돌 표식 경고(Stage File·Stage All) |
+| 커밋 상자 | 커밋 직후 입력칸 비움, 새 에셋을 .meta 없이 커밋하면 경고(폴더 .meta 포함) → Include .meta Files 로 함께 커밋 |
+| Push | 원격 둘이면 고르기 카드, 첫 Push 뒤 PR 만들기 제안 → 서랍이 브랜치·제목 채워 열림, 거절 → [Pull] 제안 |
+| Pull | 갈라짐 → Merge/Rebase 카드, Merge 성공 |
+| 충돌 | 안내 카드, 진행 배너(Continue/Abort/Skip), 진행 중 Pull·Push 꺼짐, 오른쪽 클릭으로 한쪽 고르기 → Continue, Abort |
+| Stash·Pop | 막힘 → 버리고 Pop, 끝까지 복원 |
+| PR 패널 | 필터 ⋮ 고치기·지우기(확인 카드)·위로·아래로, GitHub 검색 조건(`review:none` 3개, `review:approved` 0개), PR 메뉴 변경 보기·워크트리 만들기·체크아웃(작업 변경이 있으면 까닭 안내), 검색 칸 포커스·`#2` 거르기 |
+| 원격 메뉴 | Prune, 이름 바꾸기(중복 이름 검사), URL 고치기, 삭제(확인 카드) |
+| 툴바 | 배지·꺼짐 상태가 바뀌어도 버튼 자리 그대로 |
+
+### 새로 찾아 고친 것
+
+| ID | 증상 | 원인 → 수정 |
+|---|---|---|
+| R2-01 | 변경 묶음(Hunk) 보기 → 통합(Inline) 보기로 바꾸면 diff 가 빈 화면 | 가변 → 고정 높이로 바꾼 틀에 ListView 내용 높이가 0 으로 남음 → 바꾼 다음 틀에 한 번 더 채움(`GitDiffPanel.ApplyLayout`) |
+| R2-02 | 충돌 카드 [충돌 보기] 가 오른쪽 패널만 바꾸고 파일을 열지 않음 | 첫 충돌 파일을 골라 diff 를 엶(`StagingLists.SelectFirstConflict`, `GraphWorkspaceView.ShowConflicts`) |
+| R2-03 | 병합이 끝나도 커밋 제목 칸에 "Merge branch …" 가 남음 | 채운 준비 메시지를 메모리에만 들고 있어 병합 중 스크립트를 다시 읽으면 잊음 → `StagingState.PreparedMessage` 로 저장 |
+| R2-04 | Rebase 로 Pull 하면 작업 중 변경이 있을 때 "cannot pull with rebase" 로 실패 | `pull --rebase --autostash`(GitKraken 과 같음) |
+| R2-05 | Rebase 충돌 카드에 "0 file(s)", 파일 목록 없음 | git 출력에 "Merge conflict in" 이 없으면 `git diff --name-only --diff-filter=U` 로 다시 물음 |
+| R2-06 | Stash 뒤에도 새 파일(untracked)이 작업 폴더에 그대로 남음 | `GIT_LITERAL_PATHSPECS=1` 이면 `stash -u` 가 안의 매직 경로(`:/`)를 글자로 읽어 지우지 않음 → stash push 만 끄고 경로는 `:(literal)` 로 감쌈(`GitCommand.IsStashPush`·`LiteralStashPaths`) |
+| R2-07 | Pop 할 새 파일이 이미 있으면 "already exists" 로 멈추며 추적 파일만 반쯤 적용, 카드의 버리고 Pop 도 실패 | Pop 전에 stash 의 새 파일과 겹치는 파일을 찾아, 내용이 같으면 조용히 치우고 다르면 카드로 물음. 추적 파일로 막혀 다시 할 때도 먼저 치움(`SyncFlows.UntrackedCollisionsAsync`) |
+| R2-08 | 직접 만든 PR 필터를 이름 그대로 두고 다시 고치면 이름이 사라짐 | 저장(JsonUtility)을 거치면 null 번역 키가 "" 가 되는데 `!= null` 로 검사 → `GitPullRequestFilters.KeepsDefaultName` |
+| R2-09 | PR 줄 끝 ⋮ 가 안 보임(오른쪽 클릭만 됨) | TreeView 줄 내용이 줄어들지 않아(flex-shrink 0) 깊이 들여쓴 긴 제목이 사이드바 밖으로 밀어냄 → 사이드바 트리에서 줄어들게 하고 제목은 말줄임 |
+
+### 남은 관찰(고치지 않음)
+
+- .meta 누락 경고는 새로 추가한 에셋만 본다. 이미 추적 중인데 .meta 가 커밋된 적 없는 파일은 대상이 아니다(설계).
+- Pull 버튼 툴팁의 받을 커밋 수는 Fetch 전에는 0 으로 보인다.
+- 원격 URL 고치기는 형식을 검사하지 않는다(GitKraken 도 같음).
+- 바깥에서 고친 파일은 Refresh 를 눌러야 보인다(P2-06 의 FSEvents 미구현과 같은 건). 이미 떠 있는 Unity 툴팁 글이 남는 것은 P1-05.
+- `pull --rebase` 는 병합 커밋을 풀어 로컬 커밋을 다시 적용하므로, 이미 병합으로 해결한 충돌이 다시 나올 수 있다(git 동작).
+

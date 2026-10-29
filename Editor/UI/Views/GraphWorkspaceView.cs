@@ -373,11 +373,18 @@ namespace GitVersionControl
             await Services.Runner.RunAsync(GitText.Get("op.discard"), () => Services.Commands.DiscardAsync(entries), refreshAssets: true);
         }
 
-        /// <summary>오른쪽을 작업 변경(Unstaged·Staged·커밋)으로 바꾼다. 충돌 안내의 "충돌 보기" 도 여기로 온다.</summary>
+        /// <summary>오른쪽을 작업 변경(Unstaged·Staged·커밋)으로 바꾼다.</summary>
         public void ShowWorkingChanges()
         {
             CloseFileHistory();
             ShowWip();
+        }
+
+        /// <summary>충돌 안내의 "충돌 보기": 작업 변경으로 바꾸고 첫 충돌 파일의 diff 를 연다.</summary>
+        public void ShowConflicts()
+        {
+            ShowWorkingChanges();
+            _staging.SelectFirstConflict();
         }
 
         private void ShowWip()

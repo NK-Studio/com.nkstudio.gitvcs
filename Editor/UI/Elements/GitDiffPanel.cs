@@ -1455,6 +1455,7 @@ namespace GitVersionControl
             // 줄 모양(통합·나란히, 고정·가변 높이)이 바뀔 때만 줄 요소를 새로 만든다. 같은 모양이면 보이는 줄만 다시 채워(RefreshItems)
             // 다른 파일을 고를 때마다 목록 전체가 지워졌다 다시 그려지며 깜빡이지 않게 한다.
             bool rebuild = _shownSplit != isSplit || _shownWrap != _wrap || _shownVariableHeights != _variableHeights;
+            bool virtualizationChanged = _shownVariableHeights != _variableHeights;
             if (rebuild)
             {
                 // makeItem·bindItem 은 바꾸는 즉시 목록을 다시 채운다. 하나씩 바꾸면 그 사이에 옛 모양 줄을 새 bind 로 채우다 깨지므로
@@ -1481,6 +1482,12 @@ namespace GitVersionControl
             if (rebuild)
             {
                 _list.Rebuild();
+                if (virtualizationChanged)
+                {
+                    // 가변 → 고정 높이로 바꾼 틀에는 고정 높이 컨트롤러가 내용 높이를 0 으로 둔 채 남아 줄이 모두 잘려 보인다
+                    // (Hunk → Inline 이 빈 화면). 배치가 끝난 다음 틀에 한 번 더 채우면 높이가 잡힌다.
+                    _list.schedule.Execute(_list.RefreshItems);
+                }
             }
             else
             {

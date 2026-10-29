@@ -183,13 +183,14 @@ namespace GitVersionControl
 
         /// <summary>
         /// Pull 의 git 인자. 순수 함수라 테스트로 확인한다.
+        /// Rebase 는 작업 중 변경이 있으면 git 이 아예 거절하므로 <c>--autostash</c> 로 잠시 치웠다가 끝나면 되돌린다(GitKraken 과 같다).
         /// </summary>
         public static string[] PullArgs(GitPullMode mode)
         {
             return mode switch
             {
                 GitPullMode.Merge => new[] { "pull", "--no-rebase" },
-                GitPullMode.Rebase => new[] { "pull", "--rebase" },
+                GitPullMode.Rebase => new[] { "pull", "--rebase", "--autostash" },
                 _ => new[] { "pull", "--ff-only" },
             };
         }

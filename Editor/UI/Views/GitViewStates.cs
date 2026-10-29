@@ -28,6 +28,11 @@ namespace GitVersionControl
     {
         public string Subject = string.Empty;
         public string Description = string.Empty;
+
+        /// <summary>
+        /// 입력란에 채운 git 준비 메시지(MERGE_MSG). 병합 중에 스크립트를 다시 읽어도 끝날 때 그 메시지를 거둘 수 있게 함께 저장한다.
+        /// </summary>
+        public string PreparedMessage;
     }
 
     [Serializable]

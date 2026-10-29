@@ -46,9 +46,38 @@ namespace GitVersionControl.Tests
             StringAssert.Contains("Merge pull request #1", GitText.Format("commitList.merge", "Merge pull request #1"));
         }
 
+        [Test]
+        public void Test_KeepsDefaultName_SavedCustomFilterIsNotDefault()
+        {
+            // 저장했다 읽은 직접 만든 묶음은 NameKey 가 "" 다. 이름을 그대로 두고 다시 편집해도 이름을 잃으면 안 된다.
+            GitPullRequestFilter saved = new() { Name = "No Review", Query = "review:none", NameKey = string.Empty };
+            Assert.IsFalse(GitPullRequestFilters.KeepsDefaultName(saved, "No Review"));
+            GitPullRequestFilter builtIn = new() { NameKey = "prList.groupMine", Query = "author:@me" };
+            Assert.IsTrue(GitPullRequestFilters.KeepsDefaultName(builtIn, builtIn.DisplayName));
+            Assert.IsFalse(GitPullRequestFilters.KeepsDefaultName(builtIn, "Renamed"));
+        }
+
+        [TestCase("stash push --include-untracked", true)]
+        [TestCase("-c credential.helper= stash push -m x --", true)]
+        [TestCase("stash pop", false)]
+        [TestCase("status", false)]
+        public void Test_IsStashPush(string args, bool expected)
+        {
+            Assert.AreEqual(expected, GitCommand.IsStashPush(args.Split(' ')));
+        }
+
+        [Test]
+        public void Test_LiteralStashPaths_WrapsOnlyPathsAfterSeparator()
+        {
+            string[] args = { "stash", "push", "--include-untracked", "-m", "msg", "--", "Assets/[Ll]ibrary.txt", ":(literal)Assets/a.txt" };
+            Assert.AreEqual("stash push --include-untracked -m msg -- :(literal)Assets/[Ll]ibrary.txt :(literal)Assets/a.txt",
+                string.Join(" ", GitCommand.LiteralStashPaths(args)));
+            CollectionAssert.AreEqual(new[] { "stash", "push" }, GitCommand.LiteralStashPaths(new[] { "stash", "push" }));
+        }
+
         [TestCase(GitPullMode.FastForwardOnly, "pull --ff-only")]
         [TestCase(GitPullMode.Merge, "pull --no-rebase")]
-        [TestCase(GitPullMode.Rebase, "pull --rebase")]
+        [TestCase(GitPullMode.Rebase, "pull --rebase --autostash")]
         public void Test_PullArgs(GitPullMode mode, string expected)
         {
             Assert.AreEqual(expected, string.Join(" ", GitOperations.PullArgs(mode)));

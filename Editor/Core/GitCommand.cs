@@ -100,11 +100,50 @@ namespace GitVersionControl
             return RunProcess(executablePath, workingDirectory, args, timeoutMs, null, null, applyTokenOverride: false);
         }
 
+        /// <summary><c>git stash push …</c> 인가(앞의 <c>-c</c> 같은 전역 옵션은 건너뛴다). 순수 함수라 테스트로 확인한다.</summary>
+        public static bool IsStashPush(IReadOnlyList<string> args)
+        {
+            for (int i = 0; i + 1 < args.Count; i++)
+            {
+                if (args[i] == "stash")
+                {
+                    return args[i + 1] == "push";
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// stash push 의 "--" 뒤 경로를 ":(literal)경로" 로 바꾼다(<c>GIT_LITERAL_PATHSPECS</c> 를 끈 채로도 [Ll]ibrary 같은 글자가 glob 이 되지 않게).
+        /// </summary>
+        public static IReadOnlyList<string> LiteralStashPaths(IReadOnlyList<string> args)
+        {
+            int separator = -1;
+            for (int i = 0; i < args.Count; i++)
+            {
+                if (args[i] == "--")
+                {
+                    separator = i;
+                    break;
+                }
+            }
+            if (separator < 0)
+            {
+                return args;
+            }
+            return args.Select((arg, i) => i > separator && arg.StartsWith(":(", StringComparison.Ordinal) == false ? ":(literal)" + arg : arg).ToList();
+        }
+
         private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
         {
             string gitPath = executablePath;
             // 이 저장소에 "패키지 로그인 쓰기" 를 골랐으면 그 토큰을 돌려주는 도우미를 앞에 붙인다. 토큰은 환경 변수로만 넘긴다(GitAuth).
             string tokenOverride = applyTokenOverride ? GitAuth.TokenOverride : null;
+            bool stashPush = IsStashPush(args);
+            if (stashPush)
+            {
+                args = LiteralStashPaths(args);
+            }
             IReadOnlyList<string> finalArgs = string.IsNullOrEmpty(tokenOverride) ? args : GitAuth.TokenHelperArguments().Concat(args).ToList();
             ProcessStartInfo startInfo = new(executablePath)
             {
@@ -123,7 +162,9 @@ namespace GitVersionControl
             // 읽기 전용 명령(status 등)이 index.lock 을 잡아 사용자의 터미널 git 과 충돌하지 않게 한다.
             startInfo.EnvironmentVariables["GIT_OPTIONAL_LOCKS"] = "0";
             // Unity 경로의 [Ll]ibrary 같은 글자가 glob 으로 해석되지 않게 한다.
-            startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = "1";
+            // 단 stash push 는 끈다: --include-untracked 가 안에서 ":/" 같은 매직 경로로 새 파일을 지우는데, 글자 그대로 읽으면
+            // 새 파일을 stash 에 넣기만 하고 작업 폴더에서 지우지 않는다. 그 대신 경로를 ":(literal)" 로 감싼다(LiteralStashPaths).
+            startInfo.EnvironmentVariables["GIT_LITERAL_PATHSPECS"] = stashPush ? "0" : "1";
             // 에디터 PATH 에 git 이 없어서 시스템 PATH 로 찾은 경우에도 git-lfs·credential manager 를 찾게 한다.
             startInfo.EnvironmentVariables["PATH"] = GitLocator.SearchPath;
             UseEnglishMessages(startInfo);
