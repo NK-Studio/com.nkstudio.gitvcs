@@ -484,6 +484,8 @@ namespace GitVersionControl
 
             // 펼친 참조 목록. 누르면 그 커밋 줄을 고르고, 우클릭은 그 줄 메뉴. 마우스가 그 줄 이름표 칸이 아닌 곳으로 벗어나면 닫는다.
             _refsPopup = new VisualElement();
+            // 목록 폭이 정해지면(배치 뒤) 연결선이 목록 끝에서 시작하도록 선 층을 다시 그린다.
+            _refsPopup.RegisterCallback<GeometryChangedEvent>(_ => _overlay?.MarkDirtyRepaint());
             _refsPopup.AddToClassList("commit-graph-refs-popup");
             GitShadow.Add(_refsPopup, GitShadowSize.Large);
             _refsPopup.SetVisible(false);
@@ -1680,6 +1682,7 @@ namespace GitVersionControl
             _refsPopupCell = row.Refs;
             _refsPopup.SetVisible(true);
             _refsPopup.BringToFront();
+            _overlay.MarkDirtyRepaint();
         }
 
         /// <summary>
@@ -1707,6 +1710,7 @@ namespace GitVersionControl
             _refsPopupMore?.RemoveFromClassList(MoreCoveredModifier);
             _refsPopupMore = null;
             _refsPopup.SetVisible(false);
+            _overlay.MarkDirtyRepaint();
         }
 
         /// <summary>펼친 목록 밑에 깔린 줄의 "+n"(목록이 열려 있는 동안 숨긴다).</summary>
@@ -1829,6 +1833,9 @@ namespace GitVersionControl
             Dictionary<int, RefSpan> spans = RefSpansByRow();
             // 아직 배치 전인 줄은 이름표 칸의 그래프 쪽 끝에서 시작한다.
             float fallbackX = _graphOffset - 6f;
+            // 참조 목록을 펼친 줄은 그 줄의 "+n" 을 숨기므로 목록 오른쪽 끝에서 바로 잇는다(숨긴 "+n" 자리만큼 선이 끊겨 보였다).
+            GitGraphNode popupNode = _refsPopupIndex >= 0 && _refsPopupIndex < _items.Count ? _items[_refsPopupIndex] as GitGraphNode : null;
+            float popupEnd = popupNode != null && _refsPopup.worldBound.width > 0f ? _overlay.WorldToLocal(new Vector2(_refsPopup.worldBound.xMax, 0f)).x : float.NaN;
             painter.lineWidth = 1.5f;
             foreach (GitGraphNode node in _layout.NodesNewestFirst)
             {
@@ -1847,6 +1854,10 @@ namespace GitVersionControl
                 if (branchInput)
                 {
                     startX = _graphOffset - BranchInputMargin;
+                }
+                else if (node == popupNode && float.IsNaN(popupEnd) == false)
+                {
+                    startX = popupEnd;
                 }
                 else if (spans.TryGetValue(row, out RefSpan span))
                 {
