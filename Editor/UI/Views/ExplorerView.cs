@@ -24,6 +24,14 @@ namespace GitVersionControl
         protected ExplorerView(GitServices services, string layoutName) : base(services, layoutName)
         {
             BindStyleMenu(Root.Require<ToolbarMenu>("style-menu"));
+            // 검색창 돋보기: Unity 기본 그림 대신 우리 선 아이콘(Material "search"). 기본 그림은 USS 로 지운다.
+            VisualElement searchButton = Root.Require<ToolbarSearchField>("search").Q(className: "unity-search-field-base__search-button");
+            if (searchButton != null)
+            {
+                ActionGlyph glyph = new(ActionGlyphKind.Search);
+                glyph.AddToClassList("branch-explorer__search-icon");
+                searchButton.Add(glyph);
+            }
         }
 
         /// <summary>
@@ -34,6 +42,13 @@ namespace GitVersionControl
         {
             menu.SetVisible(GitExplorerStyle.IsChoosable);
             menu.text = GitText.Get("explorerStyleShort." + GitExplorerStyle.Effective);
+            // 지금 모양 아이콘 + 이름 + 우리 Caret. Unity 기본 화살표(회색 칸 모양과 어울리지 않는다)는 USS 로 숨긴다.
+            ActionGlyph icon = new(GitExplorerStyle.Effective == ExplorerStyle.BranchGraph ? ActionGlyphKind.Hierarchy : ActionGlyphKind.PathList);
+            icon.AddToClassList("branch-explorer__style-icon");
+            menu.Insert(0, icon);
+            ActionGlyph caret = new(ActionGlyphKind.Caret);
+            caret.AddToClassList("branch-explorer__style-caret");
+            menu.Add(caret);
             foreach (ExplorerStyle style in (ExplorerStyle[])Enum.GetValues(typeof(ExplorerStyle)))
             {
                 ExplorerStyle captured = style;

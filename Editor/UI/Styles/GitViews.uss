@@ -355,15 +355,119 @@
 }
 
 /* ── branch-explorer ──────────────────────────────── */
-.branch-explorer__range {
-    width: 110px;
-    margin: 0 2px;
+/* 도구 막대: 테마의 .git-theme--* .unity-toolbar(높이 26px·여백 거의 없음)에서는 컨트롤이 위아래에 붙어 답답하다.
+   diff 도구 막대처럼 32px 로 키우고 양옆 8px, 컨트롤은 모두 24px 로 맞춰 위아래 4px 씩 숨 쉴 자리를 둔다. */
+.branch-explorer > .unity-toolbar.branch-explorer__toolbar {
+    height: 32px;
+    padding: 0 8px;
+    align-items: center;
+}
+
+/* 기간 고르기: 입력란과 같은 테두리 상자. */
+.branch-explorer__toolbar .branch-explorer__range {
+    width: 120px;
+    height: 24px;
+    margin: 0;
+}
+
+.branch-explorer__toolbar .branch-explorer__range .unity-base-popup-field__input {
+    height: 24px;
+    margin: 0;
+    padding: 0 8px;
+    border-width: 1px;
+    border-color: var(--git-field-border);
+    border-radius: 4px;
+    background-color: var(--git-field-bg);
+    color: var(--git-text);
+}
+
+.branch-explorer__toolbar .branch-explorer__range .unity-base-popup-field__input:hover {
+    background-color: var(--git-hover);
+}
+
+/* 커밋·줄 수 요약: 기간 상자와 떼어 놓고 한 단계 키운다. */
+.branch-explorer__toolbar .view__toolbar-label {
+    margin: 0 12px;
+    font-size: 11px;
 }
 
 .branch-explorer__toolbar .branch-explorer__search {
     width: 220px;
     min-width: 80px;
+    height: 24px;
+    margin: 0;
     flex-shrink: 1;
+    align-items: center;
+}
+
+/* 돋보기: Unity 기본 그림(18px 상자용으로 작다)을 지우고 ExplorerView 가 넣은 선 아이콘(ActionGlyph Search)을 보인다. */
+.branch-explorer__toolbar .branch-explorer__search .unity-search-field-base__search-button,
+.branch-explorer__toolbar .branch-explorer__search .unity-search-field-base__search-button:hover {
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    background-image: none;
+}
+
+.branch-explorer__search-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--git-text-muted);
+}
+
+/* 검색 옆 "다음" 과 모양 고르기(그래프 · 커밋 목록): 검색창과 같은 높이·테두리의 상자 버튼으로 맞춘다.
+   클래스를 겹쳐 적어 테마의 도구 막대 버튼 규칙(평평한 버튼·회색 칸)보다 이긴다. */
+.branch-explorer__toolbar .unity-toolbar-button.branch-explorer__next,
+.branch-explorer__toolbar .unity-toolbar-menu.branch-explorer__style-menu {
+    height: 24px;
+    margin: 0 0 0 6px;
+    padding: 0 8px;
+    flex-direction: row;
+    align-items: center;
+    border-width: 1px;
+    border-color: var(--git-field-border);
+    border-radius: 4px;
+    background-color: var(--git-field-bg);
+    color: var(--git-text);
+}
+
+.branch-explorer__toolbar .unity-toolbar-button.branch-explorer__next:hover:enabled,
+.branch-explorer__toolbar .unity-toolbar-menu.branch-explorer__style-menu:hover {
+    background-color: var(--git-hover);
+}
+
+.branch-explorer__toolbar .unity-toolbar-button.branch-explorer__next:active:enabled,
+.branch-explorer__toolbar .unity-toolbar-menu.branch-explorer__style-menu:active {
+    background-color: var(--git-pressed);
+}
+
+/* 검색어가 없을 때 "다음" 은 흐리게만(테두리는 남겨 자리가 흔들리지 않게). */
+.branch-explorer__toolbar .unity-toolbar-button.branch-explorer__next:disabled {
+    color: var(--git-text-muted);
+}
+
+.branch-explorer__style-menu .unity-toolbar-menu__arrow {
+    display: none;
+}
+
+.branch-explorer__style-menu .unity-toolbar-menu__text {
+    margin: 0;
+    padding: 0;
+    -unity-text-align: middle-left;
+}
+
+.branch-explorer__style-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    color: var(--git-text-muted);
+}
+
+.branch-explorer__style-caret {
+    width: 12px;
+    height: 12px;
+    margin-left: 4px;
+    color: var(--git-text-muted);
 }
 
 .branch-explorer__toolbar .view__toolbar-label {

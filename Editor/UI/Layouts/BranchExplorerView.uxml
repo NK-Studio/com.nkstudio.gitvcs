@@ -5,7 +5,7 @@
             <ui:Label name="summary" class="view__toolbar-label" />
             <ui:VisualElement class="spacer" />
             <uie:ToolbarSearchField name="search" class="branch-explorer__search" />
-            <uie:ToolbarButton name="next-match-button" text="@explorer.next" tooltip="@explorer.nextTooltip" />
+            <uie:ToolbarButton name="next-match-button" text="@explorer.next" tooltip="@explorer.nextTooltip" class="branch-explorer__next" />
             <uie:ToolbarMenu name="style-menu" tooltip="@settings.explorerStyleTooltip" class="branch-explorer__style-menu" />
         </uie:Toolbar>
 

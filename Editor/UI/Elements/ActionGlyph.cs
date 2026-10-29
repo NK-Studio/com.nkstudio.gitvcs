@@ -426,7 +426,17 @@ namespace GitVersionControl
                     Polyline(painter, P(11.5f, 5.5f), P(14.5f, 8.5f));
                     break;
                 case ActionGlyphKind.Search:
-                    DrawMagnifier(painter, P, scale);
+                    // Material Symbols "search"(FILL0 wght400 opsz48) 의 렌즈(가운데 7.85,7.81 · 반지름 4.08~5.33)와 45° 손잡이를 20 칸 그대로 옮겨,
+                    // 윤곽을 채우는 대신 선으로 긋는다. 원본 굵기(1.25 칸)는 작은 크기에서 가늘어 1.75 칸으로 둔다.
+                    // (채운 윤곽을 한 번 더 긋는 식은 두 윤곽 사이에 이음선이 생겨 렌즈 왼쪽 위로 삐죽 선이 튀었다.)
+                    painter.lineWidth = 1.75f * scale;
+                    painter.BeginPath();
+                    painter.Arc(P(7.85f, 7.81f), 4.7f * scale, 0f, 180f);
+                    painter.Arc(P(7.85f, 7.81f), 4.7f * scale, 180f, 360f);
+                    painter.ClosePath();
+                    painter.Stroke();
+                    painter.lineCap = LineCap.Butt;
+                    Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;
