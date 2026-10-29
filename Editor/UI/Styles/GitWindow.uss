@@ -1232,6 +1232,90 @@
     width: 560px;
 }
 
+/* ── git-skeleton: 읽는 동안의 회색 막대(GitSkeleton). 한 그릇 안의 막대가 위에서 아래로 물결치듯 옅어졌다 짙어진다(막대마다 위치만큼 transition-delay). ── */
+.git-skeleton {
+    flex-shrink: 0;
+    border-radius: var(--git-radius-small);
+    background-color: var(--git-skeleton);
+    opacity: 1;
+    transition-property: opacity;
+    transition-duration: 0.6s;
+    transition-timing-function: ease-in-out;
+}
+
+.git-skeleton--pill {
+    border-radius: 10px;
+}
+
+.git-skeleton-group--dim .git-skeleton {
+    opacity: 0.4;
+}
+
+.git-skeleton-row {
+    flex-direction: row;
+}
+
+/* 스켈레톤이 걷힐 때 내용이 툭 나타나지 않게: 투명·4px 아래에서 시작해 서서히 제자리로(PullRequestDetailDrawer.SwapToContent). */
+.pr-detail__content {
+    transition-property: opacity, translate;
+    transition-duration: 0.35s, 0.35s;
+    transition-timing-function: ease-out-cubic, ease-out-cubic;
+}
+
+.pr-detail__content--entering {
+    opacity: 0;
+    translate: 0 6px;
+}
+
+/* PR 상세 스켈레톤: 실제 내용과 같은 자리·간격. */
+.pr-detail__skeleton-badge {
+    margin: 2px 8px 0 0;
+}
+
+.pr-detail__skeleton-title {
+    margin-top: 2px;
+}
+
+.pr-detail__skeleton-line {
+    margin-top: 8px;
+}
+
+.pr-detail__skeleton-caption {
+    margin: 12px 0 6px 0;
+}
+
+.pr-detail__skeleton-methods {
+    margin-top: 8px;
+}
+
+.pr-detail__skeleton-method {
+    margin: 0 2px;
+    border-radius: var(--git-radius);
+}
+
+.pr-detail__skeleton-merge {
+    margin-top: 8px;
+    border-radius: var(--git-radius);
+}
+
+.pr-detail__skeleton-actions {
+    margin-top: 10px;
+}
+
+.pr-detail__skeleton-actions > .git-skeleton {
+    margin-right: 6px;
+    border-radius: var(--git-radius);
+}
+
+.pr-detail__skeleton-box,
+.pr-detail__skeleton-event {
+    border-radius: var(--git-radius);
+}
+
+.pr-detail__skeleton-event {
+    margin-top: 6px;
+}
+
 .pr-detail__title-row {
     flex-direction: row;
     align-items: flex-start;

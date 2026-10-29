@@ -20,8 +20,19 @@ namespace GitVersionControl
         private const int CheckingRetries = 4;
         private const int CheckingDelayMs = 1500;
 
+        /// <summary>
+        /// 스켈레톤을 적어도 이만큼은 보인다(연출). 금방 읽혀도 물결이 한 번은 내려간 뒤 내용으로 바뀌어, 깜박 스치듯 바뀌지 않는다.
+        /// </summary>
+        private const int MinSkeletonMs = 900;
+
         private readonly VisualElement _signIn;
         private readonly VisualElement _content;
+        private readonly VisualElement _skeleton;
+        private double _skeletonSince;
+        private bool _skeletonShowing;
+
+        /// <summary>내용 보이기를 미뤄 둔 것이 아직 이 PR 의 것인지(다른 PR 을 누르면 늘어난다).</summary>
+        private int _revealToken;
         private readonly Label _loading;
         private readonly Label _error;
         private readonly Label _title;
@@ -71,8 +82,11 @@ namespace GitVersionControl
             _signIn = SignInPrompt(Body, GitText.Get("prDetail.signIn"));
             _loading = Note(Body);
             _error = Problem(Body);
+            _skeleton = BuildSkeleton();
+            Body.Add(_skeleton);
 
             _content = new VisualElement();
+            _content.AddToClassList(Pr + "__content");
             Body.Add(_content);
 
             VisualElement head = Section(_content);
@@ -199,7 +213,14 @@ namespace GitVersionControl
             Show(_replyProblem, null);
             _posting = false;
             Show(_error, null);
-            Show(_loading, GitText.Get("common.loading"));
+            Show(_loading, null);
+            // 상세를 받기 전에는 내용 대신 같은 배치의 스켈레톤을, 대화 자리에도 카드 스켈레톤을 둔다.
+            _skeleton.SetVisible(true);
+            _content.SetVisible(false);
+            _skeletonShowing = true;
+            _skeletonSince = UnityEditor.EditorApplication.timeSinceStartup;
+            _revealToken++;
+            _timeline.Add(TimelineSkeleton());
             SelectMethod(_method);
         }
 
@@ -213,10 +234,9 @@ namespace GitVersionControl
         {
             bool signedIn = GitHubAccount.IsSignedIn;
             _signIn.SetVisible(signedIn == false);
-            _content.SetVisible(signedIn);
             if (signedIn == false || info == null || repository == null)
             {
-                Show(_loading, null);
+                HideSkeleton();
                 return;
             }
             Task<(List<GitPullRequestFile> files, string error)> filesTask = GitHubPullRequests.FilesAsync(repository, info.Number);
@@ -233,9 +253,9 @@ namespace GitVersionControl
             {
                 return;
             }
-            Show(_loading, null);
             if (detail == null)
             {
+                HideSkeleton();
                 Show(_error, error ?? GitText.Get("prDetail.loadFailed"));
                 return;
             }
@@ -270,6 +290,110 @@ namespace GitVersionControl
                 ShowDetail(detail);
             }
             ShowTimeline(items, error);
+        }
+
+        /// <summary>
+        /// 상세를 읽는 동안의 자리: 상태 배지·제목·요약 두 줄, 병합(안내·방식 셋·병합 버튼), 작업 버튼 줄, 설명, 대화 카드 둘.
+        /// 실제 내용과 같은 섹션·간격을 써서 다 읽었을 때 배치가 그대로 이어진다. 제목도 막대 — 한 줄만 진짜 글이면 그 줄만 읽힌 것처럼 보인다.
+        /// </summary>
+        private static VisualElement BuildSkeleton()
+        {
+            VisualElement root = new();
+            root.AddToClassList(Pr + "__skeleton");
+
+            VisualElement head = Section(root);
+            VisualElement titleRow = new();
+            titleRow.AddToClassList(Pr + "__title-row");
+            GitSkeleton.Bar(titleRow, 52, 20, modifier: "pill").AddToClassList(Pr + "__skeleton-badge");
+            GitSkeleton.Bar(titleRow, 0, 20, widthPercent: 55).AddToClassList(Pr + "__skeleton-title");
+            head.Add(titleRow);
+            GitSkeleton.Bar(head, 0, 12, widthPercent: 78).AddToClassList(Pr + "__skeleton-line");
+            GitSkeleton.Bar(head, 0, 12, widthPercent: 42).AddToClassList(Pr + "__skeleton-line");
+
+            VisualElement merge = Section(root);
+            GitSkeleton.Bar(merge, 36, 12).AddToClassList(Pr + "__skeleton-caption");
+            GitSkeleton.Bar(merge, 0, 12, widthPercent: 55).AddToClassList(Pr + "__skeleton-line");
+            VisualElement methods = GitSkeleton.Row(merge);
+            methods.AddToClassList(Pr + "__skeleton-methods");
+            for (int i = 0; i < 3; i++)
+            {
+                GitSkeleton.Bar(methods, 0, 26).AddToClassList(Pr + "__skeleton-method");
+            }
+            GitSkeleton.Bar(merge, 0, 30, widthPercent: 100).AddToClassList(Pr + "__skeleton-merge");
+
+            VisualElement actions = GitSkeleton.Row(root);
+            actions.AddToClassList(Pr + "__skeleton-actions");
+            foreach (float width in new[] { 112f, 90f, 72f })
+            {
+                GitSkeleton.Bar(actions, width, 28);
+            }
+
+            VisualElement description = Section(root);
+            GitSkeleton.Bar(description, 36, 12).AddToClassList(Pr + "__skeleton-caption");
+            GitSkeleton.Bar(description, 0, 36, widthPercent: 100).AddToClassList(Pr + "__skeleton-box");
+
+            VisualElement conversation = Section(root);
+            GitSkeleton.Bar(conversation, 52, 12).AddToClassList(Pr + "__skeleton-caption");
+            conversation.Add(TimelineSkeleton());
+
+            GitSkeleton.Pulse(root);
+            return root;
+        }
+
+        /// <summary>
+        /// 스켈레톤을 내용으로 바꾼다. 스켈레톤을 띄운 지 <see cref="MinSkeletonMs"/> 가 안 됐으면 그때까지 미룬다(내용은 이미 채워 둔 채 숨겨 둔다).
+        /// </summary>
+        private void RevealContent()
+        {
+            if (_skeletonShowing == false)
+            {
+                _content.SetVisible(true);
+                return;
+            }
+            long remaining = (long)(MinSkeletonMs - (UnityEditor.EditorApplication.timeSinceStartup - _skeletonSince) * 1000);
+            if (remaining <= 0)
+            {
+                SwapToContent();
+                return;
+            }
+            int token = _revealToken;
+            _content.schedule.Execute(() =>
+            {
+                if (token == _revealToken && _skeletonShowing)
+                {
+                    SwapToContent();
+                }
+            }).StartingIn(remaining);
+        }
+
+        /// <summary>
+        /// 스켈레톤을 걷고 내용을 보인다. 툭 바뀌지 않게 내용은 투명·살짝 아래에서 시작해 다음 프레임에 제자리로 서서히 올라온다(USS transition).
+        /// </summary>
+        private void SwapToContent()
+        {
+            HideSkeleton();
+            _content.AddToClassList(Pr + "__content--entering");
+            _content.SetVisible(true);
+            // 시작 모양이 한 번 그려진 뒤에 떼야 전환이 일어난다.
+            _content.schedule.Execute(() => _content.RemoveFromClassList(Pr + "__content--entering")).StartingIn(30);
+        }
+
+        private void HideSkeleton()
+        {
+            _skeletonShowing = false;
+            _skeleton.SetVisible(false);
+        }
+
+        /// <summary>대화를 읽는 동안 대화 자리에 두는 카드 둘. 대화가 오면 <see cref="ShowTimeline"/> 이 지운다.</summary>
+        private static VisualElement TimelineSkeleton()
+        {
+            VisualElement cards = new();
+            for (int i = 0; i < 2; i++)
+            {
+                GitSkeleton.Bar(cards, 0, 52, widthPercent: 100).AddToClassList(Pr + "__skeleton-event");
+            }
+            GitSkeleton.Pulse(cards);
+            return cards;
         }
 
         private void ShowTimeline(List<GitPullRequestTimelineItem> items, string error)
@@ -439,6 +563,7 @@ namespace GitVersionControl
         private void ShowDetail(GitPullRequestDetail detail)
         {
             _detail = detail;
+            RevealContent();
             _title.text = detail.Title;
             GitPullRequestReadiness readiness = GitPullRequestDetails.Readiness(detail);
             string state = detail.IsMerged ? "Merged" : detail.IsOpen == false ? "Closed" : detail.IsDraft ? "Draft" : "Open";

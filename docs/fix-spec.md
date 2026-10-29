@@ -424,6 +424,15 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 | Unity 6.7 분석기 경고(UAL0010·UAL0013) 18개 | 정적 필드가 있는 7개 형식(`GitCommand`·`GitIntegration`·`GitPullRequestFilters`·`GitShadow`·`HoverCallout`·`RefSidebar`·`GitProjectSelectionTests`)에 다른 파일처럼 `NoAutoStaticsCleanup`(UNITY_6000_7_OR_NEWER) |
 | EditMode 테스트 뒤 열린 Git 창이 임시 저장소(GitVcsRebase… 등)에 머묾 | 테스트 범위(`UseRepositoryForTests`)가 끝날 때 새로고침을 요청하고 `RepositorySwitched` 를 알려 실제 저장소를 다시 읽게 함 |
 
+### PR 상세 — 읽는 중 화면
+
+| 찾은 것 | 고침 |
+|---|---|
+| PR 을 누르면 "읽는 중…" 글과 함께 빈 배지·빈 칸·꺼진 버튼이 먼저 보였다가 채워짐 | 상세를 받기 전에는 내용 대신 같은 배치의 스켈레톤(배지·제목·요약 두 줄, 병합 안내·방식 셋·병합 버튼, 작업 버튼 줄, 설명, 대화 카드 둘). 대화가 늦게 오면 대화 자리에도 카드 스켈레톤(`GitSkeleton`) |
+| — | 스켈레톤은 위에서 아래로 물결치듯 옅어졌다 짙어짐: 그릇의 옅게·짙게를 1.2초마다 바꾸고, 막대마다 그릇 안 세로 위치만큼 전환을 늦춤(최대 0.5초) |
+| 금방 읽히면 스켈레톤이 깜박 스치기만 함 | 연출로 적어도 0.9초는 스켈레톤을 보임(내용은 미리 채워 숨겨 둠). 그 사이 다른 PR 을 누르면 지난 것은 버림 |
+| 스켈레톤이 걷히며 내용이 툭 나타남 | 내용은 투명·6px 아래에서 시작해 0.35초 동안 제자리로(ease-out-cubic) |
+
 ### 남은 관찰(고치지 않음)
 
 - Push 뒤 Unity 기본 툴팁 글이 잠깐 남는 것(P1-05).
