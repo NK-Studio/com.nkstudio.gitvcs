@@ -80,6 +80,9 @@ namespace GitVersionControl
         /// </summary>
         public event Action<GitBranchRef> CreatePullRequestRequested;
 
+        /// <summary>서브모듈 줄을 두 번 누르거나 편집… 을 골랐을 때(서브모듈 편집 서랍).</summary>
+        public event Action<GitSubmoduleRef> SubmoduleEditRequested;
+
         /// <summary>PR 필터(묶음)를 새로 만들 서랍을 연다(-1) 또는 그 순번을 고칠 서랍을 연다.</summary>
         public event Action<int> PullRequestFilterRequested;
 
@@ -645,6 +648,10 @@ namespace GitVersionControl
             search.Add(addFilter);
             search.SetVisible(false);
             row.Add(search);
+            // 서브모듈이 저장소에 기록된 커밋과 맞으면 GitKraken 처럼 아이콘 왼쪽(펼침 화살표 자리)에 초록 체크. 앞 칸 번호가 그대로이도록 맨 뒤에 둔다.
+            ActionGlyph synced = new(ActionGlyphKind.Check) { pickingMode = PickingMode.Ignore };
+            synced.AddToClassList(Block + "__synced");
+            row.Add(synced);
             return row;
         }
 
@@ -752,6 +759,7 @@ namespace GitVersionControl
                 }
             }
             row.EnableInClassList(Block + "__row--current", node.IsCurrent);
+            row.EnableInClassList(Block + "__row--synced", node.Kind == RefNodeKind.Submodule && node.Submodule?.State == GitSubmoduleState.UpToDate);
             // 펼침 화살표는 row 바깥(TreeView 항목)에 있어, 손가락 커서와 화살표 숨김은 항목에 단다. 줄은 재사용되니 매번 다시 정한다.
             // 폴더·원격은 늘 펼쳐 두므로 화살표를 감추고 누를 수 없게 한다(자리는 남겨 형제 브랜치와 들여쓰기를 맞춘다).
             bool isFixed = IsAlwaysOpen(node);
@@ -898,9 +906,9 @@ namespace GitVersionControl
                 case RefNodeKind.Info when _pullRequests?.NeedsSignIn == true:
                     UnityEditor.SettingsService.OpenUserPreferences(GitMainToolbarMenu.PreferencesPath);
                     break;
-                case RefNodeKind.Submodule when node.Submodule.State != GitSubmoduleState.NotInitialized:
-                    // Fork 처럼 두 번 누르면 그 서브모듈 저장소를 Git 창에서 연다.
-                    GitRepository.OpenRepository(RefActions.SubmoduleFullPath(node.Submodule));
+                case RefNodeKind.Submodule:
+                    // GitKraken 처럼 두 번 누르면 서브모듈 편집 서랍(주소·상태·현재 커밋, 그 저장소 열기·지우기).
+                    SubmoduleEditRequested?.Invoke(node.Submodule);
                     break;
             }
         }
@@ -952,6 +960,7 @@ namespace GitVersionControl
                     PopulatePullRequestFilterMenu(menu, node);
                     break;
                 case RefNodeKind.Submodule:
+                    menu.AppendAction(GitText.Get("refs.editSubmodule"), action => SubmoduleEditRequested?.Invoke(node.Submodule));
                     menu.AppendAction(GitText.Get("refs.openSubmodule"), action => GitRepository.OpenRepository(RefActions.SubmoduleFullPath(node.Submodule)),
                         node.Submodule.State == GitSubmoduleState.NotInitialized ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
                     menu.AppendSeparator();

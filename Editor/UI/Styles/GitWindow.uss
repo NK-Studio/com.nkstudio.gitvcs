@@ -757,6 +757,22 @@
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
+/* 서브모듈이 저장소 기록과 맞음: 아이콘 왼쪽(펼침 화살표 자리)의 초록 체크(GitKraken). */
+.ref-tree__synced {
+    display: none;
+    position: absolute;
+    left: -17px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    color: var(--git-success);
+}
+
+.ref-tree__row--synced .ref-tree__synced {
+    display: flex;
+}
+
 .ref-tree__row--current .ref-tree__icon {
     color: var(--git-accent-fg);
 }
@@ -1225,6 +1241,110 @@
     height: 30px;
     margin: 16px 8px 0 0;
     align-self: auto;
+}
+
+/* ── submodule-edit: 서브모듈 편집 서랍(GitKraken 의 Edit Submodule) ── */
+.submodule-edit__readonly > .unity-base-text-field__input {
+    color: var(--git-text-muted);
+}
+
+.submodule-edit__state {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.submodule-edit__sync {
+    white-space: normal;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+}
+
+.submodule-edit__sync--uptodate {
+    color: var(--git-success);
+}
+
+.submodule-edit__sync--modified,
+.submodule-edit__sync--notinitialized {
+    color: var(--git-warning);
+}
+
+.submodule-edit__sync--conflicted {
+    color: var(--git-danger);
+}
+
+.submodule-edit__revision,
+.submodule-edit__revision-skeleton {
+    padding: 8px;
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    border-color: var(--git-border);
+}
+
+.submodule-edit__fact {
+    flex-direction: row;
+    align-items: flex-start;
+    min-height: 22px;
+}
+
+.submodule-edit__fact-name {
+    flex-shrink: 0;
+    width: 90px;
+    margin: 0;
+    color: var(--git-text-muted);
+}
+
+.submodule-edit__fact-value {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin: 0;
+    white-space: normal;
+    color: var(--git-text);
+}
+
+.submodule-edit__fact-value--empty {
+    color: var(--git-text-muted);
+}
+
+.submodule-edit__hash {
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+}
+
+/* 열기·지우기: GitKraken 처럼 맨 아래 반씩 나눈 두 버튼(열기는 강조색, 지우기는 위험색). */
+.submodule-edit__actions {
+    flex-direction: row;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.submodule-edit__actions > .side-drawer__secondary {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 30px;
+    margin: 0;
+    align-self: auto;
+}
+
+.submodule-edit__actions > .submodule-edit__delete {
+    margin-left: 8px;
+}
+
+.side-drawer__secondary.submodule-edit__open {
+    border-color: var(--git-accent);
+    color: var(--git-text);
+}
+
+.side-drawer__secondary.submodule-edit__delete {
+    border-color: var(--git-danger);
+    color: var(--git-danger);
+}
+
+.side-drawer__secondary.submodule-edit__delete:hover:enabled {
+    background-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
 }
 
 /* ── pr-detail: Pull Request 화면 서랍(GitKraken 의 PR 화면) ── */

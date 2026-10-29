@@ -177,6 +177,9 @@ namespace GitVersionControl
             AddRemoteDrawer addRemote = AddDrawer(new AddRemoteDrawer(content, _services));
             AddWorktreeDrawer addWorktree = AddDrawer(new AddWorktreeDrawer(content, _services));
             AddSubmoduleDrawer addSubmodule = AddDrawer(new AddSubmoduleDrawer(content, _services));
+            EditSubmoduleDrawer editSubmodule = AddDrawer(new EditSubmoduleDrawer(content, _services));
+            _refs.SubmoduleEditRequested += editSubmodule.OpenFor;
+            editSubmodule.Changed += _refs.Reload;
             CreatePullRequestDrawer createPullRequest = AddDrawer(new CreatePullRequestDrawer(content, _services));
             PullRequestFilterDrawer pullRequestFilter = AddDrawer(new PullRequestFilterDrawer(content, _services));
             PullRequestDetailDrawer pullRequestDetail = AddDrawer(new PullRequestDetailDrawer(content, _services));
