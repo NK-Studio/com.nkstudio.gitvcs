@@ -656,11 +656,18 @@ namespace GitVersionControl
             badge.style.display = hidden;
             if (isSearch)
             {
-                searchRow.Q<ToolbarSearchField>().SetValueWithoutNotify(_prSearch);
-                TextField field = searchRow.Q<TextField>();
-                if (_refocusPrSearch)
+                // 쓰는 중인 칸은 건드리지 않는다: 값을 다시 넣거나 포커스·커서를 다시 잡으면 한글 IME 가 조합 중인 글자를 끊는다
+                // (글자마다 트리를 다시 그리므로 매번 일어난다). 칸이 다른 줄 요소로 바뀌어 포커스를 잃었을 때만 되찾는다.
+                ToolbarSearchField box = searchRow.Q<ToolbarSearchField>();
+                if (box.value != _prSearch)
                 {
-                    _refocusPrSearch = false;
+                    box.SetValueWithoutNotify(_prSearch);
+                }
+                bool refocus = _refocusPrSearch && box.ClassListContains("git-search--focused") == false;
+                _refocusPrSearch = false;
+                if (refocus)
+                {
+                    TextField field = searchRow.Q<TextField>();
                     field.schedule.Execute(() =>
                     {
                         field.Focus();
