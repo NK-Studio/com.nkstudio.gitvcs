@@ -179,7 +179,7 @@ namespace GitVersionControl
 
             Painter2D painter = context.painter2D;
             painter.strokeColor = resolvedStyle.color;
-            painter.lineWidth = 1.6f * scale;
+            painter.lineWidth = StrokeUnits * scale;
             painter.lineCap = LineCap.Round;
             painter.lineJoin = LineJoin.Round;
 
@@ -273,44 +273,16 @@ namespace GitVersionControl
                     Polyline(painter, P(3f, 5f), P(8f, 5f), P(9.5f, 7f), P(17f, 7f), P(17f, 15.5f), P(3f, 15.5f), P(3f, 5f));
                     break;
                 case ActionGlyphKind.Cloud:
-                    // Material Symbols "cloud"(FILL0 wght400 opsz48) SVG 경로(viewBox 0 -960 960 960)를 그대로 20 칸으로 옮겼다. 바깥·안쪽 두 윤곽을 홀짝 규칙으로 채워 테두리만 남긴다.
-                    painter.fillColor = resolvedStyle.color;
+                    // 구름을 다른 선 아이콘처럼 같은 굵기로 긋는다: 밑선 + 오른쪽·위·왼쪽 세 덩이(호).
+                    // (Material "cloud" 윤곽을 채우고 덧그으면 덩이 이음매에서 선이 삐죽 튀어나와 쓰지 않는다.)
                     painter.BeginPath();
-                    painter.MoveTo(P(5.229f, 16.667f));
-                    painter.QuadraticCurveTo(P(3.396f, 16.667f), P(2.115f, 15.385f));
-                    painter.QuadraticCurveTo(P(0.833f, 14.104f), P(0.833f, 12.271f));
-                    painter.QuadraticCurveTo(P(0.833f, 10.646f), P(1.875f, 9.417f));
-                    painter.QuadraticCurveTo(P(2.917f, 8.188f), P(4.521f, 7.938f));
-                    painter.QuadraticCurveTo(P(4.938f, 5.917f), P(6.479f, 4.635f));
-                    painter.QuadraticCurveTo(P(8.021f, 3.354f), P(10.042f, 3.354f));
-                    painter.QuadraticCurveTo(P(12.375f, 3.354f), P(13.979f, 5.052f));
-                    painter.QuadraticCurveTo(P(15.583f, 6.75f), P(15.583f, 9.125f));
-                    painter.LineTo(P(15.583f, 9.625f));
-                    painter.QuadraticCurveTo(P(17.083f, 9.583f), P(18.125f, 10.594f));
-                    painter.QuadraticCurveTo(P(19.167f, 11.604f), P(19.167f, 13.146f));
-                    painter.QuadraticCurveTo(P(19.167f, 14.583f), P(18.125f, 15.625f));
-                    painter.QuadraticCurveTo(P(17.083f, 16.667f), P(15.646f, 16.667f));
-                    painter.LineTo(P(5.229f, 16.667f));
+                    painter.MoveTo(P(5.5f, 15.5f));
+                    painter.LineTo(P(15f, 15.5f));
+                    painter.Arc(P(15f, 12.5f), 3f * scale, 90f, -90f, ArcDirection.CounterClockwise);
+                    painter.Arc(P(10.2f, 10.3f), 4.8f * scale, -9.5f, -165f, ArcDirection.CounterClockwise);
+                    painter.Arc(P(5.5f, 12.25f), 3.25f * scale, -89f, -270f, ArcDirection.CounterClockwise);
                     painter.ClosePath();
-                    painter.MoveTo(P(5.229f, 15.417f));
-                    painter.LineTo(P(15.646f, 15.417f));
-                    painter.QuadraticCurveTo(P(16.583f, 15.417f), P(17.25f, 14.75f));
-                    painter.QuadraticCurveTo(P(17.917f, 14.083f), P(17.917f, 13.146f));
-                    painter.QuadraticCurveTo(P(17.917f, 12.208f), P(17.25f, 11.542f));
-                    painter.QuadraticCurveTo(P(16.583f, 10.875f), P(15.646f, 10.875f));
-                    painter.LineTo(P(14.333f, 10.875f));
-                    painter.LineTo(P(14.333f, 9.125f));
-                    painter.QuadraticCurveTo(P(14.333f, 7.229f), P(13.062f, 5.917f));
-                    painter.QuadraticCurveTo(P(11.792f, 4.604f), P(9.958f, 4.604f));
-                    painter.QuadraticCurveTo(P(8.125f, 4.604f), P(6.844f, 5.917f));
-                    painter.QuadraticCurveTo(P(5.562f, 7.229f), P(5.562f, 9.125f));
-                    painter.LineTo(P(5.167f, 9.125f));
-                    painter.QuadraticCurveTo(P(3.875f, 9.125f), P(2.979f, 10.031f));
-                    painter.QuadraticCurveTo(P(2.083f, 10.938f), P(2.083f, 12.271f));
-                    painter.QuadraticCurveTo(P(2.083f, 13.583f), P(3f, 14.5f));
-                    painter.QuadraticCurveTo(P(3.917f, 15.417f), P(5.229f, 15.417f));
-                    painter.ClosePath();
-                    painter.Fill(FillRule.OddEven);
+                    painter.Stroke();
                     break;
                 case ActionGlyphKind.GitHub:
                     // 원본 SVG(16 칸)를 20 칸 가운데로 옮긴 외곽선 하나. 고양이는 원 아래에서 파고든 빈자리다.
@@ -396,7 +368,7 @@ namespace GitVersionControl
                     painter.LineTo(P(6.979f, 8.271f));
                     painter.LineTo(P(8.854f, 8.271f));
                     painter.ClosePath();
-                    painter.Fill(FillRule.OddEven);
+                    FillOutline(painter, scale);
                     break;
                 case ActionGlyphKind.Check:
                     // 원본 SVG(viewBox 0 -960 960 960)를 20 칸으로 옮긴 외곽선을 선 대신 글자색으로 채운다.
@@ -444,50 +416,11 @@ namespace GitVersionControl
                     Polyline(painter, P(11.2f, 11.15f), P(17.05f, 17.0f));
                     break;
                 case ActionGlyphKind.FilterAdd:
-                    // Material Symbols "filter_plus"(FILL0 wght400 opsz48) SVG 경로(viewBox 0 -960 960 960)를 그대로 20 칸으로 옮겼다.
-                    // 깔때기 바깥·안쪽 윤곽을 홀짝 규칙으로 채워 테두리만 남기고, 겹치지 않는 + 는 그대로 채워진다.
-                    painter.fillColor = resolvedStyle.color;
-                    painter.BeginPath();
-                    painter.MoveTo(P(7.646f, 16.667f));
-                    painter.QuadraticCurveTo(P(7.292f, 16.667f), P(7.052f, 16.427f));
-                    painter.QuadraticCurveTo(P(6.812f, 16.188f), P(6.812f, 15.833f));
-                    painter.LineTo(P(6.812f, 10.833f));
-                    painter.LineTo(P(1.833f, 4.479f));
-                    painter.QuadraticCurveTo(P(1.750f, 4.375f), P(1.719f, 4.261f));
-                    painter.QuadraticCurveTo(P(1.688f, 4.147f), P(1.688f, 4.042f));
-                    painter.QuadraticCurveTo(P(1.688f, 3.750f), P(1.882f, 3.542f));
-                    painter.QuadraticCurveTo(P(2.077f, 3.333f), P(2.396f, 3.333f));
-                    painter.LineTo(P(14.562f, 3.333f));
-                    painter.QuadraticCurveTo(P(14.881f, 3.333f), P(15.076f, 3.542f));
-                    painter.QuadraticCurveTo(P(15.271f, 3.750f), P(15.271f, 4.033f));
-                    painter.QuadraticCurveTo(P(15.271f, 4.146f), P(15.240f, 4.260f));
-                    painter.QuadraticCurveTo(P(15.208f, 4.375f), P(15.125f, 4.479f));
-                    painter.LineTo(P(10.146f, 10.833f));
-                    painter.LineTo(P(10.146f, 15.833f));
-                    painter.QuadraticCurveTo(P(10.146f, 16.188f), P(9.906f, 16.427f));
-                    painter.QuadraticCurveTo(P(9.667f, 16.667f), P(9.312f, 16.667f));
-                    painter.LineTo(P(7.646f, 16.667f));
-                    painter.ClosePath();
-                    painter.MoveTo(P(8.479f, 10.917f));
-                    painter.LineTo(P(13.479f, 4.583f));
-                    painter.LineTo(P(3.479f, 4.583f));
-                    painter.LineTo(P(8.479f, 10.917f));
-                    painter.ClosePath();
-                    painter.MoveTo(P(14.646f, 16.667f));
-                    painter.LineTo(P(14.646f, 14.208f));
-                    painter.LineTo(P(12.188f, 14.208f));
-                    painter.LineTo(P(12.188f, 12.958f));
-                    painter.LineTo(P(14.646f, 12.958f));
-                    painter.LineTo(P(14.646f, 10.521f));
-                    painter.LineTo(P(15.896f, 10.521f));
-                    painter.LineTo(P(15.896f, 12.958f));
-                    painter.LineTo(P(18.333f, 12.958f));
-                    painter.LineTo(P(18.333f, 14.208f));
-                    painter.LineTo(P(15.896f, 14.208f));
-                    painter.LineTo(P(15.896f, 16.667f));
-                    painter.LineTo(P(14.646f, 16.667f));
-                    painter.ClosePath();
-                    painter.Fill(FillRule.OddEven);
+                    // Material Symbols "filter_plus" 모양을 다른 선 아이콘과 같은 굵기로 긋는다: 깔때기(위 넓은 입구·좁은 목·기둥) + 오른쪽 아래 더하기.
+                    // (원본 윤곽을 채우고 덧그으면 둥근 모서리에서 선이 삐죽 튀어나와 쓰지 않는다.)
+                    Polyline(painter, P(2.9f, 4f), P(14f, 4f), P(9.5f, 10.6f), P(9.5f, 16f), P(7.4f, 16f), P(7.4f, 10.6f), P(2.9f, 4f));
+                    Polyline(painter, P(12.6f, 13.6f), P(17.9f, 13.6f));
+                    Polyline(painter, P(15.25f, 11f), P(15.25f, 16.2f));
                     break;
                 case ActionGlyphKind.Caret:
                     painter.fillColor = resolvedStyle.color;
@@ -571,6 +504,45 @@ namespace GitVersionControl
         private static void DrawTray(Painter2D painter, Func<float, float, Vector2> p)
         {
             Polyline(painter, p(4f, 11f), p(4f, 17f), p(16f, 17f), p(16f, 11f));
+        }
+
+        /// <summary>
+        /// Material Symbols(FILL0 wght400) 윤곽을 홀짝 규칙으로 채운 뒤, 같은 윤곽을 한 번 더 그어 테두리를 선 아이콘 굵기(1.6 칸)에 맞춘다.
+        /// 원본 테두리는 20 칸에서 1.25 칸이라 선으로 그은 다른 아이콘(사이드바 로컬·스태시·태그…) 옆에서 가늘어 보였다.
+        /// 바깥·안쪽 윤곽을 각각 긋므로 테두리는 선 굵기만큼(양쪽 절반씩) 두꺼워진다.
+        /// 직선 윤곽에만 쓴다 — 곡선(QuadraticCurveTo) 모서리가 있는 윤곽을 덧그으면 이음매에서 선이 삐죽 튀어나온다(구름·필터는 선으로 다시 그렸다).
+        /// </summary>
+        private static void FillOutline(Painter2D painter, float scale)
+        {
+            painter.Fill(FillRule.OddEven);
+            float width = painter.lineWidth;
+            painter.lineWidth = (StrokeUnits - MaterialOutlineUnits) * scale;
+            painter.Stroke();
+            painter.lineWidth = width;
+        }
+
+        /// <summary>선으로 긋는 아이콘의 굵기(20 칸 기준).</summary>
+        private const float StrokeUnits = 1.6f;
+
+        /// <summary>Material Symbols wght400 윤곽 테두리 두께(20 칸 기준, 960 칸의 60).</summary>
+        private const float MaterialOutlineUnits = 1.25f;
+
+        /// <summary>
+        /// 검색창(ToolbarSearchField 등)의 돋보기를 Unity 기본 그림(작은 PNG 라 키우면 흐릿하다) 대신 이 선 아이콘으로 바꾼다.
+        /// 기본 그림은 USS(<c>.git-search-field--vector</c>)가 지운다. 돋보기 칸이 없으면 아무것도 하지 않는다.
+        /// </summary>
+        public static void ReplaceSearchIcon(VisualElement searchField)
+        {
+            VisualElement button = searchField?.Q(className: "unity-search-field-base__search-button");
+            if (button == null || button.Q<ActionGlyph>() != null)
+            {
+                return;
+            }
+            searchField.AddToClassList("git-search-field--vector");
+            ActionGlyph glyph = new(ActionGlyphKind.Search);
+            glyph.AddToClassList("git-search-icon");
+            glyph.pickingMode = PickingMode.Ignore;
+            button.Add(glyph);
         }
 
         private static void Polyline(Painter2D painter, params Vector2[] points)

@@ -26,6 +26,7 @@ namespace GitVersionControl
 
         protected void CreateContent()
         {
+            GitIcons.ApplyTo(this);
             minSize = MinimumSize;
             VisualElement scaleHost = new();
             Content = new VisualElement();
@@ -69,7 +70,7 @@ namespace GitVersionControl
 
         protected static GUIContent TitleWithIcon(string title)
         {
-            return new GUIContent(title, EditorGUIUtility.IconContent("d_UnityEditor.VersionControl").image);
+            return new GUIContent(title, GitIcons.Window);
         }
 
         /// <summary>

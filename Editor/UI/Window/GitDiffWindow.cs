@@ -24,7 +24,7 @@ namespace GitVersionControl
         public static void Open(GitDiffTarget target, IGitDiffService service)
         {
             GitDiffWindow window = GetWindow<GitDiffWindow>();
-            window.titleContent = new GUIContent(GitText.Get("diff.windowTitle"), EditorGUIUtility.IconContent("d_UnityEditor.VersionControl").image);
+            window.titleContent = new GUIContent(GitText.Get("diff.windowTitle"), GitIcons.Window);
             window._service = service;
             window._target = target;
             window.Show();
@@ -33,6 +33,7 @@ namespace GitVersionControl
 
         private void CreateGUI()
         {
+            GitIcons.ApplyTo(this);
             // 너무 좁으면 diff 막대가 겹쳐 깨진다. 막대가 버튼을 숨겨 가며 들어가는 폭까지만 줄인다(보조 창과 같다).
             minSize = new Vector2(520, 300);
             _service ??= new GitDiffService(new OverlayDialogService());

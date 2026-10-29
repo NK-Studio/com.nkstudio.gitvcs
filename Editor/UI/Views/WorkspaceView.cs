@@ -71,6 +71,7 @@ namespace GitVersionControl
         {
             _state = state;
             _filter = Root.Require<ToolbarSearchField>("filter");
+            ActionGlyph.ReplaceSearchIcon(_filter);
             _showIgnored = Root.Require<ToolbarToggle>("show-ignored");
             _changedOnly = Root.Require<ToolbarToggle>("changed-only");
             _summary = Root.Require<Label>("summary");

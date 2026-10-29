@@ -619,6 +619,18 @@
     -unity-text-align: middle-left;
 }
 
+/* 검색창 돋보기: Unity 기본 그림(작은 PNG, 키우면 흐릿하다)을 지우고 ActionGlyph.ReplaceSearchIcon 이 넣은 선 아이콘을 보인다. */
+.git-search-field--vector .unity-search-field-base__search-button,
+.git-search-field--vector .unity-search-field-base__search-button:hover {
+    background-image: none;
+}
+
+.git-search-icon {
+    width: 100%;
+    height: 100%;
+    color: var(--git-text-muted);
+}
+
 /* 돋보기도 글자에 맞춰 키운다. */
 .ref-tree .ref-tree__filter .unity-search-field-base__search-button {
     width: 16px;
@@ -665,7 +677,7 @@
     align-items: center;
     flex-grow: 1;
     min-width: 0;
-    height: 24px;
+    height: 28px;
     padding-right: 14px;
 }
 
@@ -787,19 +799,31 @@
     margin: 0;
 }
 
+/*
+ * 검색 줄은 바로 아래 자식 줄(My Pull Requests…)의 펼침 화살표 위치부터 시작한다(RefSidebar 가 이 줄에만 붙인다).
+ * Unity TreeView 는 들여쓰기를 화살표 칸의 여백으로 넣어, 화살표 칸을 숨기면 들여쓰기도 사라진다 — 그만큼(한 단계 18px + 1px)을 직접 띄운다.
+ */
+.ref-tree__item--pr-search .unity-tree-view__item-toggle {
+    display: none;
+}
+
+.ref-tree__item--pr-search .ref-tree__row {
+    padding-left: 19px;
+}
+
 .ref-tree__pr-search-field > .unity-base-text-field__input {
-    height: 20px;
-    padding: 0 6px;
+    height: 24px;
+    padding: 0 8px;
     border-width: 1px;
     border-radius: 4px;
     border-color: var(--git-field-border);
     background-color: var(--git-field-bg);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .ref-tree__pr-filter-add {
-    width: 22px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     margin: 0 0 0 4px;
     padding: 2px;
     border-width: 0;
@@ -808,8 +832,8 @@
 }
 
 .ref-tree__pr-filter-add > .action-glyph {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
 }
 
 .ref-tree__pr-filter-add:hover {

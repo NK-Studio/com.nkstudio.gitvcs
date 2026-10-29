@@ -18,7 +18,8 @@ namespace GitVersionControl
     public sealed class RefSidebar : IDisposable
     {
         private const string Block = "ref-tree";
-        private const float RowHeight = 24f;
+        /// <summary>줄 높이. 24 는 밝은 테마에서 줄이 빽빽해 보여 GitKraken 처럼 여유를 둔다.</summary>
+        private const float RowHeight = 28f;
 
         private readonly GitServices _services;
         private readonly RefSidebarState _state;
@@ -106,6 +107,7 @@ namespace GitVersionControl
 
             _filter = new ToolbarSearchField();
             _filter.AddToClassList(Block + "__filter");
+            ActionGlyph.ReplaceSearchIcon(_filter);
             // Fork 처럼 비어 있으면 "Filter" 자리표시. 포커스 표시는 바깥 상자에(브랜치 탐색기 검색창과 같다).
             TextField filterInput = _filter.Q<TextField>();
             if (filterInput != null)
@@ -594,6 +596,9 @@ namespace GitVersionControl
             row.EnableInClassList(Block + "__row--menu", node.Kind is RefNodeKind.Branch or RefNodeKind.PullRequestGroup or RefNodeKind.PullRequest);
             bool isSearch = node.Kind == RefNodeKind.PullRequestSearch;
             row.EnableInClassList(Block + "__row--pr-search", isSearch);
+            // GitKraken 처럼 검색 칸은 아래 자식 줄의 펼침 화살표 위치부터 시작한다: 이 줄만 트리의 화살표 자리를 숨긴다.
+            // (줄 요소는 다시 쓰이므로 다른 줄에서는 반드시 되돌린다.)
+            row.parent?.parent?.EnableInClassList(Block + "__item--pr-search", isSearch);
             VisualElement searchRow = row[5];
             searchRow.SetVisible(isSearch);
             // 검색 줄에서만 끈다. 다른 줄은 인라인 값을 지워 USS(묶음·안내 줄은 아이콘 없음)가 정하게 둔다.

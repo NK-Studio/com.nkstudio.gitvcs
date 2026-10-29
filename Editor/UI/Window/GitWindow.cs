@@ -44,7 +44,7 @@ namespace GitVersionControl
         public static void Open()
         {
             GitWindow window = GetWindow<GitWindow>();
-            window.titleContent = new GUIContent("Git", EditorGUIUtility.IconContent("d_UnityEditor.VersionControl").image);
+            window.titleContent = new GUIContent("Git", GitIcons.Window);
             window.Show();
         }
 
@@ -66,6 +66,7 @@ namespace GitVersionControl
 
         private void CreateGUI()
         {
+            GitIcons.ApplyTo(this);
             GitText.LanguageChanged -= Rebuild;
             GitText.LanguageChanged += Rebuild;
             GitTheme.Changed -= ApplyTheme;

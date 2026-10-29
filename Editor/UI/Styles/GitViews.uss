@@ -440,12 +440,6 @@
     background-image: none;
 }
 
-.branch-explorer__search-icon {
-    width: 16px;
-    height: 16px;
-    color: var(--git-text-muted);
-}
-
 /* 검색 옆 "다음" 과 모양 고르기(그래프 · 커밋 목록): 검색창과 같은 높이·테두리의 상자 버튼으로 맞춘다.
    클래스를 겹쳐 적어 테마의 도구 막대 버튼 규칙(평평한 버튼·회색 칸)보다 이긴다. */
 .branch-explorer__toolbar .unity-toolbar-button.branch-explorer__next,

@@ -93,14 +93,7 @@ namespace GitVersionControl
 
         private static string CurrentTooltip => GitMainToolbarMenu.Tooltip(CurrentBranchName, GitText.Get);
 
-        private static Texture2D Icon
-        {
-            get
-            {
-                string iconName = EditorGUIUtility.isProSkin ? "d_UnityEditor.VersionControl" : "UnityEditor.VersionControl";
-                return EditorGUIUtility.IconContent(iconName).image as Texture2D;
-            }
-        }
+        private static Texture2D Icon => GitIcons.Toolbar;
 
         /// <summary>
         /// 저장소는 상태가 바뀔 때마다(파일 저장 등) Changed 를 쏘므로, 글자가 그대로면 도구 막대를 건드리지 않는다.

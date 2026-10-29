@@ -25,13 +25,7 @@ namespace GitVersionControl
         {
             BindStyleMenu(Root.Require<ToolbarMenu>("style-menu"));
             // 검색창 돋보기: Unity 기본 그림 대신 우리 선 아이콘(Material "search"). 기본 그림은 USS 로 지운다.
-            VisualElement searchButton = Root.Require<ToolbarSearchField>("search").Q(className: "unity-search-field-base__search-button");
-            if (searchButton != null)
-            {
-                ActionGlyph glyph = new(ActionGlyphKind.Search);
-                glyph.AddToClassList("branch-explorer__search-icon");
-                searchButton.Add(glyph);
-            }
+            ActionGlyph.ReplaceSearchIcon(Root.Require<ToolbarSearchField>("search"));
         }
 
         /// <summary>
