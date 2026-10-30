@@ -1193,6 +1193,11 @@
     flex-basis: 0;
 }
 
+/* "만든 뒤 브랜치 올리기" 아래 칸들: 체크 칸 글자 시작에 맞춰 들여 쓴다. */
+.side-drawer__suboptions {
+    margin-left: 22px;
+}
+
 .side-drawer__section {
     flex-shrink: 0;
 }

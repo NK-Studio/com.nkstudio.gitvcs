@@ -50,6 +50,13 @@ namespace GitVersionControl
         private readonly TextField _createRemoteName;
         private readonly Label _createRemoteProblem;
         private readonly Toggle _pushAfter;
+
+        /// <summary>"만든 뒤 올리기" 를 켰을 때 보이는 칸들: 기본 브랜치 · 현재 브랜치 · 다른 브랜치 · 태그.</summary>
+        private readonly VisualElement _pushOptions;
+        private readonly SearchSelect<string> _defaultBranch;
+        private readonly Toggle _pushCurrent;
+        private readonly Toggle _pushOthers;
+        private readonly Toggle _pushTags;
         private readonly Label _createNote;
         private readonly Button _createButton;
 
@@ -62,6 +69,13 @@ namespace GitVersionControl
 
         /// <summary>새 저장소 탭의 소유자 목록을 읽었는지(내 계정 + 조직).</summary>
         private bool _ownersLoaded;
+
+        /// <summary>이 저장소의 로컬 브랜치(새 저장소에 올릴 후보)와 태그 수.</summary>
+        private List<string> _localBranches = new();
+
+        /// <summary>이미 다른 원격을 추적하는 로컬 브랜치. 새 저장소에 올려도 추적 원격은 바꾸지 않는다.</summary>
+        private HashSet<string> _trackedBranches = new();
+        private int _tagCount;
 
         /// <summary>이 계정이 볼 수 있는 저장소(같은 이름 검사에 쓴다).</summary>
         private List<GitHubRepository> _knownRepositories = new();
@@ -145,16 +159,31 @@ namespace GitVersionControl
             _private = new Toggle { text = GitText.Get("remote.createPrivate"), value = true };
             _private.AddToClassList(Block + "__toggle");
             _createPanel.Add(_private);
-            _createRemoteName = Field(_createPanel, GitText.Get("remote.name"), null);
+            _createRemoteName = Field(_createPanel, GitText.Get("remote.remoteName"), null);
             _createRemoteName.RegisterValueChangedCallback(_ =>
             {
                 _createRemoteNameEdited = true;
                 Validate();
             });
             _createRemoteProblem = Problem(_createPanel);
-            _pushAfter = new Toggle { value = true };
+            // 개발 중인 프로젝트는 지금 작업 브랜치(feature/…)에 있기 쉽다. 빈 저장소에 처음 올린 브랜치가 GitHub 기본 브랜치가 되므로
+            // 기본 브랜치(main·master)를 따로 고르게 하고 언제나 그것부터 올린다(GitRemoteForm.PublishBranches).
+            _pushAfter = new Toggle { text = GitText.Get("remote.createPush"), value = true };
             _pushAfter.AddToClassList(Block + "__toggle");
+            _pushAfter.RegisterValueChangedCallback(_ => Validate());
             _createPanel.Add(_pushAfter);
+            _pushOptions = new VisualElement();
+            _pushOptions.AddToClassList(Block + "__suboptions");
+            Caption(_pushOptions, GitText.Get("remote.defaultBranch"));
+            _defaultBranch = new SearchSelect<string>(GitText.Get("drawer.select"), branch => branch,
+                branch => branch == GitRepository.Branch?.Name ? GitText.Get("remote.currentBranch") : null);
+            _defaultBranch.Changed += _ => Validate();
+            _pushOptions.Add(_defaultBranch.Root);
+            Show(Note(_pushOptions), GitText.Get("remote.defaultBranchNote"));
+            _pushCurrent = OptionToggle(_pushOptions, true);
+            _pushOthers = OptionToggle(_pushOptions, false);
+            _pushTags = OptionToggle(_pushOptions, false);
+            _createPanel.Add(_pushOptions);
             _createNote = Note(_createPanel);
             _createButton = PrimaryButton(_createPanel, GitText.Get("remote.create"), CreateOnGitHub);
             _gitHubSignedIn.Add(_createPanel);
@@ -174,6 +203,15 @@ namespace GitVersionControl
             Open();
             SelectGitHubMode(create: true);
             SelectTab(gitHub: true);
+        }
+
+        private Toggle OptionToggle(VisualElement parent, bool value)
+        {
+            Toggle toggle = new() { value = value };
+            toggle.AddToClassList(Block + "__toggle");
+            toggle.RegisterValueChangedCallback(_ => Validate());
+            parent.Add(toggle);
+            return toggle;
         }
 
         private static Button ModeButton(string text, Action clicked)
@@ -218,6 +256,10 @@ namespace GitVersionControl
             _createRemoteName.SetValueWithoutNotify(string.Empty);
             _createRemoteNameEdited = false;
             _pushAfter.SetValueWithoutNotify(true);
+            _pushCurrent.SetValueWithoutNotify(true);
+            _pushOthers.SetValueWithoutNotify(false);
+            _pushTags.SetValueWithoutNotify(false);
+            _defaultBranch.Select(null);
         }
 
         protected override async void LoadAfterOpen(int openCount)
@@ -242,6 +284,7 @@ namespace GitVersionControl
                 _createRemoteName.SetValueWithoutNotify(suggested);
             }
             Validate();
+            LoadBranches(openCount);
             // 열 때마다 다시 읽는다(방금 GitHub 에서 만든 저장소도 보이게). 읽는 동안에는 지난 목록을 그대로 보인다.
             if (GitHubAccount.IsSignedIn)
             {
@@ -342,6 +385,30 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 새 저장소에 올릴 후보: 로컬 브랜치·태그 수, 그리고 처음 고를 기본 브랜치(<see cref="GitRemoteForm.PickDefaultBranch"/>).
+        /// </summary>
+        private async void LoadBranches(int openCount)
+        {
+            Task<(List<GitBranchRef> branches, string error)> branchTask = Services.History.BranchesAsync();
+            Task<GitResult> configTask = GitRepository.RunAsync("config", "--get", "init.defaultBranch");
+            Task<GitResult> tagTask = GitRepository.RunAsync("tag");
+            (List<GitBranchRef> branches, _) = await branchTask;
+            GitResult config = await configTask;
+            GitResult tags = await tagTask;
+            if (IsCurrent(openCount) == false)
+            {
+                return;
+            }
+            _localBranches = branches.Where(b => b.IsRemote == false).Select(b => b.Name).ToList();
+            _trackedBranches = new HashSet<string>(branches.Where(b => b.IsRemote == false && string.IsNullOrEmpty(b.Upstream) == false).Select(b => b.Name));
+            _tagCount = tags.Success ? tags.Output.Split('\n').Count(line => line.Trim().Length > 0) : 0;
+            _defaultBranch.SetItems(_localBranches);
+            GitBranchInfo branch = GitRepository.Branch;
+            _defaultBranch.Select(GitRemoteForm.PickDefaultBranch(_localBranches, config.Success ? config.Output.Trim() : null, CanPush(branch) ? branch.Name : null));
+            Validate();
+        }
+
+        /// <summary>
         /// 새 저장소의 소유자 후보: 내 계정을 맨 앞에, 그 뒤에 속한 조직. 처음에는 내 계정을 고른다.
         /// </summary>
         private async void LoadOwners()
@@ -409,8 +476,8 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 새 저장소 탭: 저장소 이름(GitHub 규칙·같은 이름) → 원격 이름 순서로 문제를 보이고, 만들 주소를 미리 보인다.
-        /// 현재 브랜치에 커밋이 없거나 브랜치가 아니면(detached) 바로 올리기 칸을 감춘다.
+        /// 새로 만들기: 저장소 이름(GitHub 규칙·같은 이름) → 원격 이름 순서로 문제를 보이고, 만들 주소와 올릴 브랜치를 미리 보인다.
+        /// 올리기 칸은 있는 것만 보인다: 현재 브랜치가 기본 브랜치와 다를 때만 "현재 브랜치도", 다른 로컬 브랜치가 있을 때만 "다른 브랜치도", 태그가 있을 때만 "태그도".
         /// </summary>
         private void ValidateCreate(bool busy)
         {
@@ -427,16 +494,59 @@ namespace GitVersionControl
             BranchNameProblem remoteProblem = GitRemoteForm.CheckName(_createRemoteName.value?.Trim(), _existing);
             Show(_createRemoteProblem, NameProblemText(remoteProblem, "remote.problemExists"));
 
-            GitBranchInfo branch = GitRepository.Branch;
-            bool canPush = CanPush(branch);
-            _pushAfter.SetVisible(canPush);
-            if (canPush)
+            bool canPublish = _localBranches.Count > 0 && GitRepository.HeadCommit != null;
+            _pushAfter.SetVisible(canPublish);
+            _pushOptions.SetVisible(canPublish && _pushAfter.value);
+            string current = CurrentBranchName();
+            string defaultBranch = _defaultBranch.Selected;
+            bool currentDiffers = current != null && defaultBranch != null && current != defaultBranch;
+            _pushCurrent.SetVisible(currentDiffers);
+            if (currentDiffers)
             {
-                _pushAfter.text = GitText.Format("remote.createPush", branch.Name);
+                _pushCurrent.text = GitText.Format("remote.pushCurrent", current);
             }
-            bool ready = owner != null && nameProblem == GitHubRepoNameProblem.None && remoteProblem == BranchNameProblem.None;
-            Show(_createNote, ready ? GitText.Format("remote.createPreview", owner, name, _createRemoteName.value.Trim()) : null);
+            int others = GitRemoteForm.PublishBranches(defaultBranch, current, true, true, _localBranches).Count - 1 - (currentDiffers ? 1 : 0);
+            _pushOthers.SetVisible(others > 0);
+            _pushOthers.text = GitText.Format("remote.pushOthers", others);
+            _pushTags.SetVisible(_tagCount > 0);
+            _pushTags.text = GitText.Format("remote.pushTags", _tagCount);
+
+            (List<string> branches, bool tags) = PublishPlan();
+            bool ready = owner != null && nameProblem == GitHubRepoNameProblem.None && remoteProblem == BranchNameProblem.None
+                         && (canPublish == false || _pushAfter.value == false || defaultBranch != null);
+            string preview = null;
+            if (ready)
+            {
+                preview = GitText.Format("remote.createPreview", owner, name, _createRemoteName.value.Trim());
+                if (branches.Count > 0)
+                {
+                    string list = branches[0] + GitText.Get("remote.defaultMark") + string.Concat(branches.Skip(1).Select(b => ", " + b));
+                    preview += "\n" + GitText.Format("remote.createPreviewPush", list) + (tags ? GitText.Format("remote.createPreviewTags", _tagCount) : string.Empty);
+                }
+            }
+            Show(_createNote, preview);
             _createButton.SetEnabled(busy == false && GitHubAccount.IsSignedIn && ready);
+        }
+
+        /// <summary>현재 브랜치 이름(커밋이 있는 브랜치일 때만).</summary>
+        private static string CurrentBranchName()
+        {
+            GitBranchInfo branch = GitRepository.Branch;
+            return CanPush(branch) ? branch.Name : null;
+        }
+
+        /// <summary>지금 고른 대로 올릴 브랜치(기본 브랜치가 맨 앞)와 태그를 올릴지.</summary>
+        private (List<string> branches, bool tags) PublishPlan()
+        {
+            bool canPublish = _localBranches.Count > 0 && GitRepository.HeadCommit != null;
+            if (canPublish == false || _pushAfter.value == false || _defaultBranch.Selected == null)
+            {
+                return (new List<string>(), false);
+            }
+            string current = CurrentBranchName();
+            bool includeCurrent = current != null && current != _defaultBranch.Selected && _pushCurrent.value;
+            List<string> branches = GitRemoteForm.PublishBranches(_defaultBranch.Selected, current, includeCurrent, _pushOthers.value, _localBranches);
+            return (branches, _tagCount > 0 && _pushTags.value);
         }
 
         private void AddFromUrl()
@@ -459,7 +569,9 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// GitHub 에 빈 저장소를 만들고 → 원격으로 더하고(가져오기까지) → 고르면 현재 브랜치를 upstream 으로 올린다. 한 작업으로 묶어 상태 줄·오류 창을 함께 쓴다.
+        /// GitHub 에 빈 저장소를 만들고 → 원격으로 더하고(가져오기까지) → 고른 브랜치를 기본 브랜치부터 차례로 올리고 → 고르면 태그도 올린 뒤
+        /// → 기본 브랜치를 GitHub 에도 한 번 더 정해 둔다. 한 작업으로 묶어 상태 줄·오류 창을 함께 쓴다.
+        /// 추적 원격(upstream)은 아직 없는 브랜치에만 건다 — 이미 다른 원격(origin 등)을 추적하던 브랜치는 그대로 두어 평소 Pull·Push 가 바뀌지 않게 한다.
         /// 만들기는 됐는데 그 뒤가 실패하면 다시 눌렀을 때 또 만들지 않고 방금 만든 저장소를 쓴다(<see cref="_created"/>).
         /// </summary>
         private async void CreateOnGitHub()
@@ -472,8 +584,8 @@ namespace GitVersionControl
             string name = _repoName.value.Trim();
             string remote = _createRemoteName.value.Trim();
             bool isPrivate = _private.value;
-            GitBranchInfo branch = GitRepository.Branch;
-            string pushBranch = CanPush(branch) && _pushAfter.value ? branch.Name : null;
+            (List<string> branches, bool pushTags) = PublishPlan();
+            HashSet<string> tracked = new(_trackedBranches);
             await Services.Runner.RunAsync(GitText.Format("op.createGitHubRepo", owner + "/" + name), async () =>
             {
                 if (_created == null || string.Equals(_created.FullName, owner + "/" + name, StringComparison.OrdinalIgnoreCase) == false)
@@ -485,12 +597,36 @@ namespace GitVersionControl
                     }
                     _created = repository;
                 }
-                GitResult added = await Services.Commands.AddRemoteAsync(remote, _created.CloneUrl, null);
-                if (added.Success == false || pushBranch == null)
+                GitResult result = await Services.Commands.AddRemoteAsync(remote, _created.CloneUrl, null);
+                if (result.Success == false)
                 {
-                    return added;
+                    return result;
                 }
-                return await Services.Commands.PushBranchAsync(remote, pushBranch, setUpstream: true);
+                foreach (string branch in branches)
+                {
+                    result = await Services.Commands.PushBranchAsync(remote, branch, setUpstream: tracked.Contains(branch) == false);
+                    if (result.Success == false)
+                    {
+                        return result;
+                    }
+                }
+                if (pushTags)
+                {
+                    result = await Services.Commands.PushAllTagsAsync(remote);
+                    if (result.Success == false)
+                    {
+                        return result;
+                    }
+                }
+                if (branches.Count > 1)
+                {
+                    string error = await GitHubRepositories.SetDefaultBranchAsync(_created.FullName, branches[0]);
+                    if (error != null)
+                    {
+                        UnityEngine.Debug.LogWarning(GitText.Format("remote.setDefaultFailed", branches[0], error));
+                    }
+                }
+                return result;
             }, refreshAssets: false);
             _existing = await RemoteNamesAsync();
             if (_existing.Contains(remote))

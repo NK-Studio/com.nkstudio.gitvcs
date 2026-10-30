@@ -163,6 +163,11 @@ namespace GitVersionControl
             return new[] { "push", remote, "refs/tags/" + name };
         }
 
+        public static string[] PushAllTags(string remote)
+        {
+            return new[] { "push", remote, "--tags" };
+        }
+
         public static string[] DeleteRemoteTag(string remote, string name)
         {
             return new[] { "push", remote, "--delete", "refs/tags/" + name };

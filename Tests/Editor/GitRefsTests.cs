@@ -227,6 +227,7 @@ namespace GitVersionControl.Tests
         {
             Assert.AreEqual("tag -d v1", Joined(GitCommitCommands.DeleteTag("v1")));
             Assert.AreEqual("push origin refs/tags/v1", Joined(GitCommitCommands.PushTag("origin", "v1")));
+            Assert.AreEqual("push origin --tags", Joined(GitCommitCommands.PushAllTags("origin")));
             Assert.AreEqual("push origin --delete refs/tags/v1", Joined(GitCommitCommands.DeleteRemoteTag("origin", "v1")));
             Assert.AreEqual("stash apply stash@{1}", Joined(GitCommitCommands.StashApply("stash@{1}", drop: false)));
             Assert.AreEqual("stash pop stash@{1}", Joined(GitCommitCommands.StashApply("stash@{1}", drop: true)));
@@ -317,6 +318,32 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("https://github.com/me/my-game.git", created.CloneUrl);
             Assert.IsNull(GitRemoteForm.ParseRepository("{\"message\":\"Bad credentials\"}"));
             Assert.IsNull(GitRemoteForm.ParseRepository(""));
+        }
+
+        [Test]
+        public void Test_PickDefaultBranch()
+        {
+            // 개발 중인 프로젝트: 지금 feature 브랜치에 있어도 master 가 기본.
+            Assert.AreEqual("master", GitRemoteForm.PickDefaultBranch(new[] { "feature/win-test", "master" }, null, "feature/win-test"));
+            Assert.AreEqual("main", GitRemoteForm.PickDefaultBranch(new[] { "master", "main" }, null, "master"));
+            // main·master 가 없으면 git 설정, 그것도 없으면 현재 브랜치.
+            Assert.AreEqual("trunk", GitRemoteForm.PickDefaultBranch(new[] { "trunk", "dev" }, "trunk", "dev"));
+            Assert.AreEqual("dev", GitRemoteForm.PickDefaultBranch(new[] { "trunk", "dev" }, "develop", "dev"));
+            Assert.AreEqual("trunk", GitRemoteForm.PickDefaultBranch(new[] { "trunk" }, null, null));
+            Assert.IsNull(GitRemoteForm.PickDefaultBranch(new string[0], null, null));
+        }
+
+        [Test]
+        public void Test_PublishBranches_DefaultFirst()
+        {
+            string[] local = { "feature/a", "master", "feature/win-test" };
+            CollectionAssert.AreEqual(new[] { "master" }, GitRemoteForm.PublishBranches("master", "feature/win-test", false, false, local));
+            CollectionAssert.AreEqual(new[] { "master", "feature/win-test" }, GitRemoteForm.PublishBranches("master", "feature/win-test", true, false, local));
+            CollectionAssert.AreEqual(new[] { "master", "feature/win-test", "feature/a" }, GitRemoteForm.PublishBranches("master", "feature/win-test", true, true, local));
+            CollectionAssert.AreEqual(new[] { "master", "feature/a", "feature/win-test" }, GitRemoteForm.PublishBranches("master", "feature/win-test", false, true, local));
+            // 현재 브랜치가 기본 브랜치면 한 번만.
+            CollectionAssert.AreEqual(new[] { "master" }, GitRemoteForm.PublishBranches("master", "master", true, false, local));
+            StringAssert.Contains("\"default_branch\":\"master\"", GitRemoteForm.DefaultBranchJson("master"));
         }
 
         [Test]

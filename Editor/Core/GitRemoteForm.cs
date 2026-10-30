@@ -108,6 +108,57 @@ namespace GitVersionControl
             return JsonUtility.ToJson(new CreateRepositoryRequest { name = name, @private = isPrivate });
         }
 
+        /// <summary>
+        /// 새 저장소에 처음 올릴 기본 브랜치: 로컬에 main 이 있으면 main, 없고 master 가 있으면 master, 그다음 git 설정 init.defaultBranch,
+        /// 그것도 없으면 현재 브랜치. 빈 저장소에 처음 올린 브랜치가 GitHub 의 기본 브랜치가 되므로, 작업 브랜치(feature/…)가 기본이 되지 않게 한다.
+        /// </summary>
+        public static string PickDefaultBranch(IList<string> localBranches, string configuredDefault, string current)
+        {
+            foreach (string candidate in new[] { "main", "master", configuredDefault })
+            {
+                if (string.IsNullOrEmpty(candidate) == false && localBranches.Contains(candidate))
+                {
+                    return candidate;
+                }
+            }
+            return string.IsNullOrEmpty(current) == false ? current : localBranches.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// 새 저장소에 올릴 브랜치를 올릴 순서대로: 기본 브랜치가 언제나 맨 앞(첫 Push 가 GitHub 기본 브랜치가 된다),
+        /// 그 뒤 현재 브랜치(<paramref name="includeCurrent"/>), 그 뒤 나머지 로컬 브랜치(<paramref name="includeOthers"/>, 받은 순서). 겹치는 것은 한 번만.
+        /// </summary>
+        public static List<string> PublishBranches(string defaultBranch, string current, bool includeCurrent, bool includeOthers, IEnumerable<string> localBranches)
+        {
+            List<string> branches = new();
+            void AddOnce(string branch)
+            {
+                if (string.IsNullOrEmpty(branch) == false && branches.Contains(branch) == false)
+                {
+                    branches.Add(branch);
+                }
+            }
+            AddOnce(defaultBranch);
+            if (includeCurrent)
+            {
+                AddOnce(current);
+            }
+            if (includeOthers)
+            {
+                foreach (string branch in localBranches ?? Enumerable.Empty<string>())
+                {
+                    AddOnce(branch);
+                }
+            }
+            return branches;
+        }
+
+        /// <summary>기본 브랜치 바꾸기 요청 본문(<c>PATCH /repos/{owner}/{repo}</c>).</summary>
+        public static string DefaultBranchJson(string branch)
+        {
+            return JsonUtility.ToJson(new DefaultBranchRequest { default_branch = branch });
+        }
+
         /// <summary>저장소 하나(만들기 응답). 읽지 못하면 null.</summary>
         public static GitHubRepository ParseRepository(string json)
         {
@@ -230,6 +281,12 @@ namespace GitVersionControl
         {
             public string name;
             public bool @private;
+        }
+
+        [Serializable]
+        private sealed class DefaultBranchRequest
+        {
+            public string default_branch;
         }
 
         [Serializable]

@@ -74,6 +74,7 @@ namespace GitVersionControl
         /// </summary>
         Task<GitResult> DeleteTagAsync(string name);
         Task<GitResult> PushTagAsync(string remote, string name);
+        Task<GitResult> PushAllTagsAsync(string remote);
 
         /// <summary>
         /// 원격을 더하고(Push 주소가 따로 있으면 함께 적고) 그 원격만 fetch 한다. 더하기가 실패하면 fetch 하지 않는다.
@@ -207,6 +208,8 @@ namespace GitVersionControl
         public Task<GitResult> DeleteTagAsync(string name) => GitRepository.RunAsync(GitCommitCommands.DeleteTag(name));
 
         public Task<GitResult> PushTagAsync(string remote, string name) => GitOperations.RunNetworkAsync(GitCommitCommands.PushTag(remote, name));
+
+        public Task<GitResult> PushAllTagsAsync(string remote) => GitOperations.RunNetworkAsync(GitCommitCommands.PushAllTags(remote));
 
         public async Task<GitResult> AddRemoteAsync(string name, string pullUrl, string pushUrl)
         {

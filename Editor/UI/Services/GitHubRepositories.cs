@@ -112,6 +112,23 @@ namespace GitVersionControl
             return (repository, null);
         }
 
+        /// <summary>
+        /// 저장소의 기본 브랜치를 정한다(<c>PATCH /repos/{fullName}</c>). 첫 Push 가 이미 기본 브랜치가 되지만, 여러 브랜치를 올린 뒤 확실히 해 둔다.
+        /// </summary>
+        /// <returns>성공하면 null, 실패하면 오류 문구.</returns>
+        public static async Task<string> SetDefaultBranchAsync(string fullName, string branch)
+        {
+            using UnityWebRequest request = new($"https://api.github.com/repos/{fullName}", "PATCH")
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(GitRemoteForm.DefaultBranchJson(branch))),
+                downloadHandler = new DownloadHandlerBuffer(),
+            };
+            SetHeaders(request);
+            request.SetRequestHeader("Content-Type", "application/json");
+            await GitHubAccount.SendAsync(request);
+            return request.result == UnityWebRequest.Result.Success ? null : GitPullRequestForm.ParseError(request.downloadHandler?.text) ?? request.error;
+        }
+
         private static void SetHeaders(UnityWebRequest request)
         {
             request.SetRequestHeader("User-Agent", UserAgent);
