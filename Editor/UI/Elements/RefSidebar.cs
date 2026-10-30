@@ -198,6 +198,10 @@ namespace GitVersionControl
                 };
                 _tree.schedule.Execute(() => _navigationStep = 0);
             }, TrickleDown.TrickleDown);
+            // 처음 읽는 동안은 트리 대신 같은 모양의 스켈레톤(위에서 아래로 물결)을 보이고, 다 읽으면 트리가 서서히 나타난다(ShowTree).
+            _skeleton = BuildSkeleton();
+            Root.Add(_skeleton);
+            _tree.style.display = DisplayStyle.None;
             Root.Add(_tree);
 
             _services.Runner.StateChanged += OnRunnerStateChanged;
@@ -309,6 +313,7 @@ namespace GitVersionControl
             _error.SetVisible(string.IsNullOrEmpty(refs.Error) == false);
             UpdateCounts();
             Rebuild();
+            ShowTree();
             Loaded?.Invoke();
             LoadPullRequests();
             if (_reloadQueued)
@@ -316,6 +321,76 @@ namespace GitVersionControl
                 _reloadQueued = false;
                 Load();
             }
+        }
+
+        private VisualElement _skeleton;
+
+        /// <summary>스켈레톤이 걷힐 때 트리가 나타나는 시간(ms).</summary>
+        private const int TreeFadeMs = 220;
+
+        /// <summary>
+        /// 스켈레톤 줄: (들여쓰기 단계, 이름 막대 폭). 단계 -1 은 구역 머리 줄(접기 화살표·아이콘·이름·오른쪽 개수).
+        /// 실제 트리처럼 로컬·리모트를 펼친 모양과 아래 접힌 구역들을 흉내 낸다.
+        /// </summary>
+        private static readonly (int Depth, float Width)[] SkeletonRows =
+        {
+            (-1, 46), (1, 58), (2, 70), (2, 82), (1, 54),
+            (-1, 52), (1, 50), (2, 56), (3, 76), (3, 72), (3, 88), (2, 40), (3, 60), (2, 62), (1, 54),
+            (-1, 56), (-1, 44), (-1, 40), (-1, 60), (-1, 84),
+        };
+
+        /// <summary>구역 머리 줄의 아이콘 x 와 단계마다 들여 쓰는 폭(트리의 실제 배치와 맞춘다 — .ref-tree__tree 의 줄 여백·펼침 화살표·TreeView 들여쓰기).</summary>
+        private const float SkeletonIconX = 27f;
+        private const float SkeletonIndent = 21f;
+
+        private static VisualElement BuildSkeleton()
+        {
+            VisualElement group = new() { pickingMode = PickingMode.Ignore };
+            group.AddToClassList(Block + "__skeleton");
+            foreach ((int depth, float width) in SkeletonRows)
+            {
+                VisualElement row = GitSkeleton.Row(group);
+                row.AddToClassList(Block + "__skeleton-row");
+                if (depth < 0)
+                {
+                    row.AddToClassList(Block + "__skeleton-row--section");
+                    GitSkeleton.Bar(row, 8, 8).AddToClassList(Block + "__skeleton-chevron");
+                    GitSkeleton.Bar(row, 14, 14).AddToClassList(Block + "__skeleton-icon");
+                    GitSkeleton.Bar(row, width, 11);
+                    GitSkeleton.Bar(row, 10, 11).AddToClassList(Block + "__skeleton-count");
+                    continue;
+                }
+                row.style.paddingLeft = SkeletonIconX + depth * SkeletonIndent;
+                GitSkeleton.Bar(row, 14, 14).AddToClassList(Block + "__skeleton-icon");
+                GitSkeleton.Bar(row, width, 10);
+            }
+            GitSkeleton.Pulse(group);
+            return group;
+        }
+
+        /// <summary>처음 다 읽었을 때: 스켈레톤을 걷고 트리를 투명에서 서서히 나타낸다(툭 바뀌지 않게). 그 뒤 다시 읽을 때는 트리를 그대로 둔다.</summary>
+        private void ShowTree()
+        {
+            if (_skeleton == null)
+            {
+                return;
+            }
+            _skeleton.RemoveFromHierarchy();
+            _skeleton = null;
+            _tree.style.display = DisplayStyle.Flex;
+            _tree.style.opacity = 0f;
+            _tree.schedule.Execute(() =>
+            {
+                _tree.style.transitionProperty = new List<StylePropertyName> { "opacity" };
+                _tree.style.transitionDuration = new List<TimeValue> { new(TreeFadeMs, TimeUnit.Millisecond) };
+                _tree.style.opacity = 1f;
+            }).StartingIn(16);
+            _tree.schedule.Execute(() =>
+            {
+                _tree.style.transitionProperty = StyleKeyword.Null;
+                _tree.style.transitionDuration = StyleKeyword.Null;
+                _tree.style.opacity = StyleKeyword.Null;
+            }).StartingIn(16 + TreeFadeMs + 60);
         }
 
         private void UpdateCounts()

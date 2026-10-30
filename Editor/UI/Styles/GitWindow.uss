@@ -729,6 +729,40 @@
     color: var(--git-danger);
 }
 
+/* 처음 읽는 동안 트리 자리의 스켈레톤(RefSidebar.BuildSkeleton). 줄 높이·들여쓰기는 트리와 같다. */
+.ref-tree__skeleton {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 2px;
+}
+
+.ref-tree__skeleton-row {
+    flex-shrink: 0;
+    height: 28px;
+    align-items: center;
+    padding-right: 14px;
+}
+
+.ref-tree__skeleton-row--section {
+    padding-left: 15px;
+}
+
+.ref-tree__skeleton-chevron {
+    margin-right: 7px;
+    border-radius: 2px;
+}
+
+.ref-tree__skeleton-icon {
+    margin-right: 6px;
+}
+
+/* 구역 개수는 오른쪽 끝(실제 개수와 같은 세로선). */
+.ref-tree__skeleton-count {
+    margin-left: auto;
+}
+
 .ref-tree__tree {
     flex-grow: 1;
     flex-basis: 0;
