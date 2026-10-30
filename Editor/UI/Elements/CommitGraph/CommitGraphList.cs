@@ -411,17 +411,17 @@ namespace GitVersionControl
             // 끌기는 지금 보이는 폭(창이 좁아 줄었으면 줄인 폭)에서 시작한다 — 저장된 폭에서 시작하면 줄인 만큼 끌어도 움직이지 않는다.
             _resizers[(int)CommitGraphColumn.Refs] = new ColumnResizer(
                 () => FixedWidth(CommitGraphColumn.Refs),
-                width => SetColumnWidths(ClampRefsWidth(width), _graphWidthOverride, _messageWidth),
+                width => SetColumnWidths(ClampRefsWidth(ClampToRoom(CommitGraphColumn.Refs, width)), _graphWidthOverride, _messageWidth),
                 () => settings.GraphRefsColumnWidth = _refsWidth,
                 () => SetColumnWidths(DefaultRefsColumnWidth, _graphWidthOverride, _messageWidth));
             _resizers[(int)CommitGraphColumn.Graph] = new ColumnResizer(
                 () => FixedWidth(CommitGraphColumn.Graph),
-                width => SetColumnWidths(_refsWidth, ClampGraphWidth(width), _messageWidth),
+                width => SetColumnWidths(_refsWidth, ClampGraphWidth(ClampToRoom(CommitGraphColumn.Graph, width)), _messageWidth),
                 () => settings.GraphColumnWidth = _graphWidthOverride,
                 () => SetColumnWidths(_refsWidth, 0f, _messageWidth));
             _resizers[(int)CommitGraphColumn.Message] = new ColumnResizer(
                 () => FixedWidth(CommitGraphColumn.Message),
-                width => SetColumnWidths(_refsWidth, _graphWidthOverride, ClampMessageWidth(width)),
+                width => SetColumnWidths(_refsWidth, _graphWidthOverride, ClampMessageWidth(ClampToRoom(CommitGraphColumn.Message, width))),
                 () => settings.GraphMessageColumnWidth = _messageWidth,
                 () => SetColumnWidths(_refsWidth, _graphWidthOverride, DefaultMessageColumnWidth));
             if (_detailColumns)
@@ -804,6 +804,30 @@ namespace GitVersionControl
                 deficit -= cut;
             }
             return 0f;
+        }
+
+        /// <summary>
+        /// 맨 오른쪽이 아닌 칸을 끌어 넓힐 때 줄 안에 남은 자리까지만 넓힌다: 줄 폭 − 다른 칸들의 지금 폭 − 맨 오른쪽 칸의 최소 폭.
+        /// 막지 않으면 맨 오른쪽 칸이 이미 최소 폭일 때 더 넓힌 만큼 <see cref="Squeeze"/> 가 다른 칸(메시지부터)을 줄여, 끄는 칸이 끈 만큼 왼쪽으로 밀려났다
+        /// (메시지 · 브랜치/태그 · 그래프 순서에서 그래프가 아이콘일 때 브랜치/태그 경계를 오른쪽으로 끌면 이름표 칸이 왼쪽으로 움직였다).
+        /// </summary>
+        private float ClampToRoom(CommitGraphColumn column, float width)
+        {
+            float rowsWidth = RowsWidth;
+            if (IsLast(column) || float.IsNaN(rowsWidth) || rowsWidth <= 0f)
+            {
+                return width;
+            }
+            float room = rowsWidth - DetailsWidth - MinColumnWidth(_order[^1]);
+            foreach (CommitGraphColumn other in _order)
+            {
+                if (other != column && IsLast(other) == false)
+                {
+                    room -= FixedWidth(other);
+                }
+            }
+            // 이미 자리가 모자라도(창이 좁아 줄여 둔 상태) 줄이는 쪽 끌기는 막지 않는다.
+            return Mathf.Min(width, Mathf.Max(room, FixedWidth(column)));
         }
 
         private static readonly CommitGraphColumn[] SqueezeOrder = { CommitGraphColumn.Message, CommitGraphColumn.Refs, CommitGraphColumn.Graph };
