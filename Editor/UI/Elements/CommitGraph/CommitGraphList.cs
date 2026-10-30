@@ -2030,8 +2030,11 @@ namespace GitVersionControl
             float height = _overlay.contentRect.height;
             const float rowHeight = VerticalGraphLayout.RowHeight;
 
+            // 가라앉힌 이름표 선(지금 브랜치가 아닌 것)은 가지 선 아래에 깔고, 지금 브랜치로 잇는 선만 가지 선 위에 그린다 —
+            // 어두운 선이 밝은 가지 선을 가로질러 덮으면 이상해 보였다.
+            DrawRefConnectors(painter, scrollY, height, rowHeight, current: false);
             DrawEdges(painter, scrollY, height, rowHeight);
-            DrawRefConnectors(painter, scrollY, height, rowHeight);
+            DrawRefConnectors(painter, scrollY, height, rowHeight, current: true);
             DrawWip(painter, scrollY);
             DrawNodes(painter, scrollY, height, rowHeight);
         }
@@ -2113,7 +2116,8 @@ namespace GitVersionControl
         /// <summary>
         /// 이름표가 있는 커밋: 이름표 오른쪽 끝에서 커밋 원까지 가지 색 선(GitKraken 처럼 이름표가 어느 커밋인지 따라가게).
         /// </summary>
-        private void DrawRefConnectors(Painter2D painter, float scrollY, float height, float rowHeight)
+        /// <param name="current">true 면 지금 브랜치(또는 이름을 쓰는 중인 새 브랜치)로 잇는 선만, false 면 나머지(가라앉힌 색)만 그린다.</param>
+        private void DrawRefConnectors(Painter2D painter, float scrollY, float height, float rowHeight, bool current)
         {
             if (RefsLeftOfGraph == false)
             {
@@ -2138,8 +2142,12 @@ namespace GitVersionControl
                 }
                 // 지금 있는 브랜치(또는 이름을 쓰는 중인 새 브랜치)로 잇는 선만 가지 색 그대로, 나머지는 가라앉힌 색(GitKraken 과 같다).
                 Color laneColor = GraphStyle.LaneColor(node.Lane);
-                bool current = branchInput || CommitRefs.Of(node).Any(commitRef => commitRef.Kind == CommitRefKind.Current);
-                painter.strokeColor = current ? laneColor : GraphStyle.Muted(laneColor);
+                bool isCurrent = branchInput || CommitRefs.Of(node).Any(commitRef => commitRef.Kind == CommitRefKind.Current);
+                if (isCurrent != current)
+                {
+                    continue;
+                }
+                painter.strokeColor = isCurrent ? laneColor : GraphStyle.Muted(laneColor);
                 // 이름표는 글자 폭만큼만 차지하므로 칸 끝이 아니라 이름표의 그래프 쪽 끝에서 잇는다.
                 // "+n" 상자가 있으면 이름표와 상자 사이 틈에도 선을 그어 이름표 → "+n" → 커밋이 한 줄로 이어 보이게 한다(선 층이 줄 위라 상자는 건너뛴다).
                 float startX = fallbackX;
