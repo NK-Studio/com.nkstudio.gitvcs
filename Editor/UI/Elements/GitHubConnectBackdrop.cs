@@ -1,4 +1,6 @@
+#if UNITY_6000_6_OR_NEWER
 using System.Collections.Generic;
+#endif
 using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -67,6 +69,11 @@ namespace GitVersionControl
                 _blobs[i] = blob;
             }
 
+#if !UNITY_6000_6_OR_NEWER
+            // 흐림(filter)이 없는 버전에서는 원이 또렷한 동그라미로 보이므로 오로라는 끄고 가지 선만 남긴다.
+            _aurora.style.display = DisplayStyle.None;
+#endif
+
             _lanes = new VisualElement { pickingMode = PickingMode.Ignore };
             _lanes.AddToClassList(Block + "-lanes");
             _lanes.generateVisualContent += DrawLanes;
@@ -123,6 +130,8 @@ namespace GitVersionControl
                 }
                 blob.style.translate = new Translate(x - size * 0.5f, y - size * 0.5f);
             }
+#if UNITY_6000_6_OR_NEWER
+            // filter 는 Unity 6.6 부터(그 전 버전은 오로라를 끈다 — 생성자).
             if (_hue > 0.01f)
             {
                 FilterFunction hue = new(FilterFunctionType.HueRotate);
@@ -133,6 +142,7 @@ namespace GitVersionControl
             {
                 _aurora.style.filter = StyleKeyword.Null;
             }
+#endif
         }
 
         /// <summary>
