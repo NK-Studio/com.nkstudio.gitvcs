@@ -412,7 +412,8 @@ namespace GitVersionControl
                 _tree.style.display = DisplayStyle.Flex;
                 return;
             }
-            _tree.schedule.Execute(() => SwapToTree(skeleton)).StartingIn(GitSkeleton.RemainingShowMs(skeleton));
+            // 예약은 보이는 사이드바 루트에 건다 — 숨겨 둔(display: none) 트리에 걸면 Unity 6.0 은 실행하지 않아 스켈레톤이 남았다.
+            Root.schedule.Execute(() => SwapToTree(skeleton)).StartingIn(GitSkeleton.RemainingShowMs(skeleton));
         }
 
         private void SwapToTree(VisualElement skeleton)

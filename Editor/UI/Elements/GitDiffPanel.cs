@@ -16,6 +16,9 @@ namespace GitVersionControl
     /// 줄 번호, 더한·지운 줄 배경, 줄 안에서 실제로 바뀐 부분 강조, 변경 묶음(hunk) 사이 이동을 지원한다.
     /// 독립 창(<see cref="GitDiffWindow"/>)과 Fork 형태 레이아웃의 오른쪽 칸이 같은 패널을 쓴다.
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public sealed class GitDiffPanel
     {
         private const float RowHeight = 18f;
@@ -2444,7 +2447,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 화면 위치에 가장 가까운 글자 경계(원래 줄 글의 위치). 코드 칸 왼쪽이면 0, 글 끝 너머면 줄 길이.
-        /// 글자 자리는 TextCore 가 그린 그대로 묻는다(<see cref="ITextSelection.GetCursorPositionFromStringIndex"/>) — 한글처럼 폭이 다른 글자·접은 줄도 맞는다.
+        /// 글자 자리는 TextCore 가 그린 그대로 묻는다(<see cref="CursorPosition"/>) — 한글처럼 폭이 다른 글자·접은 줄도 맞는다.
         /// </summary>
         private int OffsetAt(VisualElement code, GitDiffLine line, Vector2 position)
         {
@@ -2484,23 +2487,22 @@ namespace GitVersionControl
         /// </summary>
         private static int DisplayIndexAt(Label label, Vector2 local, int count)
         {
-            ITextSelection selection = label.selection;
             // 위치가 든 줄: 아래 끝이 위치보다 아래인 첫 경계의 줄(없으면 마지막 줄).
-            int probe = LowerBound(0, count, i => selection.GetCursorPositionFromStringIndex(i).y >= local.y);
-            float lineY = selection.GetCursorPositionFromStringIndex(Math.Min(probe, count)).y;
-            int lineStart = LowerBound(0, count, i => selection.GetCursorPositionFromStringIndex(i).y >= lineY - 0.5f);
-            int lineEnd = LowerBound(lineStart, count, i => selection.GetCursorPositionFromStringIndex(i).y > lineY + 0.5f) - 1;
+            int probe = LowerBound(0, count, i => CursorPosition(label, i).y >= local.y);
+            float lineY = CursorPosition(label, Math.Min(probe, count)).y;
+            int lineStart = LowerBound(0, count, i => CursorPosition(label, i).y >= lineY - 0.5f);
+            int lineEnd = LowerBound(lineStart, count, i => CursorPosition(label, i).y > lineY + 0.5f) - 1;
             lineEnd = Math.Max(lineStart, Math.Min(lineEnd, count));
             // 그 줄에서 x 가 위치 이상인 첫 경계와 바로 앞 경계 중 가까운 쪽.
-            int index = LowerBound(lineStart, lineEnd, i =>selection.GetCursorPositionFromStringIndex(i).x >= local.x);
+            int index = LowerBound(lineStart, lineEnd, i =>CursorPosition(label, i).x >= local.x);
             if (index > lineEnd)
             {
                 return lineEnd;
             }
             if (index > lineStart)
             {
-                float right = selection.GetCursorPositionFromStringIndex(index).x - local.x;
-                float left = local.x - selection.GetCursorPositionFromStringIndex(index - 1).x;
+                float right = CursorPosition(label, index).x - local.x;
+                float left = local.x - CursorPosition(label, index - 1).x;
                 if (left < right)
                 {
                     return index - 1;
@@ -2508,6 +2510,33 @@ namespace GitVersionControl
             }
             return index;
         }
+
+        /// <summary>
+        /// 라벨 글의 <paramref name="index"/> 번째 화면 글자 경계(커서 자리). 줄의 아래 끝 y.
+        /// <c>ITextSelection.GetCursorPositionFromStringIndex</c> 가 있으면(Unity 6.x 뒤 버전) 그것을 쓰고 — TextCore 가 그린 그대로라 접은 줄도 맞는다 —
+        /// 없으면(Unity 6.0) 앞쪽 글자를 같은 스타일로 재서(<see cref="TextElement.MeasureTextSize"/>) 한 줄로 셈한다. 버전을 추측하지 않으려고 실행 중에 찾는다.
+        /// </summary>
+        private static Vector2 CursorPosition(Label label, int index)
+        {
+            if (s_cursorPosition != null)
+            {
+                return (Vector2)s_cursorPosition.Invoke(label.selection, new object[] { index });
+            }
+            string plain = RichTagPattern.Replace(label.text ?? string.Empty, string.Empty);
+            string prefix = plain.Substring(0, Math.Clamp(index, 0, plain.Length));
+            if (label.enableRichText)
+            {
+                prefix = "<noparse>" + prefix + "</noparse>";
+            }
+            Vector2 size = label.MeasureTextSize(prefix, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined);
+            Rect content = label.contentRect;
+            return new Vector2(content.x + size.x, content.yMax);
+        }
+
+        private static readonly System.Reflection.MethodInfo s_cursorPosition =
+            typeof(ITextSelection).GetMethod("GetCursorPositionFromStringIndex", new[] { typeof(int) });
+
+        private static readonly System.Text.RegularExpressions.Regex RichTagPattern = new("<[^>]+>");
 
         /// <summary>
         /// [from, to] 에서 <paramref name="predicate"/> 가 참인 첫 값. 모두 거짓이면 to + 1. 술어는 앞쪽이 거짓, 뒤쪽이 참이어야 한다.

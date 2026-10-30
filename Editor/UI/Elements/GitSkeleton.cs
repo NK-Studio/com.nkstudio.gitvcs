@@ -18,6 +18,9 @@ namespace GitVersionControl
     /// 읽는 동안 내용 자리에 그리는 스켈레톤(회색 막대). 진짜 배치와 같은 자리·크기로 두어, 다 읽었을 때 화면이 덜 흔들린다.
     /// 막대들은 <see cref="Pulse"/> 한 그릇 안에서, 밝은 띠가 위에서 아래로 내려가며 지나는 막대를 차례로 밝힌다(물결).
     /// </summary>
+#if UNITY_6000_7_OR_NEWER
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+#endif
     public static class GitSkeleton
     {
         public const string Block = "git-skeleton";

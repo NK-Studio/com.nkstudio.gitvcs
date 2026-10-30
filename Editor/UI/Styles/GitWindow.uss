@@ -127,14 +127,14 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    column-gap: 8px;
     margin: 8px 0 20px 0;
 }
 
 .github-connect__code-cell {
     width: 44px;
     height: 56px;
-    margin: 0;
+    /* 칸 사이 8px. column-gap 은 Unity 6.0 USS 에 없어 바깥 여백으로 둔다. */
+    margin: 0 4px;
     padding: 0;
     font-size: 30px;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
