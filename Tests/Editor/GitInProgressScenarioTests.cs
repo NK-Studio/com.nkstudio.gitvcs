@@ -19,7 +19,11 @@ namespace GitVersionControl.Tests
     /// <item>"rebase 충돌 시 멈추기"(<see cref="GitUndo.RebaseAsync"/> 의 stopOnConflict)</item>
     /// </list>
     /// 실제 프로젝트 저장소와 실행 취소 목록은 건드리지 않는다(<see cref="GitRepository.UseRepositoryForTests"/>).
+    /// 실제 git 을 수십 번 띄워 느리므로(이 클래스만 약 1분) 평소 Run All 에서는 빠진다. git·rebase·병합 코드를 고쳤으면
+    /// Test Runner 에서 이 클래스(또는 GitScenario 범주)를 골라 직접 돌린다.
     /// </summary>
+    [Explicit("실제 git 을 띄우는 느린 시나리오 — git·rebase·병합 코드를 고쳤을 때 직접 돌린다")]
+    [Category("GitScenario")]
     public sealed class GitInProgressScenarioTests
     {
         private const int TimeoutMs = 60_000;
