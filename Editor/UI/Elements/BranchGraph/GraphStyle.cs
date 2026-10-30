@@ -50,7 +50,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 지금 있지 않은 브랜치의 이름표·이름표 선에 쓰는 가라앉은 가지 색(GitKraken 과 같다): 채도와 밝기를 낮춘다. 알파는 그대로.
+        /// 지금 있지 않은 브랜치의 이름표에서 커밋까지 잇는 선에 쓰는 가라앉은 가지 색(GitKraken 과 같다): 채도와 밝기를 낮춘다. 알파는 그대로.
         /// </summary>
         public static Color Muted(Color color)
         {

@@ -1728,8 +1728,8 @@ namespace GitVersionControl
             BindRefPill(pill, refs[0], laneColor);
             // 숨은 이름·참조는 마우스를 올리면 펼치는 목록(ShowRefsPopup)으로 보므로 운영체제 툴팁은 두지 않는다.
             more.text = refs.Count > 1 ? $"+{refs.Count - 1}" : string.Empty;
-            // "+n" 은 로컬 이름표와 같은 옅은 가지 색 상자(GitKraken 과 같다). 지금 있는 브랜치가 아니면 첫 이름표처럼 가라앉힌다.
-            Color moreFill = refs[0].Kind == CommitRefKind.Current ? laneColor : GraphStyle.Muted(laneColor);
+            // "+n" 은 로컬 이름표와 같은 옅은 가지 색 상자(GitKraken 과 같다).
+            Color moreFill = laneColor;
             moreFill.a = LocalRefAlpha;
             more.style.backgroundColor = moreFill;
         }
@@ -1791,8 +1791,7 @@ namespace GitVersionControl
             // 브랜치 이름표는 GitKraken 처럼 가지 색을 입혀 선과 같은 색으로 잇는다: 현재 브랜치는 진하게, 로컬은 옅게, 원격은 더 옅게.
             // 모두 테두리와 바탕이 한 색인 평평한 채움(테두리는 투명). 태그는 USS 의 고정 색.
             bool usesLaneColor = commitRef.Kind != CommitRefKind.Tag;
-            // 지금 있지 않은 브랜치(로컬·원격)는 가지 색을 가라앉혀(채도·밝기를 낮춰) 지금 브랜치와 갈라 보이게 한다(GitKraken 과 같다).
-            Color fill = commitRef.Kind == CommitRefKind.Current ? laneColor : GraphStyle.Muted(laneColor);
+            Color fill = laneColor;
             fill.a = commitRef.Kind switch
             {
                 CommitRefKind.Current => CurrentRefAlpha,
