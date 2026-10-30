@@ -13,14 +13,14 @@ namespace GitVersionControl
         public const string Block = "git-skeleton";
 
         /// <summary>띠가 그릇 위에서 아래까지 한 번 내려가는 시간(초). 다 내려가면 다시 위에서 시작한다.</summary>
-        private const float SweepSeconds = 1.4f;
+        private const float SweepSeconds = 3f;
 
         /// <summary>띠의 반쪽 높이: 그릇 높이의 이 비율(그래도 이 px 보다 얇지 않게). 띠 가운데에서 멀어질수록 막대가 어두워진다.</summary>
-        private const float BandRatio = 0.22f;
-        private const float MinBandHalf = 48f;
+        private const float BandRatio = 0.45f;
+        private const float MinBandHalf = 90f;
 
         /// <summary>띠가 지나지 않는 막대의 밝기와 띠 한가운데 막대의 밝기(opacity).</summary>
-        private const float RestOpacity = 0.35f;
+        private const float RestOpacity = 0.4f;
         private const float PeakOpacity = 1f;
 
         /// <summary>밝기를 다시 넣는 간격(ms).</summary>
@@ -93,9 +93,9 @@ namespace GitVersionControl
                 float bandY = Mathf.Lerp(-half, height + half, phase);
                 foreach ((VisualElement bar, float center) in bars)
                 {
-                    float near = Mathf.Clamp01(1f - Mathf.Abs(center - bandY) / half);
-                    // 띠 가장자리는 부드럽게(smoothstep), 가운데는 둥글게 밝힌다.
-                    near = near * near * (3f - 2f * near);
+                    // 파도처럼 완만하게: 띠 가운데에서 가장자리까지 코사인 곡선으로 잦아든다.
+                    float distance = Mathf.Clamp01(Mathf.Abs(center - bandY) / half);
+                    float near = 0.5f + 0.5f * Mathf.Cos(distance * Mathf.PI);
                     bar.style.opacity = Mathf.Lerp(RestOpacity, PeakOpacity, near);
                 }
             }).Every(FrameMs);
