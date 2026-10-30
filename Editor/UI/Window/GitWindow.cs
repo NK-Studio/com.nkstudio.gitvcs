@@ -113,8 +113,8 @@ namespace GitVersionControl
             GitExplorerStyle.Changed -= Rebuild;
             GitExplorerStyle.Changed += Rebuild;
             // 로그인하면 연결 화면에서 본체로, 로그아웃하면 다시 연결 화면으로 바꾼다.
-            GitHubAccount.Changed -= Rebuild;
-            GitHubAccount.Changed += Rebuild;
+            GitHubAccount.Changed -= OnAccountChanged;
+            GitHubAccount.Changed += OnAccountChanged;
             // 서브모듈을 열거나 돌아오면 탭을 다시 만든다 — 지난 저장소의 커밋 목록·선택·diff 가 남지 않게.
             GitRepository.RepositorySwitched -= Rebuild;
             GitRepository.RepositorySwitched += Rebuild;
@@ -265,8 +265,110 @@ namespace GitVersionControl
             _connect = new GitHubConnectPanel(layout, () =>
             {
                 SessionState.SetBool(SkipConnectKey, true);
-                Rebuild();
+                LeaveConnect();
             });
+        }
+
+        /// <summary>
+        /// 로그인·로그아웃. 연결 화면에서 로그인에 성공했으면 연출과 함께 본체로(<see cref="LeaveConnect"/>), 그 밖에는 다시 만든다.
+        /// </summary>
+        private void OnAccountChanged()
+        {
+            if (_connect != null && NeedsGitHubConnect == false)
+            {
+                LeaveConnect();
+                return;
+            }
+            Rebuild();
+        }
+
+        /// <summary>연결 화면 카드가 사라지는 시간·본체가 나타나는 시간(ms)과, 본체가 올라오는 거리(px).</summary>
+        private const int ConnectLeaveMs = 200;
+        private const int ShellEnterMs = 260;
+        private const float ShellEnterRise = 6f;
+
+        private bool _leavingConnect;
+
+        /// <summary>
+        /// 연결 화면 → 본체 전환 연출: 카드가 살짝 작아지며 사라진 뒤("다시 그리는 중" 덮개 없이) 본체를 만들고, 본체가 조금 아래에서 올라오며 나타난다.
+        /// opacity·scale·translate 전환만 써서 가볍다. 한 번뿐인 순간이라 다른 화면 바꾸기보다 조금 길게 둔다.
+        /// </summary>
+        private void LeaveConnect()
+        {
+            if (_leavingConnect)
+            {
+                return;
+            }
+            _leavingConnect = true;
+            VisualElement card = _layout?.Q(className: "github-connect__card");
+            if (card != null)
+            {
+                card.style.transitionProperty = new List<StylePropertyName> { "opacity", "scale" };
+                card.style.transitionDuration = new List<TimeValue> { new(ConnectLeaveMs, TimeUnit.Millisecond) };
+                card.style.transitionTimingFunction = new List<EasingFunction> { new(EasingMode.EaseInCubic) };
+                card.style.opacity = 0f;
+                card.style.scale = new Scale(new Vector2(0.96f, 0.96f));
+            }
+            rootVisualElement.schedule.Execute(() =>
+            {
+                _leavingConnect = false;
+                TearDown();
+                rootVisualElement.Clear();
+                Build();
+                EnterShell();
+            }).StartingIn(card != null ? ConnectLeaveMs : 0);
+        }
+
+        /// <summary>
+        /// 방금 만든 본체를 투명·조금 아래에서 시작해 제자리로 올리며 나타낸다. 본체를 만든 직후에는 사이드바·변경 목록을 읽느라 에디터가 몇백 ms 멈추므로,
+        /// 그대로 시작하면 멈춘 사이에 전환 시간이 다 지나 한 번에 튀어나온다 — 틀 간격이 다시 짧아질 때(<see cref="SmoothFrameSeconds"/>)까지 기다렸다 시작한다.
+        /// 끝나면 인라인 전환을 지워 평소 스타일에 섞이지 않게 한다.
+        /// </summary>
+        private void EnterShell()
+        {
+            if (rootVisualElement.childCount == 0)
+            {
+                return;
+            }
+            VisualElement shell = rootVisualElement[0];
+            shell.style.opacity = 0f;
+            shell.style.translate = new Translate(0, ShellEnterRise);
+            double started = EditorApplication.timeSinceStartup;
+            double lastTick = started;
+            IVisualElementScheduledItem wait = null;
+            wait = shell.schedule.Execute(() =>
+            {
+                double now = EditorApplication.timeSinceStartup;
+                bool smooth = now - lastTick < SmoothFrameSeconds;
+                lastTick = now;
+                if (smooth == false && now - started < ShellEnterMaxWait)
+                {
+                    return;
+                }
+                wait.Pause();
+                Fade(shell);
+            }).Every(16);
+        }
+
+        /// <summary>틀 간격이 이보다 짧으면 에디터가 다시 매끄럽게 도는 것으로 본다(초). 오래 멈춰도 이 시간(초)이 지나면 그냥 시작한다.</summary>
+        private const double SmoothFrameSeconds = 0.05;
+        private const double ShellEnterMaxWait = 1.5;
+
+        private static void Fade(VisualElement shell)
+        {
+            shell.style.transitionProperty = new List<StylePropertyName> { "opacity", "translate" };
+            shell.style.transitionDuration = new List<TimeValue> { new(ShellEnterMs, TimeUnit.Millisecond) };
+            shell.style.transitionTimingFunction = new List<EasingFunction> { new(EasingMode.EaseOutCubic) };
+            shell.style.opacity = 1f;
+            shell.style.translate = new Translate(0, 0);
+            shell.schedule.Execute(() =>
+            {
+                shell.style.transitionProperty = StyleKeyword.Null;
+                shell.style.transitionDuration = StyleKeyword.Null;
+                shell.style.transitionTimingFunction = StyleKeyword.Null;
+                shell.style.opacity = StyleKeyword.Null;
+                shell.style.translate = StyleKeyword.Null;
+            }).StartingIn(ShellEnterMs + 60);
         }
 
         private void Update()
@@ -284,7 +386,7 @@ namespace GitVersionControl
             GitTheme.Changed -= ApplyTheme;
             GitLayout.Changed -= Rebuild;
             GitExplorerStyle.Changed -= Rebuild;
-            GitHubAccount.Changed -= Rebuild;
+            GitHubAccount.Changed -= OnAccountChanged;
             GitRepository.RepositorySwitched -= Rebuild;
             GitPopupHosts.Unregister(this);
             TearDown();
