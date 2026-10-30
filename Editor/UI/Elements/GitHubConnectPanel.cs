@@ -10,7 +10,8 @@ namespace GitVersionControl
     /// 로그인 진행은 Preferences 와 같은 <see cref="GitHubDeviceLogin.Shared"/> 를 써서, 어느 쪽에서 시작해도 양쪽에 같은 상태가 보인다.
     /// 카드와 안쪽 줄이 차례로 올라오며 나타나고, 코드는 글자마다 칸 상자로 보인다(복사하면 칸이 차례로 반짝인다).
     /// 배경 오로라·흐름·유리(blur 필터)는 매 프레임 다시 그려 무겁고 보기에도 어수선해 쓰지 않는다.
-    /// 로그인하지 않고 계속하거나 로그인한 뒤 이 프로젝트가 아직 저장소가 아니면, 창이 <see cref="ShowInitStep"/> 로 같은 카드에서 git init 을 받는다.
+    /// 이 프로젝트가 아직 저장소가 아니면 창이 먼저 <see cref="ShowInitStep"/> 로 같은 카드에서 git init 을 받고,
+    /// 만든 뒤 로그인하지 않았으면 <see cref="ShowLoginStep"/> 로 GitHub 연결을 선택으로 권한다(로그인은 PC 마다 한 번, init 은 프로젝트마다 한 번).
     /// </summary>
     public sealed class GitHubConnectPanel : IDisposable
     {
@@ -42,7 +43,7 @@ namespace GitVersionControl
         private readonly Label _initGitignore;
         private readonly Button _initButton;
         private readonly Button _skipButton;
-        private readonly Action _finished;
+        private readonly Action<bool> _finished;
 
         /// <summary>저장소 만들기 단계를 보이는 중(로그인 단계는 감춘다).</summary>
         private bool _initMode;
@@ -53,8 +54,8 @@ namespace GitVersionControl
         private IVisualElementScheduledItem _copiedReset;
 
         /// <param name="skipped">"이번에는 건너뛰기" 를 눌렀을 때.</param>
-        /// <param name="finished">저장소 만들기 단계를 마쳤을 때(만들었거나 "나중에"). 창이 본체로 넘어간다.</param>
-        public GitHubConnectPanel(VisualElement root, Action skipped, Action finished)
+        /// <param name="finished">저장소 만들기 단계를 마쳤을 때. 만들었으면 true, "나중에" 면 false.</param>
+        public GitHubConnectPanel(VisualElement root, Action skipped, Action<bool> finished)
         {
             _finished = finished;
             _title = root.Require<Label>("title");
@@ -65,7 +66,7 @@ namespace GitVersionControl
             _initButton = root.Require<Button>("init-button");
             _skipButton = root.Require<Button>("skip-button");
             _initButton.clicked += () => _ = CreateRepositoryAsync();
-            root.Require<Button>("init-later-button").clicked += () => _finished?.Invoke();
+            root.Require<Button>("init-later-button").clicked += () => _finished?.Invoke(false);
             _initStep.SetVisible(false);
             _startStep = root.Require<VisualElement>("start-step");
             _waitingStep = root.Require<VisualElement>("waiting-step");
@@ -175,15 +176,41 @@ namespace GitVersionControl
             _initButton.text = GitText.Get("connect.initButton");
             _initButton.SetEnabled(true);
             Render();
-            foreach (VisualElement element in new[] { _description, _initStep })
+            RevealAgain(_description, _initStep);
+        }
+
+        /// <summary>저장소 만들기 단계에서 저장소를 만들었는지.</summary>
+        public bool CreatedRepository { get; private set; }
+
+        /// <summary>
+        /// 저장소를 만든 뒤 같은 카드를 GitHub 연결 단계로 바꾼다. 연결은 선택이라 건너뛰기 버튼을 "나중에 연결" 로 보인다.
+        /// </summary>
+        public void ShowLoginStep()
+        {
+            _initMode = false;
+            _title.text = GitText.Get("connect.initDoneTitle");
+            _description.text = GitText.Get("connect.afterInitDescription");
+            _skipButton.text = GitText.Get("connect.later");
+            ShowError(null);
+            Render();
+            RevealAgain(_description, _startStep, _skipButton);
+        }
+
+        /// <summary>단계를 바꿀 때 새로 보이는 줄을 처음 카드처럼 아래에서 살짝 올라오며 차례로 나타낸다.</summary>
+        private void RevealAgain(params VisualElement[] elements)
+        {
+            foreach (VisualElement element in elements)
             {
                 element.RemoveFromClassList(Block + "__reveal--in");
                 element.AddToClassList(Block + "__reveal");
             }
-            _initStep.schedule.Execute(() =>
+            elements[0].schedule.Execute(() =>
             {
-                _description.AddToClassList(Block + "__reveal--in");
-                _initStep.schedule.Execute(() => _initStep.AddToClassList(Block + "__reveal--in")).StartingIn(RevealStepMs);
+                for (int i = 0; i < elements.Length; i++)
+                {
+                    VisualElement element = elements[i];
+                    element.schedule.Execute(() => element.AddToClassList(Block + "__reveal--in")).StartingIn(i * RevealStepMs);
+                }
             }).StartingIn(16);
         }
 
@@ -205,7 +232,8 @@ namespace GitVersionControl
             {
                 Debug.LogWarning(GitText.Format("init.gitignoreFailed", gitignoreError));
             }
-            _finished?.Invoke();
+            CreatedRepository = true;
+            _finished?.Invoke(true);
         }
 
         private void ShowError(string message)
@@ -224,6 +252,9 @@ namespace GitVersionControl
                 _initStep.SetVisible(true);
                 return;
             }
+            // 저장소를 만든 뒤 로그인 단계로 돌아온 경우(ShowLoginStep), 저장소 만들기 줄을 감추고 건너뛰기를 다시 보인다.
+            _initStep.SetVisible(false);
+            _skipButton.SetVisible(true);
             bool isRunning = _login.IsRunning;
             bool hasCode = _login.Current == GitHubDeviceLogin.Step.WaitingForApproval;
             _startStep.SetVisible(isRunning == false);

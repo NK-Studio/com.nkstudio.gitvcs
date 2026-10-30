@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
-    <!-- GitHub 에 로그인하지 않았을 때 Git 창 대신 보이는 연결 화면. 동작은 GitHubConnectPanel 이 맡는다. -->
+    <!-- 프로젝트가 아직 저장소가 아니거나 GitHub 에 로그인하지 않았을 때 Git 창 대신 보이는 카드. 동작은 GitHubConnectPanel 이 맡는다. -->
     <ui:Style src="../Styles/GitCommon.uss" />
     <ui:Style src="../Styles/GitWindow.uss" />
 
@@ -22,7 +22,7 @@
                 <ui:Button name="open-page-button" class="github-connect__primary github-connect__next" />
             </ui:VisualElement>
 
-            <!-- 로그인 없이 계속(또는 로그인한 뒤) 이 프로젝트가 아직 저장소가 아니면: 여기서 git init 하고 본체로. -->
+            <!-- 이 프로젝트가 아직 저장소가 아니면 로그인보다 먼저: 여기서 git init 한 뒤, 로그인하지 않았으면 위 로그인 단계를 선택으로 보인다. -->
             <ui:VisualElement name="init-step" class="github-connect__step">
                 <ui:Label name="init-folder" class="github-connect__folder" />
                 <ui:Label name="init-gitignore" class="github-connect__text" />

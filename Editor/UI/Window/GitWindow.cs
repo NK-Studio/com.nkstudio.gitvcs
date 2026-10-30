@@ -21,6 +21,11 @@ namespace GitVersionControl
         /// </summary>
         private const string SkipConnectKey = "GitVersionControl.SkipGitHubConnect";
 
+        /// <summary>
+        /// 저장소 만들기 카드를 이번 에디터 세션에 이미 지나왔는지(만들었거나 "나중에"). 그 뒤로는 본체의 "저장소가 아님" 안내가 맡는다.
+        /// </summary>
+        private const string SkipInitKey = "GitVersionControl.SkipInitCard";
+
         [SerializeField] private GitWindowState _state = new();
 
         private GitServices _services;
@@ -129,8 +134,20 @@ namespace GitVersionControl
         private static bool NeedsGitHubConnect =>
             GitHubAccount.IsConfigured && GitHubAccount.IsSignedIn == false && SessionState.GetBool(SkipConnectKey, false) == false;
 
+        /// <summary>
+        /// 저장소가 아닌 프로젝트에서 창을 열면 로그인보다 저장소 만들기를 먼저 보인다. 저장소가 없으면 어떤 기능도 못 쓰지만 로그인은 없어도 되고,
+        /// 로그인은 PC 마다 한 번·저장소는 프로젝트마다 한 번이라 두 번째 프로젝트부터는 이 카드만 나온다.
+        /// </summary>
+        private static bool NeedsInitCard => NeedsRepository && SessionState.GetBool(SkipInitKey, false) == false;
+
         private void Build()
         {
+            if (NeedsInitCard)
+            {
+                BuildConnect();
+                _connect.ShowInitStep();
+                return;
+            }
             if (NeedsGitHubConnect)
             {
                 BuildConnect();
@@ -270,21 +287,41 @@ namespace GitVersionControl
             {
                 SessionState.SetBool(SkipConnectKey, true);
                 ProceedFromConnect();
-            }, LeaveConnect);
+            }, OnInitFinished);
         }
 
         /// <summary>
-        /// git 은 찾았는데 이 프로젝트가 아직 저장소가 아닌지. 그러면 연결 화면에서 바로 본체로 가지 않고 저장소 만들기 단계를 먼저 보인다.
+        /// 저장소 만들기 카드를 마쳤을 때: 만들었고 아직 로그인하지 않았으면 같은 카드에서 GitHub 연결을 선택으로 권하고, 아니면 본체로.
+        /// "나중에" 는 지금은 Git 창만 보겠다는 뜻이라 이번 세션의 로그인 화면도 건너뛴다.
+        /// </summary>
+        private void OnInitFinished(bool created)
+        {
+            SessionState.SetBool(SkipInitKey, true);
+            if (created && NeedsGitHubConnect)
+            {
+                _connect.ShowLoginStep();
+                return;
+            }
+            if (created == false)
+            {
+                SessionState.SetBool(SkipConnectKey, true);
+            }
+            LeaveConnect();
+        }
+
+        /// <summary>
+        /// git 은 찾았는데 이 프로젝트가 아직 저장소가 아닌지. 그러면 로그인 화면보다 저장소 만들기 카드를 먼저 보인다(<see cref="NeedsInitCard"/>).
         /// </summary>
         private static bool NeedsRepository => GitRepository.IsRunning && GitRepository.IsRepository == false;
 
         /// <summary>
-        /// 연결 화면을 마칠 때(로그인했거나 로그인 없이 계속): 저장소가 없으면 같은 카드에서 git init 단계를, 있으면 본체로.
-        /// 로그인 없이 쓰는 사람은 대개 GitHub 없이 이 PC 에서만 git 을 쓰려는 사람이라, 본체의 "저장소가 아님" 안내보다 여기서 바로 만들게 한다.
+        /// 연결 화면을 마칠 때(로그인했거나 로그인 없이 계속): 아직 저장소가 없고 이 카드에서 만들지 않았으면 같은 카드에서 git init 단계를, 아니면 본체로.
+        /// 창을 열 때 git 이 아직 준비되지 않아 로그인 화면이 먼저 뜬 경우나, ⋮ 메뉴로 로그인 화면에 돌아온 경우다.
+        /// 만든 직후에는 저장소 상태가 아직 갱신되지 않았을 수 있어 <see cref="GitHubConnectPanel.CreatedRepository"/> 로도 본다.
         /// </summary>
         private void ProceedFromConnect()
         {
-            if (_connect != null && NeedsRepository)
+            if (_connect != null && NeedsRepository && _connect.CreatedRepository == false)
             {
                 _connect.ShowInitStep();
                 return;
