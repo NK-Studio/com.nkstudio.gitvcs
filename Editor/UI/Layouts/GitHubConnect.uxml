@@ -14,7 +14,7 @@
 
             <ui:VisualElement name="waiting-step" class="github-connect__step">
                 <ui:Label name="waiting-text" class="github-connect__text" />
-                <ui:Label name="user-code" class="github-connect__code" />
+                <ui:VisualElement name="user-code" class="github-connect__code" />
                 <ui:VisualElement class="github-connect__row">
                     <ui:Button name="copy-code-button" text="@github.copyCode" class="github-connect__secondary" />
                     <ui:Button name="cancel-button" text="@common.cancel" class="github-connect__secondary" />

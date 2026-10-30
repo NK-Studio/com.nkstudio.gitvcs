@@ -27,6 +27,15 @@
     --git-current-row: #303238;
     /* 읽는 동안 내용 자리에 그리는 스켈레톤 막대(GitSkeleton). 바탕보다 살짝 밝게(밝은 테마는 어둡게). */
     --git-skeleton: rgba(255, 255, 255, 0.08);
+    /* GitHub 연결 화면: 오로라 원 셋(파랑·보라·청록), 흐르는 가지 선, 유리 카드 바탕·테두리·위 테두리 빛, 코드 칸 바탕. */
+    --git-connect-blob-a: rgba(56, 113, 225, 0.30);
+    --git-connect-blob-b: rgba(140, 82, 230, 0.26);
+    --git-connect-blob-c: rgba(40, 180, 170, 0.20);
+    --git-connect-lanes: rgba(255, 255, 255, 0.05);
+    --git-connect-card: rgba(30, 31, 34, 0.62);
+    --git-connect-card-border: rgba(255, 255, 255, 0.08);
+    --git-connect-card-highlight: rgba(255, 255, 255, 0.18);
+    --git-connect-code-cell: rgba(255, 255, 255, 0.05);
     --git-row-alt: rgba(0,0,0,0);
     --git-accent: #3871e1;
     --git-accent-hover: #3366cc;
