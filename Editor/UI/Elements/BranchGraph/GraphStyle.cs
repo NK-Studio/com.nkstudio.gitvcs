@@ -49,6 +49,20 @@ namespace GitVersionControl
             return OriginX + column * ColumnWidth;
         }
 
+        /// <summary>
+        /// 지금 있지 않은 브랜치의 이름표·이름표 선에 쓰는 가라앉은 가지 색(GitKraken 과 같다): 채도와 밝기를 낮춘다. 알파는 그대로.
+        /// </summary>
+        public static Color Muted(Color color)
+        {
+            Color.RGBToHSV(color, out float h, out float s, out float v);
+            Color muted = Color.HSVToRGB(h, s * MutedSaturation, v * MutedValue);
+            muted.a = color.a;
+            return muted;
+        }
+
+        private const float MutedSaturation = 0.45f;
+        private const float MutedValue = 0.7f;
+
         public static Color LaneColor(GitGraphLane lane)
         {
             Color color = LaneColors[lane.ColorIndex % LaneColors.Length];
