@@ -8,8 +8,8 @@ namespace GitVersionControl
     /// GitHub 연결 화면(<c>GitHubConnect.uxml</c>): 로그인 버튼 → 코드 표시(복사) → "다음" 으로 GitHub 페이지 열기 → 승인되면
     /// <see cref="GitHubAccount.Changed"/> 로 창이 본체로 바뀐다.
     /// 로그인 진행은 Preferences 와 같은 <see cref="GitHubDeviceLogin.Shared"/> 를 써서, 어느 쪽에서 시작해도 양쪽에 같은 상태가 보인다.
-    /// 꾸밈: 뒤에 오로라와 흐르는 가지 선(<see cref="GitHubConnectBackdrop"/>), 그 위에 뒤를 흐리게 비치는 유리 카드(USS backdrop-filter),
     /// 카드와 안쪽 줄이 차례로 올라오며 나타나고, 코드는 글자마다 칸 상자로 보인다(복사하면 칸이 차례로 반짝인다).
+    /// 배경 오로라·흐름·유리(blur 필터)는 매 프레임 다시 그려 무겁고 보기에도 어수선해 쓰지 않는다.
     /// </summary>
     public sealed class GitHubConnectPanel : IDisposable
     {
@@ -18,7 +18,6 @@ namespace GitVersionControl
         private readonly VisualElement _waitingStep;
         private readonly Label _waitingText;
         private readonly VisualElement _userCode;
-        private readonly GitHubConnectBackdrop _backdrop;
 
         /// <summary>지금 칸 상자로 보이는 코드(바뀔 때만 다시 만든다).</summary>
         private string _shownCode;
@@ -58,9 +57,6 @@ namespace GitVersionControl
             root.Require<Button>("cancel-button").clicked += _login.Cancel;
             root.Require<Button>("skip-button").clicked += skipped;
 
-            VisualElement connect = root.Q(className: Block);
-            _backdrop = new GitHubConnectBackdrop();
-            connect.Insert(0, _backdrop);
             VisualElement card = root.Q(className: Block + "__card");
             GitShadow.Add(card, GitShadowSize.Large);
             Reveal(card, root.Q(className: Block + "__title"), root.Q(className: Block + "__text"), _startStep, _waitingStep,
@@ -150,8 +146,6 @@ namespace GitVersionControl
             _openPageButton.text = GitText.Get(_login.HasOpenedPage ? "github.openPage" : "github.next");
             ShowCode(hasCode ? _login.UserCode : string.Empty);
             _userCode.SetVisible(hasCode);
-            // 승인을 기다리는 동안 배경 오로라 색이 천천히 돈다.
-            _backdrop.Waiting = hasCode;
             // 코드를 받기 전에는 복사·페이지 열기가 쓸모없으니 취소만 남긴다.
             _copyCodeButton.SetVisible(hasCode);
             _openPageButton.SetVisible(hasCode);
