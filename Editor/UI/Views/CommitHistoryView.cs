@@ -299,6 +299,8 @@ namespace GitVersionControl
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count) + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
             Render();
             TryReveal();
+            // 기다리는 동안 저장소가 또 바뀌었으면 한 번 더 읽는다(도메인 리로드 직후 HEAD 를 모른 채 시작한 읽기가 빈 목록으로 남지 않게).
+            ReloadIfNeeded();
         }
 
         public override void Reveal(string hash)

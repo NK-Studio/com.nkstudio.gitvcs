@@ -178,6 +178,8 @@ namespace GitVersionControl
                 _detail.ShowPlaceholder();
             }
             Render();
+            // 기다리는 동안 저장소가 또 바뀌었으면 한 번 더 읽는다.
+            ReloadIfNeeded();
         }
 
         private void OnCommitSelected(GitCommitInfo commit)
