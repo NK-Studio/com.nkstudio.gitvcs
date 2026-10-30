@@ -23,7 +23,7 @@ namespace GitVersionControl
         public const string Block = "git-skeleton";
 
         /// <summary>띠가 그릇 위에서 아래까지 한 번 내려가는 시간(초). 다 내려가면 다시 위에서 시작한다.</summary>
-        private const float SweepSeconds = 3f;
+        private const float SweepSeconds = 2.3f;
 
         /// <summary>띠의 반쪽 높이: 그릇 높이의 이 비율(그래도 이 px 보다 얇지 않게). 띠 가운데에서 멀어질수록 막대가 어두워진다.</summary>
         private const float BandRatio = 0.45f;
@@ -92,17 +92,19 @@ namespace GitVersionControl
 
         /// <summary>
         /// 스켈레톤을 투명하게 두었다가 <see cref="AppearDelayMs"/> 뒤에도 아직 붙어 있으면(그때까지 읽기가 안 끝났으면) 서서히 보인다.
+        /// owner 를 주면 나타난 시각을 owner 에 기록한다(<see cref="Cover"/> 는 바탕은 바로 두고 막대 묶음만 늦게 보인다).
         /// </summary>
-        public static void AppearLater(VisualElement skeleton)
+        public static void AppearLater(VisualElement skeleton, VisualElement owner = null)
         {
+            VisualElement key = owner ?? skeleton;
             skeleton.style.opacity = 0f;
             skeleton.schedule.Execute(() =>
             {
-                if (skeleton.parent == null)
+                if (key.parent == null || skeleton.parent == null)
                 {
                     return;
                 }
-                ShownAt.AddOrUpdate(skeleton, Time.realtimeSinceStartupAsDouble);
+                ShownAt.AddOrUpdate(key, Time.realtimeSinceStartupAsDouble);
                 skeleton.style.transitionProperty = new List<StylePropertyName> { "opacity" };
                 skeleton.style.transitionDuration = new List<TimeValue> { new(AppearFadeMs, TimeUnit.Millisecond) };
                 skeleton.style.opacity = 1f;
@@ -134,13 +136,17 @@ namespace GitVersionControl
         /// </summary>
         public static VisualElement Cover(VisualElement host, SkeletonShape shape)
         {
+            // 바탕은 처음부터 불투명하게 깔아 아래의 이전 내용이 비치지 않게 하고(잔상), 막대 묶음만 늦게 나타난다(빨리 읽히면 막대 없이 바로 내용).
             VisualElement cover = new() { pickingMode = PickingMode.Ignore };
             cover.AddToClassList(Block + "-cover");
             cover.AddToClassList(Block + "-cover--" + shape.ToString().ToLowerInvariant());
+            VisualElement bars = new() { pickingMode = PickingMode.Ignore };
+            bars.AddToClassList(Block + "-cover-bars");
+            cover.Add(bars);
             int rows = shape == SkeletonShape.Commits ? 24 : 32;
             for (int i = 0; i < rows; i++)
             {
-                VisualElement row = Row(cover);
+                VisualElement row = Row(bars);
                 row.AddToClassList(Block + "-cover-row");
                 // 40~85% 사이에서 줄마다 다른 폭(같은 길이가 반복되면 격자처럼 보인다).
                 float width = 40f + (i * 37 % 46);
@@ -160,8 +166,8 @@ namespace GitVersionControl
                 }
             }
             host.Add(cover);
-            Pulse(cover);
-            AppearLater(cover);
+            Pulse(bars);
+            AppearLater(bars, cover);
             return cover;
         }
 
