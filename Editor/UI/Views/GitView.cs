@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -56,6 +57,14 @@ namespace GitVersionControl
         public virtual void Reload()
         {
         }
+
+        /// <summary>
+        /// 처음 읽기를 마쳤는지. 창은 이게 참이 될 때까지 <see cref="SkeletonHosts"/> 칸을 스켈레톤으로 덮는다. 저장소 상태를 바로 쓰는 탭은 늘 참.
+        /// </summary>
+        public virtual bool HasLoaded => true;
+
+        /// <summary>처음 읽는 동안 스켈레톤으로 덮을 칸과 그 모양.</summary>
+        public virtual IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts => Array.Empty<(VisualElement, SkeletonShape)>();
 
         /// <summary>작업 실행기의 바쁨 상태가 바뀔 때(버튼을 끄고 켜려고).</summary>
         public virtual void OnBusyChanged(bool isBusy)

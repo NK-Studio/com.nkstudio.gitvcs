@@ -313,7 +313,10 @@ namespace GitVersionControl
             _error.SetVisible(string.IsNullOrEmpty(refs.Error) == false);
             UpdateCounts();
             Rebuild();
-            ShowTree();
+            if (HoldReveal == false)
+            {
+                ShowTree();
+            }
             Loaded?.Invoke();
             LoadPullRequests();
             if (_reloadQueued)
@@ -324,6 +327,24 @@ namespace GitVersionControl
         }
 
         private VisualElement _skeleton;
+
+        /// <summary>처음 다 읽었는지(트리를 보일 수 있는지).</summary>
+        public bool HasLoaded => _refs != null;
+
+        /// <summary>
+        /// 참이면 다 읽어도 스켈레톤을 걷지 않는다 — 창이 다른 칸과 한꺼번에 걷으려고(<see cref="Reveal"/>).
+        /// </summary>
+        public bool HoldReveal { get; set; }
+
+        /// <summary>스켈레톤을 걷고 트리를 보인다(처음 한 번만 효과가 있다).</summary>
+        public void Reveal()
+        {
+            HoldReveal = false;
+            if (HasLoaded)
+            {
+                ShowTree();
+            }
+        }
 
         /// <summary>스켈레톤이 걷힐 때 트리가 나타나는 시간(ms).</summary>
         private const int TreeFadeMs = 220;

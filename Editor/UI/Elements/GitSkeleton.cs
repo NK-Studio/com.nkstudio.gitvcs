@@ -4,6 +4,16 @@ using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
+    /// <summary>칸을 덮는 스켈레톤의 모양(<see cref="GitSkeleton.Cover"/>).</summary>
+    public enum SkeletonShape
+    {
+        /// <summary>파일 목록·트리: 작은 아이콘 + 이름.</summary>
+        Files,
+
+        /// <summary>커밋 목록·그래프: 둥근 커밋 원 + 메시지 + 오른쪽 짧은 정보.</summary>
+        Commits,
+    }
+
     /// <summary>
     /// 읽는 동안 내용 자리에 그리는 스켈레톤(회색 막대). 진짜 배치와 같은 자리·크기로 두어, 다 읽었을 때 화면이 덜 흔들린다.
     /// 막대들은 <see cref="Pulse"/> 한 그릇 안에서, 밝은 띠가 위에서 아래로 내려가며 지나는 막대를 차례로 밝힌다(물결).
@@ -61,6 +71,58 @@ namespace GitVersionControl
             row.AddToClassList(Block + "-row");
             parent.Add(row);
             return row;
+        }
+
+        /// <summary>칸을 덮은 스켈레톤이 걷히는 시간(ms). 아래 내용이 서서히 드러난다.</summary>
+        private const int UncoverMs = 220;
+
+        /// <summary>
+        /// host 칸 전체를 덮는 스켈레톤(그 칸 바탕색으로 내용을 가리고, 모양에 맞는 줄을 칸 높이보다 넉넉히 늘어놓아 물결을 흘린다).
+        /// 내용을 다 읽으면 <see cref="Uncover"/> 로 걷는다. 줄 폭은 줄 번호로 정해 매번 같은 모양이다.
+        /// </summary>
+        public static VisualElement Cover(VisualElement host, SkeletonShape shape)
+        {
+            VisualElement cover = new() { pickingMode = PickingMode.Ignore };
+            cover.AddToClassList(Block + "-cover");
+            cover.AddToClassList(Block + "-cover--" + shape.ToString().ToLowerInvariant());
+            int rows = shape == SkeletonShape.Commits ? 24 : 32;
+            for (int i = 0; i < rows; i++)
+            {
+                VisualElement row = Row(cover);
+                row.AddToClassList(Block + "-cover-row");
+                // 40~85% 사이에서 줄마다 다른 폭(같은 길이가 반복되면 격자처럼 보인다).
+                float width = 40f + (i * 37 % 46);
+                if (shape == SkeletonShape.Commits)
+                {
+                    Bar(row, 20, 20, modifier: "dot").AddToClassList(Block + "-cover-lead");
+                    Bar(row, 0, 11, widthPercent: width * 0.7f);
+                    VisualElement fill = new() { pickingMode = PickingMode.Ignore };
+                    fill.style.flexGrow = 1;
+                    row.Add(fill);
+                    Bar(row, 48 + i * 13 % 30, 10).AddToClassList(Block + "-cover-meta");
+                }
+                else
+                {
+                    Bar(row, 14, 14).AddToClassList(Block + "-cover-lead");
+                    Bar(row, 0, 10, widthPercent: width * 0.8f);
+                }
+            }
+            host.Add(cover);
+            Pulse(cover);
+            return cover;
+        }
+
+        /// <summary>덮은 스켈레톤을 서서히 투명하게 해 아래 내용을 드러낸 뒤 떼어 낸다.</summary>
+        public static void Uncover(VisualElement cover)
+        {
+            if (cover == null || cover.parent == null)
+            {
+                return;
+            }
+            cover.style.transitionProperty = new List<StylePropertyName> { "opacity" };
+            cover.style.transitionDuration = new List<TimeValue> { new(UncoverMs, TimeUnit.Millisecond) };
+            cover.style.opacity = 0f;
+            cover.schedule.Execute(cover.RemoveFromHierarchy).StartingIn(UncoverMs + 40);
         }
 
         /// <summary>

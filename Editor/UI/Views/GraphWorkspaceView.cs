@@ -68,6 +68,17 @@ namespace GitVersionControl
         public event Action<bool> DiffShownChanged;
 
         public override string Title => GitText.Get("tab.graph");
+
+        public override bool HasLoaded => _loadedKey != null && _isLoading == false;
+
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get
+            {
+                yield return (Root.Require<VisualElement>("graph-host"), SkeletonShape.Commits);
+                yield return (Root.Require<VisualElement>("staging-host"), SkeletonShape.Files);
+            }
+        }
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
 
         private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{Services.Repository.RefsFingerprint}";

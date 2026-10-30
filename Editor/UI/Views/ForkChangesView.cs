@@ -15,6 +15,11 @@ namespace GitVersionControl
         public override string Title => GitText.Get("tab.localChanges");
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
 
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get { yield return (Root.Require<VisualElement>("staging-host"), SkeletonShape.Files); }
+        }
+
         public ForkChangesView(GitServices services, StagingState state) : base(services, "ForkChangesView")
         {
             // Fork 처럼 머리 줄 버튼은 고른 파일만 옮기고, Shift 를 누르는 동안만 "Stage All"·"Unstage All" 이 된다.

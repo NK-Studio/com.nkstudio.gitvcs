@@ -65,6 +65,13 @@ namespace GitVersionControl
 
         public override string Title => GitText.Get("tab.workspace");
 
+        public override bool HasLoaded => _index != null && _isLoading == false;
+
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get { yield return (Root.Require<VisualElement>("table-host"), SkeletonShape.Files); }
+        }
+
         private static string RepoRoot => GitRepository.RepoRoot ?? GitRepository.ProjectRoot;
 
         public WorkspaceView(GitServices services, WorkspaceState state) : base(services, "WorkspaceView")

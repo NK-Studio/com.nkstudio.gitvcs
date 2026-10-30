@@ -26,6 +26,11 @@ namespace GitVersionControl
         private string _preparedMessage;
 
         public override string Title => GitText.Get("tab.pending");
+
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get { yield return (Root.Require<VisualElement>("file-list"), SkeletonShape.Files); }
+        }
         public override string Badge => _selection.Rows.Count > 0 ? _selection.Rows.Count.ToString() : null;
 
         public PendingChangesView(GitServices services, PendingChangesState state) : base(services, "PendingChangesView")

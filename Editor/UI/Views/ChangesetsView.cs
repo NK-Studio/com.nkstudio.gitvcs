@@ -30,6 +30,16 @@ namespace GitVersionControl
         /// </summary>
         private List<GitBranchRef> _branches = new();
         private string _loadedKey;
+
+        public override bool HasLoaded => _loadedKey != null && _isLoading == false;
+
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get
+            {
+                yield return (Root.Require<VisualElement>("commit-list"), SkeletonShape.Commits);
+            }
+        }
         private bool _isLoading;
         private bool _hasMore;
         private string _error;

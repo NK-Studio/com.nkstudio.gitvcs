@@ -170,6 +170,8 @@ namespace GitVersionControl
             GitPopupHosts.Register(this, _window);
             GitContextMenu.Attach(layout, _window);
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
+            // 사이드바는 혼자 걷지 않고 처음 보이는 탭의 칸과 함께 걷는다(CoverWhileLoading).
+            _refs.HoldReveal = true;
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<ExplorerView>()?.Reveal(hash);
             // 본문 왼쪽 가장자리(사이드바 바로 옆)에서 밀려 나오는 서랍들. 본문 위에 덮어 띄우고, 한 번에 하나만 연다.
@@ -410,6 +412,8 @@ namespace GitVersionControl
                 view.Dispose();
             }
             _views.Clear();
+            _covering.Clear();
+            _sidebarCovering = false;
             _tabs.Clear();
             _services = null;
         }
@@ -696,6 +700,49 @@ namespace GitVersionControl
             return (T)_views[index];
         }
 
+        /// <summary>스켈레톤으로 덮여 있는 탭(같은 탭을 두 번 덮지 않게)과, 사이드바도 함께 덮는 중인지.</summary>
+        private readonly HashSet<GitView> _covering = new();
+        private bool _sidebarCovering;
+
+        /// <summary>처음 읽기가 오래 걸려도 이 시간(초)이 지나면 스켈레톤을 걷는다.</summary>
+        private const double CoverTimeout = 10.0;
+
+        /// <summary>
+        /// 탭의 칸(<see cref="GitView.SkeletonHosts"/>)을 스켈레톤으로 덮고, 탭이 처음 읽기를 마치면(사이드바도 함께면 사이드바까지) 한꺼번에 걷는다.
+        /// 한쪽만 먼저 채워지고 다른 쪽은 로딩 중인 어색함이 없게 — 모든 칸이 같이 물결치다 같이 드러난다.
+        /// </summary>
+        private void CoverWhileLoading(GitView view, bool withSidebar)
+        {
+            if (_covering.Add(view) == false)
+            {
+                return;
+            }
+            RefSidebar refs = withSidebar ? _refs : null;
+            if (refs != null)
+            {
+                _sidebarCovering = true;
+            }
+            List<VisualElement> covers = view.SkeletonHosts.Select(host => GitSkeleton.Cover(host.Host, host.Shape)).ToList();
+            double started = EditorApplication.timeSinceStartup;
+            IVisualElementScheduledItem poll = null;
+            poll = view.Root.schedule.Execute(() =>
+            {
+                bool ready = view.HasLoaded && (refs == null || refs.HasLoaded);
+                if (ready == false && EditorApplication.timeSinceStartup - started < CoverTimeout)
+                {
+                    return;
+                }
+                poll.Pause();
+                _covering.Remove(view);
+                if (refs != null && refs == _refs)
+                {
+                    _sidebarCovering = false;
+                    refs.Reveal();
+                }
+                covers.ForEach(GitSkeleton.Uncover);
+            }).Every(50);
+        }
+
         private void SelectTab(int index)
         {
             for (int i = 0; i < _views.Count; i++)
@@ -705,6 +752,15 @@ namespace GitVersionControl
                 if (selected && _views[i].IsActive == false)
                 {
                     _views[i].Activate();
+                    // 창을 처음 만든 뒤 처음 보이는 탭은 사이드바와 함께, 그 뒤 아직 읽지 않은 탭은 그 칸만 스켈레톤으로 덮는다.
+                    if (_refs != null && _refs.HoldReveal && _sidebarCovering == false)
+                    {
+                        CoverWhileLoading(_views[i], withSidebar: true);
+                    }
+                    else if (_views[i].HasLoaded == false)
+                    {
+                        CoverWhileLoading(_views[i], withSidebar: false);
+                    }
                 }
                 else if (selected == false && _views[i].IsActive)
                 {

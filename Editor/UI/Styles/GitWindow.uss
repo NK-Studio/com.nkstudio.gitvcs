@@ -1522,6 +1522,45 @@
     border-radius: 10px;
 }
 
+.git-skeleton--dot {
+    border-radius: 10px;
+}
+
+/* 칸을 덮는 스켈레톤(GitSkeleton.Cover): 칸 바탕색으로 아래 내용을 가린다. 다 읽으면 서서히 투명해지며 걷힌다. */
+.git-skeleton-cover {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding-top: 4px;
+    background-color: var(--git-list-bg);
+}
+
+.git-skeleton-cover-row {
+    flex-shrink: 0;
+    align-items: center;
+    padding: 0 14px 0 12px;
+}
+
+.git-skeleton-cover--files > .git-skeleton-cover-row {
+    height: 24px;
+}
+
+.git-skeleton-cover--commits > .git-skeleton-cover-row {
+    height: 34px;
+    padding-left: 16px;
+}
+
+.git-skeleton-cover-lead {
+    margin-right: 10px;
+}
+
+.git-skeleton-cover-meta {
+    margin-left: 12px;
+}
+
 .git-skeleton-row {
     flex-direction: row;
 }

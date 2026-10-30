@@ -35,6 +35,16 @@ namespace GitVersionControl
         /// </summary>
         private string _pendingReveal;
         private string _loadedKey;
+
+        public override bool HasLoaded => _loadedKey != null && _isLoading == false;
+
+        public override System.Collections.Generic.IEnumerable<(VisualElement Host, SkeletonShape Shape)> SkeletonHosts
+        {
+            get
+            {
+                yield return (Root.Require<VisualElement>("graph-host"), SkeletonShape.Commits);
+            }
+        }
         private bool _isLoading;
         private int _searchCursor = -1;
 
