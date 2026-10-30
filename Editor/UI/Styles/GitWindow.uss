@@ -1511,23 +1511,15 @@
     width: 640px;
 }
 
-/* ── git-skeleton: 읽는 동안의 회색 막대(GitSkeleton). 한 그릇 안의 막대가 위에서 아래로 물결치듯 옅어졌다 짙어진다(막대마다 위치만큼 transition-delay). ── */
+/* ── git-skeleton: 읽는 동안의 회색 막대(GitSkeleton). 밝은 띠가 그릇 위에서 아래로 내려가며 지나는 막대를 밝힌다(밝기는 코드가 틀마다 넣는다). ── */
 .git-skeleton {
     flex-shrink: 0;
     border-radius: var(--git-radius-small);
     background-color: var(--git-skeleton);
-    opacity: 1;
-    transition-property: opacity;
-    transition-duration: 0.6s;
-    transition-timing-function: ease-in-out;
 }
 
 .git-skeleton--pill {
     border-radius: 10px;
-}
-
-.git-skeleton-group--dim .git-skeleton {
-    opacity: 0.4;
 }
 
 .git-skeleton-row {
