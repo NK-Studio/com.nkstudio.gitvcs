@@ -83,6 +83,20 @@
     margin-top: 4px;
 }
 
+/* 저장소를 만들 폴더 경로: 코드 글꼴로 칸 안에(긴 경로는 줄 바꿈). */
+.github-connect__folder {
+    white-space: normal;
+    margin: 0 0 12px 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    -unity-font-definition: url("../Fonts/Jetendard-Regular.ttf");
+    color: var(--git-text);
+    background-color: var(--git-connect-code-cell);
+    border-width: 1px;
+    border-color: var(--git-connect-card-border);
+    border-radius: 8px;
+}
+
 /* 우리 버튼 규칙: 평소엔 옅은 강조색 바탕 + 강조색 테두리, 마우스를 올리면 강조색으로 꽉 채운다. */
 .github-connect__primary {
     height: 42px;

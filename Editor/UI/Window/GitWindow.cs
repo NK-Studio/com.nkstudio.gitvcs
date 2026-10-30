@@ -267,8 +267,36 @@ namespace GitVersionControl
             _connect = new GitHubConnectPanel(layout, () =>
             {
                 SessionState.SetBool(SkipConnectKey, true);
-                LeaveConnect();
-            });
+                ProceedFromConnect();
+            }, LeaveConnect);
+        }
+
+        /// <summary>
+        /// git 은 찾았는데 이 프로젝트가 아직 저장소가 아닌지. 그러면 연결 화면에서 바로 본체로 가지 않고 저장소 만들기 단계를 먼저 보인다.
+        /// </summary>
+        private static bool NeedsRepository => GitRepository.IsRunning && GitRepository.IsRepository == false;
+
+        /// <summary>
+        /// 연결 화면을 마칠 때(로그인했거나 로그인 없이 계속): 저장소가 없으면 같은 카드에서 git init 단계를, 있으면 본체로.
+        /// 로그인 없이 쓰는 사람은 대개 GitHub 없이 이 PC 에서만 git 을 쓰려는 사람이라, 본체의 "저장소가 아님" 안내보다 여기서 바로 만들게 한다.
+        /// </summary>
+        private void ProceedFromConnect()
+        {
+            if (_connect != null && NeedsRepository)
+            {
+                _connect.ShowInitStep();
+                return;
+            }
+            LeaveConnect();
+        }
+
+        /// <summary>
+        /// ⋮ 메뉴 "GitHub 로그인…": 이미 본체를 쓰는 중에도(로그인 없이 계속했던 사람) 연결 화면으로 돌아가 로그인할 수 있게 한다.
+        /// </summary>
+        private void ShowConnect()
+        {
+            SessionState.SetBool(SkipConnectKey, false);
+            Rebuild();
         }
 
         /// <summary>
@@ -278,7 +306,7 @@ namespace GitVersionControl
         {
             if (_connect != null && NeedsGitHubConnect == false)
             {
-                LeaveConnect();
+                ProceedFromConnect();
                 return;
             }
             Rebuild();
@@ -495,6 +523,11 @@ namespace GitVersionControl
                 }
             });
             menu.AddSeparator(string.Empty);
+            // 로그인하지 않고 쓰는 중이면 연결 화면으로 돌아가 로그인할 수 있게(이미 연결 화면이면 빼고).
+            if (GitHubAccount.IsConfigured && GitHubAccount.IsSignedIn == false && _connect == null)
+            {
+                menu.AddItem(new GUIContent(GitText.Get("window.connectGitHub")), false, ShowConnect);
+            }
             if (GitRepository.IsRepository)
             {
                 menu.AddItem(new GUIContent(GitText.Get("account.menu")), false, () => _ = GitAccountDialog.ShowAsync(_services, null));

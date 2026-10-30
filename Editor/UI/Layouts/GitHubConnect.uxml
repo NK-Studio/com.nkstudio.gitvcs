@@ -5,8 +5,8 @@
 
     <ui:VisualElement name="github-connect" class="git-window github-connect">
         <ui:VisualElement class="github-connect__card">
-            <ui:Label text="@connect.title" class="github-connect__title" />
-            <ui:Label text="@connect.description" class="github-connect__text" />
+            <ui:Label name="title" text="@connect.title" class="github-connect__title" />
+            <ui:Label name="description" text="@connect.description" class="github-connect__text" />
 
             <ui:VisualElement name="start-step" class="github-connect__step">
                 <ui:Button name="sign-in-button" text="@github.signIn" class="github-connect__primary" />
@@ -20,6 +20,14 @@
                     <ui:Button name="cancel-button" text="@common.cancel" class="github-connect__secondary" />
                 </ui:VisualElement>
                 <ui:Button name="open-page-button" class="github-connect__primary github-connect__next" />
+            </ui:VisualElement>
+
+            <!-- 로그인 없이 계속(또는 로그인한 뒤) 이 프로젝트가 아직 저장소가 아니면: 여기서 git init 하고 본체로. -->
+            <ui:VisualElement name="init-step" class="github-connect__step">
+                <ui:Label name="init-folder" class="github-connect__folder" />
+                <ui:Label name="init-gitignore" class="github-connect__text" />
+                <ui:Button name="init-button" text="@connect.initButton" class="github-connect__primary" />
+                <ui:Button name="init-later-button" text="@connect.initLater" class="github-connect__link" />
             </ui:VisualElement>
 
             <ui:Label name="error-text" class="github-connect__error" />

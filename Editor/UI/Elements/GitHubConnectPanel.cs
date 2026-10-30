@@ -10,6 +10,7 @@ namespace GitVersionControl
     /// 로그인 진행은 Preferences 와 같은 <see cref="GitHubDeviceLogin.Shared"/> 를 써서, 어느 쪽에서 시작해도 양쪽에 같은 상태가 보인다.
     /// 카드와 안쪽 줄이 차례로 올라오며 나타나고, 코드는 글자마다 칸 상자로 보인다(복사하면 칸이 차례로 반짝인다).
     /// 배경 오로라·흐름·유리(blur 필터)는 매 프레임 다시 그려 무겁고 보기에도 어수선해 쓰지 않는다.
+    /// 로그인하지 않고 계속하거나 로그인한 뒤 이 프로젝트가 아직 저장소가 아니면, 창이 <see cref="ShowInitStep"/> 로 같은 카드에서 git init 을 받는다.
     /// </summary>
     public sealed class GitHubConnectPanel : IDisposable
     {
@@ -34,6 +35,17 @@ namespace GitVersionControl
         private readonly Button _copyCodeButton;
         private readonly Button _openPageButton;
         private readonly Label _errorText;
+        private readonly Label _title;
+        private readonly Label _description;
+        private readonly VisualElement _initStep;
+        private readonly Label _initFolder;
+        private readonly Label _initGitignore;
+        private readonly Button _initButton;
+        private readonly Button _skipButton;
+        private readonly Action _finished;
+
+        /// <summary>저장소 만들기 단계를 보이는 중(로그인 단계는 감춘다).</summary>
+        private bool _initMode;
 
         /// <summary>
         /// "복사됨" 을 잠깐 보였다가 원래 글자로 되돌리는 예약.
@@ -41,8 +53,20 @@ namespace GitVersionControl
         private IVisualElementScheduledItem _copiedReset;
 
         /// <param name="skipped">"이번에는 건너뛰기" 를 눌렀을 때.</param>
-        public GitHubConnectPanel(VisualElement root, Action skipped)
+        /// <param name="finished">저장소 만들기 단계를 마쳤을 때(만들었거나 "나중에"). 창이 본체로 넘어간다.</param>
+        public GitHubConnectPanel(VisualElement root, Action skipped, Action finished)
         {
+            _finished = finished;
+            _title = root.Require<Label>("title");
+            _description = root.Require<Label>("description");
+            _initStep = root.Require<VisualElement>("init-step");
+            _initFolder = root.Require<Label>("init-folder");
+            _initGitignore = root.Require<Label>("init-gitignore");
+            _initButton = root.Require<Button>("init-button");
+            _skipButton = root.Require<Button>("skip-button");
+            _initButton.clicked += () => _ = CreateRepositoryAsync();
+            root.Require<Button>("init-later-button").clicked += () => _finished?.Invoke();
+            _initStep.SetVisible(false);
             _startStep = root.Require<VisualElement>("start-step");
             _waitingStep = root.Require<VisualElement>("waiting-step");
             _waitingText = root.Require<Label>("waiting-text");
@@ -55,7 +79,7 @@ namespace GitVersionControl
             _copyCodeButton.clicked += CopyCode;
             _openPageButton.clicked += _login.OpenVerificationPage;
             root.Require<Button>("cancel-button").clicked += _login.Cancel;
-            root.Require<Button>("skip-button").clicked += skipped;
+            _skipButton.clicked += skipped;
 
             VisualElement card = root.Q(className: Block + "__card");
             GitShadow.Add(card, GitShadowSize.Large);
@@ -136,8 +160,70 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// 카드를 "Git 저장소 만들기" 단계로 바꾼다: 제목·설명을 바꾸고 로그인 단계를 감춘 뒤, 만들 폴더와 .gitignore 안내, 만들기 버튼을 보인다.
+        /// 새 단계는 아래에서 살짝 올라오며 나타난다(처음 카드와 같은 연출).
+        /// </summary>
+        public void ShowInitStep()
+        {
+            _initMode = true;
+            string root = GitRepository.ProjectRoot ?? string.Empty;
+            _title.text = GitText.Get("connect.initTitle");
+            _description.text = GitText.Get("connect.initDescription");
+            _initFolder.text = root;
+            _initGitignore.text = GitText.Get(GitInit.HasGitignore(root) ? "init.keepGitignore" : "init.addGitignore").Trim();
+            _initButton.text = GitText.Get("connect.initButton");
+            _initButton.SetEnabled(true);
+            Render();
+            foreach (VisualElement element in new[] { _description, _initStep })
+            {
+                element.RemoveFromClassList(Block + "__reveal--in");
+                element.AddToClassList(Block + "__reveal");
+            }
+            _initStep.schedule.Execute(() =>
+            {
+                _description.AddToClassList(Block + "__reveal--in");
+                _initStep.schedule.Execute(() => _initStep.AddToClassList(Block + "__reveal--in")).StartingIn(RevealStepMs);
+            }).StartingIn(16);
+        }
+
+        private async System.Threading.Tasks.Task CreateRepositoryAsync()
+        {
+            _initButton.SetEnabled(false);
+            _initButton.text = GitText.Get("connect.initCreating");
+            ShowError(null);
+            (GitResult result, string gitignoreError) = await GitInit.CreateRepositoryAsync(GitRepository.ProjectRoot);
+            if (result.Success == false)
+            {
+                _initButton.SetEnabled(true);
+                _initButton.text = GitText.Get("connect.initButton");
+                ShowError(GitText.Get("init.failed") + "\n" + result.Message);
+                return;
+            }
+            GitRepository.RequestRefresh(immediate: true);
+            if (gitignoreError != null)
+            {
+                Debug.LogWarning(GitText.Format("init.gitignoreFailed", gitignoreError));
+            }
+            _finished?.Invoke();
+        }
+
+        private void ShowError(string message)
+        {
+            _errorText.text = message ?? string.Empty;
+            _errorText.SetVisible(string.IsNullOrEmpty(message) == false);
+        }
+
         private void Render()
         {
+            if (_initMode)
+            {
+                _startStep.SetVisible(false);
+                _waitingStep.SetVisible(false);
+                _skipButton.SetVisible(false);
+                _initStep.SetVisible(true);
+                return;
+            }
             bool isRunning = _login.IsRunning;
             bool hasCode = _login.Current == GitHubDeviceLogin.Step.WaitingForApproval;
             _startStep.SetVisible(isRunning == false);
