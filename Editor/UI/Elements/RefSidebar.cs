@@ -1020,7 +1020,7 @@ namespace GitVersionControl
                 case RefNodeKind.PullRequest:
                     UnityEngine.Application.OpenURL(node.PullRequest.Url);
                     break;
-                case RefNodeKind.Info when _pullRequests?.NeedsSignIn == true:
+                case RefNodeKind.Info when node.Section == RefSection.PullRequests && _pullRequests?.NeedsSignIn == true:
                     UnityEditor.SettingsService.OpenUserPreferences(GitMainToolbarMenu.PreferencesPath);
                     break;
                 case RefNodeKind.Submodule:

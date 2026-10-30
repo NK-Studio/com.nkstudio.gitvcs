@@ -156,7 +156,13 @@ namespace GitVersionControl.Tests
             List<RefNode> roots = RefTreeBuilder.Build(refs, null, section => section.ToString());
 
             Assert.AreEqual(RefTreeBuilder.Sections.Length, roots.Count);
-            Assert.IsTrue(roots.Where(r => r.Section is not (RefSection.PullRequests or RefSection.Remote)).All(r => r.Children.Count == 0));
+            // 빈 구역은 펼치고 접을 수 있게 안내 한 줄만 둔다(개수에는 들지 않는다).
+            foreach (RefNode empty in roots.Where(r => r.Section is not (RefSection.PullRequests or RefSection.Remote)))
+            {
+                Assert.AreEqual(RefNodeKind.Info, empty.Children.Single().Kind);
+                Assert.AreEqual("refs.empty" + empty.Section, empty.Children.Single().Label);
+                Assert.AreEqual("0", empty.Badge);
+            }
             // 받은 브랜치가 없어도 등록된 원격 줄은 보인다(막 추가한 원격이 사라진 것처럼 보이지 않게).
             RefNode remote = roots.Single(r => r.Section == RefSection.Remote).Children.Single();
             Assert.AreEqual(RefNodeKind.Remote, remote.Kind);

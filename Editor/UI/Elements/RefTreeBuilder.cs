@@ -247,9 +247,16 @@ namespace GitVersionControl
                         }
                         break;
                 }
+                // 비어 있는 구역도 펼치고 접을 수 있게 안내 한 줄("스태시가 없습니다" 등)을 둔다 — 화살표만 있고 아래가 비면 다른 구역과 모양이 달라 보였다.
+                // 개수(LeafCount)에는 들지 않는다. 검색 중에는 빈 구역 자체를 뺀다(아래).
+                if (needle == null && root.Children.Count == 0 && section != RefSection.PullRequests)
+                {
+                    string empty = localize("refs.empty" + section);
+                    root.Children.Add(new RefNode { Kind = RefNodeKind.Info, Section = section, Id = "empty:" + section, Label = empty, Tooltip = empty });
+                }
                 // PR 은 여러 묶음에 겹쳐 나오므로 구역 개수는 "전체" 묶음 수다.
                 root.Badge = (section == RefSection.PullRequests ? PullRequestCount(refs.PullRequests) : root.LeafCount).ToString();
-                // 검색 중에는 걸린 것이 있는 구역만 남긴다(Fork 처럼 일치하는 요소만 보인다). 검색하지 않을 때는 빈 구역도 둔다.
+                // 검색 중에는 걸린 것이 있는 구역만 남긴다(Fork 처럼 일치하는 요소만 보인다). 검색하지 않을 때는 빈 구역도 둔다(안내 한 줄과 함께).
                 if (needle != null && root.Children.Count == 0)
                 {
                     continue;
