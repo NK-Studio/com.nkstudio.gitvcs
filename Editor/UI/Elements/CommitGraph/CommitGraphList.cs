@@ -157,7 +157,11 @@ namespace GitVersionControl
         /// </summary>
         private float RefsWidth => Mathf.Max(_refsWidth, MinRefsWidth);
 
-        private const float MaxRefsColumnWidth = 480f;
+        /// <summary>
+        /// 저장 폭의 상한(잘못된 설정 값을 막는 정도). 끌 때의 실제 상한은 줄 안에 남은 자리다(<see cref="ClampToRoom"/>) —
+        /// 맨 오른쪽 칸이 최소 폭으로 오른쪽 끝에 붙을 때까지 넓힐 수 있다.
+        /// </summary>
+        private const float MaxRefsColumnWidth = 2000f;
 
         // ── 칸이 좁아질 때(GitKraken 과 같다) ──
         // 이름과 이름 뒤 틈이 함께 깎이고, 이름표가 최소 폭(첫 아이콘 상자 28, USS)에 닿을 때까지 둥근 오른쪽 끝이 칸 경계를 따라 줄어든다.
@@ -201,7 +205,7 @@ namespace GitVersionControl
         /// </summary>
         private const float MinBranchInputWidth = 20f;
 
-        private const float MaxGraphColumnWidth = 800f;
+        private const float MaxGraphColumnWidth = 2000f;
 
         // Fork 형태의 오른쪽 고정 칸(작성자 · SHA · 날짜). 순서·폭을 바꾸는 칸이 아니라 늘 맨 오른쪽에 붙는다.
         private const float AuthorColumnWidth = 150f;
