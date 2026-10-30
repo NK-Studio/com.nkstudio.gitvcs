@@ -42,6 +42,8 @@ namespace GitVersionControl
             GitContextMenu.Attach(Content, Content);
             // 이 창에서 시작한 확인·입력 팝업은 이 창 위에 뜬다(Git 창으로 넘어가지 않게).
             GitPopupHosts.Register(this, Content);
+            // Git 창과 같은 툴팁(기본 툴팁 대신 이 창 위 말풍선).
+            HoverCallout.ReplaceTooltips(rootVisualElement, () => Content);
             GitTheme.Apply(Content);
             GitTheme.Changed -= ApplyTheme;
             GitTheme.Changed += ApplyTheme;

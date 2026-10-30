@@ -1071,6 +1071,18 @@
     -unity-text-align: middle-center;
 }
 
+/* 아래로 넘쳐 대상 위에 뜬 말풍선: 꼭지가 아래에서 대상을 가리킨다. */
+.hover-callout--above .hover-callout__arrow {
+    top: auto;
+    bottom: -3px;
+}
+
+/* Unity 기본 툴팁을 바꾼 것(HoverCallout.ReplaceTooltips): 긴 설명이 많아 폭을 좁혀 줄 바꿈하고 왼쪽 맞춤. */
+.hover-callout--tooltip .hover-callout__label {
+    max-width: 360px;
+    -unity-text-align: middle-left;
+}
+
 .unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__add {
     display: flex;
 }

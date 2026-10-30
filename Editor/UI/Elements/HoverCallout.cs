@@ -103,6 +103,85 @@ namespace GitVersionControl
             target.RegisterCallback<DetachFromPanelEvent>(_ => Hide(target));
         }
 
+        /// <summary>툴팁을 띄운 적이 있는 요소(벗어나면 닫는 콜백을 한 번만 단다).</summary>
+        private static readonly ConditionalWeakTable<VisualElement, object> s_tooltipOwners = new();
+
+        /// <summary>
+        /// 창 안의 Unity 기본 툴팁(요소의 <c>tooltip</c> 속성)을 이 말풍선으로 바꾼다.
+        /// Unity 는 마우스가 머문 뒤 마우스 아래 요소에 <see cref="TooltipEvent"/> 를 보내고, 그 요소가 글을 채워 돌려줘야 기본 툴팁을 띄운다
+        /// (Unity 6.0~6.7 의 DefaultWindowBackend.GetTooltip 이 같다). 창 루트에서 먼저 받아 전달을 멈추면 글이 비어 기본 툴팁이 뜨지 않고,
+        /// 그 자리에서 같은 글을 말풍선으로 대상 아래(넘치면 위)에 띄운다 — 기본 툴팁과 우리 말풍선이 두 번 뜨지 않고,
+        /// 테마·창 배율을 따르며, 뜰 때마다 글을 새로 읽어 낡은 글이 남지 않는다. 기존 <c>tooltip</c> 속성은 그대로 글의 출처로 쓴다.
+        /// 즉시 뜨는 말풍선(<see cref="Attach"/>)이 달린 요소는 그 말풍선에 맡긴다. 띄울 덮개가 없으면 기본 툴팁을 그대로 둔다.
+        /// </summary>
+        public static void ReplaceTooltips(VisualElement root, Func<VisualElement> host)
+        {
+            root.RegisterCallback<TooltipEvent>(evt =>
+            {
+                VisualElement layer = host();
+                if (layer == null || layer.panel == null)
+                {
+                    return;
+                }
+                VisualElement owner = null;
+                for (VisualElement element = evt.target as VisualElement; element != null; element = element.parent)
+                {
+                    if (s_showFor.TryGetValue(element, out _))
+                    {
+                        // 즉시 뜨는 말풍선이 맡은 요소(또는 그 안): 기본 툴팁만 막는다.
+                        owner = null;
+                        break;
+                    }
+                    if (owner == null && string.IsNullOrEmpty(element.tooltip) == false)
+                    {
+                        owner = element;
+                    }
+                    if (element == root)
+                    {
+                        break;
+                    }
+                }
+                evt.tooltip = string.Empty;
+                evt.StopImmediatePropagation();
+                if (owner == null || s_owner == owner)
+                {
+                    return;
+                }
+                ShowTooltip(owner, layer);
+            }, TrickleDown.TrickleDown);
+            root.RegisterCallback<WheelEvent>(_ => HideTooltip(), TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
+        }
+
+        private static void ShowTooltip(VisualElement owner, VisualElement layer)
+        {
+            Hide(null);
+            VisualElement callout = Create(owner.tooltip, HoverCalloutPlacement.Below);
+            callout.AddToClassList(Block + "--tooltip");
+            // 툴팁 글은 그대로 보인다(경로·명령에 든 '<' 를 서식으로 읽지 않게).
+            callout.Q<Label>().enableRichText = false;
+            s_shown = callout;
+            s_owner = owner;
+            layer.Add(callout);
+            PlaceBelow(callout, layer, layer.WorldToLocal(owner.worldBound));
+            if (s_tooltipOwners.TryGetValue(owner, out _) == false)
+            {
+                s_tooltipOwners.Add(owner, null);
+                owner.RegisterCallback<PointerLeaveEvent>(_ => Hide(owner));
+                owner.RegisterCallback<PointerDownEvent>(_ => Hide(owner), TrickleDown.TrickleDown);
+                owner.RegisterCallback<DetachFromPanelEvent>(_ => Hide(owner));
+            }
+        }
+
+        /// <summary>떠 있는 것이 툴팁이면 닫는다(즉시 뜨는 안내 말풍선은 그대로).</summary>
+        private static void HideTooltip()
+        {
+            if (s_shown != null && s_shown.ClassListContains(Block + "--tooltip"))
+            {
+                Hide(null);
+            }
+        }
+
         /// <summary>
         /// 떠 있는 말풍선을 닫는다. <paramref name="owner"/> 를 주면 그 대상의 것일 때만 닫고, 닫았는지 돌려준다.
         /// </summary>
@@ -134,6 +213,13 @@ namespace GitVersionControl
                 float left = Mathf.Clamp(bounds.center.x - width * 0.5f, EdgeMargin, maxLeft);
                 callout.style.left = left;
                 callout[0].style.left = bounds.center.x - left - callout[0].layout.width * 0.5f;
+                // 아래로 덮개를 넘치면 대상 위로 뒤집는다(꼭지도 아래로).
+                bool above = bounds.yMax + 4f + callout.layout.height > layer.layout.height - EdgeMargin && bounds.yMin - 4f - callout.layout.height >= EdgeMargin;
+                if (above != callout.ClassListContains(Block + "--above"))
+                {
+                    callout.EnableInClassList(Block + "--above", above);
+                    callout.style.top = above ? bounds.yMin - 4f - callout.layout.height : bounds.yMax + 4f;
+                }
                 callout.style.visibility = Visibility.Visible;
             });
         }

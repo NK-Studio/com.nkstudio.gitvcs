@@ -118,6 +118,8 @@ namespace GitVersionControl
             // 서브모듈을 열거나 돌아오면 탭을 다시 만든다 — 지난 저장소의 커밋 목록·선택·diff 가 남지 않게.
             GitRepository.RepositorySwitched -= Rebuild;
             GitRepository.RepositorySwitched += Rebuild;
+            // Unity 기본 툴팁 대신 창 위 덮개에 우리 말풍선으로(두 번 뜨지 않게, 테마·배율을 따르게). 루트는 다시 만들어도 그대로라 한 번만 단다.
+            HoverCallout.ReplaceTooltips(rootVisualElement, () => _window);
             Build();
         }
 
