@@ -1024,65 +1024,6 @@
     font-size: 11px;
 }
 
-/* ── hover-callout: 마우스를 올리면 바로 뜨는 말풍선(HoverCallout). GitKraken 처럼 테마와 상관없이 검은 말풍선에 흰 글자.
-   기본은 버튼 오른쪽에 붙고 왼쪽 꼭지가 버튼을 가리킨다. ── */
-.hover-callout {
-    position: absolute;
-    flex-direction: row;
-    align-items: center;
-    translate: 0 -50%;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background-color: #000000;
-}
-
-.hover-callout__arrow {
-    position: absolute;
-    left: -3px;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    margin-top: -3px;
-    rotate: 45deg;
-    background-color: #000000;
-}
-
-.hover-callout__label {
-    padding: 0;
-    margin: 0;
-    color: #ffffff;
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-/* 사이드바 줄 아래에 뜨는 전체 이름. 꼭지는 위에서 줄 가운데를 가리키고(left 는 HoverCallout 이 정한다), 긴 경로는 접는다. */
-.hover-callout--below {
-    translate: 0 0;
-}
-
-.hover-callout--below .hover-callout__arrow {
-    top: -3px;
-    margin-top: 0;
-}
-
-.hover-callout--below .hover-callout__label {
-    max-width: 640px;
-    white-space: normal;
-    -unity-text-align: middle-center;
-}
-
-/* 아래로 넘쳐 대상 위에 뜬 말풍선: 꼭지가 아래에서 대상을 가리킨다. */
-.hover-callout--above .hover-callout__arrow {
-    top: auto;
-    bottom: -3px;
-}
-
-/* Unity 기본 툴팁을 바꾼 것(HoverCallout.ReplaceTooltips): 긴 설명이 많아 폭을 좁혀 줄 바꿈하고 왼쪽 맞춤. */
-.hover-callout--tooltip .hover-callout__label {
-    max-width: 360px;
-    -unity-text-align: middle-left;
-}
-
 .unity-tree-view__item:hover .ref-tree__row--addable .ref-tree__add {
     display: flex;
 }
