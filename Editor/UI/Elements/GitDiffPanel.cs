@@ -2016,7 +2016,7 @@ namespace GitVersionControl
             bool zeroContext = _loadedContextLines == 0;
             ClearSelection();
             await _runner.RunAsync(GitText.Get("op.discardHunk"),
-                () => _commands.DiscardPatchFromWorkTreeAsync(patch, zeroContext), refreshAssets: true, workingTreeOnly: true);
+                () => _commands.DiscardPatchFromWorkTreeAsync(patch, zeroContext, target.RepoPath), refreshAssets: true, workingTreeOnly: true);
             if (_target == target)
             {
                 Reload();

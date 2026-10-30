@@ -130,7 +130,7 @@ namespace GitVersionControl
         /// <summary>
         /// diff 의 "Discard Hunk": 패치를 작업 사본에 거꾸로 적용해 그 변경을 되돌린다(<c>git apply --reverse</c>, 인덱스는 그대로). 되돌릴 수 없다.
         /// </summary>
-        Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext);
+        Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext, string repoPath);
         Task<GitResult> CommitStagedAsync(string message, bool amend);
         Task<string> LastCommitMessageAsync();
 
@@ -285,7 +285,7 @@ namespace GitVersionControl
 
         public Task<GitResult> ApplyPatchToIndexAsync(string patch, bool reverse, bool zeroContext, string intentToAddPath) => GitOperations.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAddPath);
 
-        public Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext) => GitOperations.DiscardPatchFromWorkTreeAsync(patch, zeroContext);
+        public Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext, string repoPath) => GitOperations.DiscardPatchFromWorkTreeAsync(patch, zeroContext, repoPath);
 
         public Task<GitResult> CommitStagedAsync(string message, bool amend) => GitUndo.CommitStagedAsync(message, amend);
 

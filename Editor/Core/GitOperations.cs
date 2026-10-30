@@ -378,8 +378,10 @@ namespace GitVersionControl
         /// <summary>
         /// 부분 패치를 작업 사본에 거꾸로 적용해 그 변경을 버린다(diff 의 "Discard Hunk"). 인덱스는 건드리지 않는다.
         /// 패치는 Unstaged diff(인덱스 ↔ 작업 사본)에서 <see cref="GitPartialPatch.Build"/>(reverse: true)로 만든 것이어야 한다.
+        /// 버린 뒤 그 파일이 인덱스와 차이가 없어졌으면 인덱스의 파일 기록을 새로 맞춘다(<see cref="RefreshIfUnchangedAsync"/>).
         /// </summary>
-        public static async Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext)
+        /// <param name="repoPath">패치를 만든 파일(저장소 기준 경로). 버린 뒤 상태를 맞출 때 쓴다.</param>
+        public static async Task<GitResult> DiscardPatchFromWorkTreeAsync(string patch, bool zeroContext, string repoPath)
         {
             if (string.IsNullOrEmpty(patch))
             {
@@ -395,11 +397,31 @@ namespace GitVersionControl
                     args.Add("--unidiff-zero");
                 }
                 args.Add(patchFile);
-                return await GitRepository.RunAsync(args.ToArray());
+                GitResult result = await GitRepository.RunAsync(args.ToArray());
+                if (result.Success && string.IsNullOrEmpty(repoPath) == false)
+                {
+                    await RefreshIfUnchangedAsync(repoPath);
+                }
+                return result;
             }
             finally
             {
                 TryDelete(patchFile);
+            }
+        }
+
+        /// <summary>
+        /// 작업 사본의 파일이 인덱스와 내용이 같으면(<c>git diff --quiet</c>) 인덱스의 파일 기록(크기·시각)을 새로 맞춘다(<c>git add</c>).
+        /// <c>core.autocrlf=true</c> 저장소에서 줄을 버리면 git 이 파일을 CRLF 로 다시 써, 내용·해시가 같아도 기록이 달라 "수정됨" 으로 남는다 —
+        /// 변경 목록에 diff 없는 줄이 남았다. 내용이 같을 때만 하므로 스테이징되는 것은 없다.
+        /// </summary>
+        private static async Task RefreshIfUnchangedAsync(string repoPath)
+        {
+            // diff 는 --pathspec-from-file 을 받지 않아 경로를 직접 넘긴다(GIT_LITERAL_PATHSPECS 로 글자 그대로 읽힌다).
+            GitResult diff = await GitRepository.RunAsync("diff", "--quiet", "--", repoPath);
+            if (diff.Success)
+            {
+                await RunWithPaths(new[] { "add" }, new List<string> { repoPath });
             }
         }
 
