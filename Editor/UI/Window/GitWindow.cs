@@ -240,7 +240,7 @@ namespace GitVersionControl
                 }
             };
             _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
-            _services.AddRemoteRequested = addRemote.Open;
+            _services.AddRemoteRequested = addRemote.OpenForPublish;
             _services.ShowConflictsRequested = ShowConflicts;
             _services.CreatePullRequestRequested = createPullRequest.OpenFor;
             createPullRequest.Created += _refs.ReloadPullRequests;

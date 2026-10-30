@@ -271,6 +271,61 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(0, GitRemoteForm.ParseRepositories("[]").Count);
         }
 
+        [TestCase("my-game", GitHubRepoNameProblem.None)]
+        [TestCase("Game_2.0", GitHubRepoNameProblem.None)]
+        [TestCase("", GitHubRepoNameProblem.Empty)]
+        [TestCase("my game", GitHubRepoNameProblem.InvalidCharacter)]
+        [TestCase("게임", GitHubRepoNameProblem.InvalidCharacter)]
+        [TestCase("a/b", GitHubRepoNameProblem.InvalidCharacter)]
+        [TestCase(".", GitHubRepoNameProblem.Reserved)]
+        [TestCase("..", GitHubRepoNameProblem.Reserved)]
+        public void Test_CheckRepositoryName(string name, GitHubRepoNameProblem expected)
+        {
+            Assert.AreEqual(expected, GitRemoteForm.CheckRepositoryName(name, "me", null));
+        }
+
+        [Test]
+        public void Test_CheckRepositoryName_TooLongAndExists()
+        {
+            Assert.AreEqual(GitHubRepoNameProblem.TooLong, GitRemoteForm.CheckRepositoryName(new string('a', 101), "me", null));
+            Assert.AreEqual(GitHubRepoNameProblem.None, GitRemoteForm.CheckRepositoryName(new string('a', 100), "me", null));
+            List<GitHubRepository> known = new() { new GitHubRepository { FullName = "me/Tools" } };
+            Assert.AreEqual(GitHubRepoNameProblem.Exists, GitRemoteForm.CheckRepositoryName("tools", "ME", known));
+            // 다른 소유자의 같은 이름은 괜찮다.
+            Assert.AreEqual(GitHubRepoNameProblem.None, GitRemoteForm.CheckRepositoryName("tools", "my-org", known));
+        }
+
+        [TestCase("My Game", "My-Game")]
+        [TestCase("git-test-6-0", "git-test-6-0")]
+        [TestCase("  유니티 프로젝트 v2 ", "v2")]
+        [TestCase("한글만", "unity-project")]
+        [TestCase(".hidden..", "hidden")]
+        [TestCase(null, "unity-project")]
+        public void Test_SuggestRepositoryName(string folder, string expected)
+        {
+            Assert.AreEqual(expected, GitRemoteForm.SuggestRepositoryName(folder));
+        }
+
+        [Test]
+        public void Test_CreateRepositoryJsonAndResponse()
+        {
+            StringAssert.Contains("\"name\":\"my-game\"", GitRemoteForm.CreateRepositoryJson("my-game", true));
+            StringAssert.Contains("\"private\":true", GitRemoteForm.CreateRepositoryJson("my-game", true));
+            GitHubRepository created = GitRemoteForm.ParseRepository(
+                "{\"full_name\":\"me/my-game\",\"clone_url\":\"https://github.com/me/my-game.git\",\"private\":true,\"owner\":{\"login\":\"me\"}}");
+            Assert.AreEqual("me/my-game", created.FullName);
+            Assert.AreEqual("https://github.com/me/my-game.git", created.CloneUrl);
+            Assert.IsNull(GitRemoteForm.ParseRepository("{\"message\":\"Bad credentials\"}"));
+            Assert.IsNull(GitRemoteForm.ParseRepository(""));
+        }
+
+        [Test]
+        public void Test_ParseOrganizations()
+        {
+            CollectionAssert.AreEqual(new[] { "NK-Studio", "other" }, GitRemoteForm.ParseOrganizations("[{\"login\":\"NK-Studio\"},{\"login\":\"other\"},{}]"));
+            Assert.AreEqual(0, GitRemoteForm.ParseOrganizations("[]").Count);
+        }
+
         [TestCase("feature/login", BranchNameProblem.None)]
         [TestCase("", BranchNameProblem.Empty)]
         [TestCase("my branch", BranchNameProblem.Whitespace)]

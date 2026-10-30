@@ -18,11 +18,117 @@ namespace GitVersionControl
         public bool IsPrivate;
     }
 
+    /// <summary>새 GitHub 저장소 이름의 문제(<see cref="GitRemoteForm.CheckRepositoryName"/>).</summary>
+    public enum GitHubRepoNameProblem
+    {
+        None,
+        Empty,
+        TooLong,
+
+        /// <summary>영문·숫자·<c>. - _</c> 밖의 글자.</summary>
+        InvalidCharacter,
+
+        /// <summary><c>.</c>·<c>..</c> 처럼 쓸 수 없는 이름.</summary>
+        Reserved,
+
+        /// <summary>그 소유자에게 같은 이름의 저장소가 이미 있다.</summary>
+        Exists,
+    }
+
     /// <summary>
-    /// 원격 추가 서랍(<see cref="AddRemoteDrawer"/>)의 규칙: 이름 검사, 처음 채울 이름, GitHub 저장소 목록 읽기. 순수 함수라 테스트로 확인한다.
+    /// 원격 추가 서랍(<see cref="AddRemoteDrawer"/>)의 규칙: 이름 검사, 처음 채울 이름, GitHub 저장소 목록 읽기, 새 저장소 만들기 요청. 순수 함수라 테스트로 확인한다.
     /// </summary>
     public static class GitRemoteForm
     {
+        /// <summary>GitHub 저장소 이름 최대 길이.</summary>
+        public const int MaxRepositoryNameLength = 100;
+
+        /// <summary>
+        /// 새 GitHub 저장소 이름 검사. GitHub 는 영문·숫자·<c>. - _</c> 만 받고(다른 글자는 '-' 로 바꿔 버린다) 100자까지다.
+        /// 바꿔 만들면 원격 주소가 사용자가 적은 이름과 달라지므로, 바꾸지 않고 여기서 막는다. 이미 아는 저장소(<paramref name="known"/>)와 겹치면 <see cref="GitHubRepoNameProblem.Exists"/>.
+        /// </summary>
+        public static GitHubRepoNameProblem CheckRepositoryName(string name, string owner, IEnumerable<GitHubRepository> known)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return GitHubRepoNameProblem.Empty;
+            }
+            if (name.Length > MaxRepositoryNameLength)
+            {
+                return GitHubRepoNameProblem.TooLong;
+            }
+            if (name.Any(c => IsRepositoryNameChar(c) == false))
+            {
+                return GitHubRepoNameProblem.InvalidCharacter;
+            }
+            if (name == "." || name == "..")
+            {
+                return GitHubRepoNameProblem.Reserved;
+            }
+            string fullName = owner + "/" + name;
+            if (known != null && known.Any(r => string.Equals(r.FullName, fullName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return GitHubRepoNameProblem.Exists;
+            }
+            return GitHubRepoNameProblem.None;
+        }
+
+        private static bool IsRepositoryNameChar(char c)
+        {
+            return c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '-' or '_';
+        }
+
+        /// <summary>
+        /// 처음 채울 새 저장소 이름: 프로젝트 폴더 이름에서 쓸 수 없는 글자(공백·한글 등)를 '-' 로 바꾸고 겹친 '-' 와 앞뒤 '-'·'.' 를 정리한다.
+        /// 남는 글자가 없으면(폴더 이름이 모두 한글 등) "unity-project".
+        /// </summary>
+        public static string SuggestRepositoryName(string projectFolder)
+        {
+            System.Text.StringBuilder builder = new();
+            foreach (char c in projectFolder ?? string.Empty)
+            {
+                char next = IsRepositoryNameChar(c) ? c : '-';
+                if (next == '-' && builder.Length > 0 && builder[builder.Length - 1] == '-')
+                {
+                    continue;
+                }
+                builder.Append(next);
+            }
+            string name = builder.ToString().Trim('-', '.');
+            if (name.Length > MaxRepositoryNameLength)
+            {
+                name = name.Substring(0, MaxRepositoryNameLength).TrimEnd('-', '.');
+            }
+            return name.Length == 0 ? "unity-project" : name;
+        }
+
+        /// <summary>새 저장소 만들기 요청 본문(<c>POST /user/repos</c>·<c>POST /orgs/{org}/repos</c>).</summary>
+        public static string CreateRepositoryJson(string name, bool isPrivate)
+        {
+            return JsonUtility.ToJson(new CreateRepositoryRequest { name = name, @private = isPrivate });
+        }
+
+        /// <summary>저장소 하나(만들기 응답). 읽지 못하면 null.</summary>
+        public static GitHubRepository ParseRepository(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+            List<GitHubRepository> one = ParseRepositories("[" + json + "]");
+            return one.Count > 0 ? one[0] : null;
+        }
+
+        /// <summary><c>GET /user/orgs</c> 응답에서 조직 이름들.</summary>
+        public static List<string> ParseOrganizations(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<string>();
+            }
+            OrganizationPage page = JsonUtility.FromJson<OrganizationPage>("{\"items\":" + json + "}");
+            return (page?.items ?? Array.Empty<OwnerJson>()).Select(o => o?.login).Where(login => string.IsNullOrEmpty(login) == false).ToList();
+        }
         /// <summary>
         /// 원격 이름 검사. 규칙은 브랜치 이름과 같고(git 이 refs/remotes/&lt;이름&gt;/… 로 쓴다), 이미 있는 원격과 겹치면 <see cref="BranchNameProblem.Exists"/>.
         /// </summary>
@@ -117,6 +223,19 @@ namespace GitVersionControl
                 });
             }
             return repositories;
+        }
+
+        [Serializable]
+        private sealed class CreateRepositoryRequest
+        {
+            public string name;
+            public bool @private;
+        }
+
+        [Serializable]
+        private sealed class OrganizationPage
+        {
+            public OwnerJson[] items;
         }
 
         [Serializable]
