@@ -654,13 +654,17 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 
 - 요청: GitKraken 처럼 커밋 줄 위에서 손가락(link) 커서, 줄마다 켜고 끄기 — 고른 줄을 다시 누르면 오른쪽 창을 끈다.
 - 커서: `.commit-graph-row, .commit-graph-row *` 에 `cursor: link`(cursor 는 상속되지 않아 안쪽 요소에도). 작업 중 줄의 제목 입력란은 GitCommon 의 I자 규칙이 더 구체적이라 그대로 I자.
-- 켜고 끄기(`CommitGraphList.SelectionToggledOff`): 이미 고른 줄을 왼쪽 버튼으로 한 번 눌렀다가(끌지 않고) 그 줄 안에서 떼면 고르기를 풀고 알린다. ListView 도 뗄 때 고른 줄을 다시 정하므로 다음 틀에 푼다. 이름표 칸(두 번 눌러 전환)·입력란은 빼고, Shift·Ctrl·Alt·Cmd 를 누른 채면 하지 않는다. 받는 곳이 없으면(브랜치 탐색기의 커밋 목록) 하지 않는다.
+- 켜고 끄기(`CommitGraphList.SelectionToggledOff`): 이미 고른 줄을 왼쪽 버튼으로 누르면 **누르는 순간** 고르기를 풀고 알린다. 이 누름·뗌은 ListView 에 넘기지 않는다(TrickleDown 에서 전파를 멈춤 — 넘기면 그 줄을 다시 고른다). 빠르게 이어 누른 두 번째 누름(clickCount 2)은 ListView 가 고르기 대신 더블클릭("항목 열기")으로 다루므로, 안 골라진 줄이면 직접 고른다. 첫 누름의 고르기는 ListView 가 누를 때 한다(`ProcessPointerDown` → `DoSelect`). 이름표 칸(두 번 눌러 전환)·입력란은 빼고, Shift·Ctrl·Alt·Cmd 를 누른 채면 하지 않는다. 받는 곳이 없으면(브랜치 탐색기의 커밋 목록) 하지 않는다.
 - GitKraken 배치(`GraphWorkspaceView`): 풀면 가운데·오른쪽 TwoPaneSplitView 의 오른쪽을 접고(CollapseChild), 작업 중 줄·커밋을 고르면(다른 탭의 "작업 변경 보기" 등 포함) 펼친다(UnCollapse, 폭은 그대로 돌아옴). 다시 읽어 고른 줄이 사라지는 것처럼 사용자가 누르지 않은 해제로는 접지 않는다.
 - 확인 중 고친 것:
-  - 처음엔 수식키를 `modifiers != None` 으로 봐서 동작하지 않았다 — Windows 에서 NumLock·CapsLock 이 켜져 있으면 modifiers 에 Numeric·CapsLock 이 들어온다. Shift·Ctrl·Alt·Cmd 만 보게 고침.
-  - 사용자 지적: 누를 때마다 손가락 커서가 화살표로 풀렸다 — 누르는 동안 ListView 가 포인터를 붙잡아 커서가 붙잡은 요소(목록·스크롤 틀)를 따르기 때문. 목록·스크롤 틀(스크롤바 제외)에도 `cursor: link` 를 줬다. 커서는 화면 캡처에 나오지 않아 사용자 확인이 필요하다.
+  - 수식키를 `modifiers != None` 으로 봐서 동작하지 않았다 — Windows 에서 NumLock·CapsLock 이 켜져 있으면 modifiers 에 Numeric·CapsLock 이 들어온다. Shift·Ctrl·Alt·Cmd 만 본다.
   - 사용자 지적: 줄 글자가 마우스를 받아 걸렸다 — 메시지·세부 칸 글자(Label)를 `pickingMode = Ignore` 로, 툴팁은 메시지 칸(커밋 정보)·세부 칸 묶음(작성자 메일)으로 옮겼다.
-- 6.7 화면 조작 확인: "Initial commit" 을 누르면 커밋 상세, 다시 누르면 고르기가 풀리고 오른쪽 패널이 접혀 그래프가 창 폭을 채움, 한 번 더 누르면 같은 폭으로 펼침. 글자 Ignore 뒤에는 사용자가 같은 창을 쓰고 있어 끝까지 다시 보지 못했다(첫 클릭에서 접히는 것까지 확인). 6.0·6.7 컴파일 통과.
+  - 사용자 지적: 누를 때마다 손가락 커서가 화살표로 풀렸다(마우스를 다른 요소로 옮겨야 돌아옴).
+    - UI Toolkit 은 MouseOver 때만 커서를 정하고 MouseOut 때 지운다(6.0 `VisualElement.UpdateCursorStyle` IL 로 확인) — 클릭에는 아무것도 하지 않는다. 에디터가 뗌을 처리한 뒤 창 커서를 지우는 것으로 보인다.
+    - 목록·스크롤 틀에 `cursor: link` 를 더하거나 뗄 때 바로 다시 정하는 것으로는 안 됐다.
+    - 뗀 뒤 다음 그리기(이 창이 그리는 중이라 "지금 창" 이 이 창)와 0.12초 뒤에 에디터 내부 `EditorGUIUtility.SetCurrentViewCursor` 로 손가락을 다시 정한다(반사로 부르고 없으면 아무것도 하지 않음). 그 사이 마우스가 줄 밖·입력란 위로 갔으면 하지 않는다. 사용자 확인: 유지됨.
+  - 사용자 지적: 켜고 끄기가 누를 때 바로 바뀌지 않았다 — 뗄 때 판단하고 한 틀 뒤에 풀었기 때문. 누르는 순간 풀게 바꿈. 빠른 연속 클릭도 위처럼 고침. 사용자 확인: 바로 됨.
+- 확인: 6.7 화면 조작으로 "Initial commit" 누르기 → 커밋 상세, 다시 누르기 → 풀리고 오른쪽 패널이 접혀 그래프가 창 폭을 채움, 한 번 더 → 같은 폭으로 펼침. 커서·반응 속도는 사용자가 확인. 6.0·6.7 컴파일 통과.
 
 ## 남은 일과 시험 흔적 (2026-10-29)
 

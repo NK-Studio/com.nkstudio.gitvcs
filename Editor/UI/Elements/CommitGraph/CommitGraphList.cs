@@ -104,6 +104,15 @@ namespace GitVersionControl
 
         private static readonly WipItem Wip = new();
 
+        /// <summary>
+        /// 에디터 내부의 "지금 창의 커서 정하기"(<c>EditorGUIUtility.SetCurrentViewCursor</c>). 에디터는 마우스를 누르고 뗀 뒤 창 커서를 지우는데,
+        /// UI Toolkit 은 마우스가 요소에 들어올 때(MouseOver)만 커서를 정해(VisualElement.UpdateCursorStyle) 같은 줄 안에서 누르면 화살표로 남았다.
+        /// 없는 버전이면 null(아무것도 하지 않는다).
+        /// </summary>
+        private static readonly System.Reflection.MethodInfo s_setViewCursor = typeof(UnityEditor.EditorGUIUtility).GetMethod("SetCurrentViewCursor",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static, null,
+            new[] { typeof(Texture2D), typeof(Vector2), typeof(UnityEditor.MouseCursor) }, null);
+
         private static readonly CommitGraphColumn[] DefaultOrder = { CommitGraphColumn.Refs, CommitGraphColumn.Graph, CommitGraphColumn.Message };
 
         /// <summary>
@@ -336,9 +345,19 @@ namespace GitVersionControl
         /// </summary>
         public event Action SelectionToggledOff;
 
-        /// <summary>누를 때 이미 골라져 있던 줄과 누른 자리(<see cref="OnListPointerDown"/>). 같은 자리에서 떼면 고르기를 푼다.</summary>
-        private GraphRow _toggleOffRow;
-        private Vector2 _toggleOffStart;
+        /// <summary>
+        /// 뗀 뒤 다음에 그릴 때 손가락 커서를 다시 정할지(<see cref="Draw"/>). 에디터가 뗌 이벤트를 다 처리한 뒤 커서를 지우므로 뗄 때 정하면 곧 지워진다 —
+        /// 그다음 그리기는 이 창이 그리는 중이라 "지금 창" 이 이 창이다.
+        /// </summary>
+        private bool _reassertCursor;
+
+        /// <summary>목록 위 마지막 마우스 자리(패널 좌표). 목록 밖으로 나가면 NaN.</summary>
+        private Vector2 _lastPointerPosition = new(float.NaN, float.NaN);
+
+        /// <summary>
+        /// 누르는 순간 고르기를 풀었다(<see cref="OnListPointerDown"/>). 이번 뗌도 ListView 에 넘기지 않는다 — 넘기면 뗄 때 그 줄을 다시 고른다.
+        /// </summary>
+        private bool _swallowPointerUp;
 
         /// <summary>
         /// 작업 중 줄 입력란에 제목을 쓸 때(GitKraken 처럼 커밋 입력란의 제목과 같은 글이다).
@@ -442,6 +461,8 @@ namespace GitVersionControl
             // ListView 가 고르기 전에 이미 골라져 있었는지 봐야 하므로 TrickleDown 으로 먼저 받는다.
             _list.RegisterCallback<PointerDownEvent>(OnListPointerDown, TrickleDown.TrickleDown);
             _list.RegisterCallback<PointerUpEvent>(OnListPointerUp, TrickleDown.TrickleDown);
+            _list.RegisterCallback<PointerMoveEvent>(evt => _lastPointerPosition = evt.position, TrickleDown.TrickleDown);
+            _list.RegisterCallback<PointerLeaveEvent>(_ => _lastPointerPosition = new Vector2(float.NaN, float.NaN));
             body.Add(_list);
 
             _overlay = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -1213,16 +1234,17 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 이미 고른 줄을 왼쪽 버튼으로 한 번 누르면 뗄 때 고르기를 풀 후보로 기억한다. 이름표 칸(두 번 눌러 전환)·입력란(작업 중 줄 제목, 브랜치 이름)은 빼고,
-        /// 수식키(Ctrl·Shift)를 누른 채면 하지 않는다.
+        /// 이미 고른 줄을 왼쪽 버튼으로 누르면(빠르게 이어 눌러도) 누르는 순간 고르기를 풀고 <see cref="SelectionToggledOff"/> 를 알린다(GitKraken 처럼 바로 켜고 끈다).
+        /// ListView 가 이 누름을 받으면 그 줄을 다시 고르므로 여기서(TrickleDown — ListView 보다 먼저) 전파를 멈춘다.
+        /// 이름표 칸(두 번 눌러 전환)·입력란(작업 중 줄 제목, 브랜치 이름)은 빼고, 수식키(Ctrl·Shift)를 누른 채면 하지 않는다.
         /// </summary>
         private void OnListPointerDown(PointerDownEvent evt)
         {
-            _toggleOffRow = null;
+            _swallowPointerUp = false;
             // 받는 곳이 없으면(브랜치 탐색기의 커밋 목록 — 오른쪽 상세가 늘 보인다) 풀지 않는다.
             // 수식키는 Shift·Ctrl·Alt·Cmd 만 본다 — NumLock·CapsLock 이 켜져 있으면 modifiers 에 Numeric·CapsLock 이 들어온다.
             const EventModifiers held = EventModifiers.Shift | EventModifiers.Control | EventModifiers.Alt | EventModifiers.Command;
-            if (SelectionToggledOff == null || evt.button != 0 || evt.clickCount != 1 || (evt.modifiers & held) != 0)
+            if (SelectionToggledOff == null || evt.button != 0 || (evt.modifiers & held) != 0)
             {
                 return;
             }
@@ -1239,34 +1261,87 @@ namespace GitVersionControl
                     return;
                 }
             }
-            if (row != null && row.userData is int index && index == _list.selectedIndex)
+            if (row == null || row.userData is not int index)
             {
-                _toggleOffRow = row;
-                _toggleOffStart = evt.position;
+                return;
+            }
+            if (index == _list.selectedIndex)
+            {
+                evt.StopImmediatePropagation();
+                _swallowPointerUp = true;
+                _list.ClearSelection();
+                SelectionToggledOff?.Invoke();
+            }
+            else if (evt.clickCount > 1)
+            {
+                // 빠르게 이어 누른 두 번째 누름은 ListView 가 고르기 대신 "항목 열기"(더블클릭)로 다룬다. 켜고 끄기가 바로 이어지게 직접 고른다.
+                evt.StopImmediatePropagation();
+                _swallowPointerUp = true;
+                _list.SetSelection(index);
             }
         }
 
         /// <summary>
-        /// 이미 골라져 있던 줄을 끌지 않고 그 줄 안에서 떼면 고르기를 풀고 <see cref="SelectionToggledOff"/> 를 알린다.
-        /// ListView 도 뗄 때 고른 줄을 다시 정하므로, 그 뒤(다음 틀)에 푼다.
+        /// 뗄 때: 손가락 커서를 다시 정하고(<see cref="ReassertCursorSoon"/>), 누르는 순간 고르기를 풀었으면 이 뗌을 ListView 에 넘기지 않는다.
         /// </summary>
         private void OnListPointerUp(PointerUpEvent evt)
         {
-            GraphRow row = _toggleOffRow;
-            _toggleOffRow = null;
-            if (row == null || evt.button != 0 || ((Vector2)evt.position - _toggleOffStart).sqrMagnitude > 16f || row.worldBound.Contains(evt.position) == false
-                || row.userData is not int index)
+            _lastPointerPosition = evt.position;
+            if (IsOverRow(evt.target as VisualElement))
+            {
+                ReassertCursorSoon();
+            }
+            if (_swallowPointerUp)
+            {
+                _swallowPointerUp = false;
+                evt.StopImmediatePropagation();
+            }
+        }
+
+        /// <summary>줄 위인지(입력란 위 — I자 커서 — 는 아니다).</summary>
+        private bool IsOverRow(VisualElement target)
+        {
+            for (VisualElement element = target; element != null && element != _list; element = element.parent)
+            {
+                if (element is TextField)
+                {
+                    return false;
+                }
+                if (element is GraphRow)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 다음 그리기와 조금 뒤 한 번 더 손가락 커서를 다시 정한다(<see cref="_reassertCursor"/>). 그 사이 마우스가 줄 밖으로 나갔으면 하지 않는다.
+        /// </summary>
+        private void ReassertCursorSoon()
+        {
+            if (s_setViewCursor == null)
             {
                 return;
             }
-            _list.schedule.Execute(() =>
+            _reassertCursor = true;
+            _overlay.MarkDirtyRepaint();
+            _overlay.schedule.Execute(() =>
             {
-                if (_list.selectedIndex == index)
-                {
-                    _list.ClearSelection();
-                    SelectionToggledOff?.Invoke();
-                }
-            });
+                _reassertCursor = true;
+                _overlay.MarkDirtyRepaint();
+            }).StartingIn(120);
+        }
+
+        private void ReassertCursorNow()
+        {
+            _reassertCursor = false;
+            IPanel panel = _list.panel;
+            VisualElement under = float.IsNaN(_lastPointerPosition.x) ? null : panel?.Pick(_lastPointerPosition);
+            if (IsOverRow(under))
+            {
+                s_setViewCursor.Invoke(null, new object[] { null, Vector2.zero, UnityEditor.MouseCursor.Link });
+            }
         }
 
         private void OnSelectionChanged()
@@ -1914,6 +1989,10 @@ namespace GitVersionControl
 
         private void Draw(MeshGenerationContext context)
         {
+            if (_reassertCursor)
+            {
+                ReassertCursorNow();
+            }
             if (Graph == null)
             {
                 return;
