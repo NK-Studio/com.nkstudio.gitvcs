@@ -1183,6 +1183,16 @@
     font-size: 12px;
 }
 
+/* GitHub 탭의 [기존 저장소 | 새로 만들기]: diff 막대의 칸 묶음(git-diff__segment)을 서랍 폭에 맞춰 반씩 나눈다. */
+.side-drawer__modes {
+    margin: 8px 0 2px 0;
+}
+
+.side-drawer__mode {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
 .side-drawer__section {
     flex-shrink: 0;
 }

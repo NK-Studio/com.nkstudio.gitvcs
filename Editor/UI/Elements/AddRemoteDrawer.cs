@@ -8,27 +8,21 @@ namespace GitVersionControl
 {
     /// <summary>
     /// 원격 추가 서랍(GitKraken 의 Add Remote). 사이드바 리모트 머리 줄의 + 로 연다.
-    /// 탭은 셋: URL(이름 · Pull URL · Push URL), GitHub(로그인한 계정의 저장소를 골라 이름만 정함), 새 저장소(GitHub 에 빈 저장소를 만들어 원격으로 더하고,
-    /// 원하면 현재 브랜치를 바로 올림 — GitHub Desktop 의 Publish repository). GitLab 등 다른 호스트는 URL 탭으로 넣는다.
+    /// 탭은 둘: URL(이름 · Pull URL · Push URL)과 GitHub. GitHub 탭 위쪽에서 [기존 저장소 | 새로 만들기] 를 고른다 —
+    /// 기존 저장소는 로그인한 계정의 저장소를 골라 이름만 정하고, 새로 만들기는 GitHub 에 빈 저장소를 만들어 원격으로 더한 뒤
+    /// 원하면 현재 브랜치를 바로 올린다(GitHub Desktop 의 Publish repository). GitLab 등 다른 호스트는 URL 탭으로 넣는다.
     /// 더한 뒤에는 그 원격만 fetch 하고 닫는다 — 사이드바는 작업이 끝나면 스스로 다시 읽는다(<see cref="RefSidebar"/>).
     /// </summary>
     public sealed class AddRemoteDrawer : SideDrawer
     {
         private const string TabSelectedModifier = Block + "__tab--selected";
 
-        private enum RemoteTab
-        {
-            Url,
-            GitHub,
-            Create,
-        }
+        private const string ModeCheckedModifier = "git-diff__bar-button--checked";
 
         private readonly Button _urlTab;
         private readonly Button _gitHubTab;
-        private readonly Button _createTab;
         private readonly VisualElement _urlPage;
         private readonly VisualElement _gitHubPage;
-        private readonly VisualElement _createPage;
 
         private readonly TextField _urlName;
         private readonly TextField _pullUrl;
@@ -44,8 +38,11 @@ namespace GitVersionControl
         private readonly Label _gitHubProblem;
         private readonly Button _gitHubAdd;
 
-        private readonly VisualElement _createSignedOut;
-        private readonly VisualElement _createSignedIn;
+        /// <summary>로그인했을 때 GitHub 탭 내용: 고르기 묶음 + 기존 저장소(<see cref="_signedIn"/>) 또는 새로 만들기(<see cref="_createPanel"/>).</summary>
+        private readonly VisualElement _gitHubSignedIn;
+        private readonly Button _existingMode;
+        private readonly Button _createMode;
+        private readonly VisualElement _createPanel;
         private readonly SearchSelect<string> _owner;
         private readonly TextField _repoName;
         private readonly Label _repoNameProblem;
@@ -59,6 +56,9 @@ namespace GitVersionControl
         private List<string> _existing = new();
         private bool _gitHubNameEdited;
         private bool _createRemoteNameEdited;
+
+        /// <summary>GitHub 탭에서 "새로 만들기" 를 고른 상태.</summary>
+        private bool _isCreating;
 
         /// <summary>새 저장소 탭의 소유자 목록을 읽었는지(내 계정 + 조직).</summary>
         private bool _ownersLoaded;
@@ -79,12 +79,10 @@ namespace GitVersionControl
         {
             VisualElement tabs = new();
             tabs.AddToClassList(Block + "__tabs");
-            _urlTab = MakeTab(ActionGlyphKind.Globe, GitText.Get("remote.tabUrl"), () => SelectTab(RemoteTab.Url));
-            _gitHubTab = MakeTab(ActionGlyphKind.GitHub, GitText.Get("remote.tabGitHub"), () => SelectTab(RemoteTab.GitHub));
-            _createTab = MakeTab(ActionGlyphKind.Cloud, GitText.Get("remote.tabCreate"), () => SelectTab(RemoteTab.Create));
+            _urlTab = MakeTab(ActionGlyphKind.Globe, GitText.Get("remote.tabUrl"), () => SelectTab(gitHub: false));
+            _gitHubTab = MakeTab(ActionGlyphKind.GitHub, GitText.Get("remote.tabGitHub"), () => SelectTab(gitHub: true));
             tabs.Add(_urlTab);
             tabs.Add(_gitHubTab);
-            tabs.Add(_createTab);
             Body.Add(tabs);
 
             // ── URL ──
@@ -101,6 +99,20 @@ namespace GitVersionControl
             // ── GitHub ──
             _gitHubPage = Section(Body);
             _signedOut = SignInPrompt(_gitHubPage, GitText.Get("remote.signInMessage"));
+            _gitHubSignedIn = new VisualElement();
+            // 기존 저장소에 연결할지 새로 만들지 먼저 고른다(diff 막대의 칸 묶음과 같은 모양).
+            _existingMode = ModeButton(GitText.Get("remote.modeExisting"), () => SelectGitHubMode(create: false));
+            _createMode = ModeButton(GitText.Get("remote.modeCreate"), () => SelectGitHubMode(create: true));
+            VisualElement modes = new();
+            modes.AddToClassList("git-diff__segment");
+            modes.AddToClassList("git-diff__segment--leading");
+            modes.AddToClassList(Block + "__modes");
+            _createMode.AddToClassList("git-diff__segment-button");
+            _existingMode.AddToClassList("git-diff__segment-button");
+            _existingMode.AddToClassList("git-diff__segment-button--first");
+            modes.Add(_existingMode);
+            modes.Add(_createMode);
+            _gitHubSignedIn.Add(modes);
             _signedIn = new VisualElement();
             Caption(_signedIn, GitText.Get("remote.gitHubRepo"));
             _repository = new SearchSelect<GitHubRepository>(GitText.Get("drawer.select"), r => r.FullName, r => r.IsPrivate ? GitText.Get("remote.private") : null);
@@ -117,49 +129,75 @@ namespace GitVersionControl
             });
             _gitHubProblem = Problem(_signedIn);
             _gitHubAdd = PrimaryButton(_signedIn, GitText.Get("remote.add"), AddFromGitHub);
-            _gitHubPage.Add(_signedIn);
+            _gitHubSignedIn.Add(_signedIn);
 
-            // ── 새 저장소 ──
-            _createPage = Section(Body);
-            _createSignedOut = SignInPrompt(_createPage, GitText.Get("remote.createSignInMessage"));
-            _createSignedIn = new VisualElement();
-            Caption(_createSignedIn, GitText.Get("remote.owner"));
+            // ── GitHub · 새로 만들기 ──
+            _createPanel = new VisualElement();
+            Caption(_createPanel, GitText.Get("remote.owner"));
             _owner = new SearchSelect<string>(GitText.Get("drawer.select"), owner => owner,
                 owner => string.Equals(owner, GitHubAccount.Login, StringComparison.OrdinalIgnoreCase) ? GitText.Get("remote.ownerMe") : null);
             _owner.Changed += _ => Validate();
-            _createSignedIn.Add(_owner.Root);
-            _repoName = Field(_createSignedIn, GitText.Get("remote.repoName"), null);
+            _createPanel.Add(_owner.Root);
+            _repoName = Field(_createPanel, GitText.Get("remote.repoName"), null);
             _repoName.RegisterValueChangedCallback(_ => Validate());
-            _repoNameProblem = Problem(_createSignedIn);
+            _repoNameProblem = Problem(_createPanel);
             // 앞쪽 label 대신 text 를 쓰면 GitKraken 처럼 체크 칸이 글자 앞에 온다.
             _private = new Toggle { text = GitText.Get("remote.createPrivate"), value = true };
             _private.AddToClassList(Block + "__toggle");
-            _createSignedIn.Add(_private);
-            _createRemoteName = Field(_createSignedIn, GitText.Get("remote.name"), null);
+            _createPanel.Add(_private);
+            _createRemoteName = Field(_createPanel, GitText.Get("remote.name"), null);
             _createRemoteName.RegisterValueChangedCallback(_ =>
             {
                 _createRemoteNameEdited = true;
                 Validate();
             });
-            _createRemoteProblem = Problem(_createSignedIn);
+            _createRemoteProblem = Problem(_createPanel);
             _pushAfter = new Toggle { value = true };
             _pushAfter.AddToClassList(Block + "__toggle");
-            _createSignedIn.Add(_pushAfter);
-            _createNote = Note(_createSignedIn);
-            _createButton = PrimaryButton(_createSignedIn, GitText.Get("remote.create"), CreateOnGitHub);
-            _createPage.Add(_createSignedIn);
+            _createPanel.Add(_pushAfter);
+            _createNote = Note(_createPanel);
+            _createButton = PrimaryButton(_createPanel, GitText.Get("remote.create"), CreateOnGitHub);
+            _gitHubSignedIn.Add(_createPanel);
+            _gitHubPage.Add(_gitHubSignedIn);
 
-            SelectTab(RemoteTab.Url);
+            SelectGitHubMode(create: false);
+            SelectTab(gitHub: false);
         }
 
         /// <summary>
-        /// 원격이 없어 Push 를 못 할 때(<see cref="GitServices.AddRemoteRequested"/>) 연다: 로그인했으면 새 저장소 탭으로 —
-        /// 아직 GitHub 에 없는 프로젝트를 올리려는 경우가 대부분이고, 있는 저장소는 옆 탭에서 고를 수 있다.
+        /// 원격이 없어 Push 를 못 할 때(<see cref="GitServices.AddRemoteRequested"/>) 연다: GitHub 탭의 "새로 만들기" 로 —
+        /// 아직 GitHub 에 없는 프로젝트를 올리려는 경우가 대부분이고, 있는 저장소는 바로 옆 "기존 저장소" 로 고를 수 있다.
+        /// 로그인하지 않았으면 GitHub 탭이 로그인 안내를 보인다.
         /// </summary>
         public void OpenForPublish()
         {
             Open();
-            SelectTab(GitHubAccount.IsSignedIn ? RemoteTab.Create : RemoteTab.Url);
+            SelectGitHubMode(create: true);
+            SelectTab(gitHub: true);
+        }
+
+        private static Button ModeButton(string text, Action clicked)
+        {
+            Button button = new(clicked) { text = text };
+            button.AddToClassList("git-diff__bar-button");
+            button.AddToClassList(Block + "__mode");
+            return button;
+        }
+
+        /// <summary>GitHub 탭에서 기존 저장소 고르기와 새로 만들기 사이를 바꾼다.</summary>
+        private void SelectGitHubMode(bool create)
+        {
+            _isCreating = create;
+            _existingMode.EnableInClassList(ModeCheckedModifier, create == false);
+            _createMode.EnableInClassList(ModeCheckedModifier, create);
+            _signedIn.SetVisible(create == false);
+            _createPanel.SetVisible(create);
+            if (create && GitHubAccount.IsSignedIn && IsOpen && _ownersLoaded == false)
+            {
+                LoadOwners();
+            }
+            Validate();
+            Root.schedule.Execute(FocusFirstField);
         }
 
         protected override void Reset()
@@ -171,7 +209,8 @@ namespace GitVersionControl
             _gitHubName.SetValueWithoutNotify(string.Empty);
             _gitHubNameEdited = false;
             _signedOut.SetVisible(GitHubAccount.IsSignedIn == false);
-            _signedIn.SetVisible(GitHubAccount.IsSignedIn);
+            _gitHubSignedIn.SetVisible(GitHubAccount.IsSignedIn);
+            SelectGitHubMode(create: false);
 
             _created = null;
             _repoName.SetValueWithoutNotify(GitRemoteForm.SuggestRepositoryName(System.IO.Path.GetFileName((GitRepository.RepoRoot ?? GitRepository.ProjectRoot ?? string.Empty).TrimEnd('/', '\\'))));
@@ -179,8 +218,6 @@ namespace GitVersionControl
             _createRemoteName.SetValueWithoutNotify(string.Empty);
             _createRemoteNameEdited = false;
             _pushAfter.SetValueWithoutNotify(true);
-            _createSignedOut.SetVisible(GitHubAccount.IsSignedIn == false);
-            _createSignedIn.SetVisible(GitHubAccount.IsSignedIn);
         }
 
         protected override async void LoadAfterOpen(int openCount)
@@ -217,11 +254,14 @@ namespace GitVersionControl
         {
             if (_gitHubPage.resolvedStyle.display == DisplayStyle.Flex && GitHubAccount.IsSignedIn)
             {
-                _repository.Focus();
-            }
-            else if (_createPage.resolvedStyle.display == DisplayStyle.Flex && GitHubAccount.IsSignedIn)
-            {
-                _repoName.Focus();
+                if (_isCreating)
+                {
+                    _repoName.Focus();
+                }
+                else
+                {
+                    _repository.Focus();
+                }
             }
             else if (_urlPage.resolvedStyle.display == DisplayStyle.Flex)
             {
@@ -253,21 +293,19 @@ namespace GitVersionControl
             return tab;
         }
 
-        private void SelectTab(RemoteTab tab)
+        private void SelectTab(bool gitHub)
         {
-            _urlTab.EnableInClassList(TabSelectedModifier, tab == RemoteTab.Url);
-            _gitHubTab.EnableInClassList(TabSelectedModifier, tab == RemoteTab.GitHub);
-            _createTab.EnableInClassList(TabSelectedModifier, tab == RemoteTab.Create);
-            _urlPage.SetVisible(tab == RemoteTab.Url);
-            _gitHubPage.SetVisible(tab == RemoteTab.GitHub);
-            _createPage.SetVisible(tab == RemoteTab.Create);
-            if (tab != RemoteTab.Url && GitHubAccount.IsSignedIn && IsOpen)
+            _urlTab.EnableInClassList(TabSelectedModifier, gitHub == false);
+            _gitHubTab.EnableInClassList(TabSelectedModifier, gitHub);
+            _urlPage.SetVisible(gitHub == false);
+            _gitHubPage.SetVisible(gitHub);
+            if (gitHub && GitHubAccount.IsSignedIn && IsOpen)
             {
                 if (_repositoriesLoaded == false)
                 {
                     LoadRepositories();
                 }
-                if (tab == RemoteTab.Create && _ownersLoaded == false)
+                if (_isCreating && _ownersLoaded == false)
                 {
                     LoadOwners();
                 }
