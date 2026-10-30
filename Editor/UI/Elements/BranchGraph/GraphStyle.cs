@@ -61,7 +61,7 @@ namespace GitVersionControl
         }
 
         private const float MutedSaturation = 0.45f;
-        private const float MutedValue = 0.7f;
+        private const float MutedValue = 0.5f;
 
         public static Color LaneColor(GitGraphLane lane)
         {
