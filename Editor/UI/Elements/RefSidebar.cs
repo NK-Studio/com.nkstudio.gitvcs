@@ -330,8 +330,11 @@ namespace GitVersionControl
 
         private VisualElement _skeleton;
 
-        /// <summary>처음 다 읽었는지(트리를 보일 수 있는지).</summary>
-        public bool HasLoaded => _refs != null;
+        /// <summary>
+        /// 지금 저장소 상태로 다 읽었는지(트리를 보일 수 있는지). 에디터를 막 켜거나 컴파일한 직후에는 git 연동이 준비되기 전에 빈 참조로 한 번 읽기를
+        /// 마치는데, 그때 걷으면 빈 트리만 1초쯤 보인다 — 읽은 때의 상태(_loadedKey)가 지금 상태와 같을 때만 다 읽은 것으로 본다.
+        /// </summary>
+        public bool HasLoaded => _refs != null && _isLoading == false && _loadedKey == CurrentKey;
 
         /// <summary>
         /// 참이면 다 읽어도 스켈레톤을 걷지 않는다 — 창이 다른 칸과 한꺼번에 걷으려고(<see cref="Reveal"/>).

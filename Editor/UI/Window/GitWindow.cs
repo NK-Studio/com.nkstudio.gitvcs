@@ -737,8 +737,10 @@ namespace GitVersionControl
         private readonly HashSet<GitView> _covering = new();
         private bool _sidebarCovering;
 
-        /// <summary>처음 읽기가 오래 걸려도 이 시간(초)이 지나면 스켈레톤을 걷는다.</summary>
-        private const double CoverTimeout = 10.0;
+        /// <summary>
+        /// 처음 읽기가 오래 걸려도 이 시간(초)이 지나면 스켈레톤을 걷는다. 컴파일 직후에는 에디터가 몇 초 멈추고 git 연동도 그 뒤에 준비되므로 넉넉히 둔다.
+        /// </summary>
+        private const double CoverTimeout = 20.0;
 
         /// <summary>
         /// 탭의 칸(<see cref="GitView.SkeletonHosts"/>)을 스켈레톤으로 덮고, 탭이 처음 읽기를 마치면(사이드바도 함께면 사이드바까지) 한꺼번에 걷는다.
