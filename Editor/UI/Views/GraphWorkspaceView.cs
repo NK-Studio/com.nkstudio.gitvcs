@@ -128,6 +128,7 @@ namespace GitVersionControl
             _graph.WipSubjectEdited += _commit.SetSubject;
             _graph.WipSelected += ShowWip;
             _graph.CommitSelected += ShowCommit;
+            _graph.SelectionToggledOff += HideSidePanel;
             _graph.ContextMenuRequested += PopulateCommitMenu;
             _graph.RefActivated += SwitchToRef;
             _staging.FileSelected += ShowDiff;
@@ -410,12 +411,14 @@ namespace GitVersionControl
 
         private void ShowWip()
         {
+            ShowSidePanel();
             _wipPanel.SetVisible(true);
             _detailHost.SetVisible(false);
         }
 
         private void ShowCommit(GitGraphNode node)
         {
+            ShowSidePanel();
             _wipPanel.SetVisible(false);
             _detailHost.SetVisible(true);
             _staging.ClearSelection();
@@ -424,6 +427,20 @@ namespace GitVersionControl
             {
                 _detail.Show(node.Commit);
             }
+        }
+
+        /// <summary>
+        /// GitKraken 처럼 고른 줄을 다시 눌러 풀면 오른쪽 패널(작업 변경·커밋 상세)을 접어 그래프를 넓게 본다. 줄을 다시 고르면 펼친다(<see cref="ShowSidePanel"/>).
+        /// 폭은 TwoPaneSplitView 가 기억해 두었다가 펼칠 때 되돌린다.
+        /// </summary>
+        private void HideSidePanel()
+        {
+            Root.Require<TwoPaneSplitView>("split").CollapseChild(1);
+        }
+
+        private void ShowSidePanel()
+        {
+            Root.Require<TwoPaneSplitView>("split").UnCollapse();
         }
 
         /// <summary>

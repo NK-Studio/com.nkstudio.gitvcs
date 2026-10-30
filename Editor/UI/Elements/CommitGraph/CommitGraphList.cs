@@ -331,6 +331,16 @@ namespace GitVersionControl
         public event Action WipSelected;
 
         /// <summary>
+        /// 이미 고른 줄을 다시 눌러 고르기를 풀었을 때(GitKraken 처럼 줄마다 켜고 끄기). 오른쪽 패널을 접는 데 쓴다.
+        /// 다시 읽어 고른 줄이 사라진 경우 등 사용자가 누르지 않은 해제에는 오지 않는다.
+        /// </summary>
+        public event Action SelectionToggledOff;
+
+        /// <summary>누를 때 이미 골라져 있던 줄과 누른 자리(<see cref="OnListPointerDown"/>). 같은 자리에서 떼면 고르기를 푼다.</summary>
+        private GraphRow _toggleOffRow;
+        private Vector2 _toggleOffStart;
+
+        /// <summary>
         /// 작업 중 줄 입력란에 제목을 쓸 때(GitKraken 처럼 커밋 입력란의 제목과 같은 글이다).
         /// </summary>
         public event Action<string> WipSubjectEdited;
@@ -429,6 +439,9 @@ namespace GitVersionControl
             _list.AddToClassList("list");
             _list.AddToClassList("commit-graph__list");
             _list.selectionChanged += _ => OnSelectionChanged();
+            // ListView 가 고르기 전에 이미 골라져 있었는지 봐야 하므로 TrickleDown 으로 먼저 받는다.
+            _list.RegisterCallback<PointerDownEvent>(OnListPointerDown, TrickleDown.TrickleDown);
+            _list.RegisterCallback<PointerUpEvent>(OnListPointerUp, TrickleDown.TrickleDown);
             body.Add(_list);
 
             _overlay = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -682,7 +695,8 @@ namespace GitVersionControl
 
         private static Label DetailRowCell(string className, float width)
         {
-            Label cell = new();
+            // 글자는 마우스를 받지 않는다 — 줄(손가락 커서·누르기)이 받는다. 작성자 메일 툴팁은 세부 칸 묶음(details)에 단다.
+            Label cell = new() { pickingMode = PickingMode.Ignore };
             cell.AddToClassList("commit-graph-row__detail");
             cell.AddToClassList(className);
             cell.AddToClassList("ellipsis");
@@ -1198,6 +1212,63 @@ namespace GitVersionControl
             _headerCells[(int)column].Add(glyph);
         }
 
+        /// <summary>
+        /// 이미 고른 줄을 왼쪽 버튼으로 한 번 누르면 뗄 때 고르기를 풀 후보로 기억한다. 이름표 칸(두 번 눌러 전환)·입력란(작업 중 줄 제목, 브랜치 이름)은 빼고,
+        /// 수식키(Ctrl·Shift)를 누른 채면 하지 않는다.
+        /// </summary>
+        private void OnListPointerDown(PointerDownEvent evt)
+        {
+            _toggleOffRow = null;
+            // 받는 곳이 없으면(브랜치 탐색기의 커밋 목록 — 오른쪽 상세가 늘 보인다) 풀지 않는다.
+            // 수식키는 Shift·Ctrl·Alt·Cmd 만 본다 — NumLock·CapsLock 이 켜져 있으면 modifiers 에 Numeric·CapsLock 이 들어온다.
+            const EventModifiers held = EventModifiers.Shift | EventModifiers.Control | EventModifiers.Alt | EventModifiers.Command;
+            if (SelectionToggledOff == null || evt.button != 0 || evt.clickCount != 1 || (evt.modifiers & held) != 0)
+            {
+                return;
+            }
+            GraphRow row = null;
+            for (VisualElement element = evt.target as VisualElement; element != null && element != _list; element = element.parent)
+            {
+                if (element is GraphRow graphRow)
+                {
+                    row = graphRow;
+                    break;
+                }
+                if (element is TextField || (element.parent is GraphRow parentRow && element == parentRow.Refs))
+                {
+                    return;
+                }
+            }
+            if (row != null && row.userData is int index && index == _list.selectedIndex)
+            {
+                _toggleOffRow = row;
+                _toggleOffStart = evt.position;
+            }
+        }
+
+        /// <summary>
+        /// 이미 골라져 있던 줄을 끌지 않고 그 줄 안에서 떼면 고르기를 풀고 <see cref="SelectionToggledOff"/> 를 알린다.
+        /// ListView 도 뗄 때 고른 줄을 다시 정하므로, 그 뒤(다음 틀)에 푼다.
+        /// </summary>
+        private void OnListPointerUp(PointerUpEvent evt)
+        {
+            GraphRow row = _toggleOffRow;
+            _toggleOffRow = null;
+            if (row == null || evt.button != 0 || ((Vector2)evt.position - _toggleOffStart).sqrMagnitude > 16f || row.worldBound.Contains(evt.position) == false
+                || row.userData is not int index)
+            {
+                return;
+            }
+            _list.schedule.Execute(() =>
+            {
+                if (_list.selectedIndex == index)
+                {
+                    _list.ClearSelection();
+                    SelectionToggledOff?.Invoke();
+                }
+            });
+        }
+
         private void OnSelectionChanged()
         {
             object item = _list.selectedItem;
@@ -1294,7 +1365,8 @@ namespace GitVersionControl
             highlight.AddToClassList("commit-graph-row__highlight");
             message.Add(highlight);
             row.Highlight = highlight;
-            Label subject = new();
+            // 글자는 마우스를 받지 않는다(줄이 받는다). 툴팁은 메시지 칸에 단다(BindRow).
+            Label subject = new() { pickingMode = PickingMode.Ignore };
             subject.AddToClassList("commit-row__subject");
             subject.AddToClassList("ellipsis");
             message.Add(subject);
@@ -1373,7 +1445,7 @@ namespace GitVersionControl
                 PlaceBand(row);
                 BindWipCounts(row);
                 subject.text = string.Empty;
-                subject.tooltip = null;
+                message.tooltip = null;
                 BindDetails(row, null);
                 return;
             }
@@ -1396,7 +1468,7 @@ namespace GitVersionControl
             PaintBand(row, laneColor);
             PlaceBand(row);
             subject.text = commit.Subject;
-            subject.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
+            message.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
             BindDetails(row, commit);
         }
 
@@ -1410,7 +1482,7 @@ namespace GitVersionControl
                 return;
             }
             row.Author.text = commit == null ? string.Empty : GitDisplay.Nfc(commit.AuthorName);
-            row.Author.tooltip = commit?.AuthorEmail;
+            row.Details.tooltip = commit?.AuthorEmail;
             row.Hash.text = commit?.ShortHash ?? string.Empty;
             row.Date.text = commit == null ? string.Empty : GitDisplay.FormatDate(commit.Date);
         }
