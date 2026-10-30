@@ -201,6 +201,8 @@ namespace GitVersionControl
             // 처음 읽는 동안은 트리 대신 같은 모양의 스켈레톤(위에서 아래로 물결)을 보이고, 다 읽으면 트리가 서서히 나타난다(ShowTree).
             _skeleton = BuildSkeleton();
             Root.Add(_skeleton);
+            // 빨리 읽히면 스켈레톤을 아예 보이지 않는다(잔상 방지).
+            GitSkeleton.AppearLater(_skeleton);
             _tree.style.display = DisplayStyle.None;
             Root.Add(_tree);
 
@@ -389,15 +391,30 @@ namespace GitVersionControl
             return group;
         }
 
-        /// <summary>처음 다 읽었을 때: 스켈레톤을 걷고 트리를 투명에서 서서히 나타낸다(툭 바뀌지 않게). 그 뒤 다시 읽을 때는 트리를 그대로 둔다.</summary>
+        /// <summary>
+        /// 처음 다 읽었을 때: 스켈레톤을 걷고 트리를 보인다. 스켈레톤이 아직 나타나지 않았으면(빨리 읽혔으면) 트리를 곧바로,
+        /// 나타났으면 최소 표시 시간을 채운 뒤 트리를 투명에서 서서히 나타낸다. 그 뒤 다시 읽을 때는 트리를 그대로 둔다.
+        /// </summary>
         private void ShowTree()
         {
-            if (_skeleton == null)
+            VisualElement skeleton = _skeleton;
+            if (skeleton == null)
             {
                 return;
             }
-            _skeleton.RemoveFromHierarchy();
             _skeleton = null;
+            if (GitSkeleton.WasShown(skeleton) == false)
+            {
+                skeleton.RemoveFromHierarchy();
+                _tree.style.display = DisplayStyle.Flex;
+                return;
+            }
+            _tree.schedule.Execute(() => SwapToTree(skeleton)).StartingIn(GitSkeleton.RemainingShowMs(skeleton));
+        }
+
+        private void SwapToTree(VisualElement skeleton)
+        {
+            skeleton.RemoveFromHierarchy();
             _tree.style.display = DisplayStyle.Flex;
             _tree.style.opacity = 0f;
             _tree.schedule.Execute(() =>

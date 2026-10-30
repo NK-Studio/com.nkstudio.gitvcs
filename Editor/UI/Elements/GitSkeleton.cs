@@ -77,6 +77,58 @@ namespace GitVersionControl
         private const int UncoverMs = 220;
 
         /// <summary>
+        /// 읽기가 이보다 빨리 끝나면 스켈레톤을 아예 보이지 않는다(ms). 빠른 화면에서 한 번 번쩍이고 사라지는 잔상을 막는다.
+        /// </summary>
+        public const long AppearDelayMs = 250;
+
+        /// <summary>한 번 보인 스켈레톤은 적어도 이만큼 보인 뒤에 걷는다(ms) — 나타나자마자 사라지는 깜박임을 막는다.</summary>
+        private const double MinShownMs = 450;
+
+        /// <summary>늦게 나타날 때 서서히 보이는 시간(ms).</summary>
+        private const int AppearFadeMs = 150;
+
+        /// <summary>스켈레톤이 화면에 나타난 시각(<see cref="AppearLater"/>). 아직 안 나타났으면 없다.</summary>
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<VisualElement, object> ShownAt = new();
+
+        /// <summary>
+        /// 스켈레톤을 투명하게 두었다가 <see cref="AppearDelayMs"/> 뒤에도 아직 붙어 있으면(그때까지 읽기가 안 끝났으면) 서서히 보인다.
+        /// </summary>
+        public static void AppearLater(VisualElement skeleton)
+        {
+            skeleton.style.opacity = 0f;
+            skeleton.schedule.Execute(() =>
+            {
+                if (skeleton.parent == null)
+                {
+                    return;
+                }
+                ShownAt.AddOrUpdate(skeleton, Time.realtimeSinceStartupAsDouble);
+                skeleton.style.transitionProperty = new List<StylePropertyName> { "opacity" };
+                skeleton.style.transitionDuration = new List<TimeValue> { new(AppearFadeMs, TimeUnit.Millisecond) };
+                skeleton.style.opacity = 1f;
+            }).StartingIn(AppearDelayMs);
+        }
+
+        /// <summary>스켈레톤이 한 번이라도 화면에 나타났는지.</summary>
+        public static bool WasShown(VisualElement skeleton)
+        {
+            return skeleton != null && ShownAt.TryGetValue(skeleton, out _);
+        }
+
+        /// <summary>
+        /// 스켈레톤을 걷어도 되기까지 남은 시간(ms): 나타나지 않았으면 0, 나타났으면 <see cref="MinShownMs"/> 를 채울 때까지.
+        /// </summary>
+        public static long RemainingShowMs(VisualElement skeleton)
+        {
+            if (skeleton == null || ShownAt.TryGetValue(skeleton, out object at) == false)
+            {
+                return 0;
+            }
+            double shown = (Time.realtimeSinceStartupAsDouble - (double)at) * 1000.0;
+            return (long)System.Math.Max(0.0, MinShownMs - shown);
+        }
+
+        /// <summary>
         /// host 칸 전체를 덮는 스켈레톤(그 칸 바탕색으로 내용을 가리고, 모양에 맞는 줄을 칸 높이보다 넉넉히 늘어놓아 물결을 흘린다).
         /// 내용을 다 읽으면 <see cref="Uncover"/> 로 걷는다. 줄 폭은 줄 번호로 정해 매번 같은 모양이다.
         /// </summary>
@@ -109,16 +161,30 @@ namespace GitVersionControl
             }
             host.Add(cover);
             Pulse(cover);
+            AppearLater(cover);
             return cover;
         }
 
-        /// <summary>덮은 스켈레톤을 서서히 투명하게 해 아래 내용을 드러낸 뒤 떼어 낸다.</summary>
+        /// <summary>
+        /// 덮은 스켈레톤을 걷는다. 아직 나타나지 않았으면(빨리 읽혔으면) 바로 떼어 내 내용이 그대로 보이고,
+        /// 나타났으면 최소 표시 시간을 채운 뒤 서서히 투명하게 해 아래 내용을 드러낸다.
+        /// </summary>
         public static void Uncover(VisualElement cover)
         {
             if (cover == null || cover.parent == null)
             {
                 return;
             }
+            if (WasShown(cover) == false)
+            {
+                cover.RemoveFromHierarchy();
+                return;
+            }
+            cover.schedule.Execute(() => FadeOut(cover)).StartingIn(RemainingShowMs(cover));
+        }
+
+        private static void FadeOut(VisualElement cover)
+        {
             cover.style.transitionProperty = new List<StylePropertyName> { "opacity" };
             cover.style.transitionDuration = new List<TimeValue> { new(UncoverMs, TimeUnit.Millisecond) };
             cover.style.opacity = 0f;
