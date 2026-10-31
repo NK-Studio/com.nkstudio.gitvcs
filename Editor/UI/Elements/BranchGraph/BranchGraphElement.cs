@@ -547,16 +547,31 @@ namespace GitVersionControl
             }
         }
 
-        /// <summary>커밋 위에 HEAD·브랜치·태그 이름표를 쌓는다. 셋 넘으면 "+n" 으로 줄인다.</summary>
+        /// <summary>
+        /// 커밋 위에 HEAD·브랜치·태그 이름표를 쌓는다. 셋 넘으면 "+n" 으로 줄인다.
+        /// HEAD 커밋은 "HEAD" 대신 지금 브랜치 이름을 HEAD 색으로(detached 면 "HEAD"), 줄 끝 커밋은 그 줄의 브랜치 이름도 붙인다 —
+        /// 줄 이름과 같은 브랜치는 <see cref="GitGraphNode.RefLabels"/> 에서 빠지고(줄 머리표가 맡는다) 그 머리표는 줄이 시작하는 왼쪽 끝에 있어,
+        /// HEAD 근처를 보면 지금 브랜치(master) 이름이 어디에도 보이지 않았다.
+        /// </summary>
         private void PlacePills(GitGraphNode node, Vector2 p, float radius)
         {
             List<(string text, string modifier)> pills = new();
+            string headName = null;
             if (node.IsHead)
             {
-                pills.Add(("HEAD", Block + "__pill--head"));
+                headName = string.IsNullOrEmpty(node.HeadBranch) ? "HEAD" : node.HeadBranch;
+                pills.Add((headName, Block + "__pill--head"));
+            }
+            if (node.Column == node.Lane.LastColumn && node.Lane.IsAnonymous == false && node.Lane.Name != headName)
+            {
+                pills.Add((node.Lane.Name, null));
             }
             foreach (string label in node.RefLabels)
             {
+                if (label == headName)
+                {
+                    continue;
+                }
                 bool isTag = label.StartsWith("tag: ", StringComparison.Ordinal);
                 pills.Add((isTag ? label.Substring(5) : label, isTag ? Block + "__pill--tag" : null));
             }
