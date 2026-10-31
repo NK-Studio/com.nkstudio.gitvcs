@@ -171,7 +171,11 @@ namespace GitVersionControl
 
             _summary.text = error ?? SummaryOf(files.Count);
             _files.SetItems(FileListItem.FromChanges(files));
-            _diff.SetTarget(null);
+            // 창을 열면 바로 무엇이 바뀌었는지 보이게 맨 위 파일을 골라 diff 를 띄운다(SelectionChanged 가 diff 를 맞춘다).
+            if (_files.SelectFirst() == false)
+            {
+                _diff.SetTarget(null);
+            }
         }
     }
 }

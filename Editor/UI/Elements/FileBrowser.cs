@@ -229,6 +229,13 @@ namespace GitVersionControl
             return true;
         }
 
+        /// <summary>지금 모양(목록·트리)에서 맨 위에 보이는 파일 줄을 고른다. 파일이 없으면 false.</summary>
+        public bool SelectFirst()
+        {
+            FileListItem first = _shownMode == FileViewMode.Tree ? _tree.FirstShownFile() : _list.Items.FirstOrDefault();
+            return first != null && SelectFile(first.RepoPath);
+        }
+
         private void OnFileChosen(FileListItem item)
         {
             if (ChooseAction != null)

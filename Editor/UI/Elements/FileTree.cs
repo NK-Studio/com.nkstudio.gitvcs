@@ -182,6 +182,20 @@ namespace GitVersionControl
             _tree.RefreshItems();
         }
 
+        /// <summary>트리에 보이는 순서로 맨 위 파일 줄(폴더는 건너뛴다). 없으면 null.</summary>
+        public FileListItem FirstShownFile()
+        {
+            for (int i = 0; i < _tree.viewController.GetItemsCount(); i++)
+            {
+                FileTreeNode node = _tree.GetItemDataForIndex<FileTreeNode>(i);
+                if (node != null && node.IsFolder == false)
+                {
+                    return node.Item;
+                }
+            }
+            return null;
+        }
+
         public void ClearSelection()
         {
             _tree.ClearSelection();
