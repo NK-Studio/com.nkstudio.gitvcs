@@ -77,7 +77,7 @@ namespace GitVersionControl
         }
 
         /// <summary>칸을 덮은 스켈레톤이 걷히는 시간(ms). 아래 내용이 서서히 드러난다.</summary>
-        private const int UncoverMs = 80;
+        private const int UncoverMs = 50;
 
         /// <summary>
         /// 읽기가 이보다 빨리 끝나면 스켈레톤을 아예 보이지 않는다(ms). 빠른 화면에서 한 번 번쩍이고 사라지는 잔상을 막는다.
@@ -88,7 +88,7 @@ namespace GitVersionControl
         /// 한 번 보인 스켈레톤은 적어도 이만큼 보인 뒤에 걷는다(ms) — 나타나자마자 사라지는 깜박임을 막는다.
         /// 450 이면 다 읽은 뒤에도 0.5초 넘게 기다려(걷히는 시간 포함) 느리게 느껴졌다.
         /// </summary>
-        private const double MinShownMs = 120;
+        private const double MinShownMs = 60;
 
         /// <summary>늦게 나타날 때 서서히 보이는 시간(ms).</summary>
         private const int AppearFadeMs = 150;
