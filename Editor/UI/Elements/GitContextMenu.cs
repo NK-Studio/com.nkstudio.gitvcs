@@ -77,6 +77,62 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 드롭다운처럼 <paramref name="anchor"/> 바로 아래(왼쪽 맞춤)에 펼치는 메뉴.
+        /// </summary>
+        public static void ShowBelow(VisualElement host, VisualElement anchor, DropdownMenu menu)
+        {
+            if (host?.panel == null)
+            {
+                return;
+            }
+            Node root = Build(menu.MenuItems(), null);
+            if (root.Children.Count == 0)
+            {
+                return;
+            }
+            Rect bounds = anchor.worldBound;
+            _ = new GitContextMenu(host, root, host.WorldToLocal(new Vector2(bounds.xMin, bounds.yMax + 2f)));
+        }
+
+        /// <summary>
+        /// <see cref="DropdownField"/> 를 누르거나(또는 키보드로 열면) Unity 기본 메뉴(OS 모양, 밝은 바탕·작은 글씨) 대신
+        /// 고르기 항목을 테마 메뉴로 칸 아래에 띄운다. 지금 값에 체크, 고르면 <c>index</c> 를 바꿔 값 바뀜 알림이 그대로 간다.
+        /// 기본 메뉴는 칸 안쪽 입력부가 누름을 받아 여므로 그보다 먼저(TrickleDown) 받아 막는다.
+        /// </summary>
+        /// <param name="host">메뉴를 띄울 창 본체(테마·UI 배율이 걸린 곳).</param>
+        public static void UseThemedPopup(DropdownField field, Func<VisualElement> host)
+        {
+            void Open()
+            {
+                DropdownMenu menu = new();
+                for (int i = 0; i < field.choices.Count; i++)
+                {
+                    int index = i;
+                    menu.AppendAction(field.choices[i], _ => field.index = index,
+                        _ => field.index == index ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+                }
+                VisualElement input = field.Q(className: "unity-base-popup-field__input") ?? field;
+                ShowBelow(host(), input, menu);
+            }
+            field.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0 || field.enabledInHierarchy == false)
+                {
+                    return;
+                }
+                evt.StopImmediatePropagation();
+                Open();
+            }, TrickleDown.TrickleDown);
+            // 누름을 막아도 클릭(누름·뗌 짝)은 따로 만들어지므로 그것도 막는다.
+            field.RegisterCallback<ClickEvent>(evt => evt.StopImmediatePropagation(), TrickleDown.TrickleDown);
+            field.RegisterCallback<NavigationSubmitEvent>(evt =>
+            {
+                evt.StopImmediatePropagation();
+                Open();
+            }, TrickleDown.TrickleDown);
+        }
+
+        /// <summary>
         /// "a/b/c" 이름을 하위 메뉴 나무로 묶는다. 숨김 항목은 뺀다. 구분선은 그 하위 메뉴 안에 둔다.
         /// 맨 앞·맨 뒤·겹친 구분선은 지운다.
         /// </summary>

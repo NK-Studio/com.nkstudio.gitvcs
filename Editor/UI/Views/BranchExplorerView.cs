@@ -82,6 +82,8 @@ namespace GitVersionControl
             };
 
             _range.choices = RangeKeys.Select(GitText.Get).ToList();
+            // 기간 고르기는 다른 메뉴처럼 테마 메뉴로(Unity 기본 메뉴는 밝은 바탕·작은 글씨).
+            GitContextMenu.UseThemedPopup(_range, () => Services.PopupHost);
             _range.index = Math.Max(0, Math.Min(state.RangeIndex, RangeKeys.Length - 1));
             _range.RegisterValueChangedCallback(_ =>
             {
