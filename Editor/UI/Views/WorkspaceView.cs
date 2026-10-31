@@ -487,7 +487,7 @@ namespace GitVersionControl
             return change.HasValue && state == GitWorkspaceState.Changed ? $"{text} · {GitText.Get("state." + change.Value)}" : text;
         }
 
-        private static string FormatSize(long bytes)
+        internal static string FormatSize(long bytes)
         {
             if (bytes < 0)
             {

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine.UIElements;
 
@@ -6,10 +8,14 @@ namespace GitVersionControl
 {
     /// <summary>
     /// Pending Changes 탭: 작업 트리 변경을 보고, 고른 파일만 커밋하거나 되돌린다.
+    /// 위에서부터 동작 줄·커밋 메시지·파일 목록·고른 파일의 diff, 오른쪽에 "세부사항 표시" 로 펼치는 파일 정보·히스토리(Unity VCS 와 같은 배치).
     /// 체크 규칙은 <see cref="PendingSelection"/>, 커밋·되돌리기는 <see cref="IGitCommandService"/> 가 맡는다.
     /// </summary>
     public sealed class PendingChangesView : GitView
     {
+        /// <summary>세부사항 히스토리에 읽을 커밋 수(워크스페이스 탭과 같다).</summary>
+        private const int HistoryCount = 100;
+
         private readonly FileActionMenu _fileActions;
         private readonly PendingChangesState _state;
         private readonly PendingSelection _selection;
@@ -19,6 +25,21 @@ namespace GitVersionControl
         private readonly TextField _message;
         private readonly VisualElement _authorNotice;
         private readonly Button _commitButton;
+        private readonly Button _discardButton;
+        private readonly Button _detailsButton;
+        private readonly TwoPaneSplitView _detailsSplit;
+        private readonly GitDiffPanel _diff;
+        private readonly Label _infoPlaceholder;
+        private readonly VisualElement _info;
+        private readonly Label _infoName;
+        private readonly VisualElement _infoRows;
+        private readonly Label _historyTitle;
+        private readonly Label _historyEmpty;
+        private readonly ListView _historyList;
+        private readonly CommitList _history;
+        private readonly Label _historyMessage;
+        private GitStatusEntry _selected;
+        private string _detailsPath;
         private string _template;
         private GitOperationKind _seenOperation;
 
@@ -43,6 +64,31 @@ namespace GitVersionControl
             _message = Root.Require<TextField>("commit-message");
             _authorNotice = Root.Require<VisualElement>("author-notice");
             _commitButton = Root.Require<Button>("commit-button");
+            _discardButton = Root.Require<Button>("discard-button");
+            _detailsButton = Root.Require<Button>("details-button");
+            _detailsSplit = Root.Require<TwoPaneSplitView>("details-split");
+            _message.textEdition.placeholder = GitText.Get("pending.commitTitle");
+
+            // 파일 목록 아래: 고른 파일의 diff(Fork 배치와 같은 패널). 커밋은 체크박스로 고르므로 줄 단위 Stage 는 켜지 않는다.
+            _diff = new GitDiffPanel(services.Diff);
+            _diff.Root.style.flexGrow = 1;
+            _diff.ShowReloadButton(false);
+            _diff.PopupHostProvider = () => services.PopupHost;
+            Root.Require<VisualElement>("diff-host").Add(_diff.Root);
+
+            // 오른쪽 세부사항: 워크스페이스 탭의 정보·히스토리와 같은 모양. 히스토리에서 커밋을 고르면 그 메시지를 아래에 적는다.
+            _infoPlaceholder = Root.Require<Label>("info-placeholder");
+            _info = Root.Require<VisualElement>("info");
+            _infoName = Root.Require<Label>("info-name");
+            _infoRows = Root.Require<VisualElement>("info-rows");
+            _historyTitle = Root.Require<Label>("history-title");
+            _historyEmpty = Root.Require<Label>("history-empty");
+            _historyList = Root.Require<ListView>("history");
+            _historyMessage = Root.Require<Label>("history-message");
+            _historyMessage.selection.isSelectable = true;
+            _history = new CommitList(_historyList, services.Assets);
+            _history.ItemChosen += commit => GitCompareWindow.OpenCommit(commit.Hash);
+            _history.SelectionChanged += commit => _historyMessage.text = commit?.Subject ?? string.Empty;
 
             _files = new FileBrowser(Root.Require<VisualElement>("file-list"), Root.Require<VisualElement>("view-mode-host"), services)
             {
@@ -52,6 +98,7 @@ namespace GitVersionControl
                 DiffTargetOf = item => GitDiffTarget.ForWorkingTree((GitStatusEntry)item.Source),
             };
             _files.ToggleChanged += OnToggleChanged;
+            _files.SelectionChanged += item => ShowSelected((GitStatusEntry)item?.Source);
             GitVcsSettings.MetaGroupingChanged += OnMetaGroupingChanged;
             _files.FolderContextMenuRequested += PopulateFolderMenu;
             _fileActions = new FileActionMenu(services, GitDiffSource.WorkingTree);
@@ -81,6 +128,14 @@ namespace GitVersionControl
                 }
             });
             _commitButton.clicked += Commit;
+            _discardButton.clicked += () => Discard(_selection.CheckedEntries());
+            _detailsButton.clicked += () =>
+            {
+                _state.ShowDetails = _state.ShowDetails == false;
+                ApplyDetailsVisibility();
+            };
+            ApplyDetailsVisibility();
+            ShowDetails(null);
             LoadTemplate();
         }
 
@@ -118,6 +173,7 @@ namespace GitVersionControl
             {
                 _files.SetItems(BuildItems());
                 UpdateCommitArea();
+                RefreshSelected();
             }
             NotifyBadgeChanged();
         }
@@ -126,6 +182,15 @@ namespace GitVersionControl
         {
             _files.SetItems(BuildItems());
             UpdateCommitArea();
+            RefreshSelected();
+        }
+
+        public override void Reload()
+        {
+            if (_diff.Target != null)
+            {
+                _diff.Reload();
+            }
         }
 
         public override void OnBusyChanged(bool isBusy)
@@ -216,6 +281,132 @@ namespace GitVersionControl
 
             _commitButton.text = GitText.Format("pending.commitButton", selected);
             _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
+            _discardButton.SetEnabled(Services.Runner.IsBusy == false && selected > 0);
+        }
+
+        // ── 아래 diff · 오른쪽 세부사항 ─────────────────────
+
+        /// <summary>
+        /// 목록을 다시 만든 뒤: 고른 파일이 남아 있으면 diff 와 세부사항을 다시 읽고(저장으로 내용이 바뀌었을 수 있다), 사라졌으면 비운다.
+        /// </summary>
+        private void RefreshSelected()
+        {
+            GitStatusEntry entry = (GitStatusEntry)_files.SelectedItems.FirstOrDefault()?.Source;
+            if (entry == null || entry.RepoPath != _selected?.RepoPath)
+            {
+                ShowSelected(entry);
+                return;
+            }
+            _selected = entry;
+            if (_diff.Target != null)
+            {
+                _diff.Reload();
+            }
+            ShowDetails(entry);
+        }
+
+        private void ShowSelected(GitStatusEntry entry)
+        {
+            _selected = entry;
+            _diff.SetTarget(entry == null ? null : GitDiffTarget.ForWorkingTree(entry));
+            ShowDetails(entry);
+        }
+
+        private void ApplyDetailsVisibility()
+        {
+            if (_state.ShowDetails)
+            {
+                _detailsSplit.UnCollapse();
+            }
+            else
+            {
+                _detailsSplit.CollapseChild(1);
+            }
+            _detailsButton.EnableInClassList("pending-changes__details-button--on", _state.ShowDetails);
+        }
+
+        /// <summary>
+        /// 오른쪽 세부사항: 이름·경로·상태·크기·만든 날짜·수정한 날짜, 그 아래 이 파일을 바꾼 커밋들.
+        /// 아직 커밋된 적 없는 파일(새 파일·추가)은 히스토리 대신 안내를 적는다.
+        /// </summary>
+        private async void ShowDetails(GitStatusEntry entry)
+        {
+            string path = entry?.RepoPath;
+            bool sameFile = path != null && path == _detailsPath;
+            _detailsPath = path;
+            _infoPlaceholder.SetVisible(entry == null);
+            _info.SetVisible(entry != null);
+            _historyTitle.SetVisible(entry != null);
+            _historyEmpty.SetVisible(false);
+            _historyList.SetVisible(entry != null);
+            _historyMessage.SetVisible(entry != null);
+            if (sameFile == false)
+            {
+                _history.SetItems(Array.Empty<GitCommitInfo>());
+                _historyMessage.text = string.Empty;
+            }
+            if (entry == null)
+            {
+                return;
+            }
+
+            _infoName.text = Path.GetFileName(path);
+            _infoRows.Clear();
+            AddInfo("workspace.infoPath", path);
+            AddInfo("workspace.infoState", GitText.Get("state." + entry.State));
+            string fullPath = Path.Combine(GitRepository.RepoRoot ?? GitRepository.ProjectRoot, path);
+            FileSystemInfo file = File.Exists(fullPath) ? new FileInfo(fullPath) : Directory.Exists(fullPath) ? new DirectoryInfo(fullPath) : null;
+            if (file is FileInfo info)
+            {
+                AddInfo("workspace.infoSize", WorkspaceView.FormatSize(info.Length));
+            }
+            if (file != null)
+            {
+                AddInfo("workspace.infoCreated", GitDisplay.FormatDate(file.CreationTime));
+                AddInfo("workspace.infoModified", GitDisplay.FormatDate(file.LastWriteTime));
+            }
+
+            if (entry.State == GitFileState.Untracked || entry.State == GitFileState.Added)
+            {
+                _historyList.SetVisible(false);
+                _historyMessage.SetVisible(false);
+                _historyEmpty.text = GitText.Get("workspace.noHistory");
+                _historyEmpty.SetVisible(true);
+                return;
+            }
+            if (sameFile)
+            {
+                return;
+            }
+            (List<GitCommitInfo> commits, string error) = await GitHistory.FileLogAsync(path, HistoryCount);
+            if (_detailsPath != path)
+            {
+                return;
+            }
+            _history.SetItems(commits, c => c.Hash);
+            if (commits.Count == 0)
+            {
+                _historyList.SetVisible(false);
+                _historyMessage.SetVisible(false);
+                _historyEmpty.text = error ?? GitText.Get("workspace.noHistory");
+                _historyEmpty.SetVisible(true);
+                return;
+            }
+            _history.Select(commits[0]);
+        }
+
+        private void AddInfo(string key, string value)
+        {
+            VisualElement line = new();
+            line.AddToClassList("workspace__info-row");
+            Label caption = new(GitText.Get(key));
+            caption.AddToClassList("workspace__info-caption");
+            line.Add(caption);
+            Label text = new(value);
+            text.AddToClassList("workspace__info-value");
+            text.selection.isSelectable = true;
+            line.Add(text);
+            _infoRows.Add(line);
         }
 
         /// <summary>

@@ -505,6 +505,7 @@ namespace GitVersionControl
             ["pending.discardMessage"] = new[] { "다음 변경을 버립니다. 되돌릴 수 없습니다.\n\n{0}", "The following changes will be discarded. This cannot be undone.\n\n{0}" },
             ["pending.discardFolder"] = new[] { "이 폴더의 변경 {0}개 되돌리기", "Discard {0} Changes in This Folder" },
             ["pending.discardMore"] = new[] { "\n… 외 {0}개", "\n… and {0} more" },
+            ["pending.showDetails"] = new[] { "세부사항 표시", "Show Details" },
 
             // ── 체인지 세트 ──
             ["changesets.allBranches"] = new[] { "모든 브랜치", "All Branches" },

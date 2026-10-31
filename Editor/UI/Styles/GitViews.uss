@@ -77,50 +77,96 @@
     font-size: 12px;
 }
 
-/* 아래 커밋 칸. 높이는 분할이 정하고(경계선 끌기), 남는 높이는 메시지 칸이 갖는다. */
-.pending-changes__commit {
-    padding: 4px 6px 6px 6px;
-    border-top-width: 1px;
-    border-top-color: var(--git-border);
+/* 맨 위 동작 줄(Unity VCS 의 체크인·변경사항 취소 | 세부사항 표시). */
+.pending-changes__actions {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 6px;
 }
 
-.pending-changes__commit-title {
-    font-size: 10px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    color: var(--git-text-muted);
-    margin-bottom: 2px;
-}
-
-/* 메시지가 길어도 칸을 밀어내지 않고 안에서 스크롤한다. */
-.pending-changes__message {
+.pending-changes__actions-spacer {
     flex-grow: 1;
-    flex-shrink: 1;
-    min-height: 0;
+}
+
+.pending-changes__commit-button,
+.pending-changes__action-button {
+    height: 24px;
+    margin: 0 4px 0 0;
+    padding: 0 12px;
+}
+
+.pending-changes__commit-button {
+    min-width: 90px;
+}
+
+.pending-changes__details-button {
+    margin-right: 0;
+}
+
+/* 세부사항을 펼친 동안은 눌린 버튼으로 보인다. */
+.pending-changes__details-button--on {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.pending-changes__details-button--on:hover {
+    background-color: var(--git-accent-hover);
+    border-color: var(--git-accent-hover);
+}
+
+/* 동작 줄 아래 커밋 메시지 칸. 높이는 고정이고 메시지가 길면 안에서 스크롤한다. */
+.pending-changes__commit {
+    flex-shrink: 0;
+    padding: 0 6px 6px 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.pending-changes__message {
+    height: 72px;
     margin: 0;
 }
 
 .pending-changes__message > .unity-text-field__input {
     flex-grow: 1;
-    min-height: 54px;
     -unity-text-align: upper-left;
     white-space: normal;
 }
 
-.pending-changes__commit-title,
-.pending-changes__commit .notice,
-.pending-changes__commit-footer {
+.pending-changes__commit .notice {
     flex-shrink: 0;
-}
-
-.pending-changes__commit-footer {
-    flex-direction: row;
-    justify-content: flex-end;
     margin-top: 4px;
 }
 
-.pending-changes__commit-button {
-    width: 120px;
-    height: 24px;
+.pending-changes__main {
+    flex-direction: column;
+}
+
+/* 목록 아래 고른 파일의 diff. */
+.pending-changes__diff {
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.pending-changes__details {
+    border-left-width: 1px;
+    border-left-color: var(--git-border);
+}
+
+/* 세부사항 히스토리에서 고른 커밋의 메시지. */
+.pending-changes__history-message {
+    flex-shrink: 0;
+    min-height: 40px;
+    margin-top: 6px;
+    padding: 6px 0 0 0;
+    white-space: normal;
+    color: var(--git-text);
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
 }
 
 /* ── branches ─────────────────────────────────────── */

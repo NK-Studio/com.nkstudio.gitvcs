@@ -41,6 +41,9 @@ namespace GitVersionControl
         /// <summary>새 항목은 기본 체크이므로 체크 해제한 경로만 기억한다.</summary>
         public List<string> ExcludedPaths = new();
         public string CommitMessage = string.Empty;
+
+        /// <summary>오른쪽 세부사항(파일 정보·히스토리)을 펼쳐 둘지.</summary>
+        public bool ShowDetails;
     }
 
     [Serializable]
