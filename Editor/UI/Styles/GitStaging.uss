@@ -143,6 +143,8 @@
     white-space: normal;
 }
 
+/* 칸이 좁으면 한 줄 그대로 줄인다 — 먼저 Amend 글자가 말줄임으로 줄고(체크 칸은 남는다), 그래도 모자라면 두 버튼이 함께 줄며 글자를 말줄임한다.
+   예전에는 Amend·버튼이 줄지 않아 오른쪽 커밋 버튼이 칸 밖으로 밀려 잘렸다. */
 .commit-box__footer {
     flex-direction: row;
     align-items: center;
@@ -151,12 +153,32 @@
 
 .commit-box__amend {
     margin: 0;
+    flex-shrink: 1000;
+    min-width: 20px;
+    overflow: hidden;
+}
+
+.commit-box__amend .unity-toggle__input {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.commit-box__amend .unity-toggle__text {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .commit-box__button {
     height: 26px;
-    min-width: 96px;
+    min-width: 56px;
+    flex-shrink: 1;
     margin: 0 0 0 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .commit-box__button--secondary {
