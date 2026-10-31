@@ -108,6 +108,8 @@ namespace GitVersionControl
             OverlayButton("zoom-out-button", ActionGlyphKind.ZoomOut).clicked += () => _graph.ZoomBy(1f / 1.25f);
 
             _graph.NodeSelected += Select;
+            // 커밋을 두 번 누르면 다른 목록(워크스페이스·체인지 세트)처럼 그 커밋과 부모를 비교하는 창을 연다.
+            _graph.NodeChosen += node => GitCompareWindow.OpenCommit(node.Commit.Hash);
             _graph.NodeContextMenu += PopulateNodeMenu;
             _graph.ViewportChanged += () =>
             {

@@ -64,6 +64,8 @@ namespace GitVersionControl
         public GitGraph Graph => _graph;
 
         public event Action<GitGraphNode> NodeSelected;
+        /// <summary>커밋 원을 두 번 눌렀을 때(부모와 비교 창).</summary>
+        public event Action<GitGraphNode> NodeChosen;
         public event Action<DropdownMenu, GitGraphNode> NodeContextMenu;
 
         /// <summary>끌기·휠로 확대·이동이 바뀐 뒤(상태 저장용).</summary>
@@ -768,6 +770,10 @@ namespace GitVersionControl
                 if (hit != null)
                 {
                     NodeSelected?.Invoke(hit);
+                    if (evt.clickCount == 2)
+                    {
+                        NodeChosen?.Invoke(hit);
+                    }
                     evt.StopPropagation();
                     return;
                 }
