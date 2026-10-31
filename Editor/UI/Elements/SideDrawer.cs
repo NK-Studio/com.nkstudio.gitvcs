@@ -220,9 +220,23 @@ namespace GitVersionControl
             return caption;
         }
 
-        protected static TextField Field(VisualElement parent, string caption, string placeholder, bool multiline = false)
+        /// <summary>
+        /// 이름(caption) 아래 입력란. help 를 주면 이름 오른쪽에 원 안의 i 를 두고, 마우스를 올리면 그 설명을 툴팁으로 보인다.
+        /// </summary>
+        protected static TextField Field(VisualElement parent, string caption, string placeholder, bool multiline = false, string help = null)
         {
-            if (caption != null)
+            if (caption != null && help != null)
+            {
+                VisualElement row = new();
+                row.AddToClassList(Block + "__caption-row");
+                Caption(row, caption);
+                // 아이콘은 보통 마우스를 받지 않는다(버튼이 받는다) — 툴팁을 보이려면 받아야 한다.
+                ActionGlyph info = new(ActionGlyphKind.Info) { tooltip = help, pickingMode = PickingMode.Position };
+                info.AddToClassList(Block + "__help");
+                row.Add(info);
+                parent.Add(row);
+            }
+            else if (caption != null)
             {
                 Caption(parent, caption);
             }

@@ -20,7 +20,7 @@ namespace GitVersionControl
             : base(host, services, ActionGlyphKind.Submodule, GitText.Get("submodule.addTitle"))
         {
             VisualElement page = Section(Body);
-            _url = Field(page, GitText.Get("submodule.url"), null);
+            _url = Field(page, GitText.Get("submodule.url"), null, help: GitText.Get("submodule.urlHelp"));
             _url.RegisterValueChangedCallback(evt =>
             {
                 if (_pathEdited == false)
@@ -29,7 +29,7 @@ namespace GitVersionControl
                 }
                 Validate();
             });
-            _path = Field(page, GitText.Get("submodule.path"), GitText.Get("submodule.pathPlaceholder"));
+            _path = Field(page, GitText.Get("submodule.path"), GitText.Get("submodule.pathPlaceholder"), help: GitText.Get("submodule.pathHelp"));
             _path.RegisterValueChangedCallback(_ =>
             {
                 _pathEdited = true;

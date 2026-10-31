@@ -1207,6 +1207,23 @@
     color: var(--git-text);
 }
 
+/* 이름 + 도움말 아이콘(SideDrawer.Field 의 help). 아이콘은 마우스를 올리면 설명 툴팁을 보인다. */
+.side-drawer__caption-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.side-drawer__help {
+    width: 14px;
+    height: 14px;
+    margin: 10px 0 4px 5px;
+    color: var(--git-text-muted);
+}
+
+.side-drawer__help:hover {
+    color: var(--git-text);
+}
+
 /* 고르기 칸(.search-select__box)과 같은 30px·안쪽 8px. */
 .side-drawer__input {
     margin: 0;

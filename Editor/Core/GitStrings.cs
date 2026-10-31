@@ -587,6 +587,20 @@ namespace GitVersionControl
             ["submodule.addTitle"] = new[] { "서브모듈 추가", "Add Submodule" },
             ["submodule.url"] = new[] { "원격 URL", "Remote URL" },
             ["submodule.path"] = new[] { "이름/경로", "Name/Path" },
+            ["submodule.urlHelp"] = new[] {
+                "서브모듈로 넣을 저장소의 주소입니다. HTTPS(https://github.com/owner/repo.git)나 SSH(git@github.com:owner/repo.git) 주소, 또는 이 컴퓨터의 폴더 경로를 적을 수 있습니다.\n" +
+                "이 주소는 .gitmodules 에 기록되어, 이 저장소를 받는 다른 사람도 같은 주소에서 서브모듈을 받습니다.",
+                "The address of the repository to add as a submodule: an HTTPS (https://github.com/owner/repo.git) or SSH (git@github.com:owner/repo.git) URL, or a local folder path.\n" +
+                "It is recorded in .gitmodules, so anyone who clones this repository fetches the submodule from the same address." },
+            ["submodule.pathHelp"] = new[] {
+                "서브모듈을 받을 폴더입니다. 저장소 루트 기준 상대 경로로 적고(예: Packages/MyLib), 이 경로가 서브모듈의 이름도 됩니다.\n" +
+                "· 원격 URL 을 적으면 주소의 마지막 이름으로 채워집니다. 직접 고치면 그대로 둡니다.\n" +
+                "· 비어 있지 않은 폴더나 이미 있는 파일 자리에는 넣을 수 없습니다. '..' 로 저장소 밖을 가리킬 수도 없습니다.\n" +
+                "· Unity 패키지면 Packages/ 아래에 두면 로컬 패키지로, Assets/ 아래에 두면 에셋으로 바로 가져옵니다.",
+                "The folder to check the submodule out into, relative to the repository root (e.g. Packages/MyLib). This path also becomes the submodule's name.\n" +
+                "· Filled from the last part of the Remote URL until you edit it yourself.\n" +
+                "· It can't be a non-empty folder or an existing file, and '..' can't point outside the repository.\n" +
+                "· For a Unity package, put it under Packages/ to use it as a local package, or under Assets/ to import it as assets." },
             ["submodule.pathPlaceholder"] = new[] { "저장소 루트 기준 경로(예: Packages/MyLib)", "Path from the repository root (e.g. Packages/MyLib)" },
             ["submodule.add"] = new[] { "서브모듈 추가", "Add Submodule" },
             ["submodule.problemAbsolute"] = new[] { "저장소 루트 기준의 상대 경로를 적으세요.", "Use a path relative to the repository root." },

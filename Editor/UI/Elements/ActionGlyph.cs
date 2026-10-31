@@ -144,6 +144,11 @@ namespace GitVersionControl
         /// 휴지통(손잡이 달린 뚜껑과 세로 줄 둘이 있는 통). 지우기 버튼. Material Symbols "delete" 비례를 선으로 옮겼다.
         /// </summary>
         Trash,
+
+        /// <summary>
+        /// 도움말(원 안의 i). 입력란 이름 옆에 두고 마우스를 올리면 자세한 설명 툴팁을 보인다.
+        /// </summary>
+        Info,
     }
 
     /// <summary>
@@ -434,6 +439,19 @@ namespace GitVersionControl
                     painter.Arc(P(10f, 10f), 7.5f * scale, 0f, 360f);
                     painter.Stroke();
                     Polyline(painter, P(8.5f, 6.5f), P(12f, 10f), P(8.5f, 13.5f));
+                    break;
+                case ActionGlyphKind.Info:
+                    // Expand 와 같은 원 + 가운데 세로 줄과 그 위 채운 점(i).
+                    painter.BeginPath();
+                    painter.Arc(P(10f, 10f), 7.5f * scale, 0f, 360f);
+                    painter.Stroke();
+                    Polyline(painter, P(10f, 9.2f), P(10f, 14f));
+                    painter.fillColor = resolvedStyle.color;
+                    painter.BeginPath();
+                    painter.Arc(P(10f, 6.3f), 1.1f * scale, 0f, 180f);
+                    painter.Arc(P(10f, 6.3f), 1.1f * scale, 180f, 360f);
+                    painter.ClosePath();
+                    painter.Fill();
                     break;
                 case ActionGlyphKind.MoreVert:
                     // 점 셋을 글자색으로 채운다. GitKraken 처럼 두툼한 동그라미(지름 3.1 칸)를 조금 촘촘히(간격 5.2 칸) 둔다.

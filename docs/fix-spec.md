@@ -720,6 +720,7 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 | Q18 | 낮음 — **고침** | 스켈레톤(모든 탭)·커밋 상세 | 다 읽은 뒤에도 스켈레톤이 늦게 걷혀 느리게 느껴진다 | 사용자 지적. 한 번 보인 스켈레톤의 최소 표시 450→200→120→60ms(`GitSkeleton.MinShownMs`), 걷히는 시간 220→120→80→50ms(`UncoverMs`, 사용자 요청으로 두 번 더 줄임). 나타나기 전 대기(250ms, 빨리 읽히면 아예 안 보임)는 그대로. `GraphCommitDetail.Show` 는 메시지와 바뀐 파일을 차례로가 아니라 함께 읽는다. 테스트 1013 통과, 6.0 컴파일 통과 |
 | Q19 | 낮음(기능) — **넣음** | 브랜치 탐색기 | 커밋 원을 두 번 눌러도 아무 일이 없다(워크스페이스·체인지 세트 목록은 두 번 누르면 부모와 비교 창) | 사용자 요청. `BranchGraphElement` 에 `NodeChosen`(왼쪽 버튼 clickCount 2) 을 더하고 `BranchExplorerView` 가 `GitCompareWindow.OpenCommit` 으로 그 커밋 ↔ 부모 비교 창을 연다. eval 로 커밋 원에 두 번 누르기를 보내 "커밋 62e6651" 창이 열리는 것 확인. 테스트 1013 통과, 6.0 컴파일 통과 |
 | Q20 | 낮음(UX) — **고침** | 커밋·비교 창(GitCompareWindow) | 창을 열면 파일을 하나도 고르지 않아 아래 diff 가 비어 있다 — 한 번 더 눌러야 보인다 | 사용자 요청. 다 읽은 뒤 `FileBrowser.SelectFirst` 로 지금 모양(목록·트리)에서 맨 위에 보이는 파일 줄을 골라 diff 를 띄운다(트리는 `FileTree.FirstShownFile`, 폴더는 건너뜀). 파일이 없으면 예전처럼 빈 diff. 6.7 에서 f57b824 창을 열어(트리 모양) Notes.txt 가 골라지고 diff 가 보이는 것 캡처 확인. 테스트 1013 통과, 6.0 컴파일 통과 |
+| Q21 | 낮음(UX) — **넣음** | 서브모듈 추가 서랍 | "이름/경로" 가 무엇을 뜻하는지(이름이 되는지, 어디 기준인지, 무엇이 안 되는지) 알 수 없다 | 사용자 요청. 새 아이콘 `ActionGlyphKind.Info`(원 안의 i)를 그리고, `SideDrawer.Field` 에 help 인자를 더해 이름 오른쪽에 두며 마우스를 올리면 설명 툴팁을 보인다(아이콘만 pickingMode Position). "원격 URL"(`submodule.urlHelp`: 주소 형식·.gitmodules 기록)과 "이름/경로"(`submodule.pathHelp`: 루트 기준·이름이 됨·자동 채움·안 되는 자리·Packages/Assets 차이)에 붙였다. 6.7 캡처로 아이콘 확인(툴팁은 실제 마우스로 보지 않음). 테스트 1013 통과, 6.0 컴파일 통과 |
 
 ### 정상으로 본 것
 
