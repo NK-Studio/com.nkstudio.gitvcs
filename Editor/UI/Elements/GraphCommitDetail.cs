@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -154,8 +155,11 @@ namespace GitVersionControl
             }
 
             string hash = commit.Hash;
-            string message = await _history.CommitMessageAsync(hash);
-            List<GitFileChange> files = await _history.CommitFilesAsync(hash);
+            // 메시지와 바뀐 파일은 서로 기다릴 까닭이 없어 함께 읽는다(git 을 두 번 차례로 부르면 스켈레톤이 그만큼 오래 보였다).
+            Task<string> messageTask = _history.CommitMessageAsync(hash);
+            Task<List<GitFileChange>> filesTask = _history.CommitFilesAsync(hash);
+            string message = await messageTask;
+            List<GitFileChange> files = await filesTask;
             if (_shown?.Hash != hash)
             {
                 return;
