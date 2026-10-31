@@ -793,6 +793,7 @@ namespace GitVersionControl
             ["explorer.noMatch"] = new[] { "'{0}' 에 맞는 커밋이 없습니다.", "No commits match '{0}'." },
             ["explorer.tooltip"] = new[] { "{0}\n{1} · {2} · {3}\n줄: {4}", "{0}\n{1} · {2} · {3}\nLane: {4}" },
             ["graph.mergedBranch"] = new[] { "(병합된 브랜치)", "(merged branch)" },
+            ["graph.mergedFrom"] = new[] { "{0} 에서 병합", "merged from {0}" },
 
             // ── Branch Explorer 커밋 메뉴 ──
             ["commit.compareWithParent"] = new[] { "이전 커밋과 비교", "Compare with Previous" },

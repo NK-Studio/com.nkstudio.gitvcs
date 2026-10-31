@@ -44,6 +44,12 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    /* 가지 선이 커밋 이름 아래를 지나면 글자 사이로 비쳐 읽기 어려웠다 — 글자 폭만 한 바탕색 상자를 깔아 그 자리에서만 선을 끊는다.
+       폭은 글자에 맞추고 최대 폭만 칸 폭으로 막는다(BranchGraphElement.PlaceNodeLabels). 글자 외곽선(-unity-text-outline)은
+       글자 안쪽까지 먹어 글자가 사라졌고, 흐린 그림자(text-shadow)는 선을 다 가리지 못했다. */
+    padding: 0 3px;
+    border-radius: 3px;
+    background-color: var(--git-graph-bg);
 }
 
 .branch-graph__pill {

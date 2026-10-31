@@ -503,7 +503,11 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                string text = lane.IsAnonymous ? lane.Name : "/" + lane.Name;
+                // 이름 없는(병합된) 줄은 병합 메시지("Merge branch 'master' of …")에서 딴 이름을 "master 에서 병합" 처럼 출처로 보인다 —
+                // 그냥 "master" 라고 쓰면 진짜 master 줄과 헷갈렸다. 이름을 못 찾은 줄은 "(병합된 브랜치)" 그대로.
+                string text = lane.IsAnonymous == false ? "/" + lane.Name
+                    : lane.Name == GitText.Get("graph.mergedBranch") ? lane.Name
+                    : GitText.Format("graph.mergedFrom", lane.Name);
                 string[] modifiers = lane.IsAnonymous ? new[] { Block + "__lane--anonymous" } : Array.Empty<string>();
                 Label label = _labels.Place(Block + "__lane", text, new Vector2(first.x - radius - 8f, first.y - 11f), Vector2.zero, 0f, 1f, modifiers);
                 label.style.borderBottomColor = GraphStyle.LaneColor(lane);
@@ -539,8 +543,10 @@ namespace GitVersionControl
                         new Vector2(p.x - radius, p.y - radius), new Vector2(radius * 2f, radius * 2f), initialsSize);
                     initials.style.opacity = opacity;
                 }
+                // 폭은 글자에 맞추고(바탕 상자가 글자 둘레만 선을 가리게) 칸 폭을 넘으면 말줄임.
                 Label subject = _labels.Place(Block + "__subject", node.Commit.Subject,
-                    new Vector2(p.x, p.y + radius + 6f), new Vector2(subjectWidth, 0f), subjectSize, 0.5f);
+                    new Vector2(p.x, p.y + radius + 6f), Vector2.zero, subjectSize, 0.5f);
+                subject.style.maxWidth = subjectWidth;
                 subject.style.opacity = opacity;
 
                 PlacePills(node, p, radius);
