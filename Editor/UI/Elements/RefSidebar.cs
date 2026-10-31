@@ -289,11 +289,13 @@ namespace GitVersionControl
 
         /// <summary>
         /// 태그·스태시·브랜치를 지우거나 만드는 작업은 HEAD 를 바꾸지 않아 키로는 알 수 없다. 작업이 끝날 때마다 다시 읽는다.
+        /// 작업 트리만 바꾸는 작업(Stage·Unstage·줄 버리기)은 참조를 바꾸지 않으니 건너뛴다 — 참조 읽기는 git 을 일곱 개 넘게 띄워,
+        /// 줄 Stage 바로 뒤의 diff 다시 읽기·다음 Stage 와 다투며 모두 늦어진다.
         /// </summary>
         private void OnRunnerStateChanged()
         {
             bool isBusy = _services.Runner.IsBusy;
-            if (_wasBusy && isBusy == false)
+            if (_wasBusy && isBusy == false && _services.Runner.LastRunWasWorkingTreeOnly == false)
             {
                 Load();
             }

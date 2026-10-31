@@ -74,7 +74,6 @@ namespace GitVersionControl
         // ── GitKraken 식 diff 막대(이 파일 편집 | Unstaged · 파일/Diff 보기 | Blame·히스토리 · ↑↓ · 보기 방식 · 공백·줄 바꿈) ──
         private VisualElement _bar;
         private Button _editButton;
-        private Button _sideChip;
         private Button _fileViewButton;
         private Button _diffViewButton;
         private Button _blameButton;
@@ -289,6 +288,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// Fork 처럼 hunk 머리 줄 버튼을 붙은 한 묶음 [Stage | 되돌리기…](Staged 면 [Unstage])으로 그리고, 머리 줄 오른쪽의 "이 변경 Stage/Unstage" 를 뺀다.
+        /// 보기는 Fork 처럼 늘 파일 전체를 이어서 보이는 diff 로 고정하고(파일 보기·Diff 보기·레이아웃 버튼을 숨긴다), 줄 단위 Stage 는 그 보기에서 한다.
         /// 끄면 GitKraken 식 초록·빨강 두 버튼.
         /// </summary>
         public bool ForkHunkStyle
@@ -298,7 +298,15 @@ namespace GitVersionControl
                 _forkHunkStyle = value;
                 Root.EnableInClassList("git-diff--fork-hunks", value);
                 UpdateStageFileButton();
-                _list.RefreshItems();
+                // 보기 방식이 설정 대신 Fork 식 고정으로 바뀐다. 열린 파일이 있으면 그 보기로 다시 읽는다.
+                if (_target != null)
+                {
+                    Reload();
+                }
+                else
+                {
+                    _list.RefreshItems();
+                }
             }
         }
 
@@ -318,16 +326,25 @@ namespace GitVersionControl
         /// 줄 거터(+/−)·hunk 버튼으로 줄을 올리는지. 위 조건에 더해 Diff 보기에서만 — 파일 보기는 지운 줄·머리 줄을 숨겨 고를 수 있는 줄이 반쪽이다.
         /// 끌어 고른 줄의 버튼 묶음(<see cref="UpdateSelectionActions"/>)은 파일 보기에서도 된다(<see cref="CanStageLines"/>).
         /// </summary>
-        private bool CanPartialStage => CanStageLines && GitVcsSettings.instance.DiffFileView == false;
+        private bool CanPartialStage => CanStageLines && ShownFileView == false;
+
+        /// <summary>
+        /// 지금 보이는 보기가 파일 보기인지. Fork 식(<see cref="ForkHunkStyle"/>)은 Fork 처럼 늘 "파일 전체를 이어서 한 덩어리로 보이는 diff"
+        /// (통합·파일 전체, 지운 줄과 더한 줄을 제자리에)라 설정과 상관없이 파일 보기가 아니다.
+        /// </summary>
+        private bool ShownFileView => _forkHunkStyle == false && GitVcsSettings.instance.DiffFileView;
+
+        /// <summary>지금 보이는 diff 레이아웃. Fork 식은 늘 통합·파일 전체(<see cref="DiffLayout.Inline"/>).</summary>
+        private DiffLayout ShownLayout => _forkHunkStyle ? DiffLayout.Inline : GitVcsSettings.instance.DiffLayout;
 
         /// <summary>
         /// 이번에 git 에 넘길 diff 옵션. 변경 묶음(Hunk) 보기만 설정의 문맥 줄 수를 쓰고, 통합·나란히·파일 보기는 GitKraken 처럼 파일 전체를 읽는다.
         /// </summary>
-        private static GitDiffOptions EffectiveOptions()
+        private GitDiffOptions EffectiveOptions()
         {
             GitVcsSettings settings = GitVcsSettings.instance;
             GitDiffOptions options = settings.DiffOptions;
-            bool wholeFile = settings.DiffFileView || settings.DiffLayout != DiffLayout.Unified;
+            bool wholeFile = ShownFileView || ShownLayout != DiffLayout.Unified;
             return wholeFile ? new GitDiffOptions(options.Algorithm, options.Whitespace, GitDiffOptions.MaxContextLines) : options;
         }
 
@@ -741,12 +758,10 @@ namespace GitVersionControl
             _bar.Add(left);
 
             VisualElement center = BarGroup("git-diff__bar-center");
-            _sideChip = new Button(SwitchSide);
-            _sideChip.AddToClassList("git-diff__chip");
-            center.Add(_sideChip);
             _fileViewButton = BarButton(() => SetFileView(true), GitText.Get("diff.fileViewTooltip"), null, GitText.Get("diff.fileView"));
             _diffViewButton = BarButton(() => SetFileView(false), GitText.Get("diff.diffViewTooltip"), null, GitText.Get("diff.diffView"));
             VisualElement viewSegment = Segment(_fileViewButton, _diffViewButton);
+            viewSegment.AddToClassList("git-diff__segment--view");
             center.Add(viewSegment);
             _textOnlyControls.Add(viewSegment);
             _bar.Add(center);
@@ -871,7 +886,9 @@ namespace GitVersionControl
             foreach (VisualElement control in _textOnlyControls)
             {
                 // 편집 중에는 diff 에만 뜻이 있는 묶음(변경 이동·보기 방식·공백·줄 바꿈)을 숨기고 파일/Diff 보기만 둔다.
-                control.SetVisible(isText && (_isEditing == false || control == _fileViewButton.parent));
+                // Fork 식은 보기가 하나로 고정이라 파일/Diff 보기·레이아웃 묶음이 없다.
+                bool viewChoice = control.ClassListContains("git-diff__segment--view") || control.ClassListContains("git-diff__segment--layouts");
+                control.SetVisible(isText && (_isEditing == false || control == _fileViewButton.parent) && (_forkHunkStyle == false || viewChoice == false));
             }
             _editButton.SetVisible(_isEditing == false);
             _editingGroup.SetVisible(_isEditing);
@@ -881,14 +898,13 @@ namespace GitVersionControl
                 SetChecked(_fileViewButton, true);
                 SetChecked(_diffViewButton, false);
                 UpdateEditingState();
-                UpdateSideChip();
                 return;
             }
 
-            bool fileView = settings.DiffFileView;
+            bool fileView = ShownFileView;
             SetChecked(_fileViewButton, fileView);
             SetChecked(_diffViewButton, fileView == false);
-            DiffLayout layout = settings.DiffLayout;
+            DiffLayout layout = ShownLayout;
             SetChecked(_hunkLayoutButton, fileView == false && layout == DiffLayout.Unified);
             SetChecked(_inlineLayoutButton, fileView == false && layout == DiffLayout.Inline);
             SetChecked(_splitLayoutButton, fileView == false && layout == DiffLayout.SideBySide);
@@ -912,64 +928,6 @@ namespace GitVersionControl
             _historyButton.SetEnabled(hasHistory);
             _blameButton.tooltip = GitText.Get(hasHistory ? "diff.blameTooltip" : "diff.noCommittedVersion");
             _historyButton.tooltip = GitText.Get(hasHistory ? "diff.historyTooltip" : "diff.noCommittedVersion");
-
-            UpdateSideChip();
-        }
-
-        /// <summary>
-        /// 가운데 칩: 지금 보는 쪽(Unstaged·Staged·작업 사본). 같은 파일이 양쪽에 다 바뀌어 있으면(일부만 stage 한 파일) 눌러서 다른 쪽으로 바꾼다.
-        /// 커밋·범위 비교에서는 뜻이 없어 숨긴다.
-        /// </summary>
-        private void UpdateSideChip()
-        {
-            string current = _target.Source switch
-            {
-                GitDiffSource.Unstaged => GitText.Get("diff.sideUnstaged"),
-                GitDiffSource.Staged => GitText.Get("diff.sideStaged"),
-                GitDiffSource.WorkingTree => GitText.Get("diff.sideWorkingTree"),
-                _ => null,
-            };
-            _sideChip.SetVisible(current != null);
-            if (current == null)
-            {
-                return;
-            }
-            _sideChip.text = current;
-            _sideChip.EnableInClassList("git-diff__chip--staged", _target.Source == GitDiffSource.Staged);
-            GitDiffTarget other = OtherSideOf(_target);
-            _sideChip.SetEnabled(other != null);
-            _sideChip.EnableInClassList("git-diff__chip--switchable", other != null);
-            _sideChip.tooltip = other != null
-                ? GitText.Format("diff.sideSwitchTooltip", current, GitText.Get(other.Source == GitDiffSource.Staged ? "diff.sideStaged" : "diff.sideUnstaged"))
-                : GitText.Format("diff.sideTooltip", current);
-        }
-
-        /// <summary>
-        /// 같은 파일의 반대쪽(Unstaged ↔ Staged) diff 대상. 반대쪽에 변경이 없으면 null.
-        /// </summary>
-        private static GitDiffTarget OtherSideOf(GitDiffTarget target)
-        {
-            if (target.Source != GitDiffSource.Unstaged && target.Source != GitDiffSource.Staged)
-            {
-                return null;
-            }
-            GitStatusEntry entry = GitRepository.Entries.FirstOrDefault(e => e.RepoPath == target.RepoPath);
-            if (entry == null)
-            {
-                return null;
-            }
-            bool toStaged = target.Source == GitDiffSource.Unstaged;
-            List<GitStatusEntry> side = toStaged ? GitStaging.Staged(new[] { entry }) : GitStaging.Unstaged(new[] { entry });
-            return side.Count > 0 ? GitDiffTarget.ForStaging(side[0], toStaged) : null;
-        }
-
-        private void SwitchSide()
-        {
-            GitDiffTarget other = _target == null ? null : OtherSideOf(_target);
-            if (other != null)
-            {
-                SetTarget(other);
-            }
         }
 
         private static string FullPathOf(GitDiffTarget target)
@@ -1490,14 +1448,14 @@ namespace GitVersionControl
         private void ApplyLayout()
         {
             GitVcsSettings settings = GitVcsSettings.instance;
-            bool fileView = settings.DiffFileView;
-            bool isSplit = fileView == false && settings.DiffLayout == DiffLayout.SideBySide;
+            bool fileView = ShownFileView;
+            bool isSplit = fileView == false && ShownLayout == DiffLayout.SideBySide;
             _showWhitespace = settings.DiffShowWhitespace;
             _wrap = settings.DiffWordWrap;
             Root.EnableInClassList("git-diff--wrap", _wrap);
             Root.EnableInClassList("git-diff--file-view", fileView);
             // 변경 묶음(Hunk) 보기의 머리 줄은 [Discard Hunk][Stage Hunk] 가 다른 버튼과 같은 크기로 들어가게 높다(GitKraken 과 같다).
-            bool tallHunks = fileView == false && settings.DiffLayout == DiffLayout.Unified;
+            bool tallHunks = fileView == false && ShownLayout == DiffLayout.Unified;
             Root.EnableInClassList("git-diff--tall-hunks", tallHunks);
             _variableHeights = _wrap || tallHunks;
             UpdateBar();
@@ -2072,13 +2030,10 @@ namespace GitVersionControl
             // git 이 모르는 파일은 인덱스에 항목이 없어 패치가 붙을 곳이 없다. add -N 으로 빈 항목을 먼저 만든다.
             string intentToAdd = reverse == false && target.State == GitFileState.Untracked ? target.RepoPath : null;
             ClearSelection();
+            int loadVersion = _loadVersion;
             await _runner.RunAsync(GitText.Get(reverse ? "op.unstageLines" : "op.stageLines"),
                 () => _commands.ApplyPatchToIndexAsync(patch, reverse, zeroContext, intentToAdd), refreshAssets: false, workingTreeOnly: true);
-            // 새로고침으로 목록이 바뀌며 뷰가 이미 다시 읽었을 수 있다. 같은 파일을 아직 보고 있으면 한 번 더 맞춘다.
-            if (_target == target)
-            {
-                Reload();
-            }
+            ReloadIfNotReloaded(target, loadVersion);
         }
 
         /// <summary>
@@ -2106,9 +2061,20 @@ namespace GitVersionControl
             }
             bool zeroContext = _loadedContextLines == 0;
             ClearSelection();
+            int loadVersion = _loadVersion;
             await _runner.RunAsync(GitText.Get("op.discardHunk"),
                 () => _commands.DiscardPatchFromWorkTreeAsync(patch, zeroContext, target.RepoPath), refreshAssets: true, workingTreeOnly: true);
-            if (_target == target)
+            ReloadIfNotReloaded(target, loadVersion);
+        }
+
+        /// <summary>
+        /// 줄 Stage·Unstage·버리기 뒤: 저장소 새로고침으로 뷰가 이미 이 diff 를 다시 읽기 시작했으면 또 읽지 않는다.
+        /// 또 읽으면 먼저 시작한 읽기(빠르다)가 "지난 요청" 으로 버려지고, 새로고침 직후 함께 도는 사이드바 git 들과 다투느라 늦은 읽기를 기다려
+        /// 화면이 1초 가까이 늦게 바뀐다. 아직 아무도 읽지 않았으면(같은 파일을 보고 있을 때) 한 번 읽는다.
+        /// </summary>
+        private void ReloadIfNotReloaded(GitDiffTarget target, int loadVersionBefore)
+        {
+            if (_target == target && _loadVersion == loadVersionBefore)
             {
                 Reload();
             }

@@ -140,7 +140,7 @@ namespace GitVersionControl
             string list = string.Join("\n", targets.Take(10).Select(e => e.ProjectPath ?? e.RepoPath))
                           + (targets.Count > 10 ? GitText.Format("pending.discardMore", targets.Count - 10) : string.Empty);
             string title = targets.Count > 1 ? GitText.Format("staging.discardSelected", targets.Count) : GitText.Get("staging.discard");
-            if (await GitConfirmDialog.ShowAsync(services, ActionGlyphKind.Undo, title, GitText.Format("staging.discardStagedMessage", list), GitText.Get("op.discard")) == false
+            if (await GitConfirmDialog.ConfirmAsync(services.PopupHost, ActionGlyphKind.Undo, title, GitText.Format("staging.discardStagedMessage", list), GitText.Get("op.discard"), okDanger: true) == false
                 || services.Runner.IsBusy)
             {
                 return;

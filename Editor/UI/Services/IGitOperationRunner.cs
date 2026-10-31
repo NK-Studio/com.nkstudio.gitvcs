@@ -14,6 +14,9 @@ namespace GitVersionControl
         bool IsBusy { get; }
         string StatusText { get; }
 
+        /// <summary>마지막(또는 지금 도는) 작업이 작업 트리만 바꾸는 작업(Stage·Unstage·줄 버리기)이었는지. 끝난 뒤 참조 목록을 다시 읽을지 가르는 데 쓴다.</summary>
+        bool LastRunWasWorkingTreeOnly { get; }
+
         /// <summary>IsBusy 나 StatusText 가 바뀔 때.</summary>
         event Action StateChanged;
 
@@ -50,6 +53,7 @@ namespace GitVersionControl
 
         public bool IsBusy { get; private set; }
         public string StatusText { get; private set; } = string.Empty;
+        public bool LastRunWasWorkingTreeOnly { get; private set; }
 
         /// <summary>
         /// 원격 작업이 인증 문제로 실패했을 때(<see cref="GitAuth.IsAuthFailure"/>) 오류 알림 대신 부른다. 계정을 골라 다시 해야 하면 true.
@@ -65,6 +69,7 @@ namespace GitVersionControl
 
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
         {
+            LastRunWasWorkingTreeOnly = workingTreeOnly;
             IsBusy = true;
             s_activeCount++;
             SetStatus(GitText.Format("runner.running", title));

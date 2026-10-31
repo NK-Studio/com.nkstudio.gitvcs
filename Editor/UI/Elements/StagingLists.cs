@@ -463,7 +463,12 @@ namespace GitVersionControl
             Render();
             if (hadSelection && _selectedUnstaged.Count == 0 && _selectedStaged.Count == 0)
             {
+                _shownEntry = null;
                 FileSelected?.Invoke(null);
+            }
+            else
+            {
+                RefreshShownEntry();
             }
             EntriesShown?.Invoke();
         }
@@ -609,7 +614,37 @@ namespace GitVersionControl
             Render();
             if (entry != null || (_selectedStaged.Count == 0 && _selectedUnstaged.Count == 0))
             {
+                _shownEntry = entry;
+                _shownStaged = staged;
                 FileSelected?.Invoke(entry == null ? null : GitDiffTarget.ForStaging(entry, staged));
+            }
+        }
+
+        /// <summary>diff 에 보이고 있는 파일 항목과 그 쪽(Staged 인지). <see cref="ShowEntries"/> 가 상태가 바뀌었는지 보는 데 쓴다.</summary>
+        private GitStatusEntry _shownEntry;
+        private bool _shownStaged;
+
+        /// <summary>
+        /// 목록을 다시 채운 뒤: diff 에 보이는 파일이 같은 쪽 목록에 남아 있는데 상태가 바뀌었으면(새 파일의 일부 줄을 Stage 해 untracked → 추가·수정 등)
+        /// 새 항목으로 diff 를 다시 맞춘다. 다시 채우는 동안의 선택 알림은 막으므로(깜빡임) 여기서 따로 알린다 — 그러지 않으면 diff 가 옛 상태로
+        /// 읽어(untracked 면 빈 파일과 비교) 방금 Stage 한 줄이 그대로 남아 보인다.
+        /// </summary>
+        private void RefreshShownEntry()
+        {
+            if (_shownEntry == null)
+            {
+                return;
+            }
+            GitStatusEntry current = (_shownStaged ? _stagedEntries : _unstagedEntries).FirstOrDefault(e => e.RepoPath == _shownEntry.RepoPath);
+            if (current == null)
+            {
+                return;
+            }
+            bool changed = current.State != _shownEntry.State || current.IndexCode != _shownEntry.IndexCode || current.WorkTreeCode != _shownEntry.WorkTreeCode;
+            _shownEntry = current;
+            if (changed)
+            {
+                FileSelected?.Invoke(GitDiffTarget.ForStaging(current, _shownStaged));
             }
         }
 
@@ -844,11 +879,11 @@ namespace GitVersionControl
                           + (targets.Count > 10 ? GitText.Format("pending.discardMore", targets.Count - 10) : string.Empty);
             string title = targets.Count > 1 ? GitText.Format("staging.discardSelected", targets.Count) : GitText.Get("staging.discard");
             string message = GitText.Format(staged ? "staging.discardStagedMessage" : "staging.discardMessage", list);
-            // Fork 방식은 Fork 처럼 파일 목록 없이 짧게 묻는 경고창.
+            // Fork 방식은 Fork 처럼 파일 목록 없이 짧게 묻는 경고창. 되돌릴 수 없는 일이라 버리기 버튼은 위험 표시(빨강)로 둔다.
             Task<bool> confirm = _shiftForAll
                 ? GitConfirmDialog.ShowAlertAsync(_services, ActionGlyphKind.Undo, GitText.Get("staging.discardAlertTitle"),
-                    GitText.Get(staged ? "staging.discardAlertStagedMessage" : "staging.discardAlertMessage"), GitText.Get("staging.discardAlertOk"))
-                : GitConfirmDialog.ShowAsync(_services, ActionGlyphKind.Undo, title, message, GitText.Get("op.discard"));
+                    GitText.Get(staged ? "staging.discardAlertStagedMessage" : "staging.discardAlertMessage"), GitText.Get("staging.discardAlertOk"), okDanger: true)
+                : GitConfirmDialog.ConfirmAsync(_services.PopupHost, ActionGlyphKind.Undo, title, message, GitText.Get("op.discard"), okDanger: true);
             if (await confirm == false || _services.Runner.IsBusy)
             {
                 return;
