@@ -700,7 +700,7 @@ Project 창에서 에셋·폴더를 우클릭하면 **Git** 묶음. Git 창 변�
 
 | # | 심각도 | 어디 | 증상 | 메모 |
 |---|---|---|---|---|
-| Q1 | 높음(예외) | 체인지 세트 탭 | 처음 열 때 `InvalidOperationException: You cannot add a child to this VisualElement because its contentContainer is null` | `ChangesetsView.SkeletonHosts` 가 `ListView`(`commit-list`) 자체를 스켈레톤 자리로 준다 → `GitSkeleton.Cover` 의 `host.Add`. 6.7 ListView 는 contentContainer 가 null. 다른 탭처럼 감싸는 칸에 붙여야 한다. 탭 내용은 정상으로 보인다 |
+| Q1 | 높음(예외) — **고침** | 체인지 세트 탭 | 처음 열 때 `InvalidOperationException: You cannot add a child to this VisualElement because its contentContainer is null` | `ChangesetsView.SkeletonHosts` 가 `ListView`(`commit-list`) 자체를 스켈레톤 자리로 줬다 → `GitSkeleton.Cover` 의 `host.Add`. 고침: ListView 를 `list-host` 칸(flex-basis 0·min-height 0, 목록처럼 남는 자리만)으로 감싸 그 칸에 덮고, `GitSkeleton.Cover` 는 contentContainer 가 없는 요소면 `hierarchy` 에 붙인다. 6.7 확인: 다시 만든 창에서 탭을 처음 열어 콘솔 오류 0, 덮개가 칸 안에 붙었다 걷힘, 목록 높이·아래 상세 칸 자리 그대로. 6.0 컴파일 통과 |
 | Q2 | 중간 | 그래프(라이트 테마) | 지금 브랜치가 아닌 이름표 선이 거의 검은색이라 밝은 바탕에서 가장 눈에 띈다 | `GraphStyle.Muted` 가 밝기만 낮춰(×0.15) 다크 테마 기준이다. 라이트에서는 바탕 쪽으로 바래야 한다 |
 | Q3 | 중간 | 브랜치 탐색기(그래프 모양) | HEAD 커밋 이름표 묶음에 지금 브랜치 `master` 가 없다(`origin/master`·`remote/master`·`HEAD` 만) | 로컬 브랜치 이름이 빠져 보인다 |
 | Q4 | 낮음 | 브랜치 탐색기(그래프 모양) | 가지 선이 커밋 이름 글자("Ours: edit line 3") 위를 지나 가린다 | |

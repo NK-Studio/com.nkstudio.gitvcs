@@ -22,7 +22,10 @@
                     <ui:Label text="@column.author" class="list-header__cell column--author" />
                     <ui:Label text="@column.date" class="list-header__cell column--date" />
                 </ui:VisualElement>
-                <ui:ListView name="commit-list" class="list" />
+                <!-- 읽는 동안 스켈레톤을 덮는 칸(ListView 는 contentContainer 가 없어 자식을 받지 못한다). -->
+                <ui:VisualElement name="list-host" style="flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0;">
+                    <ui:ListView name="commit-list" class="list" />
+                </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="detail-host" class="view__pane" />
         </ui:TwoPaneSplitView>

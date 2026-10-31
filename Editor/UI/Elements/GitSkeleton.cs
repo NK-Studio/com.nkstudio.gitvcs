@@ -168,7 +168,15 @@ namespace GitVersionControl
                     Bar(row, 0, 10, widthPercent: width * 0.8f);
                 }
             }
-            host.Add(cover);
+            // ListView 처럼 contentContainer 가 없는 요소는 Add 가 예외를 낸다(체인지 세트 탭에서 났다) — 그런 칸이면 hierarchy 에 바로 붙인다.
+            if (host.contentContainer == null)
+            {
+                host.hierarchy.Add(cover);
+            }
+            else
+            {
+                host.Add(cover);
+            }
             Pulse(bars);
             AppearLater(bars, cover);
             return cover;

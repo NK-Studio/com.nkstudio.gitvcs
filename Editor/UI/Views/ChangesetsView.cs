@@ -37,7 +37,8 @@ namespace GitVersionControl
         {
             get
             {
-                yield return (Root.Require<VisualElement>("commit-list"), SkeletonShape.Commits);
+                // ListView 자체가 아니라 감싸는 칸 — ListView 는 contentContainer 가 없어 덮개를 자식으로 받지 못한다.
+                yield return (Root.Require<VisualElement>("list-host"), SkeletonShape.Commits);
             }
         }
         private bool _isLoading;
