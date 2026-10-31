@@ -196,6 +196,10 @@
     -unity-slice-top: 0;
     -unity-slice-right: 0;
     -unity-slice-bottom: 0;
+}
+
+/* 회전 연출은 사용자가 펼치거나 접은 줄에만(GitTreeToggleAnimation). 늘 켜 두면 TreeView 가 줄 칸을 다시 쓸 때 손대지 않은 줄의 화살표도 돈다. */
+.git-themed .unity-tree-view.unity-collection-view .unity-tree-view__item.git-tree-item--toggling .unity-tree-view__item-toggle .unity-toggle__input .unity-toggle__checkmark {
     transition-property: rotate;
     transition-duration: 0.12s;
 }
