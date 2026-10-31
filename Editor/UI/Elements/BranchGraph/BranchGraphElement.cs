@@ -23,6 +23,11 @@ namespace GitVersionControl
         private readonly IAvatarProvider _avatars;
 
         private GitGraph _graph;
+        // 줄 머리표·커밋 이름표가 이미 차지한 자리(캔버스 좌표). 뒤에 놓는 이름표가 겹치면 접는다.
+        private readonly List<Rect> _occupied = new();
+        // 줄마다 같은 행에서 바로 앞에 끝난 줄의 마지막 칸(없으면 없음). 줄 머리표가 그 커밋 위로 뻗지 않게 한다.
+        private readonly Dictionary<GitGraphLane, int> _previousLaneEnd = new();
+        private GitGraph _previousLaneEndGraph;
         private string _selectedHash;
         private string _search = string.Empty;
         private bool _centerPending = true;
@@ -481,6 +486,7 @@ namespace GitVersionControl
         {
             _labels.Begin();
             _headerLabels.Begin();
+            _occupied.Clear();
             if (_graph != null && _graph.Nodes.Count > 0 && layout.width > 1f)
             {
                 EnableInClassList(HiddenTextModifier, Viewport.Zoom < GraphStyle.TextZoomThreshold);
@@ -508,11 +514,90 @@ namespace GitVersionControl
                 string text = lane.IsAnonymous == false ? "/" + lane.Name
                     : lane.Name == GitText.Get("graph.mergedBranch") ? lane.Name
                     : GitText.Format("graph.mergedFrom", lane.Name);
+                // 머리표는 줄 첫 커밋 왼쪽으로 뻗는다 — 같은 행에서 앞서 끝난 줄이 있으면 그 마지막 커밋까지만 쓰고 넘치면 말줄임.
+                // 가지가 많은 곳에서 머리표가 남의 커밋·이름표를 덮어 읽기 어려웠다.
+                float right = first.x - radius - 8f;
+                float maxWidth = float.PositiveInfinity;
+                if (PreviousLaneEnd(lane, out int previousColumn))
+                {
+                    float previousX = Viewport.ToCanvas(new Vector2(GraphStyle.ColumnCenterX(previousColumn), 0f)).x;
+                    maxWidth = right - (previousX + radius + 6f);
+                    if (maxWidth < MinLaneLabelWidth)
+                    {
+                        continue;
+                    }
+                }
                 string[] modifiers = lane.IsAnonymous ? new[] { Block + "__lane--anonymous" } : Array.Empty<string>();
-                Label label = _labels.Place(Block + "__lane", text, new Vector2(first.x - radius - 8f, first.y - 11f), Vector2.zero, 0f, 1f, modifiers);
+                Label label = _labels.Place(Block + "__lane", text, new Vector2(right, first.y - 11f), Vector2.zero, 0f, 1f, modifiers);
+                label.style.maxWidth = float.IsPositiveInfinity(maxWidth) ? new StyleLength(StyleKeyword.None) : new StyleLength(maxWidth);
                 label.style.borderBottomColor = GraphStyle.LaneColor(lane);
                 ApplyShadow(label);
+                Vector2 size = MeasureText(label);
+                float width = Mathf.Min(size.x + LaneLabelPadding.x, maxWidth);
+                _occupied.Add(new Rect(right - width, first.y - 11f, width, size.y + LaneLabelPadding.y));
             }
+        }
+
+        private const float MinLaneLabelWidth = 28f;
+        // .branch-graph__lane 의 좌우 여백(8 + 8), 위아래 여백(3 + 4)·밑줄(2).
+        private static readonly Vector2 LaneLabelPadding = new(16f, 9f);
+        // .branch-graph__pill 의 좌우 여백(5 + 5).
+        private const float PillPadding = 10f;
+        // 이름표끼리 이만큼은 떨어져 있어야 한다 — 맞닿아도 그림자 때문에 한 덩어리로 보였다.
+        private const float LabelGap = 3f;
+
+        /// <summary>
+        /// 그 줄과 같은 행에서 그 줄보다 앞에 끝난 줄 가운데 가장 늦게 끝난 줄의 마지막 칸. 그래프가 바뀔 때만 다시 센다.
+        /// </summary>
+        private bool PreviousLaneEnd(GitGraphLane lane, out int column)
+        {
+            if (_previousLaneEndGraph != _graph)
+            {
+                _previousLaneEndGraph = _graph;
+                _previousLaneEnd.Clear();
+                Dictionary<int, List<GitGraphLane>> byRow = new();
+                foreach (GitGraphLane each in _graph.Lanes)
+                {
+                    if (byRow.TryGetValue(each.Row, out List<GitGraphLane> row) == false)
+                    {
+                        row = new List<GitGraphLane>();
+                        byRow[each.Row] = row;
+                    }
+                    row.Add(each);
+                }
+                foreach (List<GitGraphLane> row in byRow.Values)
+                {
+                    row.Sort((a, b) => a.FirstColumn.CompareTo(b.FirstColumn));
+                    int lastEnd = -1;
+                    foreach (GitGraphLane each in row)
+                    {
+                        if (lastEnd >= 0 && lastEnd < each.FirstColumn)
+                        {
+                            _previousLaneEnd[each] = lastEnd;
+                        }
+                        lastEnd = Mathf.Max(lastEnd, each.LastColumn);
+                    }
+                }
+            }
+            return _previousLaneEnd.TryGetValue(lane, out column);
+        }
+
+        private static Vector2 MeasureText(Label label)
+        {
+            return label.MeasureTextSize(label.text, 0f, MeasureMode.Undefined, 0f, MeasureMode.Undefined);
+        }
+
+        private bool IsOccupied(Rect rect)
+        {
+            Rect padded = new(rect.x - LabelGap, rect.y - LabelGap, rect.width + LabelGap * 2f, rect.height + LabelGap * 2f);
+            foreach (Rect each in _occupied)
+            {
+                if (each.Overlaps(padded))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void PlaceNodeLabels()
@@ -582,16 +667,44 @@ namespace GitVersionControl
                 pills.Add((isTag ? label.Substring(5) : label, isTag ? Block + "__pill--tag" : null));
             }
 
+            // 셋까지 쌓고 넘치면 셋째 자리를 "+n" 으로. 위로 쌓다가 줄 머리표·다른 커밋 이름표와 겹치는 자리가 나오면 거기서 멈추고
+            // 바로 앞 자리를 "+n" 으로 바꾼다(첫 자리만 들어가면 첫 이름표만). 지금 브랜치(HEAD) 이름표는 겹쳐도 보인다.
             const float pillHeight = 16f;
-            int shown = Mathf.Min(pills.Count, 3);
-            for (int i = 0; i < shown; i++)
+            int slots = Mathf.Min(pills.Count, 3);
+            List<(Label label, Rect rect)> placed = new();
+            for (int i = 0; i < slots; i++)
             {
                 bool isOverflow = i == 2 && pills.Count > 3;
-                string text = isOverflow ? $"+{pills.Count - 2}" : pills[i].text;
-                string[] modifiers = isOverflow || pills[i].modifier == null ? Array.Empty<string>() : new[] { pills[i].modifier };
-                Vector2 position = new(p.x, p.y - radius - 6f - (i + 1) * (pillHeight + 2f));
-                ApplyShadow(_labels.Place(Block + "__pill", text, position, new Vector2(0f, pillHeight), 0f, 0.5f, modifiers));
+                Label pill = PlacePill(isOverflow ? $"+{pills.Count - 2}" : pills[i].text, isOverflow ? null : pills[i].modifier, p, radius, i, pillHeight, out Rect rect);
+                if (IsOccupied(rect) && (i > 0 || headName == null))
+                {
+                    pill.style.display = DisplayStyle.None;
+                    if (placed.Count >= 2)
+                    {
+                        int last = placed.Count - 1;
+                        placed[last].label.style.display = DisplayStyle.None;
+                        PlacePill($"+{pills.Count - last}", null, p, radius, last, pillHeight, out Rect overflowRect);
+                        placed[last] = (null, overflowRect);
+                    }
+                    break;
+                }
+                placed.Add((pill, rect));
             }
+            foreach ((Label _, Rect rect) in placed)
+            {
+                _occupied.Add(rect);
+            }
+        }
+
+        private Label PlacePill(string text, string modifier, Vector2 p, float radius, int slot, float pillHeight, out Rect rect)
+        {
+            string[] modifiers = modifier == null ? Array.Empty<string>() : new[] { modifier };
+            Vector2 position = new(p.x, p.y - radius - 6f - (slot + 1) * (pillHeight + 2f));
+            Label pill = _labels.Place(Block + "__pill", text, position, new Vector2(0f, pillHeight), 0f, 0.5f, modifiers);
+            ApplyShadow(pill);
+            float width = MeasureText(pill).x + PillPadding;
+            rect = new Rect(p.x - width / 2f, position.y, width, pillHeight);
+            return pill;
         }
 
         private void PlaceDateLabels()

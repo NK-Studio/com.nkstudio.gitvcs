@@ -1121,8 +1121,42 @@ namespace GitVersionControl
                 return false;
             }
             _list.SetSelection(index);
-            _list.ScrollToItem(index);
+            RevealRow(index);
             return true;
+        }
+
+        /// <summary>
+        /// 그 줄이 다 보이지 않으면 목록 가운데쯤으로 스크롤한다. <see cref="ListView.ScrollToItem"/> 은 아래쪽 줄을 창 맨 아래에 맞춰
+        /// 맨 위 줄이 머리 줄 밑에서 반쯤 잘려 보였다 — 스크롤 위치를 줄 높이 단위로 맞춘다.
+        /// </summary>
+        private void RevealRow(int index)
+        {
+            ScrollView scroll = _list.Q<ScrollView>();
+            float viewport = scroll?.contentViewport.layout.height ?? float.NaN;
+            float rowHeight = VerticalGraphLayout.RowHeight;
+            if (float.IsNaN(viewport) || viewport < rowHeight)
+            {
+                // 아직 배치 전이다.
+                _list.ScrollToItem(index);
+                return;
+            }
+            float top = index * rowHeight;
+            float y = scroll.scrollOffset.y;
+            if (top >= y && top + rowHeight <= y + viewport)
+            {
+                return;
+            }
+            int rowsAbove = Mathf.FloorToInt((viewport / rowHeight - 1f) / 2f);
+            float max = Mathf.Max(0f, _items.Count * rowHeight - viewport);
+            float target = Mathf.Clamp((index - rowsAbove) * rowHeight, 0f, max);
+            // 목록 끝에 닿으면 끝 위치가 줄 높이로 나누어떨어지지 않아 또 맨 위 줄이 잘린다 — 고른 줄이 다 보이는 한 줄 단위로 내려 맞춰
+            // 잘리는 줄을 맨 아래로 보낸다(맨 끝 몇 줄은 끝 위치 그대로).
+            float aligned = Mathf.Floor(target / rowHeight) * rowHeight;
+            if (aligned < target && top + rowHeight <= aligned + viewport)
+            {
+                target = aligned;
+            }
+            scroll.scrollOffset = new Vector2(scroll.scrollOffset.x, target);
         }
 
         /// <summary>
@@ -1151,7 +1185,7 @@ namespace GitVersionControl
             _branchInput.SetValueWithoutNotify(string.Empty);
             ValidateBranchInput();
             _branchInput.SetVisible(true);
-            _list.ScrollToItem(index);
+            RevealRow(index);
             PlaceBranchInput();
             // 이 줄의 이름표 연결선은 입력란이 대신한다.
             _overlay.MarkDirtyRepaint();

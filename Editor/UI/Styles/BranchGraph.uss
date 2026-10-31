@@ -76,6 +76,10 @@
     background-color: var(--git-graph-lane-bg);
     color: var(--git-graph-lane-text);
     -unity-text-align: middle-center;
+    /* 최대 폭은 같은 행의 앞 줄 끝까지(BranchGraphElement.PlaceLaneLabels). 넘치면 말줄임. */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .branch-graph__lane--anonymous {
