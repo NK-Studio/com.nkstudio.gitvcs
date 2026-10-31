@@ -73,10 +73,12 @@ namespace GitVersionControl
             CreateContent();
 
             VisualElement toolbar = new();
+            toolbar.AddToClassList("compare__toolbar");
             toolbar.style.flexDirection = FlexDirection.Row;
             toolbar.style.height = 22;
             _summary = new Label();
             _summary.AddToClassList("view__toolbar-label");
+            _summary.AddToClassList("compare__summary");
             _summary.style.flexGrow = 1;
             toolbar.Add(_summary);
             VisualElement modeSwitchHost = new();

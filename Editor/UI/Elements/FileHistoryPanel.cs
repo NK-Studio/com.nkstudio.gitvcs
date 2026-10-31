@@ -97,6 +97,8 @@ namespace GitVersionControl
             _diff = new GitDiffPanel(services.Diff);
             _diff.Root.style.flexGrow = 1;
             _diff.ShowReloadButton(false);
+            // 이미 이 파일의 히스토리를 보고 있다.
+            _diff.ShowHistoryButton(false);
             right.Add(_diff.Root);
             split.Add(right);
             SplitPaneClamp.Attach(split);

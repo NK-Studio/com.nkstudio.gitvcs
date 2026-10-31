@@ -11,6 +11,19 @@
     margin: 0 6px;
 }
 
+/* 비교·커밋 창(GitCompareWindow) 머리 줄: 창 바탕에 흐린 작은 글씨가 그대로 올라가 대비가 낮았다 — 다른 화면 머리 줄처럼 머리 바탕을 깔고 글씨를 올린다. */
+.compare__toolbar {
+    align-items: center;
+    background-color: var(--git-header-bg);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}
+
+.compare__summary {
+    font-size: 11px;
+    color: var(--git-text);
+}
+
 .view__split {
     flex-grow: 1;
 }

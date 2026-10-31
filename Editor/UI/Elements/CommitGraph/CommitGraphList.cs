@@ -1658,9 +1658,6 @@ namespace GitVersionControl
             input.textEdition.placeholder = GitText.Get("graph.wip");
             input.textEdition.hidePlaceholderOnFocus = false;
             editor.Add(input);
-            ActionGlyph pencil = new(ActionGlyphKind.Pencil);
-            pencil.AddToClassList("commit-graph-wip__pencil");
-            editor.Add(pencil);
             row.Message.Insert(0, editor);
             VisualElement counts = MakeWipCounts(out row.WipCounts);
             row.Message.Insert(row.Message.IndexOf(editor) + 1, counts);
@@ -1700,14 +1697,18 @@ namespace GitVersionControl
                 }
             });
             // 글을 쓰는 키가 목록까지 올라가 줄 선택을 옮기지 않게 한다(Home·End·화살표 등). Enter·Esc 는 입력을 마친다.
+            input.RegisterCallback<KeyDownEvent>(evt => evt.StopPropagation());
+            // Enter·Esc 는 안쪽 글자 편집기보다 먼저 받아 입력을 마친다 — 올라오는 단계에서 목록에 포커스만 주면 편집기가 Esc 를 먼저 써서
+            // 오지 않아 입력란에 포커스·파란 테두리가 남았다. 쓴 글은 그대로 둔다.
             input.RegisterCallback<KeyDownEvent>(evt =>
             {
-                evt.StopPropagation();
                 if (evt.keyCode is KeyCode.Return or KeyCode.KeypadEnter or KeyCode.Escape)
                 {
+                    evt.StopImmediatePropagation();
+                    input.Blur();
                     _list.Focus();
                 }
-            });
+            }, TrickleDown.TrickleDown);
             input.RegisterCallback<NavigationMoveEvent>(evt => evt.StopPropagation());
             input.RegisterCallback<NavigationSubmitEvent>(evt => evt.StopPropagation());
             input.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());

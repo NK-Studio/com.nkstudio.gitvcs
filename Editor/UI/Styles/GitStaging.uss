@@ -1122,13 +1122,6 @@
     overflow: hidden;
 }
 
-/* 칸이 아주 좁으면 연필도 개수처럼 먼저 비켜서 글 쓸 자리를 입력란에 넘긴다. */
-.commit-graph-row--wip-editing .commit-graph-wip__pencil {
-    flex-shrink: 1000;
-    min-width: 0;
-    overflow: hidden;
-}
-
 /* 쓰는 중에는 입력란 안쪽 여백을 줄여 좁은 칸에서도 글이 몇 자 보이게 한다. */
 .commit-graph .commit-graph-row--wip-editing .commit-graph-wip__input > .unity-base-text-field__input {
     padding: 0 4px;
@@ -1152,19 +1145,6 @@
 .commit-graph .commit-graph-wip--editing > .commit-graph-wip__input > .unity-base-text-field__input {
     border-color: var(--git-accent);
     background-color: var(--git-field-bg);
-}
-
-.commit-graph-wip__pencil {
-    display: none;
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    margin-left: 6px;
-    color: var(--git-text-muted);
-}
-
-.commit-graph-wip--editing > .commit-graph-wip__pencil {
-    display: flex;
 }
 
 /* ── blame-row: 파일 Blame 창의 한 줄 ─────────────────── */

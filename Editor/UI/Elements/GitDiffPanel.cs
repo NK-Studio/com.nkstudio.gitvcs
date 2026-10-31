@@ -240,6 +240,14 @@ namespace GitVersionControl
         {
             _reloadButton.SetVisible(isVisible);
         }
+
+        /// <summary>
+        /// "히스토리" 버튼. 파일 히스토리 화면 안의 diff 처럼 이미 그 파일의 히스토리를 보고 있으면 끈다(누르면 같은 화면을 다시 열었다).
+        /// </summary>
+        public void ShowHistoryButton(bool isVisible)
+        {
+            _historyButton.SetVisible(isVisible);
+        }
         public GitDiffTarget Target => _target;
 
         /// <summary>
@@ -851,6 +859,9 @@ namespace GitVersionControl
             bool exists = System.IO.File.Exists(FullPathOf(_target));
             _editButton.SetEnabled(exists);
             // 작업 사본의 글 diff 면 이 자리에서 고치고, 커밋·Staged 등이면 예전처럼 외부 편집기에서 연다.
+            // 과거 판을 보는 중에도 "이 파일 편집" 이라 쓰면 그 판을 고치는 것처럼 보여, 그때는 "작업 사본 열기" 라고 쓴다.
+            bool inPlace = exists == false || CanEditInPlace;
+            _editButton.Q<Label>(className: "git-diff__bar-text").text = GitText.Get(inPlace ? "diff.editFile" : "diff.openWorkingFile");
             _editButton.tooltip = GitText.Get(exists == false ? "diff.editFileMissing" : CanEditInPlace ? "diff.editFileTooltip" : "diff.editFileNotWorkingCopy");
 
             bool hasHistory = HasCommittedVersion(_target);
