@@ -30,6 +30,7 @@ namespace GitVersionControl
 
         private GitServices _services;
         private GitToolbar _toolbar;
+        private GitFooter _footer;
         private OperationBanner _operationBanner;
         private readonly List<GitView> _views = new();
         private readonly List<SidebarTab> _tabs = new();
@@ -162,7 +163,11 @@ namespace GitVersionControl
             _layout = layout;
             ApplyTheme();
             GitVcsSettings settings = GitVcsSettings.instance;
-            _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value => settings.GitWindowScale = value);
+            _scale = new UiScaleController(scaleHost, layout, () => settings.GitWindowScale, value =>
+            {
+                settings.GitWindowScale = value;
+                _footer?.SetScale(settings.GitWindowScale);
+            });
             _window = layout.Require<VisualElement>("git-window");
             _notReady = layout.Require<VisualElement>("not-ready");
             _notReadyMessage = layout.Require<Label>("not-ready-message");
@@ -178,6 +183,13 @@ namespace GitVersionControl
             _rail.ExpandRequested += RestoreSidebar;
             _toolbar = new GitToolbar(layout, _services, this);
             _operationBanner = new OperationBanner(layout, _services);
+            _footer = new GitFooter(layout)
+            {
+                ZoomIn = () => _scale?.ZoomIn(),
+                ZoomOut = () => _scale?.ZoomOut(),
+                ZoomReset = () => _scale?.Reset(),
+            };
+            _footer.AccountRequested += () => _ = GitAccountDialog.ShowAsync(_services, null);
             _toolbar.RefreshRequested += () =>
             {
                 _views.Find(view => view.IsActive)?.Reload();
@@ -193,6 +205,11 @@ namespace GitVersionControl
             _refs.HoldReveal = true;
             _refs.RevealRequested += Reveal;
             _refs.ShowInExplorerRequested += hash => SelectTab<ExplorerView>()?.Reveal(hash);
+            _footer.PullRequestsRequested += () =>
+            {
+                RestoreSidebar();
+                _refs?.RevealSection(RefSection.PullRequests);
+            };
             // 본문 왼쪽 가장자리(사이드바 바로 옆)에서 밀려 나오는 서랍들. 본문 위에 덮어 띄우고, 한 번에 하나만 연다.
             VisualElement content = layout.Require<VisualElement>("content");
             AddRemoteDrawer addRemote = AddDrawer(new AddRemoteDrawer(content, _services));
@@ -268,6 +285,7 @@ namespace GitVersionControl
                     rail.SetSectionVisible(section, refs.IsSectionShown(section));
                     rail.SetSectionCount(section, refs.SectionCount(section));
                 }
+                _footer?.SetPullRequests(refs.PullRequests);
             };
 
             _services.Repository.Changed += OnRepositoryChanged;

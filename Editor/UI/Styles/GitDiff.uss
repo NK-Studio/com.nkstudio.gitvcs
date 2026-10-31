@@ -606,6 +606,99 @@
     color: var(--git-text);
 }
 
+/* 끌어 고른 줄 전체를 감싸는 띠(Fork 처럼): 강조색 1px 테두리 + 아주 옅은 강조색 바탕. 자리·크기는 코드가 고른 줄에 맞춘다. */
+.git-diff__selection-band {
+    position: absolute;
+    border-width: 1px;
+    border-color: var(--git-accent);
+    background-color: rgba(80, 140, 230, 0.10);
+}
+
+/* 코드를 끌어 고른 줄 아래 오른쪽에 뜨는 [Stage | 되돌리기…](Staged 면 [Unstage]). Fork 의 hunk 버튼과 같은 붙은 한 묶음:
+   불투명한 창 바탕 + 얇은 검은 테두리, 마우스를 올리면 한 단계 밝게. top 은 코드가 고른 줄에 맞춘다. */
+.git-diff__selection-actions {
+    position: absolute;
+    right: 24px;
+    flex-direction: row;
+}
+
+.git-diff__selection-button {
+    height: 22px;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 12px;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--git-bg);
+    color: var(--git-text);
+}
+
+.git-diff__selection-button:hover {
+    background-color: var(--git-hover);
+}
+
+.git-diff__selection-button:active {
+    background-color: var(--git-pressed);
+}
+
+.git-diff__selection-button--stage {
+    border-top-left-radius: var(--git-radius);
+    border-bottom-left-radius: var(--git-radius);
+}
+
+.git-diff__selection-button--discard {
+    border-left-width: 0;
+    border-top-right-radius: var(--git-radius);
+    border-bottom-right-radius: var(--git-radius);
+}
+
+.git-diff__selection-actions--single > .git-diff__selection-button--stage {
+    border-radius: var(--git-radius);
+}
+
+/* Fork 배치(.git-diff--fork-hunks): 붙은 한 묶음 [Stage | 되돌리기…]. 색 칠한 hunk 바탕 위에서도 읽히게 불투명한 창 바탕 + 얇은 검은 테두리,
+   마우스를 올리면 한 단계 밝게. 순서는 Stage 가 왼쪽(요소는 되돌리기·Stage 순이라 row-reverse). 초록·빨강 규칙보다 세게 하려고 클래스를 겹친다. */
+.git-diff--fork-hunks .diff-row__hunk-actions {
+    flex-direction: row-reverse;
+}
+
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button {
+    margin: 0;
+    background-color: var(--git-bg);
+    border-color: rgba(0, 0, 0, 0.6);
+    color: var(--git-text);
+    border-radius: 0;
+}
+
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button:hover {
+    background-color: var(--git-hover);
+    border-color: rgba(0, 0, 0, 0.6);
+    color: var(--git-text);
+}
+
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button:active {
+    background-color: var(--git-pressed);
+    border-color: rgba(0, 0, 0, 0.6);
+    color: var(--git-text);
+}
+
+/* 왼쪽 Stage 는 왼쪽 모서리만, 오른쪽 되돌리기… 는 오른쪽 모서리만 둥글게(가운데 경계선은 Stage 쪽 테두리 하나). */
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button--stage {
+    border-top-left-radius: var(--git-radius);
+    border-bottom-left-radius: var(--git-radius);
+}
+
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button--discard {
+    border-left-width: 0;
+    border-top-right-radius: var(--git-radius);
+    border-bottom-right-radius: var(--git-radius);
+}
+
+.git-diff--fork-hunks .diff-row .diff-row__hunk-actions--single > .diff-row__hunk-button--stage {
+    border-radius: var(--git-radius);
+}
+
 /* 변경 묶음(Hunk) 보기의 머리 줄은 버튼이 들어가게 높인다(GitKraken 도 머리 줄이 코드 줄보다 높다). 목록은 이때 가변 높이다. */
 .git-diff--tall-hunks .diff-row--hunk {
     height: 30px;

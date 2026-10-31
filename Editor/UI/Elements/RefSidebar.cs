@@ -233,6 +233,9 @@ namespace GitVersionControl
         /// <summary>
         /// Pull Request 목록만 다시 받는다(PR 을 만든 뒤).
         /// </summary>
+        /// <summary>마지막으로 읽은 풀 리퀘스트(읽기 전이면 null). <see cref="Loaded"/> 때마다 바뀐다.</summary>
+        public GitPullRequestSet PullRequests => _pullRequests;
+
         public void ReloadPullRequests()
         {
             _pullRequestsKey = null;

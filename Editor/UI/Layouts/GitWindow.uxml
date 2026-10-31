@@ -72,5 +72,14 @@
                 <ui:VisualElement name="content" class="git-window__content" />
             </ui:TwoPaneSplitView>
         </ui:VisualElement>
+
+        <!-- 아래쪽 상태 줄(GitKraken 처럼): 왼쪽 풀 리퀘스트 수, 오른쪽 UI 배율·GitHub 계정·버전. 안의 아이콘·글자는 GitFooter 가 채운다. -->
+        <ui:VisualElement name="footer" class="git-footer">
+            <ui:Button name="footer-pull-requests" class="git-footer__item" />
+            <ui:VisualElement class="spacer" />
+            <ui:Button name="footer-scale" class="git-footer__item" />
+            <ui:Button name="footer-account" class="git-footer__item" />
+            <ui:Label name="footer-version" class="git-footer__version" />
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

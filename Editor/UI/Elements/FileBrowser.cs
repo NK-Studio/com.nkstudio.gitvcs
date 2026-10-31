@@ -83,6 +83,15 @@ namespace GitVersionControl
         public Action<FileListItem> ChooseAction { get; set; }
 
         /// <summary>
+        /// Space 를 눌렀을 때 고른 파일들(보이는 순서)에 할 일(체크 바꾸기·Stage·Unstage). 정하면 Space 로는 diff 를 열지 않는다 —
+        /// ListView·TreeView 는 Space 도 Enter 처럼 '고르기'(NavigationSubmitEvent)로 받기 때문이다. Enter 는 그대로 <see cref="ChooseAction"/>.
+        /// </summary>
+        public Action<IReadOnlyList<FileListItem>> SpaceAction { get; set; }
+
+        /// <summary>Space 를 누르고 있는 동안. 그 사이에 오는 '고르기'는 Space 에서 온 것이라 막는다.</summary>
+        private bool _isSpaceDown;
+
+        /// <summary>
         /// 우클릭 메뉴 맨 위에 더할 항목(Stage·Unstage 등). "변경 내용 보기" 보다 위에 온다.
         /// </summary>
         public Action<DropdownMenu, FileListItem> MenuHead { get; set; }
@@ -146,6 +155,43 @@ namespace GitVersionControl
             _shownMode = _preference.Mode;
             _preference.Changed += OnModeChanged;
             ApplyVisibility();
+
+            host.RegisterCallback<KeyDownEvent>(OnSpaceDown, TrickleDown.TrickleDown);
+            host.RegisterCallback<KeyUpEvent>(evt =>
+            {
+                if (evt.keyCode == UnityEngine.KeyCode.Space)
+                {
+                    _isSpaceDown = false;
+                }
+            }, TrickleDown.TrickleDown);
+            host.RegisterCallback<NavigationSubmitEvent>(evt =>
+            {
+                if (_isSpaceDown && SpaceAction != null)
+                {
+                    evt.StopPropagation();
+                }
+            }, TrickleDown.TrickleDown);
+        }
+
+        private void OnSpaceDown(KeyDownEvent evt)
+        {
+            if (evt.keyCode != UnityEngine.KeyCode.Space || SpaceAction == null)
+            {
+                return;
+            }
+            evt.StopPropagation();
+            // 누르고 있으면 KeyDown 이 되풀이된다. 처음 한 번만 처리한다.
+            if (_isSpaceDown || evt.modifiers != UnityEngine.EventModifiers.None)
+            {
+                _isSpaceDown = true;
+                return;
+            }
+            _isSpaceDown = true;
+            IReadOnlyList<FileListItem> selected = SelectedItems;
+            if (selected.Count > 0)
+            {
+                SpaceAction(selected);
+            }
         }
 
         /// <summary>

@@ -61,6 +61,49 @@
     color: var(--git-text);
 }
 
+/* 검색칸(Ctrl+F). 사이드바·워크스페이스 검색칸과 같은 모양, 머리 줄 높이에 맞춰 조금 낮게.
+   열고 닫을 때 폭·오른쪽 간격·불투명도가 움직인다(오른쪽 경로/트리 전환 옆에서 왼쪽으로 펼쳐진다). */
+.pending-changes__filter {
+    width: 240px;
+    flex-shrink: 1;
+    height: 24px;
+    min-height: 24px;
+    margin: 0 8px 0 0;
+    padding: 0 4px;
+    border-radius: 5px;
+    align-items: center;
+    overflow: hidden;
+    opacity: 1;
+    transition-property: width, margin-right, opacity;
+    transition-duration: 180ms, 180ms, 140ms;
+    transition-timing-function: ease-out-cubic, ease-out-cubic, ease-out;
+}
+
+/* 접힌 모양(닫는 중·열기 직전). 폭이 0 이 되며 사라진다. */
+.pending-changes__filter.pending-changes__filter--closed {
+    width: 0;
+    min-width: 0;
+    margin-right: 0;
+    opacity: 0;
+}
+
+/* 닫는 움직임이 끝난 뒤: Tab 포커스·포인터를 받지 않게 아예 뺀다. */
+.pending-changes__filter.pending-changes__filter--hidden {
+    display: none;
+}
+
+.pending-changes__filter .unity-base-text-field__input {
+    font-size: 12px;
+    -unity-text-align: middle-left;
+}
+
+.pending-changes__filter .unity-search-field-base__search-button {
+    width: 16px;
+    height: 16px;
+    margin-left: 3px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
 .pending-changes__tools {
     flex-direction: row;
     flex-shrink: 0;
@@ -91,11 +134,12 @@
     flex-grow: 1;
 }
 
+/* 높이·여백은 diff 도구 막대 버튼(외부 도구로 열기)과 같게: 22px · 좌우 10px. */
 .pending-changes__commit-button,
 .pending-changes__action-button {
-    height: 24px;
-    margin: 0 4px 0 0;
-    padding: 0 12px;
+    height: 22px;
+    margin: 0 6px 0 0;
+    padding: 0 10px;
 }
 
 .pending-changes__commit-button {
@@ -106,14 +150,58 @@
     margin-right: 0;
 }
 
+/* Gluon(Unity VCS) 처럼 커밋은 강조색으로 꽉 채운 버튼. 나머지(변경 되돌리기·세부사항 표시)는 diff 도구 막대 버튼(외부 도구로 열기)과 같은 한 벌:
+   바탕 없음·--git-field-border 테두리·글자 12px, 마우스를 올리면 --git-hover.
+   테마의 커밋 버튼 규칙(.git-theme--* .pending-changes__commit-button)보다 세게 하려고 클래스를 겹친다. */
+.pending-changes__actions > .pending-changes__commit-button,
+.pending-changes__actions > .pending-changes__action-button {
+    border-width: 1px;
+    border-radius: var(--git-radius);
+    font-size: 12px;
+}
+
+.pending-changes__actions > .pending-changes__commit-button {
+    border-color: var(--git-accent);
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.pending-changes__actions > .pending-changes__commit-button:hover:enabled {
+    background-color: var(--git-accent-hover);
+}
+
+.pending-changes__actions > .pending-changes__commit-button:active:enabled {
+    background-color: var(--git-accent);
+    opacity: 0.85;
+}
+
+.pending-changes__actions > .pending-changes__action-button {
+    border-color: var(--git-field-border);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text);
+}
+
+.pending-changes__actions > .pending-changes__action-button:hover:enabled {
+    background-color: var(--git-hover);
+}
+
+.pending-changes__actions > .pending-changes__action-button:active:enabled {
+    background-color: var(--git-pressed);
+}
+
+.pending-changes__actions > .pending-changes__commit-button:disabled,
+.pending-changes__actions > .pending-changes__action-button:disabled {
+    opacity: 0.5;
+}
+
 /* 세부사항을 펼친 동안은 눌린 버튼으로 보인다. */
-.pending-changes__details-button--on {
+.pending-changes__actions > .pending-changes__details-button--on {
     background-color: var(--git-accent);
     border-color: var(--git-accent);
     color: var(--git-accent-text);
 }
 
-.pending-changes__details-button--on:hover {
+.pending-changes__actions > .pending-changes__details-button--on:hover:enabled {
     background-color: var(--git-accent-hover);
     border-color: var(--git-accent-hover);
 }
@@ -167,6 +255,20 @@
     color: var(--git-text);
     border-top-width: 1px;
     border-top-color: var(--git-border);
+}
+
+/* 세부사항 히스토리 줄: 폭이 좁아 메시지 열이 "Ad…" 로 잘렸다. Unity VCS 처럼 해시·작성자·날짜만 두고(메시지는 아래 칸), 작성자 열이 남는 폭을 갖는다. */
+.pending-changes__details .commit-row__message {
+    display: none;
+}
+
+.pending-changes__details .commit-row__author {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    width: auto;
+    min-width: 40px;
+    margin: 0 6px;
 }
 
 /* ── branches ─────────────────────────────────────── */

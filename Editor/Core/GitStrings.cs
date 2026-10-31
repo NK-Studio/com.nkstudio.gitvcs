@@ -304,6 +304,7 @@ namespace GitVersionControl
             ["staging.stagedTitle"] = new[] { "Staged ({0})", "Staged ({0})" },
             ["staging.stage"] = new[] { "Stage", "Stage" },
             ["staging.stageAll"] = new[] { "모두 Stage", "Stage All" },
+            ["staging.filterTooltip"] = new[] { "파일 찾기 (Ctrl+F). Unstaged·Staged 를 경로로 거릅니다. Esc 로 지우고 닫습니다.", "Find files (Ctrl+F). Filters Unstaged and Staged by path. Esc clears and closes." },
             ["staging.unstage"] = new[] { "Unstage", "Unstage" },
             ["staging.unstageAll"] = new[] { "모두 Unstage", "Unstage All" },
             ["staging.stageSelected"] = new[] { "파일 {0}개 Stage", "Stage {0} Files" },
@@ -419,6 +420,8 @@ namespace GitVersionControl
 
             // ── UI 배율 ──
             ["window.uiScale"] = new[] { "UI 크기", "UI Scale" },
+            ["footer.pullRequests"] = new[] { "풀 리퀘스트 {0}개", "{0} Pull Requests" },
+            ["footer.noPullRequests"] = new[] { "풀 리퀘스트 없음", "No Pull Requests" },
             ["window.uiScaleIn"] = new[] { "크게 (Ctrl+휠 위, Ctrl+=)", "Larger (Ctrl+Wheel Up, Ctrl+=)" },
             ["window.uiScaleOut"] = new[] { "작게 (Ctrl+휠 아래, Ctrl+-)", "Smaller (Ctrl+Wheel Down, Ctrl+-)" },
             ["window.uiScaleReset"] = new[] { "원래대로 — 지금 {0}% (Ctrl+0)", "Reset — now {0}% (Ctrl+0)" },
@@ -490,6 +493,8 @@ namespace GitVersionControl
 
             // ── 대기 중인 변경사항 ──
             ["pending.summary"] = new[] { "변경 {0}개 (선택 {1})", "{0} changes ({1} selected)" },
+            ["pending.summaryFiltered"] = new[] { "검색 결과 {0}개 (선택 {1}) · 전체 변경 {2}개 (선택 {3})", "{0} matches ({1} selected) · {2} changes ({3} selected)" },
+            ["pending.filterTooltip"] = new[] { "경로에 이 글자가 든 변경만 보입니다. 모두 선택 체크박스는 보이는 항목에만 적용됩니다. Esc 로 지우고 닫습니다.", "Show only changes whose path contains this text. The select-all checkbox applies to the shown items only. Esc clears and closes." },
             ["pending.commitTitle"] = new[] { "커밋 메시지", "Commit Message" },
             ["pending.noAuthor"] = new[] { "user.name / user.email 이 설정되지 않아 커밋할 수 없습니다.", "Cannot commit: user.name / user.email is not set." },
             ["pending.commitButton"] = new[] { "커밋 ({0})", "Commit ({0})" },

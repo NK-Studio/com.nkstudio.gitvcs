@@ -10,6 +10,67 @@
     flex-direction: row;
 }
 
+/* ── git-footer: 아래쪽 상태 줄(GitKraken 처럼 낮고 흐린 글씨, 누를 수 있는 칸은 마우스를 올리면 밝아진다) ── */
+.git-footer {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    min-height: 24px;
+    padding: 0 6px;
+    background-color: var(--git-header-bg);
+    border-top-width: 1px;
+    border-top-color: var(--git-border);
+}
+
+.git-footer__item {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+    height: 20px;
+    margin: 0 2px;
+    padding: 0 6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: var(--git-radius);
+    color: var(--git-text-muted);
+}
+
+.git-footer__item:hover {
+    background-color: var(--git-hover);
+    color: var(--git-text);
+}
+
+.git-footer__icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: 5px;
+}
+
+.git-footer__text {
+    font-size: 11px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 버전: 테두리 상자 안의 고정폭 글씨. */
+.git-footer__version {
+    flex-shrink: 0;
+    height: 16px;
+    margin: 0 2px 0 6px;
+    padding: 0 6px;
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    color: var(--git-text-muted);
+    border-width: 1px;
+    border-color: var(--git-border);
+    border-radius: var(--git-radius);
+}
+
 .git-window__split {
     flex-grow: 1;
     min-width: 0;

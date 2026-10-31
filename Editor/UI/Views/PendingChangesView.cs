@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -21,6 +23,10 @@ namespace GitVersionControl
         private readonly PendingSelection _selection;
         private readonly FileBrowser _files;
         private readonly Toggle _selectAll;
+        private readonly ToolbarSearchField _filter;
+
+        /// <summary>검색으로 걸러 보이는 변경. 검색어가 없으면 전체.</summary>
+        private List<GitStatusEntry> _shownRows = new();
         private readonly Label _summary;
         private readonly TextField _message;
         private readonly VisualElement _authorNotice;
@@ -60,6 +66,8 @@ namespace GitVersionControl
             _selection = new PendingSelection(state);
 
             _selectAll = Root.Require<Toggle>("select-all");
+            _filter = Root.Require<ToolbarSearchField>("filter");
+            SetUpFilter();
             _summary = Root.Require<Label>("summary");
             _message = Root.Require<TextField>("commit-message");
             _authorNotice = Root.Require<VisualElement>("author-notice");
@@ -96,9 +104,18 @@ namespace GitVersionControl
                 IsChecked = item => _selection.IsChecked((GitStatusEntry)item.Source)
                                     || (item.MetaSource is GitStatusEntry meta && _selection.IsChecked(meta)),
                 DiffTargetOf = item => GitDiffTarget.ForWorkingTree((GitStatusEntry)item.Source),
+                // Shift = 범위, Ctrl = 하나씩 더하기·빼기. 고른 줄들은 체크박스·Space 로 한꺼번에 체크·해제한다.
+                MultiSelect = true,
+                SpaceAction = ToggleSelected,
             };
             _files.ToggleChanged += OnToggleChanged;
-            _files.SelectionChanged += item => ShowSelected((GitStatusEntry)item?.Source);
+            _files.SelectionChanged += item =>
+            {
+                if (_isSettingItems == false)
+                {
+                    ShowSelected((GitStatusEntry)item?.Source);
+                }
+            };
             GitVcsSettings.MetaGroupingChanged += OnMetaGroupingChanged;
             _files.FolderContextMenuRequested += PopulateFolderMenu;
             _fileActions = new FileActionMenu(services, GitDiffSource.WorkingTree);
@@ -106,10 +123,18 @@ namespace GitVersionControl
             _files.FolderPathContextMenuRequested += (menu, folder, items) =>
                 _fileActions.AppendFolderItems(menu, FileActionMenu.RepoFolderOf(folder, items[0]), items.Select(i => (GitStatusEntry)i.Source).ToList());
 
+            // 검색 중이면 보이는 항목만 체크·해제한다(찾은 것만 커밋하기).
             _selectAll.RegisterValueChangedCallback(evt =>
             {
-                _selection.SetAll(evt.newValue);
-                _files.SetItems(BuildItems());
+                if (IsFiltering)
+                {
+                    _selection.SetChecked(_shownRows, evt.newValue);
+                }
+                else
+                {
+                    _selection.SetAll(evt.newValue);
+                }
+                SetFileItems();
                 UpdateCommitArea();
             });
 
@@ -171,7 +196,7 @@ namespace GitVersionControl
             // 보이지 않으면 파일 목록(수백 줄 트리)을 다시 만들지 않는다 — 탭을 열 때 만든다. 탭 옆 개수는 바로 바꾼다.
             if (IsActive)
             {
-                _files.SetItems(BuildItems());
+                SetFileItems();
                 UpdateCommitArea();
                 RefreshSelected();
             }
@@ -180,7 +205,7 @@ namespace GitVersionControl
 
         protected override void OnActivated()
         {
-            _files.SetItems(BuildItems());
+            SetFileItems();
             UpdateCommitArea();
             RefreshSelected();
         }
@@ -223,10 +248,25 @@ namespace GitVersionControl
 
         private void OnToggleChanged(IReadOnlyList<FileListItem> items, bool value)
         {
+            // 여러 줄을 고른 채 그중 한 줄의 체크박스를 누르면 고른 줄 전부에 적용한다(Unity VCS 와 같다).
+            IReadOnlyList<FileListItem> selected = _files.SelectedItems;
+            if (items.Count == 1 && selected.Count > 1 && selected.Contains(items[0]))
+            {
+                items = selected;
+            }
             _selection.SetChecked(items.Select(item => (GitStatusEntry)item.Source), value);
             // .meta 짝도 바뀌었을 수 있으니 줄(체크·"에셋만" 표시)을 다시 만든다.
-            _files.SetItems(BuildItems());
+            SetFileItems();
             UpdateCommitArea();
+        }
+
+        /// <summary>
+        /// Space: 고른 줄들의 체크를 한꺼번에 바꾼다. 하나라도 꺼져 있으면 모두 켜고, 모두 켜져 있으면 모두 끈다.
+        /// </summary>
+        private void ToggleSelected(IReadOnlyList<FileListItem> selected)
+        {
+            bool value = selected.Any(item => _files.IsChecked(item) == false);
+            OnToggleChanged(selected, value);
         }
 
         /// <summary>
@@ -234,7 +274,11 @@ namespace GitVersionControl
         /// </summary>
         private List<FileListItem> BuildItems()
         {
-            List<FileListItem> items = FileListItem.FromStatus(_selection.Rows).ToList();
+            string needle = _filter.value?.Trim();
+            _shownRows = string.IsNullOrEmpty(needle)
+                ? _selection.Rows.ToList()
+                : _selection.Rows.Where(e => (e.ProjectPath ?? e.RepoPath).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+            List<FileListItem> items = FileListItem.FromStatus(_shownRows).ToList();
             foreach (FileListItem item in items)
             {
                 if (item.MetaSource is GitStatusEntry meta)
@@ -247,11 +291,35 @@ namespace GitVersionControl
             return items;
         }
 
+        /// <summary>목록을 다시 채우는 중. 이때 목록이 보내는 선택 알림(선택 없음 → 같은 파일)은 무시한다 — diff 가 비었다가 다시 읽혀 깜빡인다.</summary>
+        private bool _isSettingItems;
+
+        /// <summary>
+        /// 줄을 다시 채운다. 고른 파일이 남아 있으면 diff·세부사항은 그대로 두고, 사라졌으면 비운다.
+        /// </summary>
+        private void SetFileItems()
+        {
+            _isSettingItems = true;
+            try
+            {
+                _files.SetItems(BuildItems());
+            }
+            finally
+            {
+                _isSettingItems = false;
+            }
+            GitStatusEntry entry = (GitStatusEntry)_files.SelectedItems.FirstOrDefault()?.Source;
+            if (entry == null || entry.RepoPath != _selected?.RepoPath)
+            {
+                ShowSelected(entry);
+            }
+        }
+
         private void OnMetaGroupingChanged()
         {
             if (IsActive)
             {
-                _files.SetItems(BuildItems());
+                SetFileItems();
             }
         }
 
@@ -262,7 +330,7 @@ namespace GitVersionControl
         {
             _selection.SetCheckedOnly(keep, true);
             _selection.SetCheckedOnly(drop, false);
-            _files.SetItems(BuildItems());
+            SetFileItems();
             UpdateCommitArea();
         }
 
@@ -271,9 +339,14 @@ namespace GitVersionControl
             FillPreparedMessage();
             int total = _selection.Rows.Count;
             int selected = _selection.CheckedCount;
-            _summary.text = GitText.Format("pending.summary", total, selected);
-            _selectAll.showMixedValue = selected > 0 && selected < total;
-            _selectAll.SetValueWithoutNotify(_selection.AllChecked);
+            // 모두 선택 체크박스는 보이는 항목 기준(검색 중이면 검색 결과).
+            int shown = _shownRows.Count;
+            int shownSelected = _shownRows.Count(_selection.IsChecked);
+            _summary.text = IsFiltering
+                ? GitText.Format("pending.summaryFiltered", shown, shownSelected, total, selected)
+                : GitText.Format("pending.summary", total, selected);
+            _selectAll.showMixedValue = shownSelected > 0 && shownSelected < shown;
+            _selectAll.SetValueWithoutNotify(shown > 0 && shownSelected == shown);
 
             IGitRepositoryState repository = Services.Repository;
             bool hasAuthor = string.IsNullOrEmpty(repository.UserName) == false && string.IsNullOrEmpty(repository.UserEmail) == false;
@@ -282,6 +355,95 @@ namespace GitVersionControl
             _commitButton.text = GitText.Format("pending.commitButton", selected);
             _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
             _discardButton.SetEnabled(Services.Runner.IsBusy == false && selected > 0);
+        }
+
+        // ── 검색 ─────────────────────────────────────────
+
+        private const string FilterClosedModifier = "pending-changes__filter--closed";
+        private const string FilterHiddenModifier = "pending-changes__filter--hidden";
+
+        private bool IsFiltering => string.IsNullOrWhiteSpace(_filter.value) == false;
+
+        private bool IsFilterOpen => _filter.ClassListContains(FilterClosedModifier) == false;
+
+        /// <summary>
+        /// 머리 줄의 검색칸. 평소에는 숨겨 두고 Ctrl+F(macOS 는 Cmd+F)로 열어 포커스를 준다. Esc 는 검색어를 지우고 닫는다.
+        /// 비운 채로 포커스를 잃어도 닫는다. 열고 닫을 때 폭·불투명도가 움직이고(USS transition), 닫는 움직임이 끝나면 display 를 끈다(SideDrawer 와 같다).
+        /// </summary>
+        private void SetUpFilter()
+        {
+            ActionGlyph.ReplaceSearchIcon(_filter);
+            _filter.tooltip = GitText.Get("pending.filterTooltip");
+            TextField input = _filter.Q<TextField>();
+            if (input != null)
+            {
+                input.textEdition.placeholder = GitText.Get("refs.filterPlaceholder");
+                input.textEdition.hidePlaceholderOnFocus = false;
+            }
+            _filter.AddToClassList(FilterClosedModifier);
+            _filter.AddToClassList(FilterHiddenModifier);
+            _filter.RegisterCallback<TransitionEndEvent>(_ =>
+            {
+                if (IsFilterOpen == false)
+                {
+                    _filter.AddToClassList(FilterHiddenModifier);
+                }
+            });
+            _filter.RegisterCallback<FocusInEvent>(_ => _filter.AddToClassList("git-search--focused"));
+            _filter.RegisterCallback<FocusOutEvent>(_ =>
+            {
+                _filter.RemoveFromClassList("git-search--focused");
+                if (IsFiltering == false)
+                {
+                    HideFilter();
+                }
+            });
+            _filter.RegisterValueChangedCallback(_ =>
+            {
+                SetFileItems();
+                UpdateCommitArea();
+            });
+            _filter.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (evt.keyCode == KeyCode.Escape)
+                {
+                    CloseFilter();
+                    evt.StopPropagation();
+                }
+            }, TrickleDown.TrickleDown);
+            Root.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (evt.actionKey && evt.keyCode == KeyCode.F)
+                {
+                    OpenFilter();
+                    evt.StopPropagation();
+                }
+            }, TrickleDown.TrickleDown);
+        }
+
+        private void OpenFilter()
+        {
+            // display 를 먼저 켜고, 접힌 모양이 한 번 그려진 다음 틱에 펼쳐야 움직임이 보인다. 포커스도 그때 줘야 입력란이 키 입력을 받는다.
+            _filter.RemoveFromClassList(FilterHiddenModifier);
+            TextField input = _filter.Q<TextField>();
+            _filter.schedule.Execute(() =>
+            {
+                _filter.RemoveFromClassList(FilterClosedModifier);
+                input?.Focus();
+                input?.SelectAll();
+            });
+        }
+
+        private void HideFilter()
+        {
+            _filter.AddToClassList(FilterClosedModifier);
+        }
+
+        private void CloseFilter()
+        {
+            _filter.value = string.Empty;
+            HideFilter();
+            _filter.Q<TextField>()?.Blur();
         }
 
         // ── 아래 diff · 오른쪽 세부사항 ─────────────────────
@@ -338,8 +500,9 @@ namespace GitVersionControl
             _info.SetVisible(entry != null);
             _historyTitle.SetVisible(entry != null);
             _historyEmpty.SetVisible(false);
-            _historyList.SetVisible(entry != null);
-            _historyMessage.SetVisible(entry != null);
+            // 다른 파일이면 히스토리를 읽는 동안 빈 목록("List is empty")이 비치지 않게 목록·메시지는 다 읽은 뒤에 보인다.
+            _historyList.SetVisible(sameFile);
+            _historyMessage.SetVisible(sameFile);
             if (sameFile == false)
             {
                 _history.SetItems(Array.Empty<GitCommitInfo>());
@@ -384,6 +547,8 @@ namespace GitVersionControl
                 return;
             }
             _history.SetItems(commits, c => c.Hash);
+            _historyList.SetVisible(true);
+            _historyMessage.SetVisible(true);
             if (commits.Count == 0)
             {
                 _historyList.SetVisible(false);

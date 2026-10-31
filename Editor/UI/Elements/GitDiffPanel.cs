@@ -264,19 +264,61 @@ namespace GitVersionControl
 
         private IDialogService _dialogs;
 
+        private bool _forkHunkStyle;
+
+        /// <summary>
+        /// 코드를 끌어 고른 줄 오른쪽 아래에 뜨는 [Stage | 되돌리기…](Staged 면 [Unstage]) — Fork 처럼 고른 줄의 변경만 옮기거나 버린다.
+        /// </summary>
+        private VisualElement _selectionActions;
+
+        /// <summary>끌어 고른 줄 전체를 감싸는 파란 띠(테두리 + 옅은 바탕). 누르기는 받지 않는다.</summary>
+        private VisualElement _selectionBand;
+
+        /// <summary>
+        /// Fork 식에서 마우스를 올린 변경 덩어리: 이어진 바뀐 줄(+/−)의 목록 줄 범위. 띠는 이 위아래로 <see cref="HoverContextRows"/> 줄씩 넓힌다. 없으면 (-1, -1).
+        /// </summary>
+        private (int first, int last) _hoverGroup = (-1, -1);
+
+        /// <summary>Fork 처럼 마우스를 올린 변경 덩어리의 띠가 위아래로 더 감싸는 문맥 줄 수.</summary>
+        private const int HoverContextRows = 2;
+
+        /// <summary>떠 있는 버튼이 지금 처리할 줄(끌어 고른 줄, 아니면 마우스를 올린 묶음의 바뀐 줄).</summary>
+        private List<int> _actionLines = new();
+        private Button _selectionStage;
+        private Button _selectionDiscard;
+
+        /// <summary>
+        /// Fork 처럼 hunk 머리 줄 버튼을 붙은 한 묶음 [Stage | 되돌리기…](Staged 면 [Unstage])으로 그리고, 머리 줄 오른쪽의 "이 변경 Stage/Unstage" 를 뺀다.
+        /// 끄면 GitKraken 식 초록·빨강 두 버튼.
+        /// </summary>
+        public bool ForkHunkStyle
+        {
+            set
+            {
+                _forkHunkStyle = value;
+                Root.EnableInClassList("git-diff--fork-hunks", value);
+                UpdateStageFileButton();
+                _list.RefreshItems();
+            }
+        }
+
         /// <summary>
         /// "Discard Hunk" 를 보일지: 작업 사본의 변경(Unstaged)이고 git 이 이미 아는 파일일 때만. 새 파일(untracked)은 버릴 원본이 없다.
         /// </summary>
-        private bool CanDiscard => CanPartialStage && _target.Source == GitDiffSource.Unstaged && _target.State != GitFileState.Untracked && _dialogs != null;
+        private bool CanDiscard => CanStageLines && _target.Source == GitDiffSource.Unstaged && _target.State != GitFileState.Untracked && _dialogs != null;
 
         /// <summary>
         /// 지금 보이는 diff 에서 줄·hunk 단위 Stage·Unstage 가 되는지. 공백을 무시한 diff 는 줄 내용이 인덱스와 달라 패치가 붙지 않으므로 뺀다.
         /// </summary>
-        private bool CanPartialStage => _runner != null && _document != null && _target != null && _isImageMode == false && _document.IsBinary == false
+        private bool CanStageLines => _runner != null && _document != null && _target != null && _isImageMode == false && _document.IsBinary == false
             && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged)
-            && GitVcsSettings.instance.DiffOptions.Whitespace == DiffWhitespace.Show
-            // 파일 보기는 지운 줄·머리 줄을 숨겨 고를 수 있는 줄이 반쪽이다. GitKraken 처럼 Diff 보기에서만 줄을 올린다.
-            && GitVcsSettings.instance.DiffFileView == false;
+            && GitVcsSettings.instance.DiffOptions.Whitespace == DiffWhitespace.Show;
+
+        /// <summary>
+        /// 줄 거터(+/−)·hunk 버튼으로 줄을 올리는지. 위 조건에 더해 Diff 보기에서만 — 파일 보기는 지운 줄·머리 줄을 숨겨 고를 수 있는 줄이 반쪽이다.
+        /// 끌어 고른 줄의 버튼 묶음(<see cref="UpdateSelectionActions"/>)은 파일 보기에서도 된다(<see cref="CanStageLines"/>).
+        /// </summary>
+        private bool CanPartialStage => CanStageLines && GitVcsSettings.instance.DiffFileView == false;
 
         /// <summary>
         /// 이번에 git 에 넘길 diff 옵션. 변경 묶음(Hunk) 보기만 설정의 문맥 줄 수를 쓰고, 통합·나란히·파일 보기는 GitKraken 처럼 파일 전체를 읽는다.
@@ -331,6 +373,7 @@ namespace GitVersionControl
             _list.AddManipulator(new ContextualMenuManipulator(OnTextContextMenu));
             Root.Add(_list);
             Root.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
+            CreateSelectionActions();
 
             // 이미지 파일이면 줄 목록 대신 이 뷰가 보인다.
             _imageView = new GitImageDiffView();
@@ -1463,6 +1506,7 @@ namespace GitVersionControl
             if (_shownSplit != isSplit || _shownFileView != fileView)
             {
                 ResetTextSelection();
+                _hoverGroup = (-1, -1);
             }
             _shownFileView = fileView;
 
@@ -1578,6 +1622,7 @@ namespace GitVersionControl
             // 같은 파일을 다시 읽으면 지금 내용을 둔 채 조용히 바꾼다. 다른 파일이어도 새 내용이 올 때까지 지금 내용을 둔다 —
             // 미리 비우면 빈 화면이 끼어 깜빡인다. 늦을 때(LoadingDelayMs)만 비우고 "불러오는 중" 을 겹쳐 띄운다.
             string key = $"{_target.Source}|{_target.Commit}|{_target.From}|{_target.To}|{_target.RepoPath}";
+            bool sameFile = key == _shownKey;
             if (key != _shownKey)
             {
                 _shownKey = key;
@@ -1602,6 +1647,14 @@ namespace GitVersionControl
             if (version != _loadVersion)
             {
                 // 기다리는 동안 다른 파일을 열었거나 옵션을 바꿨다.
+                return;
+            }
+            // 저장소 새로고침(파일 감시·자동 Fetch)은 상태가 그대로여도 같은 파일을 다시 읽는다. 내용까지 같으면 문서를 갈아끼우지 않는다 —
+            // 갈면 고른 글·줄·선택 띠가 지워지고 줄이 다시 채워져 깜빡인다. 보기 설정은 바뀌었을 수 있으니 줄 모양만 맞춘다.
+            if (sameFile && error == null && _isEditing == false && options.ContextLines == _loadedContextLines && SameDocument(_document, document))
+            {
+                HideLoading();
+                ApplyLayout();
                 return;
             }
             _loadedContextLines = options.ContextLines;
@@ -1641,6 +1694,26 @@ namespace GitVersionControl
                     _list.ScrollToItem(0);
                 }
             }
+        }
+
+        /// <summary>두 diff 가 줄마다(종류·줄 번호·내용·줄 끝) 같은지.</summary>
+        private static bool SameDocument(GitDiffDocument a, GitDiffDocument b)
+        {
+            if (a == null || b == null || a.IsBinary != b.IsBinary || a.Lines.Count != b.Lines.Count)
+            {
+                return false;
+            }
+            for (int i = 0; i < a.Lines.Count; i++)
+            {
+                GitDiffLine x = a.Lines[i];
+                GitDiffLine y = b.Lines[i];
+                if (x.Kind != y.Kind || x.OldNumber != y.OldNumber || x.NewNumber != y.NewNumber
+                    || x.HasCarriageReturn != y.HasCarriageReturn || string.Equals(x.Text, y.Text, StringComparison.Ordinal) == false)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private async void LoadImagesAsync(int version, bool fetchLfs = false)
@@ -1725,6 +1798,7 @@ namespace GitVersionControl
             _selectionAnchor = -1;
             _dragSelecting = false;
             _lastJumpRow = -1;
+            _hoverGroup = (-1, -1);
             ResetTextSelection();
         }
 
@@ -1951,16 +2025,22 @@ namespace GitVersionControl
                 // GitKraken 처럼 변경 묶음(Hunk) 보기에서는 머리 줄마다 늘 보인다. 파일 전체를 읽은 보기(통합·나란히)는 머리 줄이 파일 전체 하나라
                 // "hunk 스테이지" 가 곧 파일 전체 Stage 라서 숨긴다(GitKraken 도 그 보기에서는 머리 줄 버튼이 없다).
                 bool isHunk = enabled && line.Kind == GitDiffLineKind.Hunk && _loadedContextLines < GitDiffOptions.MaxContextLines;
-                hunk.style.display = isHunk ? DisplayStyle.Flex : DisplayStyle.None;
+                // Fork 식은 머리 줄 버튼 대신 마우스를 올린 묶음을 띠로 감싸고 그 안에 버튼을 띄운다(UpdateSelectionActions).
+                hunk.style.display = isHunk && _forkHunkStyle == false ? DisplayStyle.Flex : DisplayStyle.None;
                 hunk.userData = isHunk ? line.HunkIndex : -1;
                 Button discardHunk = (Button)hunk[0];
                 Button stageHunk = (Button)hunk[1];
                 // 버리기는 작업 사본의 변경(Unstaged)에만 있다. git 이 아직 모르는 새 파일은 버릴 원본이 없다(파일 지우기는 파일 메뉴에서).
-                discardHunk.style.display = isHunk && CanDiscard ? DisplayStyle.Flex : DisplayStyle.None;
-                discardHunk.text = GitText.Get("diff.discardHunk");
+                bool showDiscard = isHunk && CanDiscard;
+                discardHunk.style.display = showDiscard ? DisplayStyle.Flex : DisplayStyle.None;
+                // Fork 식 묶음은 버튼이 하나뿐이면 양쪽 모서리를 둥글게 한다.
+                hunk.EnableInClassList("diff-row__hunk-actions--single", showDiscard == false);
+                discardHunk.text = _forkHunkStyle ? GitText.Get("op.discard") + "…" : GitText.Get("diff.discardHunk");
                 discardHunk.tooltip = GitText.Get("diff.discardHunkTooltip");
                 stageHunk.EnableInClassList("diff-row__hunk-button--unstage", IsUnstage);
-                stageHunk.text = GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
+                stageHunk.text = _forkHunkStyle
+                    ? GitText.Get(IsUnstage ? "staging.unstage" : "staging.stage")
+                    : GitText.Get(IsUnstage ? "diff.unstageHunk" : "diff.stageHunk");
                 stageHunk.tooltip = GitText.Get(IsUnstage ? "diff.unstageHunkTooltip" : "diff.stageHunkTooltip");
             }
             return selected;
@@ -1972,7 +2052,7 @@ namespace GitVersionControl
         /// </summary>
         private async void ApplyLinesAsync(ICollection<int> lines)
         {
-            if (CanPartialStage == false || _runner.IsBusy)
+            if (CanStageLines == false || _runner.IsBusy)
             {
                 return;
             }
@@ -2044,7 +2124,9 @@ namespace GitVersionControl
             {
                 return;
             }
-            bool shown = _runner != null && _target != null && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged);
+            // Fork 식에는 이 버튼이 없다(파일째 옮기기는 왼쪽 목록에서 한다).
+            bool shown = _forkHunkStyle == false && _runner != null && _target != null
+                         && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged);
             _stageFileButton.SetVisible(shown);
             if (shown == false)
             {
@@ -2226,6 +2308,391 @@ namespace GitVersionControl
             _textAnchorOffset = 0;
             _textFocusOffset = 0;
             EndTextDrag();
+            _selectionActions?.SetVisible(false);
+            _selectionBand?.SetVisible(false);
+        }
+
+        // ── 고른 줄의 Stage·Unstage·되돌리기 ─────────────────
+
+        private void CreateSelectionActions()
+        {
+            _selectionBand = new VisualElement { pickingMode = PickingMode.Ignore };
+            _selectionBand.AddToClassList("git-diff__selection-band");
+            _selectionBand.SetVisible(false);
+            Root.Add(_selectionBand);
+            _selectionActions = new VisualElement();
+            _selectionActions.AddToClassList("git-diff__selection-actions");
+            _selectionActions.SetVisible(false);
+            _selectionStage = new Button(() => RunOnActionLines(ApplyLinesAsync));
+            _selectionStage.AddToClassList("git-diff__selection-button");
+            _selectionStage.AddToClassList("git-diff__selection-button--stage");
+            _selectionActions.Add(_selectionStage);
+            _selectionDiscard = new Button(() => RunOnActionLines(DiscardLinesAsync)) { tooltip = GitText.Get("diff.discardHunkTooltip") };
+            _selectionDiscard.AddToClassList("git-diff__selection-button");
+            _selectionDiscard.AddToClassList("git-diff__selection-button--discard");
+            _selectionActions.Add(_selectionDiscard);
+            // 버튼을 누르는 것이 글 고르기·줄 고르기로 번지지 않게 한다.
+            _selectionActions.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            Root.Add(_selectionActions);
+            // 굴리면 고른 줄을 따라 자리를 옮긴다(화면 밖으로 나가면 숨는다).
+            _list.Q<ScrollView>().verticalScroller.valueChanged += _ => UpdateSelectionActions();
+            // Fork 식: 마우스를 올린 묶음을 띠로 감싸고 버튼을 띄운다. 목록을 벗어나도 버튼 위로 옮겨 간 것이면 그대로 둔다.
+            _list.RegisterCallback<PointerMoveEvent>(evt => SetHoverGroup(GroupAt(RowAt(evt.position))), TrickleDown.TrickleDown);
+            _list.RegisterCallback<PointerLeaveEvent>(evt =>
+            {
+                if (_selectionActions.worldBound.Contains(evt.position) == false)
+                {
+                    SetHoverGroup((-1, -1));
+                }
+            });
+            _selectionActions.RegisterCallback<PointerLeaveEvent>(evt =>
+            {
+                if (_list.worldBound.Contains(evt.position) == false)
+                {
+                    SetHoverGroup((-1, -1));
+                }
+            });
+        }
+
+        private void SetHoverGroup((int first, int last) group)
+        {
+            if (_forkHunkStyle == false)
+            {
+                group = (-1, -1);
+            }
+            if (group == _hoverGroup)
+            {
+                return;
+            }
+            _hoverGroup = group;
+            UpdateSelectionActions();
+        }
+
+        /// <summary>화면 위치의 목록 줄 번호. 없으면 -1.</summary>
+        private int RowAt(Vector2 position)
+        {
+            int found = -1;
+            _list.Query<VisualElement>(className: "diff-row__code").ForEach(code =>
+            {
+                if (found < 0 && RowElementOf(code).worldBound.Contains(position))
+                {
+                    found = RowOf(code);
+                }
+            });
+            return found;
+        }
+
+        private static bool IsChangeRow(GitDiffRow row)
+        {
+            return GitPartialPatch.IsChange(row.Left) || GitPartialPatch.IsChange(row.Right);
+        }
+
+        private static bool IsHunkRow(GitDiffRow row)
+        {
+            return (row.Left ?? row.Right)?.Kind == GitDiffLineKind.Hunk;
+        }
+
+        /// <summary>
+        /// 줄 <paramref name="row"/> 에서 Fork 가 감싸는 변경 덩어리: 그 줄이 바뀐 줄이면 그 덩어리, 문맥 줄이면 위아래 <see cref="HoverContextRows"/> 줄 안의 덩어리
+        /// (둘 다 닿으면 가까운 쪽). 머리 줄(@@)은 넘지 않는다. 없으면 (-1, -1).
+        /// </summary>
+        private (int first, int last) GroupAt(int row)
+        {
+            if (row < 0 || row >= _rows.Count || IsHunkRow(_rows[row]))
+            {
+                return (-1, -1);
+            }
+            int target = -1;
+            if (IsChangeRow(_rows[row]))
+            {
+                target = row;
+            }
+            else
+            {
+                for (int distance = 1; distance <= HoverContextRows && target < 0; distance++)
+                {
+                    foreach (int candidate in new[] { row - distance, row + distance })
+                    {
+                        if (candidate < 0 || candidate >= _rows.Count || IsHunkRow(_rows[candidate]))
+                        {
+                            continue;
+                        }
+                        // 문맥 줄과 덩어리 사이에 머리 줄이 끼면 다른 묶음이다.
+                        bool crossesHeader = false;
+                        for (int i = Math.Min(row, candidate); i <= Math.Max(row, candidate); i++)
+                        {
+                            crossesHeader |= IsHunkRow(_rows[i]);
+                        }
+                        if (crossesHeader == false && IsChangeRow(_rows[candidate]))
+                        {
+                            target = candidate;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (target < 0)
+            {
+                return (-1, -1);
+            }
+            int first = target;
+            int last = target;
+            while (first > 0 && IsChangeRow(_rows[first - 1]))
+            {
+                first--;
+            }
+            while (last < _rows.Count - 1 && IsChangeRow(_rows[last + 1]))
+            {
+                last++;
+            }
+            return (first, last);
+        }
+
+        /// <summary>덩어리의 바뀐 줄 번호(문서 줄). 파일 보기는 숨긴 지운 줄도 넣는다(<see cref="WithHiddenRemovals"/>).</summary>
+        private List<int> GroupChangeLines((int first, int last) group)
+        {
+            List<int> lines = new();
+            for (int row = group.first; row <= group.last && row < _rows.Count; row++)
+            {
+                foreach (GitDiffLine line in new[] { _rows[row].Left, _rows[row].Right })
+                {
+                    int index = IndexOfChange(line);
+                    if (index >= 0 && lines.Contains(index) == false)
+                    {
+                        lines.Add(index);
+                    }
+                }
+            }
+            lines.Sort();
+            return lines.Count > 0 && _shownFileView == true ? WithHiddenRemovals(lines) : lines;
+        }
+
+        /// <summary>덩어리를 감싸는 띠의 목록 줄 범위: 위아래로 <see cref="HoverContextRows"/> 줄씩 넓히되 머리 줄은 넘지 않는다.</summary>
+        private (int first, int last) GroupBandRows((int first, int last) group)
+        {
+            int first = group.first;
+            int last = group.last;
+            for (int i = 0; i < HoverContextRows && first > 0 && IsHunkRow(_rows[first - 1]) == false; i++)
+            {
+                first--;
+            }
+            for (int i = 0; i < HoverContextRows && last < _rows.Count - 1 && IsHunkRow(_rows[last + 1]) == false; i++)
+            {
+                last++;
+            }
+            return (first, last);
+        }
+
+        /// <summary>
+        /// 끌어 고른 글이 걸친 줄 중 바뀐 줄(+/−)의 번호. 다음 줄 맨 앞에서 끝난 고르기는 그 줄을 넣지 않는다.
+        /// </summary>
+        private List<int> SelectedChangeLines()
+        {
+            List<int> lines = new();
+            if (HasTextSelection == false || CanStageLines == false)
+            {
+                return lines;
+            }
+            (int startRow, int _, int endRow, int endOffset) = TextRange();
+            if (endRow > startRow && endOffset == 0)
+            {
+                endRow--;
+            }
+            for (int row = startRow; row <= endRow && row < _rows.Count; row++)
+            {
+                int index = IndexOfChange(TextLineAt(row));
+                if (index >= 0)
+                {
+                    lines.Add(index);
+                }
+            }
+            if (lines.Count == 0)
+            {
+                return lines;
+            }
+            return _shownFileView == true ? WithHiddenRemovals(lines) : WithSplitPartners(lines);
+        }
+
+        /// <summary>
+        /// 파일 보기는 지운 줄(−)을 숨긴다. 고른 + 줄이 든 변경 덩어리(− 줄과 + 줄이 이어진 한 묶음)의 − 줄도 넣어,
+        /// 고친 줄을 올리면 옛 줄이 인덱스에 함께 남지 않게 한다.
+        /// </summary>
+        private List<int> WithHiddenRemovals(List<int> lines)
+        {
+            HashSet<int> result = new(lines);
+            IReadOnlyList<GitDiffLine> all = _document.Lines;
+            foreach (int index in lines)
+            {
+                for (int i = index - 1; i >= 0 && GitPartialPatch.IsChange(all[i]); i--)
+                {
+                    if (all[i].Kind == GitDiffLineKind.Removed)
+                    {
+                        result.Add(i);
+                    }
+                }
+                for (int i = index + 1; i < all.Count && GitPartialPatch.IsChange(all[i]); i++)
+                {
+                    if (all[i].Kind == GitDiffLineKind.Removed)
+                    {
+                        result.Add(i);
+                    }
+                }
+            }
+            return result.OrderBy(i => i).ToList();
+        }
+
+        private void RunOnActionLines(Action<ICollection<int>> action)
+        {
+            List<int> lines = _actionLines;
+            if (lines.Count == 0)
+            {
+                return;
+            }
+            _actionLines = new List<int>();
+            _hoverGroup = (-1, -1);
+            ClearTextSelection();
+            UpdateSelectionActions();
+            action(lines);
+        }
+
+        /// <summary>
+        /// Fork 처럼 파란 띠(테두리 + 옅은 바탕)와 떠 있는 [Stage | 되돌리기…] 를 맞춘다.
+        /// <list type="bullet">
+        /// <item>끌어 고른 줄에 바뀐 줄이 있으면 그 줄 전체를 감싼다. 띠는 끄는 동안에도 따라가고, 버튼은 손을 뗀 뒤 띠 아래 오른쪽에 뜬다. 나란히 보기에서는 고른 쪽 칸만.</item>
+        /// <item>아니면(Fork 식) 마우스를 올린 변경 덩어리와 그 위아래 문맥 2줄(머리 줄은 넘지 않는다)을 줄 폭 전체로 감싸고 버튼은 띠 안 오른쪽 위에 뜬다.</item>
+        /// </list>
+        /// 띠의 위·아래가 화면 밖이면 보이는 끝까지만 그린다. 감쌀 줄이 화면에 하나도 없으면 둘 다 숨긴다.
+        /// </summary>
+        private void UpdateSelectionActions()
+        {
+            if (_selectionActions == null)
+            {
+                return;
+            }
+            List<int> lines = _runner != null ? SelectedChangeLines() : new List<int>();
+            bool fromSelection = lines.Count > 0;
+            int startRow = -1;
+            int endRow = -1;
+            if (fromSelection)
+            {
+                (int rangeStart, int _, int rangeEnd, int endOffset) = TextRange();
+                startRow = rangeStart;
+                endRow = rangeEnd;
+                if (endRow > startRow && endOffset == 0)
+                {
+                    endRow--;
+                }
+            }
+            else if (_forkHunkStyle && _hoverGroup.first >= 0 && _hoverGroup.last < _rows.Count && _textDragging == false && HasTextSelection == false && CanStageLines)
+            {
+                lines = GroupChangeLines(_hoverGroup);
+                (startRow, endRow) = GroupBandRows(_hoverGroup);
+            }
+            bool show = lines.Count > 0 && startRow >= 0;
+
+            VisualElement first = null;
+            VisualElement last = null;
+            int firstRow = int.MaxValue;
+            int lastRow = int.MinValue;
+            if (show)
+            {
+                _list.Query<VisualElement>(className: "diff-row__code").ForEach(code =>
+                {
+                    int row = RowOf(code);
+                    if (row < startRow || row > endRow || (fromSelection && IsRightCode(code) != _textRight))
+                    {
+                        return;
+                    }
+                    if (row < firstRow)
+                    {
+                        firstRow = row;
+                        first = code;
+                    }
+                    if (row > lastRow)
+                    {
+                        lastRow = row;
+                        last = code;
+                    }
+                });
+                show = first != null;
+            }
+            _actionLines = show ? lines : new List<int>();
+            bool showButtons = show && _textDragging == false && _runner.IsBusy == false;
+            _selectionActions.SetVisible(showButtons);
+            _selectionBand.SetVisible(show);
+            if (show == false)
+            {
+                return;
+            }
+            bool canDiscard = CanDiscard;
+            _selectionStage.text = GitText.Get(IsUnstage ? "staging.unstage" : "staging.stage");
+            _selectionStage.tooltip = fromSelection
+                ? GitText.Format(IsUnstage ? "diff.unstageSelectedLines" : "diff.stageSelectedLines", lines.Count)
+                : GitText.Format(IsUnstage ? "diff.unstageSelectedLines" : "diff.stageSelectedLines", lines.Count);
+            _selectionDiscard.text = GitText.Get("op.discard") + "…";
+            _selectionDiscard.SetVisible(canDiscard);
+            _selectionActions.EnableInClassList("git-diff__selection-actions--single", canDiscard == false);
+
+            // 화면 좌표로 잰 뒤 UI 배율(창 전체를 scale 로 키운다)에서도 맞게 패널 안쪽 좌표로 바꾼다.
+            Rect viewport = _list.Q<ScrollView>().contentViewport.worldBound;
+            Rect side = (fromSelection ? SideOf(first) : RowElementOf(first)).worldBound;
+            float top = firstRow == startRow ? RowElementOf(first).worldBound.yMin : viewport.yMin;
+            float bottom = lastRow == endRow ? RowElementOf(last).worldBound.yMax : viewport.yMax;
+            top = Mathf.Max(top, viewport.yMin);
+            bottom = Mathf.Min(bottom, viewport.yMax);
+            // 왼쪽은 Fork 처럼 줄 번호 칸 안쪽(+/− 부호 칸이 시작하는 곳)부터 감싼다.
+            Vector2 topLeft = Root.WorldToLocal(new Vector2(Mathf.Max(CodeStartX(first), viewport.xMin), top));
+            Vector2 bottomRight = Root.WorldToLocal(new Vector2(Mathf.Min(side.xMax, viewport.xMax), bottom));
+            _selectionBand.style.left = topLeft.x;
+            _selectionBand.style.top = topLeft.y;
+            _selectionBand.style.width = Mathf.Max(0, bottomRight.x - topLeft.x);
+            _selectionBand.style.height = Mathf.Max(0, bottomRight.y - topLeft.y);
+            float barTop = fromSelection
+                ? Root.WorldToLocal(new Vector2(0, Mathf.Min(bottom, viewport.yMax - 26f))).y + 2f
+                : topLeft.y + 4f;
+            _selectionActions.style.top = barTop;
+        }
+
+        /// <summary>줄 번호 칸 바로 오른쪽(+/− 부호 칸, 없으면 코드 칸)의 화면 x.</summary>
+        private static float CodeStartX(VisualElement code)
+        {
+            VisualElement parent = code.parent;
+            int index = parent?.IndexOf(code) ?? -1;
+            if (index > 0 && parent[index - 1].ClassListContains("diff-row__sign"))
+            {
+                return parent[index - 1].worldBound.xMin;
+            }
+            return code.worldBound.xMin;
+        }
+
+        /// <summary>코드 칸이 든 줄 요소(.diff-row). 못 찾으면 코드 칸 자신.</summary>
+        private static VisualElement RowElementOf(VisualElement code)
+        {
+            for (VisualElement element = code; element != null; element = element.parent)
+            {
+                if (element.ClassListContains("diff-row"))
+                {
+                    return element;
+                }
+            }
+            return code;
+        }
+
+        /// <summary>나란히 보기의 한쪽 칸(.diff-side). 통합·파일 보기는 줄 요소 전체.</summary>
+        private static VisualElement SideOf(VisualElement code)
+        {
+            for (VisualElement element = code; element != null; element = element.parent)
+            {
+                if (element.ClassListContains("diff-side"))
+                {
+                    return element;
+                }
+                if (element.ClassListContains("diff-row"))
+                {
+                    return element;
+                }
+            }
+            return code;
         }
 
         private void ClearTextSelection()
@@ -2421,6 +2888,7 @@ namespace GitVersionControl
                 return;
             }
             EndTextDrag();
+            UpdateSelectionActions();
         }
 
         /// <summary>
@@ -2657,6 +3125,7 @@ namespace GitVersionControl
                 }
                 BindCode(code, IsRightCode(code) ? _rows[row].Right : _rows[row].Left, row);
             });
+            UpdateSelectionActions();
         }
 
         /// <summary>

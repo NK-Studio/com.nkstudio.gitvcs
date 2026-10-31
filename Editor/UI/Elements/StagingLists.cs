@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -81,6 +82,12 @@ namespace GitVersionControl
                 // Fork 모드에는 트리 위 "모두 펼치기 / 모두 접기" 버튼이 없다(폴더 우클릭 메뉴로 한다).
                 _unstaged.ShowExpandToggle = value == false;
                 _staged.ShowExpandToggle = value == false;
+                // 파일 찾기(돋보기·Ctrl+F)는 Fork 모드에만 있다.
+                _filterButton.SetVisible(value);
+                if (value == false)
+                {
+                    CloseFilter();
+                }
                 Render();
             }
         }
@@ -102,6 +109,12 @@ namespace GitVersionControl
         }
 
         private bool _shiftForAll;
+
+        private const string FilterClosedModifier = "staging__filter-row--closed";
+        private const string FilterHiddenModifier = "staging__filter-row--hidden";
+        private readonly Button _filterButton;
+        private readonly VisualElement _filterRow;
+        private readonly ToolbarSearchField _filter;
 
         /// <summary>
         /// 지금 Shift 를 누르고 있는지(<see cref="ShiftForAll"/> 일 때 버튼 글자를 바꾸는 데 쓴다).
@@ -125,6 +138,8 @@ namespace GitVersionControl
             {
                 DiffTargetOf = item => GitDiffTarget.ForStaging((GitStatusEntry)item.Source, staged: false),
                 ChooseAction = item => Stage(new[] { (GitStatusEntry)item.Source }),
+                // Space 는 아무것도 하지 않는다. 정해 두지 않으면 목록이 Space 를 Enter 처럼 '고르기'로 받아 반대편으로 옮긴다.
+                SpaceAction = IgnoreSpace,
                 FileMenu = PopulateUnstagedMenu,
                 MultiSelect = true,
             };
@@ -132,6 +147,7 @@ namespace GitVersionControl
             {
                 DiffTargetOf = item => GitDiffTarget.ForStaging((GitStatusEntry)item.Source, staged: true),
                 ChooseAction = item => Unstage(new[] { (GitStatusEntry)item.Source }),
+                SpaceAction = IgnoreSpace,
                 FileMenu = PopulateStagedMenu,
                 MultiSelect = true,
             };
@@ -141,6 +157,7 @@ namespace GitVersionControl
             _staged.SelectionChanged += item => OnSelected(item, staged: true);
             _unstagedMenu = new FileActionMenu(services, GitDiffSource.Unstaged);
             _stagedMenu = new FileActionMenu(services, GitDiffSource.Staged);
+            (_filterButton, _filterRow, _filter) = CreateFilter(switchHost);
             _unstaged.FolderPathContextMenuRequested += PopulateUnstagedFolderMenu;
             _staged.FolderPathContextMenuRequested += PopulateStagedFolderMenu;
 
@@ -148,8 +165,8 @@ namespace GitVersionControl
             // Button 의 Clickable 은 기본으로 수정 키 없는 왼쪽 클릭에만 반응하므로 Shift+클릭도 받게 한다.
             _stageButton.clickable.activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse, modifiers = UnityEngine.EventModifiers.Shift });
             _unstageButton.clickable.activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse, modifiers = UnityEngine.EventModifiers.Shift });
-            _stageButton.clickable.clickedWithEventInfo += evt => Stage(ButtonTargets(_selectedUnstaged, ShiftOf(evt)));
-            _unstageButton.clickable.clickedWithEventInfo += evt => Unstage(ButtonTargets(_selectedStaged, ShiftOf(evt)));
+            _stageButton.clickable.clickedWithEventInfo += evt => Stage(ButtonTargets(_selectedUnstaged, ShiftOf(evt), _unstagedEntries));
+            _unstageButton.clickable.clickedWithEventInfo += evt => Unstage(ButtonTargets(_selectedStaged, ShiftOf(evt), _stagedEntries));
 
             // Fork 방식이면 Shift 를 누르고 있는 동안 버튼 글자를 "… All" 로 바꾼다. 키는 창 어디에 포커스가 있든 받도록 패널 맨 위에서 듣고,
             // 다른 창에서 손을 뗀 경우를 위해 마우스가 움직일 때의 Shift 로도 맞춘다.
@@ -233,13 +250,128 @@ namespace GitVersionControl
         /// 머리 줄 버튼이 옮길 파일. null 이면 전부.
         /// Fork 방식: Shift 면 전부, 아니면 고른 것(없으면 아무것도 — 버튼이 꺼져 있다). GitKraken 방식: 고른 게 없으면 전부.
         /// </summary>
-        private List<GitStatusEntry> ButtonTargets(List<GitStatusEntry> selected, bool shift)
+        /// <param name="side">그 버튼 쪽 목록 전체. 검색 중이면 "… All" 은 보이는 항목만 옮긴다(null = 전부 대신).</param>
+        private List<GitStatusEntry> ButtonTargets(List<GitStatusEntry> selected, bool shift, List<GitStatusEntry> side)
         {
+            List<GitStatusEntry> all = IsFiltering ? Filtered(side) : null;
             if (_shiftForAll)
             {
-                return shift ? null : selected.ToList();
+                return shift ? all : selected.ToList();
             }
-            return selected.Count > 0 ? selected.ToList() : null;
+            return selected.Count > 0 ? selected.ToList() : all;
+        }
+
+        private static void IgnoreSpace(IReadOnlyList<FileListItem> items)
+        {
+        }
+
+        // ── 파일 찾기(Fork 모드) ───────────────────────────
+
+        private bool IsFiltering => _filter != null && string.IsNullOrWhiteSpace(_filter.value) == false;
+
+        private List<GitStatusEntry> Filtered(List<GitStatusEntry> entries)
+        {
+            if (IsFiltering == false)
+            {
+                return entries;
+            }
+            string needle = _filter.value.Trim();
+            return entries.Where(e => (e.ProjectPath ?? e.RepoPath).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+        }
+
+        /// <summary>
+        /// Fork 처럼 위 도구 줄 왼쪽의 돋보기를 누르거나 Ctrl+F(macOS 는 Cmd+F)를 누르면 그 아래에 Filter 칸이 펼쳐진다.
+        /// 열고 닫을 때 높이·불투명도가 움직이고(USS transition), 닫는 움직임이 끝나면 display 를 끈다. Esc 는 지우고 닫는다.
+        /// </summary>
+        private (Button, VisualElement, ToolbarSearchField) CreateFilter(VisualElement toolbar)
+        {
+            Button button = new(ToggleFilter) { tooltip = GitText.Get("staging.filterTooltip") };
+            button.AddToClassList("staging__filter-button");
+            button.Add(new ActionGlyph(ActionGlyphKind.Search));
+            button.SetVisible(false);
+            toolbar.Insert(0, button);
+
+            VisualElement row = new();
+            row.AddToClassList("staging__filter-row");
+            row.AddToClassList(FilterClosedModifier);
+            row.AddToClassList(FilterHiddenModifier);
+            ToolbarSearchField field = new();
+            field.AddToClassList("staging__filter");
+            ActionGlyph.ReplaceSearchIcon(field);
+            TextField input = field.Q<TextField>();
+            if (input != null)
+            {
+                input.textEdition.placeholder = GitText.Get("refs.filterPlaceholder");
+                input.textEdition.hidePlaceholderOnFocus = false;
+            }
+            field.RegisterCallback<FocusInEvent>(_ => field.AddToClassList("git-search--focused"));
+            field.RegisterCallback<FocusOutEvent>(_ => field.RemoveFromClassList("git-search--focused"));
+            field.RegisterValueChangedCallback(_ => ShowEntries(_prediction != null ? _prediction(_lastEntries) : _lastEntries));
+            field.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (evt.keyCode == UnityEngine.KeyCode.Escape)
+                {
+                    CloseFilter();
+                    evt.StopPropagation();
+                }
+            }, TrickleDown.TrickleDown);
+            row.Add(field);
+            row.RegisterCallback<TransitionEndEvent>(_ =>
+            {
+                if (row.ClassListContains(FilterClosedModifier))
+                {
+                    row.AddToClassList(FilterHiddenModifier);
+                }
+            });
+            toolbar.parent.Insert(toolbar.parent.IndexOf(toolbar) + 1, row);
+
+            Root.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (_shiftForAll && evt.actionKey && evt.keyCode == UnityEngine.KeyCode.F)
+                {
+                    OpenFilter();
+                    evt.StopPropagation();
+                }
+            }, TrickleDown.TrickleDown);
+            return (button, row, field);
+        }
+
+        private void ToggleFilter()
+        {
+            if (_filterRow.ClassListContains(FilterClosedModifier))
+            {
+                OpenFilter();
+            }
+            else
+            {
+                CloseFilter();
+            }
+        }
+
+        private void OpenFilter()
+        {
+            // display 를 먼저 켜고, 접힌 모양이 한 번 그려진 다음 틱에 펼쳐야 움직임이 보인다. 포커스도 그때 줘야 입력란이 키 입력을 받는다.
+            _filterRow.RemoveFromClassList(FilterHiddenModifier);
+            _filterButton.AddToClassList("staging__filter-button--on");
+            TextField input = _filter.Q<TextField>();
+            _filterRow.schedule.Execute(() =>
+            {
+                _filterRow.RemoveFromClassList(FilterClosedModifier);
+                input?.Focus();
+                input?.SelectAll();
+            });
+        }
+
+        private void CloseFilter()
+        {
+            if (_filterRow == null || _filterRow.ClassListContains(FilterClosedModifier))
+            {
+                return;
+            }
+            _filter.value = string.Empty;
+            _filter.Q<TextField>()?.Blur();
+            _filterRow.AddToClassList(FilterClosedModifier);
+            _filterButton.RemoveFromClassList("staging__filter-button--on");
         }
 
         /// <summary>
@@ -312,8 +444,16 @@ namespace GitVersionControl
             // 충돌 파일을 맨 위로(먼저 해결할 것이 먼저 보이게).
             _unstagedEntries = GitStaging.Unstaged(entries).OrderBy(e => e.State == GitFileState.Conflicted ? 0 : 1).ToList();
             _stagedEntries = GitStaging.Staged(entries);
-            _unstaged.SetItems(FileListItem.FromStatus(_unstagedEntries));
-            _staged.SetItems(FileListItem.FromStatus(_stagedEntries));
+            _isShowingEntries = true;
+            try
+            {
+                _unstaged.SetItems(FileListItem.FromStatus(Filtered(_unstagedEntries)));
+                _staged.SetItems(FileListItem.FromStatus(Filtered(_stagedEntries)));
+            }
+            finally
+            {
+                _isShowingEntries = false;
+            }
 
             // 새로고침 뒤에도 같은 파일이 남아 있으면 선택을 이어 간다(목록 쪽이 경로로 되살린다). 사라졌으면 놓고 diff 도 비운다
             // (stage 해서 반대쪽으로 옮겨 간 파일의 diff 가 빈 채로 남지 않게).
@@ -433,8 +573,18 @@ namespace GitVersionControl
             };
         }
 
+        /// <summary>
+        /// 목록을 다시 채우는 중(<see cref="ShowEntries"/>). 다시 채우는 동안 목록이 보내는 선택 알림(선택 없음 → 같은 파일)은 사용자가 고른 것이 아니다 —
+        /// 그대로 넘기면 diff 가 비었다가 다시 읽혀 깜빡이고 고른 글이 지워진다. 남은 선택은 ShowEntries 가 맞춘다.
+        /// </summary>
+        private bool _isShowingEntries;
+
         private void OnSelected(FileListItem item, bool staged)
         {
+            if (_isShowingEntries)
+            {
+                return;
+            }
             GitStatusEntry entry = item?.Source as GitStatusEntry;
             FileBrowser browser = staged ? _staged : _unstaged;
             List<GitStatusEntry> selected = browser.SelectedItems.Select(i => (GitStatusEntry)i.Source).ToList();
