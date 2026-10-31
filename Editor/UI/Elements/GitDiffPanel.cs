@@ -2099,7 +2099,8 @@ namespace GitVersionControl
                     // git 이 아직 모르는 새 파일은 비교할 스테이지 쪽이 없다.
                     return GitText.Get(target.State == GitFileState.Untracked ? "diff.revisionsUntracked" : "diff.revisionsUnstaged");
                 case GitDiffSource.Commit:
-                    return GitText.Format("diff.revisionsCommit", target.Commit.Substring(0, Math.Min(8, target.Commit.Length)));
+                    // 해시는 창 제목·목록과 같은 7자리(GitDisplay.ShortRevision) — 여기만 8자리라 같은 커밋이 다르게 보였다.
+                    return GitText.Format("diff.revisionsCommit", GitDisplay.ShortRevision(target.Commit));
                 case GitDiffSource.MergeBaseRange:
                     return GitText.Format("diff.revisionsRange", target.From, target.To);
                 case GitDiffSource.Range when target.To == null:

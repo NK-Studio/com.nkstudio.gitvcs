@@ -72,7 +72,8 @@ namespace GitVersionControl
         /// </summary>
         public bool IsUncommitted => Hash.All(c => c == '0');
 
-        public string ShortHash => Hash.Length > 8 ? Hash.Substring(0, 8) : Hash;
+        /// <summary>다른 곳과 같은 7자리(<see cref="GitDisplay.ShortRevision"/>).</summary>
+        public string ShortHash => GitDisplay.ShortRevision(Hash);
     }
 
     /// <summary>

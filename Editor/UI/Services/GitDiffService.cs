@@ -466,9 +466,10 @@ namespace GitVersionControl
             return revision.Length == 0 ? GitText.Get("diff.index") : ShortRevision(revision);
         }
 
+        /// <summary>40자 해시만 7자리로(다른 곳과 같다). 브랜치 이름·HEAD 같은 리비전은 그대로.</summary>
         private static string ShortRevision(string revision)
         {
-            return revision.Length > 10 && revision != "HEAD" ? revision.Substring(0, 8) : revision;
+            return GitDisplay.ShortRevision(revision);
         }
 
         private static string CreateTempDirectory()
