@@ -94,16 +94,18 @@ namespace GitVersionControl
             VisualElement tabs = new();
             tabs.AddToClassList(Block + "__tabs");
             _urlTab = MakeTab(ActionGlyphKind.Globe, GitText.Get("remote.tabUrl"), () => SelectTab(gitHub: false));
+            _urlTab.tooltip = GitText.Get("remote.tabUrlHelp");
             _gitHubTab = MakeTab(ActionGlyphKind.GitHub, GitText.Get("remote.tabGitHub"), () => SelectTab(gitHub: true));
+            _gitHubTab.tooltip = GitText.Get("remote.tabGitHubHelp");
             tabs.Add(_urlTab);
             tabs.Add(_gitHubTab);
             Body.Add(tabs);
 
             // ── URL ──
             _urlPage = Section(Body);
-            _urlName = Field(_urlPage, GitText.Get("remote.name"), null);
-            _pullUrl = Field(_urlPage, GitText.Get("remote.pullUrl"), null);
-            _pushUrl = Field(_urlPage, GitText.Get("remote.pushUrl"), GitText.Get("remote.pushUrlPlaceholder"));
+            _urlName = Field(_urlPage, GitText.Get("remote.name"), null, help: GitText.Get("remote.nameHelp"));
+            _pullUrl = Field(_urlPage, GitText.Get("remote.pullUrl"), null, help: GitText.Get("remote.pullUrlHelp"));
+            _pushUrl = Field(_urlPage, GitText.Get("remote.pushUrl"), GitText.Get("remote.pushUrlPlaceholder"), help: GitText.Get("remote.pushUrlHelp"));
             _urlProblem = Problem(_urlPage);
             _urlAdd = PrimaryButton(_urlPage, GitText.Get("remote.add"), AddFromUrl);
             _urlName.RegisterValueChangedCallback(_ => Validate());
@@ -134,7 +136,7 @@ namespace GitVersionControl
             _repository.Filtered += UpdateRepoStatus;
             _signedIn.Add(_repository.Root);
             _repoStatus = Note(_signedIn);
-            _gitHubName = Field(_signedIn, GitText.Get("remote.name"), null);
+            _gitHubName = Field(_signedIn, GitText.Get("remote.name"), null, help: GitText.Get("remote.nameHelp"));
             // 코드가 채울 때는 SetValueWithoutNotify 라 이 콜백은 사용자가 고친 때만 온다.
             _gitHubName.RegisterValueChangedCallback(_ =>
             {
@@ -159,7 +161,7 @@ namespace GitVersionControl
             _private = new Toggle { text = GitText.Get("remote.createPrivate"), value = true };
             _private.AddToClassList(Block + "__toggle");
             _createPanel.Add(_private);
-            _createRemoteName = Field(_createPanel, GitText.Get("remote.remoteName"), null);
+            _createRemoteName = Field(_createPanel, GitText.Get("remote.remoteName"), null, help: GitText.Get("remote.nameHelp"));
             _createRemoteName.RegisterValueChangedCallback(_ =>
             {
                 _createRemoteNameEdited = true;

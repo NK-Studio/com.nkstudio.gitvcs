@@ -648,6 +648,33 @@ namespace GitVersionControl
             ["remote.remoteName"] = new[] { "원격 이름", "Remote Name" },
             ["remote.pullUrl"] = new[] { "가져올 주소 (Pull URL)", "Pull URL" },
             ["remote.pushUrl"] = new[] { "올릴 주소 (Push URL)", "Push URL" },
+            ["remote.tabUrlHelp"] = new[] {
+                "저장소 주소를 직접 적어 연결합니다. GitHub·GitLab·Bitbucket·회사 서버 등 어디에 있는 저장소든 쓸 수 있습니다.\n" +
+                "GitHub 저장소라면 옆의 GitHub 탭에서 로그인해 목록에서 고르는 편이 쉽습니다.",
+                "Connect by typing the repository's address. Works with a repository hosted anywhere: GitHub, GitLab, Bitbucket, a company server, and so on.\n" +
+                "For a GitHub repository, the GitHub tab next to this lets you sign in and pick it from a list instead." },
+            ["remote.tabGitHubHelp"] = new[] {
+                "GitHub 계정으로 로그인해 내 저장소를 목록에서 골라 연결하거나, GitHub 에 새 저장소를 만들어 바로 올립니다. 주소를 몰라도 됩니다.",
+                "Sign in with your GitHub account to pick one of your repositories from a list, or create a new repository on GitHub and push to it. No need to know the address." },
+            ["remote.nameHelp"] = new[] {
+                "이 컴퓨터에서 이 원격을 부를 짧은 별명입니다. 원격 브랜치가 'origin/main' 처럼 이 이름 뒤에 붙어 보입니다.\n" +
+                "처음 연결하는 원격이면 보통 'origin' 을 씁니다. 이 저장소 안에서만 쓰는 이름이라 서버에는 영향이 없습니다.",
+                "A short nickname for this remote on this computer. Remote branches show up after it, like 'origin/main'.\n" +
+                "The first remote is usually called 'origin'. It only exists in this repository and doesn't affect the server." },
+            ["remote.pullUrlHelp"] = new[] {
+                "Fetch·Pull 로 커밋을 받아 올 저장소의 주소입니다. 저장소 웹 페이지의 'Code'(또는 'Clone') 버튼에서 복사할 수 있습니다.\n" +
+                "· HTTPS: https://github.com/owner/repo.git — 로그인 정보(토큰)로 접속합니다.\n" +
+                "· SSH: git@github.com:owner/repo.git — 이 컴퓨터에 SSH 키가 등록되어 있어야 합니다.\n" +
+                "· 이 컴퓨터나 공유 폴더의 저장소 경로도 됩니다.",
+                "The address of the repository to fetch and pull commits from. Copy it from the 'Code' (or 'Clone') button on the repository's web page.\n" +
+                "· HTTPS: https://github.com/owner/repo.git — signs in with your credentials (token).\n" +
+                "· SSH: git@github.com:owner/repo.git — needs an SSH key set up on this computer.\n" +
+                "· A path to a repository on this computer or a shared folder also works." },
+            ["remote.pushUrlHelp"] = new[] {
+                "Push 로 커밋을 올릴 주소입니다. 대부분은 가져올 주소와 같으니 비워 두세요(비우면 가져올 주소로 올립니다).\n" +
+                "받는 곳과 올리는 곳을 나눌 때만 적습니다. 예: 받기는 HTTPS 로, 올리기는 SSH 로 하거나 미러 서버로 올릴 때.",
+                "The address to push commits to. It's usually the same as the Pull URL, so leave it empty (the Pull URL is then used).\n" +
+                "Fill it in only to push somewhere else, e.g. fetch over HTTPS but push over SSH, or push to a mirror server." },
             ["remote.pushUrlPlaceholder"] = new[] { "비우면 Pull URL 을 씁니다", "Leave empty to use the Pull URL" },
             ["remote.gitHubRepo"] = new[] { "GitHub 저장소", "GitHub Repo" },
             ["remote.repoEmpty"] = new[] { "맞는 저장소가 없습니다.", "No matching repositories." },
