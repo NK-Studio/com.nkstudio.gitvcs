@@ -614,8 +614,9 @@
     background-color: rgba(80, 140, 230, 0.10);
 }
 
-/* 코드를 끌어 고른 줄 아래 오른쪽에 뜨는 [Stage | 되돌리기…](Staged 면 [Unstage]). Fork 의 hunk 버튼과 같은 붙은 한 묶음:
-   불투명한 창 바탕 + 얇은 검은 테두리, 마우스를 올리면 한 단계 밝게. top 은 코드가 고른 줄에 맞춘다. */
+/* 띠에 붙어 뜨는 [Stage | 되돌리기…](Staged 면 [Unstage]). Fork 처럼 붙은 한 묶음.
+   diff 바탕(--git-bg)과 같은 색이면 어두운 화면에 묻히므로, 한 단계 밝은 바탕(--git-pressed)과 또렷한 테두리(--git-field-border)를 쓴다.
+   마우스를 올리면 테두리가 더 밝아지고, 누르면 바탕이 한 단계 내려간다. top 은 코드가 고른 줄·덩어리에 맞춘다. */
 .git-diff__selection-actions {
     position: absolute;
     right: 24px;
@@ -629,17 +630,17 @@
     font-size: 12px;
     border-width: 1px;
     border-radius: 0;
-    border-color: rgba(0, 0, 0, 0.6);
-    background-color: var(--git-bg);
+    border-color: var(--git-field-border);
+    background-color: var(--git-pressed);
     color: var(--git-text);
 }
 
 .git-diff__selection-button:hover {
-    background-color: var(--git-hover);
+    border-color: var(--git-text-muted);
 }
 
 .git-diff__selection-button:active {
-    background-color: var(--git-pressed);
+    background-color: var(--git-hover);
 }
 
 .git-diff__selection-button--stage {
@@ -657,29 +658,29 @@
     border-radius: var(--git-radius);
 }
 
-/* Fork 배치(.git-diff--fork-hunks): 붙은 한 묶음 [Stage | 되돌리기…]. 색 칠한 hunk 바탕 위에서도 읽히게 불투명한 창 바탕 + 얇은 검은 테두리,
-   마우스를 올리면 한 단계 밝게. 순서는 Stage 가 왼쪽(요소는 되돌리기·Stage 순이라 row-reverse). 초록·빨강 규칙보다 세게 하려고 클래스를 겹친다. */
+/* Fork 배치(.git-diff--fork-hunks): 붙은 한 묶음 [Stage | 되돌리기…]. 색 칠한 hunk 바탕·어두운 diff 바탕 어디서나 보이게 위 떠 있는 버튼과 같은 색
+   (한 단계 밝은 바탕 + 또렷한 테두리). 순서는 Stage 가 왼쪽(요소는 되돌리기·Stage 순이라 row-reverse). 초록·빨강 규칙보다 세게 하려고 클래스를 겹친다. */
 .git-diff--fork-hunks .diff-row__hunk-actions {
     flex-direction: row-reverse;
 }
 
 .git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button {
     margin: 0;
-    background-color: var(--git-bg);
-    border-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--git-pressed);
+    border-color: var(--git-field-border);
     color: var(--git-text);
     border-radius: 0;
 }
 
 .git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button:hover {
-    background-color: var(--git-hover);
-    border-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--git-pressed);
+    border-color: var(--git-text-muted);
     color: var(--git-text);
 }
 
 .git-diff--fork-hunks .diff-row .diff-row__hunk-actions > .diff-row__hunk-button:active {
-    background-color: var(--git-pressed);
-    border-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--git-hover);
+    border-color: var(--git-text-muted);
     color: var(--git-text);
 }
 

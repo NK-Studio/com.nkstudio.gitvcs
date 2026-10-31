@@ -2374,7 +2374,7 @@ namespace GitVersionControl
             int found = -1;
             _list.Query<VisualElement>(className: "diff-row__code").ForEach(code =>
             {
-                if (found < 0 && RowElementOf(code).worldBound.Contains(position))
+                if (found < 0 && IsLiveCode(code) && RowElementOf(code).worldBound.Contains(position))
                 {
                     found = RowOf(code);
                 }
@@ -2569,6 +2569,24 @@ namespace GitVersionControl
             {
                 return;
             }
+            PlaceSelectionActions();
+            // 끄는 도중 목록을 굴리면 줄 요소의 자리(worldBound)는 다음 배치 계산 뒤에야 맞는다. 그 전에 잰 자리로 그리면 띠가 몇 줄 밀린다 —
+            // 배치가 끝난 다음 틀에 한 번 더 맞춘다(한 틀에 한 번만).
+            if (_selectionPlaceQueued == false)
+            {
+                _selectionPlaceQueued = true;
+                _list.schedule.Execute(() =>
+                {
+                    _selectionPlaceQueued = false;
+                    PlaceSelectionActions();
+                });
+            }
+        }
+
+        private bool _selectionPlaceQueued;
+
+        private void PlaceSelectionActions()
+        {
             List<int> lines = _runner != null ? SelectedChangeLines() : new List<int>();
             bool fromSelection = lines.Count > 0;
             int startRow = -1;
@@ -2599,7 +2617,7 @@ namespace GitVersionControl
                 _list.Query<VisualElement>(className: "diff-row__code").ForEach(code =>
                 {
                     int row = RowOf(code);
-                    if (row < startRow || row > endRow || (fromSelection && IsRightCode(code) != _textRight))
+                    if (row < startRow || row > endRow || (fromSelection && IsRightCode(code) != _textRight) || IsLiveCode(code) == false)
                     {
                         return;
                     }
@@ -2754,6 +2772,21 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 이 코드 칸이 지금 목록이 그 줄 번호에 쓰고 있는 줄 요소 안에 있는지. 목록은 쓰지 않는 줄 요소를 옛 번호를 단 채 남겨 두므로
+        /// (끌어서 목록 밖으로 나가 굴리려 할 때 등), 그 요소의 자리로 선택 띠를 그리면 빈 곳에 띠가 생긴다.
+        /// </summary>
+        private bool IsLiveCode(VisualElement code)
+        {
+            int row = RowOf(code);
+            if (row < 0 || row >= _rows.Count)
+            {
+                return false;
+            }
+            VisualElement root = _list.GetRootElementForIndex(row);
+            return root != null && (root == code || root.Contains(code));
+        }
+
+        /// <summary>
         /// 글을 고르는 쪽(<see cref="_textRight"/>)의 줄. 나란히 보기에서 그쪽이 빈 줄이면 null.
         /// </summary>
         private GitDiffLine TextLineAt(int row)
@@ -2903,13 +2936,21 @@ namespace GitVersionControl
                 return null;
             }
             Rect view = scroll.contentViewport.worldBound;
+            // 굴리는 값은 0~끝 사이로 묶는다. 맨 위에서 더 위로 끌면 scrollOffset 이 음수가 되었다가 다음 틀에야 0 으로 돌아오는데,
+            // 그 사이 줄 요소의 자리가 그만큼 아래로 잡혀 선택 띠가 밀린다(끄는 동안 계속 되풀이된다).
+            float y = scroll.scrollOffset.y;
             if (position.y < view.yMin)
             {
-                scroll.scrollOffset -= new Vector2(0, view.yMin - position.y);
+                y -= view.yMin - position.y;
             }
             else if (position.y > view.yMax)
             {
-                scroll.scrollOffset += new Vector2(0, position.y - view.yMax);
+                y += position.y - view.yMax;
+            }
+            y = Mathf.Clamp(y, scroll.verticalScroller.lowValue, Mathf.Max(scroll.verticalScroller.lowValue, scroll.verticalScroller.highValue));
+            if (Mathf.Approximately(y, scroll.scrollOffset.y) == false)
+            {
+                scroll.scrollOffset = new Vector2(scroll.scrollOffset.x, y);
             }
             Vector2 inside = new(Mathf.Clamp(position.x, view.xMin + 1, view.xMax - 1), Mathf.Clamp(position.y, view.yMin + 1, view.yMax - 1));
             VisualElement row = _list.panel.Pick(inside);
