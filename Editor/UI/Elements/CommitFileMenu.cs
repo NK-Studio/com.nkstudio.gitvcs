@@ -44,12 +44,6 @@ namespace GitVersionControl
 
             menu.AppendAction(GitText.Get("menu.externalEditor"), _ => InternalEditorUtility.OpenFileAtLineExternal(fullPath, 1), StatusOf(exists));
             menu.AppendAction(GitText.Get("menu.defaultProgram"), _ => EditorUtility.OpenWithDefaultApp(fullPath), StatusOf(exists));
-            // 내장 뷰어를 쓰는 중이면 "외부"는 git difftool 이다.
-            DiffEngine engine = GitVcsSettings.instance.DiffEngine == DiffEngine.BuiltIn ? DiffEngine.GitDifftool : GitVcsSettings.instance.DiffEngine;
-            if (Compact == false)
-            {
-                menu.AppendAction(GitText.Get("menu.externalDiff"), _ => _services.Diff.OpenExternally(GitDiffTarget.ForCommit(commit.Hash, change), engine));
-            }
             menu.AppendAction(GitFileManager.RevealLabel, _ => GitFileManager.Reveal(fullPath), StatusOf(exists));
             if (Compact == false)
             {

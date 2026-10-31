@@ -9,7 +9,7 @@ using UnityEngine;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 파일 diff 열기. 설정의 엔진(<see cref="GitVcsSettings.DiffEngine"/>)에 따라 내장 뷰어·git difftool·외부 프로그램 중 하나로 연다.
+    /// 파일 diff 열기. 내장 diff 창(<see cref="GitDiffWindow"/>)으로 연다.
     /// </summary>
     public interface IGitDiffService
     {
@@ -31,20 +31,10 @@ namespace GitVersionControl
         /// 바이너리 파일 카드(Fork 처럼 "created · 242 KB")에 쓸 양쪽 판의 크기(바이트). 없는 쪽(추가·삭제)은 null.
         /// </summary>
         Task<(long? left, long? right, string error)> LoadSizesAsync(GitDiffTarget target);
-
-        /// <summary>
-        /// 엔진과 상관없이 외부 프로그램(설정의 외부 엔진, 없으면 git difftool)으로 연다 — 내장 뷰어의 "외부 도구로 열기".
-        /// </summary>
-        void OpenExternally(GitDiffTarget target, DiffEngine engine);
     }
 
     public sealed class GitDiffService : IGitDiffService
     {
-        /// <summary>
-        /// difftool·외부 프로그램은 사용자가 창을 닫을 때까지 돌아온다. 몇 시간 띄워 둘 수도 있어 넉넉히 둔다.
-        /// </summary>
-        private const int DifftoolTimeoutMs = 8 * 60 * 60_000;
-
         /// <summary>
         /// 아무 내용도 없는 git 트리. 최초 커밋의 "부모"로 쓴다(git 이 모든 저장소에 대해 같은 해시로 알고 있다).
         /// </summary>
@@ -66,25 +56,7 @@ namespace GitVersionControl
 
         public void Open(GitDiffTarget target)
         {
-            DiffEngine engine = GitVcsSettings.instance.DiffEngine;
-            if (engine == DiffEngine.BuiltIn)
-            {
-                GitDiffWindow.Open(target, this);
-                return;
-            }
-            OpenExternally(target, engine);
-        }
-
-        public void OpenExternally(GitDiffTarget target, DiffEngine engine)
-        {
-            if (ExternalDiffTool.IsExternal(engine) == false)
-            {
-                _ = RunDifftoolAsync(target);
-            }
-            else
-            {
-                _ = OpenWithToolAsync(target, engine);
-            }
+            GitDiffWindow.Open(target, this);
         }
 
         public async Task<(GitDiffDocument document, string error)> LoadAsync(GitDiffTarget target, GitDiffOptions options)
@@ -224,107 +196,8 @@ namespace GitVersionControl
             }
         }
 
-        private async Task RunDifftoolAsync(GitDiffTarget target)
-        {
-            List<string> args = new() { "difftool", "--no-prompt" };
-            string tool = GitVcsSettings.instance.DifftoolName;
-            if (string.IsNullOrEmpty(tool) == false)
-            {
-                args.Add("--tool=" + tool);
-            }
-
-            string tempDirectory = null;
-            switch (target.Source)
-            {
-                case GitDiffSource.WorkingTree when target.State == GitFileState.Untracked:
-                case GitDiffSource.Unstaged when target.State == GitFileState.Untracked:
-                    tempDirectory = CreateTempDirectory();
-                    string empty = Path.Combine(tempDirectory, "empty");
-                    File.WriteAllBytes(empty, Array.Empty<byte>());
-                    args.AddRange(new[] { "--no-index", "--", empty, target.RepoPath });
-                    break;
-                case GitDiffSource.WorkingTree:
-                    args.AddRange(new[] { "-M", "HEAD" });
-                    break;
-                case GitDiffSource.Staged:
-                    args.AddRange(new[] { "-M", "--cached" });
-                    break;
-                case GitDiffSource.Unstaged:
-                    args.Add("-M");
-                    break;
-                case GitDiffSource.Commit:
-                    args.AddRange(new[] { "-M", await ParentOrEmptyTreeAsync(target.Commit), target.Commit });
-                    break;
-                case GitDiffSource.MergeBaseRange:
-                    args.AddRange(new[] { "-M", $"{target.From}...{target.To}" });
-                    break;
-                case GitDiffSource.Range:
-                    args.AddRange(target.To == null ? new[] { "-M", target.From } : new[] { "-M", target.From, target.To });
-                    break;
-            }
-            if (args.Contains("--no-index") == false)
-            {
-                args.Add("--");
-                if (target.OriginalRepoPath != null)
-                {
-                    args.Add(target.OriginalRepoPath);
-                }
-                args.Add(target.RepoPath);
-            }
-
-            GitResult result = await GitCommand.RunAsync(GitRepository.RepoRoot, args, DifftoolTimeoutMs);
-            // --no-index 는 차이가 있으면 1 로 끝난다.
-            if (result.Success == false && (tempDirectory == null || result.ExitCode != 1))
-            {
-                await _dialogs.AlertAsync(GitText.Get("diff.difftoolFailed"), string.IsNullOrWhiteSpace(result.Message) ? GitText.Get("diff.difftoolHint") : result.Message);
-            }
-        }
-
-        private async Task OpenWithToolAsync(GitDiffTarget target, DiffEngine engine)
-        {
-            GitVcsSettings settings = GitVcsSettings.instance;
-            string executable = settings.GetDiffToolPath(engine);
-            if (string.IsNullOrEmpty(executable))
-            {
-                executable = engine == DiffEngine.Custom ? null : ExternalDiffTool.FindExecutable(engine);
-            }
-            if (string.IsNullOrEmpty(executable))
-            {
-                if (await _dialogs.ConfirmAsync(GitText.Get("diff.toolNotFound"), GitText.Format("diff.toolNotFoundMessage", GitText.Get("diffEngine." + engine)), GitText.Get("common.openVcsSettings")))
-                {
-                    GitPreferences.Open();
-                }
-                return;
-            }
-
-            (string left, string right, string leftLabel, string rightLabel, string error) = await MaterializeAsync(target, CreateTempDirectory());
-            if (error != null)
-            {
-                await _dialogs.AlertAsync(GitText.Get("diff.prepareFailed"), error);
-                return;
-            }
-            string leftTitle = $"{target.LeftPath} ({leftLabel})";
-            string rightTitle = $"{target.RepoPath} ({rightLabel})";
-
-            string template = engine == DiffEngine.Custom ? settings.CustomDiffArguments : ExternalDiffTool.ArgumentTemplate(engine, Application.platform);
-            string arguments = ExternalDiffTool.Expand(template, left, right, leftTitle, rightTitle);
-            try
-            {
-                ProcessStartInfo startInfo = new(executable, arguments)
-                {
-                    UseShellExecute = false,
-                    WorkingDirectory = GitRepository.RepoRoot,
-                };
-                Process.Start(startInfo)?.Dispose();
-            }
-            catch (Exception e) when (e is System.ComponentModel.Win32Exception || e is InvalidOperationException)
-            {
-                await _dialogs.AlertAsync(GitText.Get("diff.toolStartFailed"), $"{executable}\n{e.Message}");
-            }
-        }
-
         /// <summary>
-        /// 외부 프로그램에 넘길 두 파일을 만든다. 작업 트리 쪽은 실제 파일을 그대로 넘겨(도구에서 고치면 바로 반영된다),
+        /// 이미지 비교에 쓸 두 파일을 만든다. 작업 트리 쪽은 실제 파일을 그대로 쓰고,
         /// 리비전 쪽은 <c>git cat-file --filters</c> 로 꺼낸다(LFS·줄 끝 변환까지 거친 실제 내용). 없는 쪽(추가·삭제)은 빈 파일이다.
         /// 임시 파일은 <paramref name="directory"/>(프로젝트 Temp 아래)에 두어 에디터를 끄면 Unity 가 정리한다.
         /// </summary>

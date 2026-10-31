@@ -5,7 +5,7 @@ using UnityEngine;
 namespace GitVersionControl.Tests
 {
     /// <summary>
-    /// diff 인자 만들기, unified diff 해석, 줄 안 강조, 나란히 보기 짝짓기, 외부 도구 인자 틀.
+    /// diff 인자 만들기, unified diff 해석, 줄 안 강조, 나란히 보기 짝짓기.
     /// </summary>
     public sealed class GitDiffTests
     {
@@ -172,33 +172,6 @@ namespace GitVersionControl.Tests
             Assert.AreEqual("c", rows[2].Right.Text);
             Assert.AreEqual("b", rows[3].Left.Text);
             Assert.IsNull(rows[3].Right);
-        }
-
-        [Test]
-        public void Test_ExternalTool_Expand_ReplacesTokensAndStripsQuotes()
-        {
-            string expanded = ExternalDiffTool.Expand("-nl \"{LEFT_TITLE}\" \"{LEFT}\" \"{RIGHT}\"", "C:/t/a.cs", "C:/r/a.cs", "a.cs (HE\"AD)", "a.cs");
-
-            Assert.AreEqual("-nl \"a.cs (HEAD)\" \"C:/t/a.cs\" \"C:/r/a.cs\"", expanded);
-        }
-
-        [Test]
-        public void Test_ExternalTool_Templates_ContainBothFiles()
-        {
-            foreach (DiffEngine engine in new[] { DiffEngine.VisualStudioCode, DiffEngine.Rider, DiffEngine.BeyondCompare, DiffEngine.P4Merge, DiffEngine.WinMerge })
-            {
-                string template = ExternalDiffTool.ArgumentTemplate(engine, RuntimePlatform.WindowsEditor);
-                StringAssert.Contains(ExternalDiffTool.LeftToken, template, engine.ToString());
-                StringAssert.Contains(ExternalDiffTool.RightToken, template, engine.ToString());
-            }
-        }
-
-        [Test]
-        public void Test_ExternalTool_IsExternal_ExcludesBuiltInAndDifftool()
-        {
-            Assert.IsFalse(ExternalDiffTool.IsExternal(DiffEngine.BuiltIn));
-            Assert.IsFalse(ExternalDiffTool.IsExternal(DiffEngine.GitDifftool));
-            Assert.IsTrue(ExternalDiffTool.IsExternal(DiffEngine.Custom));
         }
     }
 }

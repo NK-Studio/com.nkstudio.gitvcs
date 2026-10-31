@@ -134,7 +134,7 @@
     flex-grow: 1;
 }
 
-/* 높이·여백은 diff 도구 막대 버튼(외부 도구로 열기)과 같게: 22px · 좌우 10px. */
+/* 높이·여백은 diff 도구 막대 버튼(다시 읽기)과 같게: 22px · 좌우 10px. */
 .pending-changes__commit-button,
 .pending-changes__action-button {
     height: 22px;
@@ -150,7 +150,7 @@
     margin-right: 0;
 }
 
-/* Gluon(Unity VCS) 처럼 커밋은 강조색으로 꽉 채운 버튼. 나머지(변경 되돌리기·세부사항 표시)는 diff 도구 막대 버튼(외부 도구로 열기)과 같은 한 벌:
+/* Gluon(Unity VCS) 처럼 커밋은 강조색으로 꽉 채운 버튼. 나머지(변경 되돌리기·세부사항 표시)는 diff 도구 막대 버튼(다시 읽기)과 같은 한 벌:
    바탕 없음·--git-field-border 테두리·글자 12px, 마우스를 올리면 --git-hover.
    테마의 커밋 버튼 규칙(.git-theme--* .pending-changes__commit-button)보다 세게 하려고 클래스를 겹친다. */
 .pending-changes__actions > .pending-changes__commit-button,

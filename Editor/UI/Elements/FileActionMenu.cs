@@ -109,10 +109,6 @@ namespace GitVersionControl
             menu.AppendAction(GitText.Get("menu.fileBlame"), _ => GitBlameWindow.Open(entry.RepoPath), StatusOf(hasHistory && exists));
             menu.AppendSeparator();
 
-            // 내장 뷰어를 쓰는 중이면 "외부"는 git difftool 이다.
-            DiffEngine engine = GitVcsSettings.instance.DiffEngine == DiffEngine.BuiltIn ? DiffEngine.GitDifftool : GitVcsSettings.instance.DiffEngine;
-            GitDiffTarget target = _source == GitDiffSource.WorkingTree ? GitDiffTarget.ForWorkingTree(entry) : GitDiffTarget.ForStaging(entry, IsStagedSide);
-            menu.AppendAction(GitText.Get("menu.externalDiff"), _ => _services.Diff.OpenExternally(target, engine));
             menu.AppendAction(GitText.Get("menu.externalEditor"), _ => InternalEditorUtility.OpenFileAtLineExternal(FullPath(entry.RepoPath), 1), StatusOf(exists));
             menu.AppendAction(GitText.Get("menu.defaultProgram"), _ => EditorUtility.OpenWithDefaultApp(FullPath(entry.RepoPath)), StatusOf(exists));
             menu.AppendAction(GitFileManager.RevealLabel, _ => GitFileManager.Reveal(FullPath(entry.RepoPath)), StatusOf(exists));

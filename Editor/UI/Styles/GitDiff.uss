@@ -34,7 +34,7 @@
    높이 22px·테두리 1px·모서리 --git-radius·글자 12px. 무채색 버튼은 --git-field-border 테두리에 바탕 없음,
    Stage 는 초록·버리기/Unstage 는 빨강 테두리만, 마우스를 올리면 꽉 채운다(Staging 칸의 Stage All 과 같다). */
 
-/* 좁아지면 파일 이름·판 설명이 말줄임으로 줄고, 오른쪽 버튼(외부 도구로 열기·다시 읽기·×)은 줄지 않는다 — 줄면 글자가 왼쪽 글 위로 넘쳐 겹친다. */
+/* 좁아지면 파일 이름·판 설명이 말줄임으로 줄고, 오른쪽 버튼(다시 읽기·×)은 줄지 않는다 — 줄면 글자가 왼쪽 글 위로 넘쳐 겹친다. */
 .git-diff .git-diff__toolbar > .unity-toolbar-button {
     flex-shrink: 0;
     height: 22px;
@@ -689,29 +689,25 @@
     border-bottom-color: var(--git-border);
 }
 
-/* Stage(초록)·버리기·Unstage(빨강): Staging 칸의 Stage All·Unstage All 과 같은 테두리, 올리면 꽉 채움. 위 기본 버튼 규칙보다 세게 하려고 클래스를 겹친다. */
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file,
+/* hunk 머리 줄의 Stage(초록)·버리기·Unstage(빨강): Staging 칸의 Stage All·Unstage All 과 같은 테두리, 올리면 꽉 채움. 기본 버튼 규칙보다 세게 하려고 클래스를 겹친다. */
 .diff-row .diff-row__hunk-button--stage {
     border-color: var(--git-success);
     background-color: var(--git-success-soft);
     color: var(--git-text);
 }
 
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:hover,
 .diff-row .diff-row__hunk-button--stage:hover {
     background-color: var(--git-success-strong);
     color: var(--git-on-strong);
     border-color: var(--git-success-strong);
 }
 
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file:active,
 .diff-row .diff-row__hunk-button--stage:active {
     background-color: var(--git-success-strong-pressed);
     color: var(--git-on-strong);
     border-color: var(--git-success-strong-pressed);
 }
 
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage,
 .diff-row .diff-row__hunk-button--discard {
     border-color: var(--git-danger);
@@ -719,7 +715,6 @@
     color: var(--git-text);
 }
 
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:hover,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:hover,
 .diff-row .diff-row__hunk-button--discard:hover {
     background-color: var(--git-danger-strong);
@@ -727,7 +722,6 @@
     border-color: var(--git-danger-strong);
 }
 
-.git-diff__toolbar > .unity-toolbar-button.git-diff__stage-file.git-diff__stage-file--unstage:active,
 .diff-row .diff-row__hunk-button--stage.diff-row__hunk-button--unstage:active,
 .diff-row .diff-row__hunk-button--discard:active {
     background-color: var(--git-danger-strong-pressed);

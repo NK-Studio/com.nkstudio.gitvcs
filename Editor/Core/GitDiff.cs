@@ -5,22 +5,6 @@ using System.Globalization;
 namespace GitVersionControl
 {
     /// <summary>
-    /// diff 를 무엇으로 보여 줄지. 내장 뷰어 외에는 바뀐 두 판을 임시 파일로 꺼내 외부 프로그램에 넘긴다(git difftool 은 git 이 직접 꺼낸다).
-    /// 순서는 설정 파일에 숫자로 저장되므로 끝에만 추가한다.
-    /// </summary>
-    public enum DiffEngine
-    {
-        BuiltIn,
-        GitDifftool,
-        VisualStudioCode,
-        Rider,
-        BeyondCompare,
-        P4Merge,
-        WinMerge,
-        Custom,
-    }
-
-    /// <summary>
     /// git 의 <c>--diff-algorithm</c>. 설정 파일에 숫자로 저장되므로 끝에만 추가한다.
     /// </summary>
     public enum DiffAlgorithm

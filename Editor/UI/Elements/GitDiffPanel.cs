@@ -11,7 +11,7 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// diff 보기 본체: 도구 막대(보기 방식·외부 도구), 통계 줄, 줄 목록. git diff 옵션은 설정에서 고른다.
+    /// diff 보기 본체: 도구 막대(보기 방식), 통계 줄, 줄 목록. git diff 옵션은 설정에서 고른다.
     /// git diff 출력(<see cref="GitDiff.Parse"/>)을 통합 보기 또는 나란히 보기로 그린다.
     /// 줄 번호, 더한·지운 줄 배경, 줄 안에서 실제로 바뀐 부분 강조, 변경 묶음(hunk) 사이 이동을 지원한다.
     /// 독립 창(<see cref="GitDiffWindow"/>)과 Fork 형태 레이아웃의 오른쪽 칸이 같은 패널을 쓴다.
@@ -257,7 +257,6 @@ namespace GitVersionControl
             _runner = runner;
             _commands = commands;
             _dialogs = dialogs;
-            UpdateStageFileButton();
             _list.RefreshItems();
         }
 
@@ -287,7 +286,7 @@ namespace GitVersionControl
         private Button _selectionDiscard;
 
         /// <summary>
-        /// Fork 처럼 hunk 머리 줄 버튼을 붙은 한 묶음 [Stage | 되돌리기…](Staged 면 [Unstage])으로 그리고, 머리 줄 오른쪽의 "이 변경 Stage/Unstage" 를 뺀다.
+        /// Fork 처럼 hunk 머리 줄 버튼을 붙은 한 묶음 [Stage | 되돌리기…](Staged 면 [Unstage])으로 그린다.
         /// 보기는 Fork 처럼 늘 파일 전체를 이어서 보이는 diff 로 고정하고(파일 보기·Diff 보기·레이아웃 버튼을 숨긴다), 줄 단위 Stage 는 그 보기에서 한다.
         /// 끄면 GitKraken 식 초록·빨강 두 버튼.
         /// </summary>
@@ -297,7 +296,6 @@ namespace GitVersionControl
             {
                 _forkHunkStyle = value;
                 Root.EnableInClassList("git-diff--fork-hunks", value);
-                UpdateStageFileButton();
                 // 보기 방식이 설정 대신 Fork 식 고정으로 바뀐다. 열린 파일이 있으면 그 보기로 다시 읽는다.
                 if (_target != null)
                 {
@@ -672,31 +670,10 @@ namespace GitVersionControl
             toolbar.Add(_revisions);
             toolbar.Add(Spacer());
 
-            // 알고리즘·공백·문맥 줄 수는 설정(Preferences > Git)에서만 바꾼다. 바뀌면 OnDiffOptionsChanged 가 다시 읽는다.
-            ToolbarButton external = new(() =>
-            {
-                if (_target != null)
-                {
-                    DiffEngine engine = settings.DiffEngine == DiffEngine.BuiltIn ? DiffEngine.GitDifftool : settings.DiffEngine;
-                    _service.OpenExternally(_target, engine);
-                }
-            })
-            {
-                text = GitText.Get("diff.openExternal"),
-                tooltip = GitText.Get("diff.openExternalTooltip"),
-            };
-            toolbar.Add(external);
-
             _reloadButton = new ToolbarButton(Reload) { tooltip = GitText.Get("common.reload") };
             _reloadButton.AddToClassList("git-diff__tool-button--icon");
             ToolbarIcons.SetRefreshIcon(_reloadButton);
             toolbar.Add(_reloadButton);
-
-            // GitKraken 처럼 × 바로 옆에 이 파일 전체 Stage·Unstage. 부분 스테이징을 켠 패널의 Unstaged·Staged diff 에서만 보인다.
-            _stageFileButton = new ToolbarButton(StageWholeFileAsync);
-            _stageFileButton.AddToClassList("git-diff__stage-file");
-            _stageFileButton.SetVisible(false);
-            toolbar.Add(_stageFileButton);
 
             _closeButton = new ToolbarButton(() =>
             {
@@ -874,7 +851,6 @@ namespace GitVersionControl
             {
                 return;
             }
-            UpdateStageFileButton();
             GitVcsSettings settings = GitVcsSettings.instance;
             bool hasTarget = _target != null;
             _bar.SetVisible(hasTarget);
@@ -2080,29 +2056,6 @@ namespace GitVersionControl
             }
         }
 
-        // ── 머리 줄의 "Stage this change"(파일 전체 Stage·Unstage, GitKraken 과 같다) ──
-
-        private ToolbarButton _stageFileButton;
-
-        private void UpdateStageFileButton()
-        {
-            if (_stageFileButton == null)
-            {
-                return;
-            }
-            // Fork 식에는 이 버튼이 없다(파일째 옮기기는 왼쪽 목록에서 한다).
-            bool shown = _forkHunkStyle == false && _runner != null && _target != null
-                         && (_target.Source == GitDiffSource.Unstaged || _target.Source == GitDiffSource.Staged);
-            _stageFileButton.SetVisible(shown);
-            if (shown == false)
-            {
-                return;
-            }
-            _stageFileButton.EnableInClassList("git-diff__stage-file--unstage", IsUnstage);
-            _stageFileButton.text = GitText.Get(IsUnstage ? "diff.unstageFile" : "diff.stageFile");
-            _stageFileButton.tooltip = GitText.Get(IsUnstage ? "diff.unstageFileTooltip" : "diff.stageFileTooltip");
-        }
-
         /// <summary>
         /// 충돌 표시(<<<<<<< ======= >>>>>>>)가 남은 파일을 올리려 하면 먼저 묻는다(목록의 Stage 와 같은 규칙). 올려도 되면 true.
         /// </summary>
@@ -2115,35 +2068,6 @@ namespace GitVersionControl
             }
             return await GitConfirmDialog.ConfirmAsync(PopupHost, ActionGlyphKind.Branch, GitText.Get("staging.markersTitle"),
                 GitText.Format("staging.markersMessage", target.RepoPath), GitText.Get("staging.markersOk"), okDanger: true);
-        }
-
-        /// <summary>
-        /// 이 파일 전체를 올리거나(Unstaged) 내린다(Staged). 목록의 Stage·Unstage 와 같은 명령이다.
-        /// </summary>
-        private async void StageWholeFileAsync()
-        {
-            if (_runner == null || _runner.IsBusy || _target == null)
-            {
-                return;
-            }
-            GitDiffTarget target = _target;
-            GitStatusEntry entry = GitRepository.Entries.FirstOrDefault(e => e.RepoPath == target.RepoPath);
-            if (entry == null)
-            {
-                return;
-            }
-            bool unstage = target.Source == GitDiffSource.Staged;
-            if (unstage == false && await ConfirmConflictMarkersAsync(target) == false)
-            {
-                return;
-            }
-            GitStatusEntry[] entries = { entry };
-            await _runner.RunAsync(GitText.Get(unstage ? "op.unstage" : "op.stage"),
-                () => unstage ? _commands.UnstageAsync(entries) : _commands.StageAsync(entries), refreshAssets: false, workingTreeOnly: true);
-            if (_target == target)
-            {
-                Reload();
-            }
         }
 
         private static string DescribeRevisions(GitDiffTarget target)

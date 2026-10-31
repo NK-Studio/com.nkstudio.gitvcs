@@ -62,7 +62,6 @@ namespace GitVersionControl
         [SerializeField] private int _language = -1;
         [SerializeField] private int _fileViewMode;
         [SerializeField] private bool _showAvatars = true;
-        [SerializeField] private int _diffEngine;
         [SerializeField] private int _diffAlgorithm = (int)DiffAlgorithm.Histogram;
         [SerializeField] private int _diffWhitespace;
         [SerializeField] private int _diffContextLines = 3;
@@ -73,9 +72,6 @@ namespace GitVersionControl
         [SerializeField] private int _imageDiffMode = (int)ImageDiffMode.TwoUp;
         [SerializeField] private bool _imageDiffShowProperties;
         [SerializeField] private float _imageDiffPropertiesHeight = 90f;
-        [SerializeField] private string _difftoolName = string.Empty;
-        [SerializeField] private string _customDiffArguments = ExternalDiffTool.DefaultCustomArguments;
-        [SerializeField] private List<string> _diffToolPaths = new();
         [SerializeField] private float _gitWindowScale = 1f;
         // 예전 _theme(JetBrains·Unity 모양)과 이름을 달리해, 남아 있던 값이 밝기로 잘못 읽히지 않고 System 에서 시작하게 한다.
         [SerializeField] private int _themeMode = (int)GitThemeMode.System;
@@ -245,19 +241,6 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 파일 diff 를 무엇으로 볼지. 기본은 Git 창 안의 내장 뷰어.
-        /// </summary>
-        public DiffEngine DiffEngine
-        {
-            get => (DiffEngine)_diffEngine;
-            set
-            {
-                int index = (int)value;
-                SetAndSave(ref _diffEngine, index, nameof(DiffEngine));
-            }
-        }
-
-        /// <summary>
         /// 내장 뷰어의 git diff 알고리즘. 기본은 histogram — 함수·블록이 옮겨진 코드에서 myers 보다 사람이 읽기 좋은 결과를 낸다.
         /// </summary>
         public DiffAlgorithm DiffAlgorithm
@@ -373,50 +356,6 @@ namespace GitVersionControl
         public GitDiffOptions DiffOptions => new(DiffAlgorithm, DiffWhitespace, DiffContextLines);
 
         /// <summary>
-        /// <c>git difftool --tool=</c> 에 넘길 이름. 비우면 git 설정(diff.tool)을 따른다.
-        /// </summary>
-        public string DifftoolName
-        {
-            get => _difftoolName ?? string.Empty;
-            set => SetAndSave(ref _difftoolName, value?.Trim() ?? string.Empty, nameof(DifftoolName));
-        }
-
-        /// <summary>
-        /// Custom 엔진의 인자 틀({LEFT} {RIGHT} {LEFT_TITLE} {RIGHT_TITLE}).
-        /// </summary>
-        public string CustomDiffArguments
-        {
-            get => string.IsNullOrWhiteSpace(_customDiffArguments) ? ExternalDiffTool.DefaultCustomArguments : _customDiffArguments;
-            set => SetAndSave(ref _customDiffArguments, value, nameof(CustomDiffArguments));
-        }
-
-        /// <summary>
-        /// 엔진별 프로그램 경로. 비어 있으면 흔한 설치 위치·PATH 에서 찾는다(Custom 은 반드시 정해야 한다).
-        /// </summary>
-        public string GetDiffToolPath(DiffEngine engine)
-        {
-            int index = (int)engine;
-            return index < _diffToolPaths.Count ? _diffToolPaths[index] ?? string.Empty : string.Empty;
-        }
-
-        public void SetDiffToolPath(DiffEngine engine, string path)
-        {
-            int index = (int)engine;
-            while (_diffToolPaths.Count <= index)
-            {
-                _diffToolPaths.Add(string.Empty);
-            }
-            string trimmed = path?.Trim() ?? string.Empty;
-            if (_diffToolPaths[index] == trimmed)
-            {
-                return;
-            }
-            _diffToolPaths[index] = trimmed;
-            Save(true);
-            EditorPrefs.SetString(PrefsPrefix + DiffToolPathsKey, string.Join("\n", _diffToolPaths));
-        }
-
-        /// <summary>
         /// Git 창 UI 배율(Ctrl+휠). 범위·단위는 <see cref="UiScaleController"/> 가 맞춘다.
         /// </summary>
         public float GitWindowScale
@@ -525,8 +464,6 @@ namespace GitVersionControl
         /// </summary>
         private const string PrefsPrefix = "GitVersionControl.";
 
-        private const string DiffToolPathsKey = "DiffToolPaths";
-
         /// <summary>
         /// 개인 설정을 EditorPrefs 에서 읽어 필드에 채운다. git 은 백그라운드에서도 설정을 읽으므로(EditorPrefs 는 메인 스레드 전용)
         /// 필드를 그대로 캐시로 쓴다. EditorPrefs 에 아직 없으면 예전 UserSettings 값을 옮겨 적는다(처음 연 프로젝트의 값이 기준이 된다).
@@ -539,13 +476,10 @@ namespace GitVersionControl
             SyncPref(nameof(WatchFileSystem), ref _watchFileSystem);
             SyncPref(nameof(Language), ref _language);
             SyncPref(nameof(ShowAvatars), ref _showAvatars);
-            SyncPref(nameof(DiffEngine), ref _diffEngine);
             SyncPref(nameof(DiffAlgorithm), ref _diffAlgorithm);
             SyncPref(nameof(DiffWhitespace), ref _diffWhitespace);
             SyncPref(nameof(DiffContextLines), ref _diffContextLines);
             SyncPref(nameof(DiffLayout), ref _diffLayout);
-            SyncPref(nameof(DifftoolName), ref _difftoolName);
-            SyncPref(nameof(CustomDiffArguments), ref _customDiffArguments);
             SyncPref(nameof(ThemeMode), ref _themeMode);
             SyncPref(nameof(Layout), ref _layout);
             SyncPref(nameof(ShowInMainToolbar), ref _showInMainToolbar);
@@ -556,10 +490,6 @@ namespace GitVersionControl
             SyncPref(nameof(StopOnRebaseConflict), ref _stopOnRebaseConflict);
             SyncPref(nameof(StageMetaPairs), ref _stageMetaPairs);
             SyncPref(nameof(GroupMetaPairs), ref _groupMetaPairs);
-
-            string paths = string.Join("\n", _diffToolPaths);
-            SyncPref(DiffToolPathsKey, ref paths);
-            _diffToolPaths = new List<string>(paths.Length == 0 ? Array.Empty<string>() : paths.Split('\n'));
         }
 
         private static void SyncPref(string key, ref string field)
