@@ -494,6 +494,19 @@
     min-height: 0;
 }
 
+/* 비었을 때는 우리 안내(graph-detail__no-files)가 말하므로 ListView·TreeView 기본 "List is empty" 는 숨긴다. 읽는 동안은 스켈레톤이 덮는다. */
+.graph-detail__files .unity-list-view__empty-label,
+.graph-detail__files .unity-tree-view__empty-label {
+    display: none;
+}
+
+.graph-detail__no-files {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+}
+
 /* ── commit-graph ────────────────────────────────── */
 .commit-graph {
     flex-grow: 1;

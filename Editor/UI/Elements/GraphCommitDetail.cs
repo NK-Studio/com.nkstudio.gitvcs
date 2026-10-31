@@ -34,6 +34,11 @@ namespace GitVersionControl
         private readonly VisualElement _coAuthors;
         private readonly VisualElement _summary;
         private readonly FileBrowser _files;
+        private readonly VisualElement _filesHost;
+        // 바뀐 파일을 읽는 동안 파일 칸을 덮는 스켈레톤. 덮지 않으면 빈 목록의 "List is empty" 가 잠깐 보였다.
+        private VisualElement _filesCover;
+        // 바뀐 파일이 없는 커밋(빈 병합 등)에서 ListView 기본 "List is empty" 대신 보이는 안내.
+        private readonly Label _noFiles;
         private GitCommitInfo _shown;
 
         public VisualElement Root { get; }
@@ -82,10 +87,16 @@ namespace GitVersionControl
                 }
             });
 
-            _files = new FileBrowser(Root.Require<VisualElement>("files"), Root.Require<VisualElement>("view-mode-host"), services)
+            _filesHost = Root.Require<VisualElement>("files");
+            _noFiles = new Label(GitText.Get("graphDetail.noFiles")) { pickingMode = PickingMode.Ignore };
+            _noFiles.AddToClassList("list__empty");
+            _noFiles.AddToClassList("graph-detail__no-files");
+            _noFiles.SetVisible(false);
+            _files = new FileBrowser(_filesHost, Root.Require<VisualElement>("view-mode-host"), services)
             {
                 DiffTargetOf = TargetOf,
             };
+            _filesHost.Add(_noFiles);
             _files.SelectionChanged += item => FileSelected?.Invoke(item == null ? null : TargetOf(item));
             // 브랜치 탐색기(Fork 형태)의 Changes 칸과 같은 우클릭 메뉴(열기 · 외부 diff · 되돌리기 · Blame · 히스토리 · 이 버전 저장 · 경로 복사).
             CommitFileMenu fileMenu = new(services);
@@ -108,6 +119,8 @@ namespace GitVersionControl
         {
             _shown = null;
             _hash.text = string.Empty;
+            _filesCover?.RemoveFromHierarchy();
+            _filesCover = null;
             _placeholder.SetVisible(true);
             _body.SetVisible(false);
         }
@@ -133,6 +146,12 @@ namespace GitVersionControl
             BindCoAuthors(Array.Empty<(string, string)>());
             BindSummary(Array.Empty<GitFileChange>());
             _files.SetItems(Array.Empty<FileListItem>());
+            _noFiles.SetVisible(false);
+            // 앞 커밋을 읽던 스켈레톤이 남아 있으면 그대로 이어 쓴다(새로 덮으면 물결이 처음부터 다시 시작해 깜박였다).
+            if (_filesCover?.parent == null)
+            {
+                _filesCover = GitSkeleton.Cover(_filesHost, SkeletonShape.Files);
+            }
 
             string hash = commit.Hash;
             string message = await _history.CommitMessageAsync(hash);
@@ -145,6 +164,9 @@ namespace GitVersionControl
             BindCoAuthors(CoAuthors(message));
             BindSummary(files);
             _files.SetItems(FileListItem.FromChanges(files));
+            _noFiles.SetVisible(files.Count == 0);
+            GitSkeleton.Uncover(_filesCover);
+            _filesCover = null;
         }
 
         /// <summary>

@@ -713,6 +713,7 @@ namespace GitVersionControl
             ["op.updateSubmodule"] = new[] { "서브모듈 '{0}' Update", "Update submodule '{0}'" },
             ["graphDetail.copyHash"] = new[] { "누르면 전체 해시를 복사합니다.", "Click to copy the full hash." },
             ["graphDetail.authored"] = new[] { "{0} 작성", "authored {0}" },
+            ["graphDetail.noFiles"] = new[] { "바뀐 파일이 없습니다.", "No files changed." },
             ["graphDetail.parent"] = new[] { "부모:", "parent:" },
             ["graphDetail.parents"] = new[] { "부모:", "parents:" },
             ["graphDetail.goToParent"] = new[] { "그래프에서 이 커밋 보기", "Show this commit in the graph" },
