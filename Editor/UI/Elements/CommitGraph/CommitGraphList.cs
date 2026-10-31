@@ -2147,7 +2147,7 @@ namespace GitVersionControl
                 {
                     continue;
                 }
-                painter.strokeColor = isCurrent ? laneColor : GraphStyle.Muted(laneColor);
+                painter.strokeColor = isCurrent ? laneColor : GraphStyle.Muted(laneColor, _outlineColor);
                 // 이름표는 글자 폭만큼만 차지하므로 칸 끝이 아니라 이름표의 그래프 쪽 끝에서 잇는다.
                 // "+n" 상자가 있으면 이름표와 상자 사이 틈에도 선을 그어 이름표 → "+n" → 커밋이 한 줄로 이어 보이게 한다(선 층이 줄 위라 상자는 건너뛴다).
                 float startX = fallbackX;

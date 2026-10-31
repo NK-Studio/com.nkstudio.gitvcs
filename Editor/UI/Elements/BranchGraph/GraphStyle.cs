@@ -50,18 +50,34 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 지금 있지 않은 브랜치의 이름표에서 커밋까지 잇는 선에 쓰는 가라앉은 가지 색(GitKraken 과 같다): 채도와 밝기를 낮춘다. 알파는 그대로.
+        /// 지금 있지 않은 브랜치의 이름표에서 커밋까지 잇는 선에 쓰는 가라앉은 가지 색(GitKraken 과 같다): 채도를 낮추고 배경 쪽으로 가라앉힌다. 알파는 그대로.
+        /// 어두운 배경(다크 테마)이면 밝기를 낮추고, 밝은 배경(라이트 테마)이면 배경색 쪽으로 섞어 바래게 한다 —
+        /// 밝기만 낮추면 라이트 테마에서 선이 거의 검어져 오히려 가장 눈에 띄었다.
         /// </summary>
-        public static Color Muted(Color color)
+        /// <param name="background">그 선이 놓이는 바탕색(목록 배경, USS --graph-outline).</param>
+        public static Color Muted(Color color, Color background)
         {
             Color.RGBToHSV(color, out float h, out float s, out float v);
-            Color muted = Color.HSVToRGB(h, s * MutedSaturation, v * MutedValue);
+            Color muted;
+            if (background.grayscale < 0.5f)
+            {
+                muted = Color.HSVToRGB(h, s * MutedSaturation, v * MutedValue);
+            }
+            else
+            {
+                muted = Color.Lerp(Color.HSVToRGB(h, s * MutedSaturation, v), background, MutedLightBlend);
+            }
             muted.a = color.a;
             return muted;
         }
 
         private const float MutedSaturation = 0.45f;
+
+        /// <summary>어두운 배경에서 밝기 배율.</summary>
         private const float MutedValue = 0.15f;
+
+        /// <summary>밝은 배경에서 배경색 쪽으로 섞는 비율.</summary>
+        private const float MutedLightBlend = 0.85f;
 
         public static Color LaneColor(GitGraphLane lane)
         {
