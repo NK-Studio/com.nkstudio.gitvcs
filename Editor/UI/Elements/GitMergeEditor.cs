@@ -142,11 +142,9 @@ namespace GitVersionControl
             _editor.AddToClassList("git-merge__editor");
             Root.Add(_editor);
 
-            VisualElement top = new();
-            top.AddToClassList("git-merge__top");
-            _editor.Add(top);
-            top.Add(Pane(GitMergeSide.A, out _allA, out _titleA, out _listA, _rowsA));
-            top.Add(Pane(GitMergeSide.B, out _allB, out _titleB, out _listB, _rowsB));
+            _editor.Add(SideBySide("git-merge-sides",
+                Pane(GitMergeSide.A, out _allA, out _titleA, out _listA, _rowsA),
+                Pane(GitMergeSide.B, out _allB, out _titleB, out _listB, _rowsB)));
 
             VisualElement outputHeader = new();
             outputHeader.AddToClassList("git-merge__pane-header");
@@ -214,13 +212,9 @@ namespace GitVersionControl
             _imageView = new VisualElement();
             _imageView.AddToClassList("git-merge__editor");
             _imageView.AddToClassList("git-merge__images");
-            VisualElement imageTop = new();
-            imageTop.AddToClassList("git-merge__top");
             _imageA = new ImagePane(GitMergeSide.A, value => ChooseImage(GitConflictSide.Ours, value));
             _imageB = new ImagePane(GitMergeSide.B, value => ChooseImage(GitConflictSide.Theirs, value));
-            imageTop.Add(_imageA.Root);
-            imageTop.Add(_imageB.Root);
-            _imageView.Add(imageTop);
+            _imageView.Add(SideBySide("git-merge-image-sides", _imageA.Root, _imageB.Root));
             VisualElement imageOutputHeader = new();
             imageOutputHeader.AddToClassList("git-merge__pane-header");
             imageOutputHeader.AddToClassList("git-merge__output-header");
@@ -248,6 +242,23 @@ namespace GitVersionControl
                 _services.Runner.StateChanged -= UpdateSave;
                 ReleaseImages();
             });
+        }
+
+        /// <summary>
+        /// A·B 두 칸을 좌우로 나란히 두고 사이 경계선을 끌어 폭을 바꾸게 한다(GitKraken 과 같다). 처음에는 반반이고,
+        /// 끌어 놓은 비율을 이 PC 에 기억해 다음에 열 때도 같은 비율로 연다. 경계선을 두 번 누르면 반반으로 돌아간다(<see cref="SplitPaneClamp"/>).
+        /// </summary>
+        private static TwoPaneSplitView SideBySide(string name, VisualElement a, VisualElement b)
+        {
+            TwoPaneSplitView split = new(0, 300f, TwoPaneSplitViewOrientation.Horizontal) { name = name };
+            split.AddToClassList("view__split");
+            split.AddToClassList("view__split--ratio");
+            split.AddToClassList("git-merge__top");
+            // 고정 칸(A)은 분할이 넣은 폭을 그대로 쓴다(USS .git-merge__top .git-merge__pane--a — 칸 공용 스타일의 flex-basis 0 이 폭을 이겨 A 가 찌그러졌다).
+            split.Add(a);
+            split.Add(b);
+            SplitPaneClamp.Attach(split);
+            return split;
         }
 
         public void ShowCloseButton(bool isVisible)
@@ -475,6 +486,10 @@ namespace GitVersionControl
             body.Add(number);
             Label check = new();
             check.AddToClassList("merge-row__check");
+            // 체크 표시는 앱 전체와 같은 그린 체크(ActionGlyph) — 글자 ✓ 는 글꼴마다 모양이 다르다.
+            ActionGlyph checkGlyph = new(ActionGlyphKind.Check);
+            checkGlyph.AddToClassList("merge-row__check-glyph");
+            check.Add(checkGlyph);
             body.Add(check);
             Label text = new();
             text.AddToClassList("merge-row__text");
@@ -538,7 +553,7 @@ namespace GitVersionControl
             }
             number.text = data.Number > 0 ? data.Number.ToString() : string.Empty;
             bool showCheck = inConflict && data.Placeholder == false && (output || data.Chosen);
-            check.text = showCheck ? "✓" : string.Empty;
+            check.Q<ActionGlyph>().SetVisible(showCheck);
             check.EnableInClassList("merge-row__check--on", showCheck);
             check.EnableInClassList("merge-row__check--off", inConflict && data.Placeholder == false && output == false && data.Chosen == false);
             text.text = data.Text;

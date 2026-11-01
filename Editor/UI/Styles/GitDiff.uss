@@ -1383,6 +1383,13 @@
     border-right-color: var(--git-border);
 }
 
+/* A·B 를 좌우로 끌어 나누는 분할(GitMergeEditor.SideBySide)에서 A 는 고정 칸 — 분할이 넣은 폭을 그대로 쓴다.
+   칸 공용 스타일의 flex-basis 0 이 남아 있으면 그 폭을 이겨 A 가 0 으로 찌그러진다. */
+.git-merge__top .git-merge__pane--a {
+    flex-grow: 0;
+    flex-basis: auto;
+}
+
 .git-merge__pane-header {
     flex-direction: row;
     align-items: center;
@@ -1543,6 +1550,15 @@
 
 .merge-row__check--on {
     background-color: var(--git-success);
+}
+
+.merge-row__check-glyph {
+    position: absolute;
+    left: 1px;
+    top: 1px;
+    width: 11px;
+    height: 11px;
+    color: #ffffff;
 }
 
 .merge-row__check--off {
