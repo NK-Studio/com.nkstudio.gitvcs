@@ -431,11 +431,28 @@ namespace GitVersionControl
             title = new Label();
             title.AddToClassList("git-merge__pane-title");
             header.Add(title);
+            ToggleOnHeaderClick(header, all);
             pane.Add(header);
 
             list = List(rows, output: false);
             pane.Add(list);
             return pane;
+        }
+
+        /// <summary>칸 머리 줄(배지·제목) 어디를 눌러도 머리 체크를 누른 것과 같다 — 작은 체크 칸만 노리지 않아도 되게.</summary>
+        private static void ToggleOnHeaderClick(VisualElement header, Toggle toggle)
+        {
+            header.AddToClassList("git-merge__pane-header--clickable");
+            header.RegisterCallback<ClickEvent>(evt =>
+            {
+                // 체크 칸 자체를 누른 것은 체크가 알아서 바꾼다.
+                if (evt.target is VisualElement target && (target == toggle || toggle.Contains(target)))
+                {
+                    return;
+                }
+                // "일부"(−) 상태는 값이 false 라 체크 칸을 누를 때처럼 모두 고르기가 된다.
+                toggle.value = toggle.value == false;
+            });
         }
 
         private ListView List(List<MergeRow> rows, bool output)
@@ -1109,6 +1126,7 @@ namespace GitVersionControl
                 _title = new Label();
                 _title.AddToClassList("git-merge__pane-title");
                 header.Add(_title);
+                ToggleOnHeaderClick(header, _choose);
                 Root.Add(header);
                 _stage = ImageStage(out _frame, out _image, out _hint);
                 // 이미지를 눌러도 고른다(작은 체크 칸만 누르지 않아도 되게).

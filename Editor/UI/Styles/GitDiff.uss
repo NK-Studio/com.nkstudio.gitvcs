@@ -1401,6 +1401,11 @@
     background-color: var(--git-header-bg);
 }
 
+/* 머리 줄 어디를 눌러도 머리 체크를 누른 것과 같다(GitMergeEditor.ToggleOnHeaderClick). */
+.git-merge__pane-header--clickable:hover {
+    background-color: var(--git-hover);
+}
+
 .git-merge__all {
     margin: 0 6px 0 0;
 }
