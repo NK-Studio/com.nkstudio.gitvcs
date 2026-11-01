@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GitVersionControl
 {
@@ -38,7 +39,8 @@ namespace GitVersionControl
 
     /// <summary>
     /// 세로 그래프의 브랜치/태그 칸에 보일 참조. 지금 체크아웃한 브랜치가 맨 앞(GitKraken 과 같다 — 줄에는 체크 표시 이름표 하나와 "+n"),
-    /// 그다음 이 커밋이 끝인 브랜치 줄 이름, 같은 커밋을 가리키는 다른 참조(<c>git log %D</c>: "origin/main", "tag: v1.0") 순서.
+    /// 나머지(이 커밋이 끝인 브랜치 줄, 같은 커밋을 가리키는 다른 참조 — <c>git log %D</c>: "origin/main", "tag: v1.0")는 보이는 이름의 가나다·ABC 순서.
+    /// 그래서 줄에 하나만 보일 때도 이름 순서로 맨 앞 것이 보인다.
     /// 원격은 "원격이름/브랜치" 꼴이라 줄 정보가 없을 때는 알려진 원격 이름으로 가른다.
     /// </summary>
     public static class CommitRefs
@@ -68,6 +70,8 @@ namespace GitVersionControl
             {
                 MergeRemotes(refs);
             }
+            // 이름 순서(대소문자 무시). 같은 이름이면 처음 순서를 지킨다(OrderBy 는 안정 정렬).
+            refs = refs.OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
             int current = refs.FindIndex(r => r.Kind == CommitRefKind.Current);
             if (current > 0)
             {
