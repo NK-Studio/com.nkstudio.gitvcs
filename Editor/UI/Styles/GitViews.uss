@@ -207,6 +207,19 @@
 }
 
 /* 동작 줄 아래 커밋 메시지 칸. 높이는 고정이고 메시지가 길면 안에서 스크롤한다. */
+/* 충돌로 멈춘 작업의 상태 카드: 동작 줄([병합 마치기]) 바로 밑. 작업이 없으면 카드가 숨어 자리를 차지하지 않는다. */
+.pending-changes__operation {
+    flex-shrink: 0;
+}
+
+.pending-changes__operation > .operation-card {
+    margin: 0 6px 6px 6px;
+}
+
+.pending-changes__actions > .pending-changes__action-button--danger {
+    color: var(--git-danger);
+}
+
 .pending-changes__commit {
     flex-shrink: 0;
     padding: 0 6px 6px 6px;

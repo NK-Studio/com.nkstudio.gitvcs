@@ -37,7 +37,6 @@ namespace GitVersionControl
         private GitServices _services;
         private GitToolbar _toolbar;
         private GitFooter _footer;
-        private OperationBanner _operationBanner;
         private readonly List<GitView> _views = new();
         private readonly List<SidebarTab> _tabs = new();
         private VisualElement _window;
@@ -190,7 +189,6 @@ namespace GitVersionControl
             _rail.Root.SetVisible(false);
             _rail.ExpandRequested += RestoreSidebar;
             _toolbar = new GitToolbar(layout, _services, this);
-            _operationBanner = new OperationBanner(layout, _services);
             _footer = new GitFooter(layout)
             {
                 ZoomIn = () => _scale?.ZoomIn(),
@@ -935,7 +933,6 @@ namespace GitVersionControl
             _notReadyAction.SetEnabled(_isInitializing == false);
 
             _toolbar.Render();
-            _operationBanner.Render();
             if (ready == false)
             {
                 return;
@@ -983,7 +980,6 @@ namespace GitVersionControl
         private void OnRunnerStateChanged()
         {
             _toolbar.Render();
-            _operationBanner.Render();
             foreach (GitView view in _views)
             {
                 view.OnBusyChanged(_services.Runner.IsBusy);

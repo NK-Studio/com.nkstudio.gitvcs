@@ -1,0 +1,17 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <!--
+      충돌로 멈춘 작업의 상태 카드(OperationCard). 충돌 목록 바로 위에 두고 알리기만 한다 — 마치기·중단은 커밋 버튼 자리에 있다.
+      Git 창을 잃을 수 있는 상황(컴파일 오류·패키지 목록 충돌)은 같은 카드 안 한 줄과 표시 색으로만 알린다.
+    -->
+    <ui:VisualElement class="operation-card">
+        <ui:Label name="operation-card-badge" text="!" class="operation-card__badge" />
+        <ui:VisualElement class="operation-card__body">
+            <ui:Label name="operation-card-title" class="operation-card__title" />
+            <ui:Label name="operation-card-detail" class="operation-card__detail" />
+            <ui:VisualElement name="operation-card-risk" class="operation-card__risk">
+                <ui:VisualElement class="operation-card__risk-dot" />
+                <ui:Label name="operation-card-risk-text" class="operation-card__risk-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -69,8 +69,7 @@ namespace GitVersionControl
         private const int ConflictMaxRows = 6;
 
         private readonly VisualElement _conflictPanel;
-        private readonly Label _conflictAlert;
-        private readonly Label _conflictDetail;
+        private readonly OperationCard _operationCard;
         private readonly Label _conflictTitle;
         private readonly Button _resolveAllButton;
         private readonly VisualElement _conflictHeader;
@@ -199,12 +198,7 @@ namespace GitVersionControl
             // 충돌 구역: 경로/트리 전환 줄 바로 밑, Unstaged·Staged 위.
             _conflictPanel = new VisualElement();
             _conflictPanel.AddToClassList("staging-conflict");
-            _conflictAlert = new Label();
-            _conflictAlert.AddToClassList("staging-conflict__alert");
-            _conflictPanel.Add(_conflictAlert);
-            _conflictDetail = new Label();
-            _conflictDetail.AddToClassList("staging-conflict__detail");
-            _conflictPanel.Add(_conflictDetail);
+            _operationCard = new OperationCard(_conflictPanel, services);
 
             _conflictHeader = NewSectionHeader(out _conflictTitle);
             _resolveAllButton = new Button(ResolveAll) { text = GitText.Get("conflict.resolveAll"), tooltip = GitText.Get("conflict.resolveAllTooltip") };
@@ -790,7 +784,9 @@ namespace GitVersionControl
 
             _conflictEntries = conflicts;
             _resolvedEntries = _stagedEntries.Where(e => _conflictSeen.Contains(e.RepoPath)).ToList();
-            bool visible = conflicts.Count > 0 || (kind != GitOperationKind.None && _resolvedEntries.Count > 0);
+            // 상태 카드가 보일 때(작업이 멈춰 있거나 충돌이 남았을 때) 구역을 연다 — 충돌이 없는 rebase(Stage 안 한 변경으로 막힘)도 알린다.
+            _operationCard.Render();
+            bool visible = _operationCard.IsShown;
             _conflictPanel.SetVisible(visible);
             _conflicts.SetItems(FileListItem.FromStatus(_conflictEntries));
             _resolved.SetItems(FileListItem.FromStatus(_resolvedEntries));
@@ -799,11 +795,6 @@ namespace GitVersionControl
                 return;
             }
 
-            _conflictPanel.EnableInClassList("staging-conflict--resolved", conflicts.Count == 0);
-            _conflictAlert.text = conflicts.Count == 0 ? GitText.Get("conflict.allResolved")
-                : kind == GitOperationKind.None ? GitText.Get("conflict.alert.None")
-                : GitText.Format("conflict.alert", GitInProgress.DisplayName(kind));
-            _conflictDetail.text = DescribeOperation(kind);
             _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictEntries.Count);
             _resolvedTitle.text = GitText.Format("conflict.resolvedTitle", _resolvedEntries.Count);
             // 다 풀었으면(이번에 푼 파일만 남음) 빈 충돌 목록은 숨긴다.
@@ -824,7 +815,7 @@ namespace GitVersionControl
         /// <summary>
         /// "origin/develop 을 develop 에 병합 중" 처럼 무엇을 어디에 합치는 중인지. 표시 파일을 읽지 못하면 짧은 해시·HEAD 로 대신한다.
         /// </summary>
-        private static string DescribeOperation(GitOperationKind kind)
+        internal static string DescribeOperation(GitOperationKind kind)
         {
             string gitDir = GitRepository.GitDir;
             string current = GitRepository.Branch?.Detached == false && string.IsNullOrEmpty(GitRepository.Branch?.Name) == false ? GitRepository.Branch.Name : "HEAD";

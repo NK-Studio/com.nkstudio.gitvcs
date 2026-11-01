@@ -1,13 +1,18 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
     <!-- Unity VCS(Gluon) "변경사항 체크인" 배치: 맨 위 동작 줄·커밋 메시지, 그 아래 파일 목록·고른 파일 diff, 오른쪽에 접히는 세부사항. -->
     <ui:VisualElement class="view pending-changes">
-        <!-- 동작 줄: 커밋·변경 되돌리기(왼쪽), 세부사항 표시(오른쪽). -->
+        <!-- 동작 줄: 커밋·변경 되돌리기(왼쪽), 세부사항 표시(오른쪽). 충돌로 멈춘 작업이 있으면 커밋이 [병합 마치기] 가 되고 [병합 중단]·[건너뛰기](rebase) 가 붙는다. -->
         <ui:VisualElement class="pending-changes__actions">
             <ui:Button name="commit-button" class="pending-changes__commit-button" />
             <ui:Button name="discard-button" text="@pending.discard" class="pending-changes__action-button" />
+            <ui:Button name="operation-abort-button" class="pending-changes__action-button pending-changes__action-button--danger" />
+            <ui:Button name="operation-skip-button" text="@inprogress.skip" tooltip="@inprogress.skipTooltip" class="pending-changes__action-button" />
             <ui:VisualElement class="pending-changes__actions-spacer" />
             <ui:Button name="details-button" text="@pending.showDetails" class="pending-changes__action-button pending-changes__details-button" />
         </ui:VisualElement>
+
+        <!-- 충돌로 멈춘 작업의 상태 카드(OperationCard). 마치기 버튼 바로 아래에 둔다. -->
+        <ui:VisualElement name="operation-card-host" class="pending-changes__operation" />
 
         <ui:VisualElement class="pending-changes__commit">
             <ui:TextField name="commit-message" multiline="true" vertical-scroller-visibility="Auto" class="pending-changes__message" />

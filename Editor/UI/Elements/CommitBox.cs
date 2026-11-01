@@ -11,6 +11,7 @@ namespace GitVersionControl
     /// 인덱스 커밋 입력란(<c>CommitBox.uxml</c>): 제목·설명·Amend·커밋(GitKraken 레이아웃은 커밋 후 푸시도).
     /// 입력 중인 문구는 <see cref="StagingState"/> 에 남아 창을 다시 만들어도(언어 전환·도메인 리로드) 이어진다.
     /// 커밋 템플릿(<see cref="GitCommitTemplate"/>)이 있으면 빈 입력란에 채우고, 커밋할 때 '#' 주석 줄을 뺀다.
+    /// 충돌로 멈춘 작업이 있으면 커밋 버튼이 그 작업을 마친다(<see cref="OperationActions"/>): 병합·cherry-pick·revert 는 입력란 메시지로 커밋하고, rebase 는 이어간다.
     /// </summary>
     public sealed class CommitBox
     {
@@ -22,6 +23,9 @@ namespace GitVersionControl
         private readonly VisualElement _authorNotice;
         private readonly Button _commitButton;
         private readonly Button _commitPushButton;
+        private readonly Button _abortButton;
+        private readonly Button _skipButton;
+        private readonly bool _showPush;
         private int _stagedCount;
         private string _template;
         private GitOperationKind _seenOperation;
@@ -52,6 +56,11 @@ namespace GitVersionControl
             _commitButton = Root.Require<Button>("commit-button");
             _commitPushButton = Root.Require<Button>("commit-push-button");
             _commitPushButton.SetVisible(showPush);
+            _showPush = showPush;
+            _abortButton = Root.Require<Button>("operation-abort-button");
+            _skipButton = Root.Require<Button>("operation-skip-button");
+            _abortButton.clicked += () => OperationActions.Abort(_services);
+            _skipButton.clicked += () => OperationActions.Skip(_services);
 
             _subject.textEdition.placeholder = GitText.Get("staging.subjectPlaceholder");
             _description.textEdition.placeholder = GitText.Get("staging.descriptionPlaceholder");
@@ -68,7 +77,7 @@ namespace GitVersionControl
             _subject.RegisterCallback<FocusOutEvent>(_ => RefillIfEmpty(_subject, GitCommitTemplate.Split(_template).subject));
             _description.RegisterCallback<FocusOutEvent>(_ => RefillIfEmpty(_description, GitCommitTemplate.Split(_template).description));
             _amend.RegisterValueChangedCallback(evt => OnAmendChanged(evt.newValue));
-            _commitButton.clicked += () => Commit(push: false);
+            _commitButton.clicked += OnCommitClicked;
             _commitPushButton.clicked += () => Commit(push: true);
             LoadTemplate();
         }
@@ -157,6 +166,20 @@ namespace GitVersionControl
             bool hasAuthor = string.IsNullOrEmpty(repository.UserName) == false && string.IsNullOrEmpty(repository.UserEmail) == false;
             _authorNotice.SetVisible(hasAuthor == false);
 
+            GitOperationKind operation = repository.IsRepository ? repository.InProgressOperation : GitOperationKind.None;
+            RenderOperation(operation);
+            if (operation != GitOperationKind.None)
+            {
+                // 멈춘 작업을 마치는 버튼: 충돌이 남았으면 막고 까닭을 툴팁에 둔다. 병합처럼 커밋으로 끝나면 제목이 있어야 한다(rebase 는 git 이 준비한 메시지를 쓴다).
+                string blocker = GitInProgress.ContinueBlocker(operation, repository.Entries);
+                _commitButton.text = OperationActions.FinishLabel(operation);
+                _commitButton.tooltip = OperationActions.FinishTooltip(operation, blocker);
+                _commitButton.SetEnabled(_services.Runner.IsBusy == false && hasAuthor && blocker == null
+                                         && (GitInProgress.RequiresFullCommit(operation) == false || HasSubject()));
+                return;
+            }
+            _commitButton.tooltip = string.Empty;
+
             bool isAmend = _amend.value;
             _commitButton.text = isAmend ? GitText.Get("staging.amendButton") : GitText.Format("staging.commitButton", _stagedCount);
             // 고쳐 쓰기는 stage 한 것이 없어도(메시지만 고칠 때) 할 수 있다. 새 커밋은 제목과 stage 한 파일이 있어야 한다.
@@ -169,9 +192,45 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 멈춘 작업이 있는 동안 아래 줄: Amend·커밋 후 푸시를 숨기고 [중단]·[건너뛰기](rebase 만)를 보인다. 작업 중 Amend 는 끈다(마치는 커밋을 고쳐 쓰면 안 된다).
+        /// </summary>
+        private void RenderOperation(GitOperationKind operation)
+        {
+            bool active = operation != GitOperationKind.None;
+            if (active && _amend.value)
+            {
+                _amend.SetValueWithoutNotify(false);
+            }
+            _amend.SetVisible(active == false);
+            _commitPushButton.SetVisible(_showPush && active == false);
+            _abortButton.SetVisible(active);
+            _skipButton.SetVisible(active && GitInProgress.CanSkip(operation));
+            if (active == false)
+            {
+                return;
+            }
+            bool idle = _services.Runner.IsBusy == false;
+            _abortButton.text = OperationActions.AbortLabel(operation);
+            _abortButton.tooltip = OperationActions.AbortTooltip(operation);
+            _abortButton.SetEnabled(idle);
+            _skipButton.SetEnabled(idle);
+        }
+
+        private void OnCommitClicked()
+        {
+            GitOperationKind operation = _services.Repository.InProgressOperation;
+            if (operation != GitOperationKind.None && GitInProgress.RequiresFullCommit(operation) == false)
+            {
+                OperationActions.Continue(_services);
+                return;
+            }
+            Commit(push: false);
+        }
+
+        /// <summary>
         /// 멈춘 병합·cherry-pick·revert 는 이 입력란의 커밋으로 끝난다. 그 작업이 보이기 시작할 때 비어 있는(템플릿 그대로인) 입력란에
         /// git 이 준비한 메시지(MERGE_MSG)를 채운다(GitKraken·Fork 와 같다). 사용자가 쓴 글은 덮지 않는다.
-        /// 작업이 커밋 없이 끝나면(배너의 이어가기·취소) 손대지 않은 그 메시지를 거둔다.
+        /// 작업이 커밋 없이 끝나면(rebase 이어가기·중단) 손대지 않은 그 메시지를 거둔다.
         /// </summary>
         private void FillPreparedMessage(IGitRepositoryState repository)
         {

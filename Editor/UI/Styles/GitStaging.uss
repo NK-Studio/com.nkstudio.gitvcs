@@ -200,39 +200,12 @@
 }
 
 /* 충돌 구역(StagingLists 가 코드로 만든다): GitKraken 사이드바처럼 Unstaged·Staged 위에
-   "병합 충돌이 있습니다" 안내 · 무엇을 어디에 합치는 중인지 · 충돌 파일 목록과 [모두 해결됨으로 표시] · 해결한 파일 목록.
-   목록 높이는 줄 수에 맞춰 코드가 정한다. 경고색은 테마의 --git-warning, 모두 풀면 --git-success. */
+   상태 카드(OperationCard, GitWindow.uss) · 충돌 파일 목록과 [모두 해결됨으로 표시] · 해결한 파일 목록.
+   목록 높이는 줄 수에 맞춰 코드가 정한다. */
 .staging-conflict {
     flex-shrink: 0;
     border-bottom-width: 1px;
     border-bottom-color: var(--git-border);
-}
-
-.staging-conflict__alert {
-    margin: 8px 8px 0 8px;
-    padding: 6px 10px;
-    border-width: 1px;
-    border-radius: var(--git-radius);
-    border-color: var(--git-warning);
-    background-color: rgba(224, 160, 48, 0.16);
-    color: var(--git-text-strong);
-    font-size: 12px;
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
-    -unity-text-align: middle-center;
-    white-space: normal;
-}
-
-.staging-conflict--resolved .staging-conflict__alert {
-    border-color: var(--git-success);
-    background-color: rgba(95, 184, 101, 0.16);
-}
-
-.staging-conflict__detail {
-    margin: 4px 8px 4px 8px;
-    color: var(--git-text-muted);
-    font-size: 11px;
-    -unity-text-align: middle-center;
-    white-space: normal;
 }
 
 .staging .list-header.staging-conflict__header {
@@ -319,6 +292,33 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* 작업이 멈춘 동안 Amend 자리에 오는 [병합 중단]·[건너뛰기]: 테두리 없는 글자 단추로 두어 강조색 [병합 마치기] 하나만 눈에 띄게 한다. */
+.commit-box__link {
+    height: 26px;
+    margin: 0 4px 0 0;
+    padding: 0 8px;
+    border-width: 0;
+    border-radius: var(--git-radius);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text-muted);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.commit-box__link:hover:enabled {
+    color: var(--git-text);
+    background-color: var(--git-hover);
+}
+
+.commit-box__link--danger,
+.commit-box__link--danger:hover:enabled {
+    color: var(--git-danger);
+}
+
+.commit-box__link:disabled {
+    opacity: 0.45;
 }
 
 .commit-box__button {

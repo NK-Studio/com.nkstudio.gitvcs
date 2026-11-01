@@ -32,6 +32,9 @@ namespace GitVersionControl
         private readonly VisualElement _authorNotice;
         private readonly Button _commitButton;
         private readonly Button _discardButton;
+        private readonly Button _abortButton;
+        private readonly Button _skipButton;
+        private readonly OperationCard _operationCard;
         private readonly Button _detailsButton;
         private readonly TwoPaneSplitView _detailsSplit;
         private readonly GitDiffPanel _diff;
@@ -49,7 +52,7 @@ namespace GitVersionControl
         private string _template;
         private GitOperationKind _seenOperation;
 
-        /// <summary>마지막으로 채운 준비 메시지. 작업이 배너(이어가기·취소)로 끝났는데 그대로 남아 있으면 템플릿으로 되돌린다.</summary>
+        /// <summary>마지막으로 채운 준비 메시지. 작업이 커밋 없이(rebase 이어가기·중단) 끝났는데 그대로 남아 있으면 템플릿으로 되돌린다.</summary>
         private string _preparedMessage;
 
         public override string Title => GitText.Get("tab.pending");
@@ -73,6 +76,9 @@ namespace GitVersionControl
             _authorNotice = Root.Require<VisualElement>("author-notice");
             _commitButton = Root.Require<Button>("commit-button");
             _discardButton = Root.Require<Button>("discard-button");
+            _abortButton = Root.Require<Button>("operation-abort-button");
+            _skipButton = Root.Require<Button>("operation-skip-button");
+            _operationCard = new OperationCard(Root.Require<VisualElement>("operation-card-host"), services);
             _detailsButton = Root.Require<Button>("details-button");
             _detailsSplit = Root.Require<TwoPaneSplitView>("details-split");
             _message.textEdition.placeholder = GitText.Get("pending.commitTitle");
@@ -152,7 +158,9 @@ namespace GitVersionControl
                     _message.value = TemplateText();
                 }
             });
-            _commitButton.clicked += Commit;
+            _commitButton.clicked += OnCommitClicked;
+            _abortButton.clicked += () => OperationActions.Abort(Services);
+            _skipButton.clicked += () => OperationActions.Skip(Services);
             _discardButton.clicked += () => Discard(_selection.CheckedEntries());
             _detailsButton.clicked += () =>
             {
@@ -352,9 +360,29 @@ namespace GitVersionControl
             bool hasAuthor = string.IsNullOrEmpty(repository.UserName) == false && string.IsNullOrEmpty(repository.UserEmail) == false;
             _authorNotice.SetVisible(hasAuthor == false);
 
+            bool idle = Services.Runner.IsBusy == false;
+            _discardButton.SetEnabled(idle && selected > 0);
+            _operationCard.Render();
+            GitOperationKind operation = repository.IsRepository ? repository.InProgressOperation : GitOperationKind.None;
+            _abortButton.SetVisible(operation != GitOperationKind.None);
+            _skipButton.SetVisible(GitInProgress.CanSkip(operation));
+            if (operation != GitOperationKind.None)
+            {
+                // 멈춘 작업을 마치는 버튼(CommitBox 와 같다). 병합 커밋은 체크와 상관없이 인덱스 전체로 한다(GitOperations.CommitAsync).
+                string blocker = GitInProgress.ContinueBlocker(operation, repository.Entries);
+                _commitButton.text = OperationActions.FinishLabel(operation);
+                _commitButton.tooltip = OperationActions.FinishTooltip(operation, blocker);
+                _commitButton.SetEnabled(idle && hasAuthor && blocker == null
+                                         && (GitInProgress.RequiresFullCommit(operation) == false || MessageToCommit().Length > 0));
+                _abortButton.text = OperationActions.AbortLabel(operation);
+                _abortButton.tooltip = OperationActions.AbortTooltip(operation);
+                _abortButton.SetEnabled(idle);
+                _skipButton.SetEnabled(idle);
+                return;
+            }
+            _commitButton.tooltip = string.Empty;
             _commitButton.text = GitText.Format("pending.commitButton", selected);
-            _commitButton.SetEnabled(Services.Runner.IsBusy == false && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
-            _discardButton.SetEnabled(Services.Runner.IsBusy == false && selected > 0);
+            _commitButton.SetEnabled(idle && hasAuthor && selected > 0 && MessageToCommit().Length > 0);
         }
 
         // ── 검색 ─────────────────────────────────────────
@@ -576,7 +604,7 @@ namespace GitVersionControl
 
         /// <summary>
         /// 멈춘 병합·cherry-pick·revert 는 이 커밋으로 끝난다. 그 작업이 보이기 시작할 때 비어 있는(템플릿 그대로인) 메시지 칸에
-        /// git 이 준비한 메시지(MERGE_MSG)를 채운다. 사용자가 쓴 글은 덮지 않는다. 작업이 커밋 없이 끝나면(배너의 이어가기·취소) 손대지 않은 그 메시지를 거둔다.
+        /// git 이 준비한 메시지(MERGE_MSG)를 채운다. 사용자가 쓴 글은 덮지 않는다. 작업이 커밋 없이 끝나면(rebase 이어가기·중단) 손대지 않은 그 메시지를 거둔다.
         /// </summary>
         private void FillPreparedMessage()
         {
@@ -598,6 +626,17 @@ namespace GitVersionControl
                 _message.value = message;
                 _preparedMessage = message;
             }
+        }
+
+        private void OnCommitClicked()
+        {
+            GitOperationKind operation = Services.Repository.InProgressOperation;
+            if (operation != GitOperationKind.None && GitInProgress.RequiresFullCommit(operation) == false)
+            {
+                OperationActions.Continue(Services);
+                return;
+            }
+            Commit();
         }
 
         private async void Commit()
