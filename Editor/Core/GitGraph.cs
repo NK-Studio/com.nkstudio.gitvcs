@@ -86,8 +86,15 @@ namespace GitVersionControl
         /// 어느 스레드에서나 부를 수 있다. 커밋·브랜치가 수천 개면 수십 ms 가 걸리므로 창은 작업 스레드에서 만든다.
         /// </summary>
         /// <param name="anonymousLaneName">병합 메시지에서 이름을 찾지 못한 줄의 이름.</param>
-        /// <param name="currentFirst">true 면 지금 브랜치 줄을 맨 앞 줄(세로 그래프의 맨 왼쪽 열)에 둔다(GitKraken·Fork). false 면 main 이 앞이다(Branch Explorer).</param>
-        public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName, bool currentFirst = false)
+        /// <param name="topDown">
+        /// 세로 그래프(GitKraken): 위(새 커밋)부터 차례로 열을 준다 — 맨 위 끝 커밋의 브랜치가 첫 부모를 따라 내려가는 줄을 갖고 맨 왼쪽 열을 차지하며,
+        /// 다른 가지는 끝 커밋이 위에 있는 차례로 그 오른쪽 열에 놓인다. false 면 main 이 앞이다(Branch Explorer).
+        /// </param>
+        /// <param name="headFirst">
+        /// <paramref name="topDown"/> 에서 지금 브랜치를 맨 위 커밋처럼 친다 — 작업 중 줄(WIP)이 그래프 맨 위에서 지금 브랜치에 이어질 때(GitKraken 과 같다).
+        /// </param>
+        public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName,
+            bool topDown = false, bool headFirst = false)
         {
             GitGraph graph = new();
             graph.Branches.AddRange(branches);
@@ -105,27 +112,31 @@ namespace GitVersionControl
                 graph.NodeByHash[commit.Hash] = node;
             }
 
-            graph.AssignNamedLanes(branches);
+            graph.AssignNamedLanes(branches, topDown, headFirst);
             graph.AssignAnonymousLanes(anonymousLaneName);
             graph.CollectRefLabels();
             graph.BuildEdges();
-            graph.PackRows(currentFirst);
+            graph.PackRows(topDown, headFirst);
             return graph;
         }
 
         /// <summary>원격 브랜치 이름("github/main"). 참조 꼬리표가 원격인지 가른다.</summary>
         private readonly HashSet<string> _remoteBranchNames = new();
 
-        private void AssignNamedLanes(List<GitBranchRef> branches)
+        private void AssignNamedLanes(List<GitBranchRef> branches, bool topDown, bool headFirst)
         {
             foreach (GitBranchRef branch in branches.Where(b => b.IsRemote))
             {
                 _remoteBranchNames.Add(branch.Name);
             }
-            IEnumerable<GitBranchRef> ordered = branches
-                .Where(b => string.IsNullOrEmpty(b.Hash) == false)
-                .OrderBy(BranchPriority)
-                .ThenByDescending(b => b.Date);
+            // 먼저 놓인 브랜치가 첫 부모를 따라가며 공통 조상(줄기)을 차지한다. 세로 그래프는 GitKraken 처럼 끝 커밋이 위에 있는 브랜치부터
+            // (작업 중 줄이 있으면 지금 브랜치부터), Branch Explorer 는 main·지금 브랜치부터.
+            IEnumerable<GitBranchRef> withTip = branches.Where(b => string.IsNullOrEmpty(b.Hash) == false);
+            IEnumerable<GitBranchRef> ordered = topDown
+                ? withTip.OrderBy(b => headFirst && b.IsCurrent && b.IsRemote == false ? 0 : 1)
+                    .ThenByDescending(TipColumn)
+                    .ThenBy(BranchPriority)
+                : withTip.OrderBy(BranchPriority).ThenByDescending(b => b.Date);
 
             foreach (GitBranchRef branch in ordered)
             {
@@ -137,6 +148,12 @@ namespace GitVersionControl
                 };
                 WalkFirstParents(branch.Hash, lane);
             }
+        }
+
+        /// <summary>브랜치 끝 커밋의 칸(클수록 새 커밋 = 세로 그래프에서 위). 읽은 범위 밖이면 -1.</summary>
+        private int TipColumn(GitBranchRef branch)
+        {
+            return NodeByHash.TryGetValue(branch.Hash, out GitGraphNode node) ? node.Column : -1;
         }
 
         private static int BranchPriority(GitBranchRef branch)
@@ -295,13 +312,14 @@ namespace GitVersionControl
         /// <summary>
         /// 줄을 화면 줄에 채운다. 우선순위 순서대로, 기간(+여백)이 겹치지 않는 가장 위 줄에 놓는다.
         /// 브랜치가 많아도 그래프가 아래로만 끝없이 길어지지 않게 한다.
-        /// <paramref name="currentFirst"/> 면 지금 브랜치 줄을 먼저 놓아 0번 줄을 차지하게 한다 — 다른 가지는 모두 그 오른쪽으로 갈라져 나간다.
+        /// <paramref name="topDown"/> 면 GitKraken 처럼 끝 커밋이 위에 있는 줄부터 놓는다 — 맨 위 줄이 0번(맨 왼쪽 열)을 차지하고,
+        /// <paramref name="headFirst"/> 면 지금 브랜치 줄이 먼저다(작업 중 줄이 그 위에 있다).
         /// </summary>
-        private void PackRows(bool currentFirst)
+        private void PackRows(bool topDown, bool headFirst)
         {
             List<List<GitGraphLane>> rows = new();
-            IEnumerable<GitGraphLane> order = currentFirst
-                ? Lanes.Where(lane => lane.IsCurrent && lane.IsRemote == false).Concat(Lanes.Where(lane => lane.IsCurrent == false || lane.IsRemote))
+            IEnumerable<GitGraphLane> order = topDown
+                ? Lanes.OrderBy(lane => headFirst && lane.IsCurrent && lane.IsRemote == false ? 0 : 1).ThenByDescending(lane => lane.LastColumn)
                 : Lanes;
             // 줄이 차지하는 기간. 갈라져 나온 지점(부모)과 같은 칸에 붙지 않도록 앞뒤로 한 칸 여유를 둔다.
             // 가지 선은 갈라진 부모·들어가는 병합 커밋까지 그 줄 위로 길게 그어지므로(세로·가로 그래프 모두) 그 칸까지 친다 —

@@ -172,7 +172,11 @@ namespace GitVersionControl
             {
                 // 멈춘 작업을 마치는 버튼: 충돌이 남았으면 막고 까닭을 툴팁에 둔다. 병합처럼 커밋으로 끝나면 제목이 있어야 한다(rebase 는 git 이 준비한 메시지를 쓴다).
                 string blocker = GitInProgress.ContinueBlocker(operation, repository.Entries);
-                _commitButton.text = OperationActions.FinishLabel(operation);
+                if (blocker == null && operation == GitOperationKind.Merge)
+                {
+                    blocker = OperationActions.MergeCommitBlocker(repository.Entries, _stagedCount);
+                }
+                _commitButton.text = operation == GitOperationKind.Merge ? OperationActions.MergeCommitLabel(_stagedCount) : OperationActions.FinishLabel(operation);
                 _commitButton.tooltip = OperationActions.FinishTooltip(operation, blocker);
                 _commitButton.SetEnabled(_services.Runner.IsBusy == false && hasAuthor && blocker == null
                                          && (GitInProgress.RequiresFullCommit(operation) == false || HasSubject()));

@@ -23,6 +23,13 @@
                         </ui:Button>
                         <ui:Label name="wip-title" class="graph-workspace__panel-title" />
                     </ui:VisualElement>
+                    <!-- 병합하는 동안 머리 줄 밑: "[들어오는 브랜치] → [지금 브랜치] 병합 중"(GitKraken 의 Merging A into B). -->
+                    <ui:VisualElement name="merge-info" class="graph-workspace__merge-info">
+                        <ui:Label name="merge-incoming" class="graph-workspace__merge-ref graph-workspace__merge-ref--incoming" />
+                        <ui:Label name="merge-arrow" class="graph-workspace__merge-text" />
+                        <ui:Label name="merge-target" class="graph-workspace__merge-ref graph-workspace__merge-ref--target" />
+                        <ui:Label name="merge-suffix" class="graph-workspace__merge-text" />
+                    </ui:VisualElement>
                     <ui:VisualElement name="staging-host" class="graph-workspace__fill" />
                     <ui:VisualElement name="commit-host" class="graph-workspace__commit" />
                 </ui:VisualElement>

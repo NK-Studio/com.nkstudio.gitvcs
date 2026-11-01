@@ -284,7 +284,7 @@ namespace GitVersionControl
             string key = CurrentKey;
             Render();
 
-            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, SinceOf(_state.RangeIndex), MaxCommits, currentFirst: true);
+            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, SinceOf(_state.RangeIndex), MaxCommits, topDown: true);
             _isLoading = false;
             _loadedKey = key;
 

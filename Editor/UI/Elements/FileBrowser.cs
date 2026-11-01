@@ -209,6 +209,17 @@ namespace GitVersionControl
         {
             _binder.ActionText = text;
             _binder.ActionModifier = modifier;
+            _binder.ActionOf = null;
+            _rowAction = action;
+            Refresh();
+        }
+
+        /// <summary>줄마다 글자·모양이 다른 줄 버튼(<see cref="FileRowBinder.ActionOf"/>). 모양 클래스가 null 인 줄에는 버튼이 없다.</summary>
+        public void SetRowAction(Func<FileListItem, (string text, string modifier)> actionOf, Action<FileListItem> action)
+        {
+            _binder.ActionText = null;
+            _binder.ActionModifier = null;
+            _binder.ActionOf = actionOf;
             _rowAction = action;
             Refresh();
         }

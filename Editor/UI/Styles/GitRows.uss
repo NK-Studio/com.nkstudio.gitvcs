@@ -100,8 +100,27 @@
 }
 
 .file-row:hover .file-row__action--stage,
-.file-row:hover .file-row__action--unstage {
+.file-row:hover .file-row__action--unstage,
+.file-row:hover .file-row__action--resolve {
     display: flex;
+}
+
+/* 충돌 파일 줄의 "해결됨으로 표시"(GitKraken 의 Mark resolved): [모두 해결됨으로 표시] 와 같은 경고색. */
+.file-row .file-row__action--resolve {
+    border-color: var(--git-warning);
+    background-color: var(--git-warning-soft);
+    color: var(--git-text);
+}
+
+.file-row .file-row__action--resolve:hover:enabled {
+    background-color: var(--git-warning-strong);
+    color: var(--git-on-strong);
+    border-color: var(--git-warning-strong);
+}
+
+.file-row .file-row__action--resolve:active:enabled {
+    background-color: var(--git-warning-strong-pressed);
+    border-color: var(--git-warning-strong-pressed);
 }
 
 .file-row .file-row__action--stage {

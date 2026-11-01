@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -43,6 +45,14 @@ namespace GitVersionControl
         private string _staleModifier;
 
         /// <summary>
+        /// 줄마다 버튼이 다를 때(충돌 목록: 충돌 파일은 "해결됨으로 표시", 그 밖의 변경은 "Stage File"). 정하면 <see cref="ActionText"/>·<see cref="ActionModifier"/> 대신 쓴다.
+        /// 돌려준 모양 클래스는 모두 기억해 두었다가 다른 줄에 다시 묶을 때 뗀다.
+        /// </summary>
+        public Func<FileListItem, (string text, string modifier)> ActionOf { get; set; }
+
+        private readonly HashSet<string> _perItemModifiers = new();
+
+        /// <summary>
         /// 줄 버튼을 누를 수 있는지. git 작업 중(그 결과가 보이기 전)에는 끈다.
         /// </summary>
         public bool ActionEnabled { get; set; } = true;
@@ -82,13 +92,13 @@ namespace GitVersionControl
             note.RemoveFromClassList(CountModifier);
             note.text = item.Note ?? string.Empty;
             note.SetVisible(string.IsNullOrEmpty(item.Note) == false);
-            BindAction(row, isFile: true);
+            BindAction(row, item);
         }
 
         /// <summary>
         /// 줄 버튼: 파일 줄이고 쓰는 쪽이 정했으면 글자·모양 클래스를 붙인다(폴더 줄에는 없다).
         /// </summary>
-        private void BindAction(VisualElement row, bool isFile)
+        private void BindAction(VisualElement row, FileListItem item)
         {
             Button action = row.Q<Button>("action");
             if (action == null)
@@ -99,12 +109,26 @@ namespace GitVersionControl
             {
                 action.RemoveFromClassList(_staleModifier);
             }
-            if (ActionModifier == null)
+            foreach (string each in _perItemModifiers)
+            {
+                action.RemoveFromClassList(each);
+            }
+            string text = ActionText;
+            string modifier = ActionModifier;
+            if (ActionOf != null && item != null)
+            {
+                (text, modifier) = ActionOf(item);
+                if (modifier != null)
+                {
+                    _perItemModifiers.Add(modifier);
+                }
+            }
+            if (modifier == null)
             {
                 return;
             }
-            action.text = ActionText;
-            action.EnableInClassList(ActionModifier, isFile);
+            action.text = text;
+            action.EnableInClassList(modifier, item != null);
             action.SetEnabled(ActionEnabled);
         }
 
@@ -135,7 +159,7 @@ namespace GitVersionControl
             note.AddToClassList(CountModifier);
             note.text = folder.FileCount.ToString();
             note.SetVisible(true);
-            BindAction(row, isFile: false);
+            BindAction(row, null);
         }
 
         /// <summary>

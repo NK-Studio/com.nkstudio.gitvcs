@@ -79,13 +79,19 @@ namespace GitVersionControl
         private readonly FileBrowser _conflicts;
         private readonly FileBrowser _resolved;
         private List<GitStatusEntry> _conflictEntries = new();
+
+        /// <summary>
+        /// "충돌 파일" 목록에 보이는 것: 충돌 파일 + Stage 하지 않은 변경(GitKraken 과 같다 — 푼 파일을 Unstage 하면 다시 여기로 온다).
+        /// 충돌 파일에는 "해결됨으로 표시", 그 밖의 변경에는 "Stage File" 줄 버튼.
+        /// </summary>
+        private List<GitStatusEntry> _conflictListEntries = new();
         private List<GitStatusEntry> _resolvedEntries = new();
         private GitStatusEntry _selectedConflict;
         private GitStatusEntry _selectedResolved;
 
         /// <summary>
-        /// 충돌을 푸는 중인지(충돌이 남았거나, 작업이 멈춘 채 이번에 푼 파일이 있다). 그동안은 GitKraken 처럼
-        /// Unstaged 자리가 "충돌 파일"(+ 모두 해결됨으로 표시), Staged 자리가 "해결한 파일" 이 된다.
+        /// 충돌을 푸는 중인지(충돌이 남았거나, 충돌로 멈춘 작업이 아직 끝나지 않았다). 그동안은 GitKraken 처럼
+        /// Unstaged 자리가 "충돌 파일"(+ 모두 해결됨으로 표시), Staged 자리가 "해결한 파일" 이 된다. 다 풀어도 작업을 마치거나 중단할 때까지 그대로다.
         /// </summary>
         private bool _conflictMode;
 
@@ -150,10 +156,31 @@ namespace GitVersionControl
             {
                 _unstaged.SetRowAction(null, null, null);
                 _staged.SetRowAction(null, null, null);
+                _conflicts?.SetRowAction(null, null, null);
                 return;
             }
             _unstaged.SetRowAction(GitText.Get("staging.stageFile"), "file-row__action--stage", item => Stage(new[] { (GitStatusEntry)item.Source }));
             _staged.SetRowAction(GitText.Get("staging.unstageFile"), "file-row__action--unstage", item => Unstage(new[] { (GitStatusEntry)item.Source }));
+            // 충돌 파일 목록: 충돌 파일은 "해결됨으로 표시"(GitKraken 의 Mark resolved), 푼 뒤 Unstage 한 파일 등은 "Stage File".
+            _conflicts?.SetRowAction(
+                item => IsConflict(item) ? (GitText.Get("conflict.resolveOne"), "file-row__action--resolve") : (GitText.Get("staging.stageFile"), "file-row__action--stage"),
+                item =>
+                {
+                    GitStatusEntry entry = (GitStatusEntry)item.Source;
+                    if (entry.State == GitFileState.Conflicted)
+                    {
+                        Resolve(new List<GitStatusEntry> { entry }, GitText.Get("conflict.opResolveOne"));
+                    }
+                    else
+                    {
+                        Stage(new[] { entry });
+                    }
+                });
+        }
+
+        private static bool IsConflict(FileListItem item)
+        {
+            return item.Source is GitStatusEntry { State: GitFileState.Conflicted };
         }
 
         private bool _shiftForAll;
@@ -237,6 +264,15 @@ namespace GitVersionControl
             _conflicts = new FileBrowser(_conflictFilesHost, null, services)
             {
                 DiffTargetOf = item => GitDiffTarget.ForStaging((GitStatusEntry)item.Source, staged: false),
+                // 충돌 아닌 변경은 Unstaged 목록처럼 더블클릭·Enter 로 Stage 한다. 충돌 파일은 병합 편집기에서 푼다.
+                ChooseAction = item =>
+                {
+                    if (IsConflict(item) == false)
+                    {
+                        Stage(new[] { (GitStatusEntry)item.Source });
+                    }
+                },
+                SpaceAction = IgnoreSpace,
                 FileMenu = PopulateConflictMenu,
             };
             _resolved = new FileBrowser(_resolvedFilesHost, null, services)
@@ -246,6 +282,7 @@ namespace GitVersionControl
             };
             _conflicts.ShowExpandToggle = false;
             _resolved.ShowExpandToggle = false;
+            ApplyRowActions();
             _conflicts.SelectionChanged += item => OnConflictSelected(item, resolved: false);
             _resolved.SelectionChanged += item => OnConflictSelected(item, resolved: true);
             // 트리 보기면 폴더 줄도 있고 펼치고 접을 때마다 줄 수가 바뀌므로, 보이는 줄 수가 바뀔 때마다 칸 높이를 다시 맞춘다.
@@ -553,7 +590,7 @@ namespace GitVersionControl
             bool hadSelection = _selectedUnstaged.Count > 0 || _selectedStaged.Count > 0 || _selectedConflict != null || _selectedResolved != null;
             _selectedUnstaged = StillPresent(_selectedUnstaged, _unstagedEntries);
             _selectedStaged = StillPresent(_selectedStaged, _stagedEntries);
-            _selectedConflict = StillPresent(_selectedConflict, _conflictEntries);
+            _selectedConflict = StillPresent(_selectedConflict, _conflictListEntries);
             _selectedResolved = StillPresent(_selectedResolved, _resolvedEntries);
             Render();
             if (hadSelection && _selectedUnstaged.Count == 0 && _selectedStaged.Count == 0 && _selectedConflict == null && _selectedResolved == null)
@@ -646,6 +683,7 @@ namespace GitVersionControl
             // 줄 hover 버튼(Stage File·Unstage File)도 작업 결과가 보일 때까지 끈다.
             _unstaged.SetRowActionEnabled(idle);
             _staged.SetRowActionEnabled(idle);
+            _conflicts.SetRowActionEnabled(idle);
             _resolveAllButton.SetEnabled(idle && _conflictEntries.Count > 0);
         }
 
@@ -814,22 +852,23 @@ namespace GitVersionControl
             }
             _conflictSeen.UnionWith(conflicts.Select(e => e.RepoPath));
 
+            // GitKraken 처럼 Unstaged 자리가 "충돌 파일 (n)", Staged 자리가 "해결한 파일 (n)" 이 된다(따로 구역을 늘리지 않는다).
+            // 충돌로 멈춘 작업이 끝날 때까지(마치거나 중단) 그대로다 — 다 풀어도, 푼 파일을 모두 Unstage 해도 "충돌 파일" 로 남는다.
+            _conflictMode = conflicts.Count > 0 || (kind != GitOperationKind.None && _conflictSeen.Count > 0);
             _conflictEntries = conflicts;
+            // "충돌 파일" 목록에는 Stage 하지 않은 변경도 함께 둔다(GitKraken 과 같다 — 푼 파일을 Unstage 하면 연필 표시로 여기 돌아온다).
+            _conflictListEntries = _conflictMode ? conflicts.Concat(Filtered(_unstagedEntries)).ToList() : conflicts;
             _resolvedEntries = _stagedEntries.Where(e => _conflictSeen.Contains(e.RepoPath)).ToList();
-            _conflicts.SetItems(FileListItem.FromStatus(_conflictEntries));
+            _conflicts.SetItems(FileListItem.FromStatus(_conflictListEntries));
             _resolved.SetItems(FileListItem.FromStatus(_resolvedEntries));
 
-            // GitKraken 처럼 Unstaged 자리가 "충돌 파일 (n)", Staged 자리가 "해결한 파일 (n)" 이 된다(따로 구역을 늘리지 않는다).
-            // 다 풀어도 작업을 마칠 때까지는 "충돌 파일 (0)" 으로 남겨 어디서 무엇을 푸는지 이어 보이게 한다.
-            _conflictMode = conflicts.Count > 0 || (kind != GitOperationKind.None && _resolvedEntries.Count > 0);
-            // 충돌을 푸는 동안은 GitKraken 처럼 충돌 아닌 변경(중간에 Unstage 한 해결 파일 등)은 보이지 않는다 — 충돌 파일과 해결한 파일만.
             _conflictHeader.SetVisible(_conflictMode);
             _conflictFilesHost.SetVisible(_conflictMode);
             _unstagedHeader.SetVisible(_conflictMode == false);
             _unstagedFilesHost.SetVisible(_conflictMode == false);
             _resolvedHeader.SetVisible(false);
             _resolvedFilesHost.SetVisible(false);
-            _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictEntries.Count);
+            _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictListEntries.Count);
 
             _resolvedUnchanged = _conflictMode
                 ? _conflictSeen.Where(path => conflicts.All(e => e.RepoPath != path) && _stagedEntries.All(e => e.RepoPath != path) && _unstagedEntries.All(e => e.RepoPath != path))
@@ -952,20 +991,25 @@ namespace GitVersionControl
         /// 충돌 파일을 모두 지금 내용 그대로 해결됨으로 표시한다(<see cref="GitInProgress.ResolveAsync"/>, <see cref="GitConflictSide.AsIs"/>).
         /// 충돌 표시가 남은 파일이 있으면 그대로 올릴지 한 번 묻는다.
         /// </summary>
-        private async void ResolveAll()
+        private void ResolveAll()
         {
-            if (_services.Runner.IsBusy || _conflictEntries.Count == 0)
+            Resolve(_conflictEntries.ToList(), GitText.Get("conflict.opResolveAll"));
+        }
+
+        /// <summary>충돌 파일을 지금 내용 그대로 해결됨으로 표시한다(git add). 충돌 표시가 남은 파일이 있으면 그대로 올릴지 한 번 묻는다.</summary>
+        private async void Resolve(List<GitStatusEntry> targets, string title)
+        {
+            if (_services.Runner.IsBusy || targets.Count == 0)
             {
                 return;
             }
-            List<GitStatusEntry> targets = _conflictEntries.ToList();
             List<string> marked = GitInProgress.WithConflictMarkers(targets, GitRepository.RepoRoot);
             if (marked.Count > 0 && await _services.Dialogs.ConfirmAsync(GitText.Get("conflict.resolveAll"),
                     GitText.Format("conflict.resolveAllMarkersConfirm", GitInProgress.ListPaths(marked)), GitText.Get("conflict.resolveAll"), danger: true) == false)
             {
                 return;
             }
-            _ = _services.Runner.RunAsync(GitText.Get("conflict.opResolveAll"), async () =>
+            _ = _services.Runner.RunAsync(title, async () =>
             {
                 GitResult last = new(0, string.Empty, string.Empty);
                 foreach (GitStatusEntry entry in targets)

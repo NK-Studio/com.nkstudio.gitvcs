@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GitVersionControl
 {
     /// <summary>
@@ -12,6 +14,28 @@ namespace GitVersionControl
         {
             string name = GitInProgress.DisplayName(kind);
             return GitInProgress.RequiresFullCommit(kind) ? GitText.Format("inprogress.finish", name) : GitText.Format("inprogress.opContinue", name);
+        }
+
+        /// <summary>
+        /// 병합을 마치는 버튼 글자(GitKraken 과 같다): Stage 한 변경이 있으면 "커밋하고 병합", 없으면 "병합할 변경 없음".
+        /// </summary>
+        public static string MergeCommitLabel(int stagedCount)
+        {
+            return GitText.Get(stagedCount > 0 ? "inprogress.commitAndMerge" : "inprogress.noChangesToMerge");
+        }
+
+        /// <summary>
+        /// 충돌을 다 푼 병합을 커밋으로 마치지 못하는 까닭(GitKraken 과 같다): "충돌 파일" 목록에 Stage 하지 않은 변경이 남았거나, Stage 한 변경이 없다.
+        /// 막을 것이 없으면 null.
+        /// </summary>
+        public static string MergeCommitBlocker(IReadOnlyList<GitStatusEntry> entries, int stagedCount)
+        {
+            int unstaged = GitStaging.Unstaged(entries).Count;
+            if (unstaged > 0)
+            {
+                return GitText.Format("inprogress.blockedUnstagedMerge", unstaged);
+            }
+            return stagedCount > 0 ? null : GitText.Get("inprogress.blockedNoChanges");
         }
 
         /// <summary>마치기 버튼 툴팁. 막혔으면 그 까닭.</summary>

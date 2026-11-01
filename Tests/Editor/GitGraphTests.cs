@@ -253,17 +253,34 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_Build_CurrentFirst_PutsCurrentLaneInFirstRow()
+        public void Test_Build_TopDownHeadFirst_PutsCurrentLaneInFirstRow()
         {
             // A ─ B ─ C (master, 오래됨)
-            //          └─ D ─ E (current)
-            //              └─ F (feature, 짧은 가지)
-            GitGraph graph = GitGraph.Build(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Commit("D", "C"), Commit("F", "D"), Commit("E", "D") }.Reverse().ToList(),
+            //          └─ D ─ F (feature, 맨 위)
+            //              └─ E (current, 작업 중 줄이 그 위에 있다)
+            GitGraph graph = GitGraph.Build(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Commit("D", "C"), Commit("E", "D"), Commit("F", "D") }.Reverse().ToList(),
                 new List<GitBranchRef> { Branch("master", "B", days: 1), Branch("current", "E", isCurrent: true, days: 5), Branch("feature", "F", days: 4) },
-                "E", "merged", currentFirst: true);
+                "E", "merged", topDown: true, headFirst: true);
 
             Assert.AreEqual(0, LaneNamed(graph, "current").Row);
+            Assert.AreEqual("current", graph.NodeByHash["C"].Lane.Name, "작업 중 줄이 있으면 지금 브랜치가 줄기를 차지한다");
             Assert.AreNotEqual(0, LaneNamed(graph, "feature").Row);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_TopmostTipTakesFirstRowAndTrunk()
+        {
+            // GitKraken: 작업 중 줄이 없으면 맨 위 커밋의 브랜치가 맨 왼쪽 열과 줄기를 갖는다. 지금 브랜치라도 끝 커밋이 아래면 오른쪽 열.
+            // A ─ B (base)
+            //      ├─ C ─ D (current)
+            //      └─ E (feature, 맨 위)
+            GitGraph graph = GitGraph.Build(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Commit("D", "C"), Commit("E", "B") }.Reverse().ToList(),
+                new List<GitBranchRef> { Branch("current", "D", isCurrent: true, days: 2), Branch("feature", "E", days: 1) },
+                "D", "merged", topDown: true);
+
+            Assert.AreEqual(0, LaneNamed(graph, "feature").Row);
+            Assert.AreEqual("feature", graph.NodeByHash["B"].Lane.Name);
+            Assert.AreEqual(1, LaneNamed(graph, "current").Row);
         }
 
         private static GitGraph Build(GitCommitInfo[] commitsOldestFirst, GitBranchRef[] branches, string headHash)

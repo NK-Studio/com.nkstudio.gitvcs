@@ -14,8 +14,10 @@ namespace GitVersionControl
         /// 메인 스레드에서 부른다. 끝나면 메인 스레드로 돌아온다(에디터의 동기화 컨텍스트).
         /// </summary>
         /// <param name="headHash">없으면(커밋 없는 저장소) 커밋은 읽지 않는다.</param>
-        /// <param name="currentFirst">세로 그래프: 지금 브랜치 줄을 맨 왼쪽 열에 둔다(<see cref="GitGraph.Build(List{GitCommitInfo}, List{GitBranchRef}, string, string, bool)"/>).</param>
-        public static async Task<(GitGraph graph, string error)> LoadAsync(IGitHistoryService history, string headHash, DateTime? since, int maxCommits, bool currentFirst = false)
+        /// <param name="topDown">세로 그래프: GitKraken 처럼 위부터 열을 준다(<see cref="GitGraph.Build(List{GitCommitInfo}, List{GitBranchRef}, string, string, bool, bool)"/>).</param>
+        /// <param name="headFirst">작업 중 줄이 맨 위에 있어 지금 브랜치가 맨 왼쪽 열을 차지한다.</param>
+        public static async Task<(GitGraph graph, string error)> LoadAsync(IGitHistoryService history, string headHash, DateTime? since, int maxCommits,
+            bool topDown = false, bool headFirst = false)
         {
             // GitText 는 메인 스레드 전용이라 여기서 읽어 넘긴다.
             string anonymousLaneName = GitText.Get("graph.mergedBranch");
@@ -29,7 +31,7 @@ namespace GitVersionControl
                 Task<(List<GitBranchRef> branches, string error)> branchTask = history.BranchesAsync();
                 (List<GitCommitInfo> commits, string logError) = await logTask;
                 (List<GitBranchRef> branches, string branchError) = await branchTask;
-                GitGraph graph = GitGraph.Build(commits, branches, headHash, anonymousLaneName, currentFirst);
+                GitGraph graph = GitGraph.Build(commits, branches, headHash, anonymousLaneName, topDown, headFirst);
                 return (graph, logError ?? branchError);
             });
         }

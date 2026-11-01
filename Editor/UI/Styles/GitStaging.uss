@@ -401,6 +401,59 @@
     color: var(--git-text);
 }
 
+/* 병합하는 동안 제목 앞 경고 삼각형과 머리 줄 밑 "[들어오는 브랜치] → [지금 브랜치] 병합 중"(GitKraken 과 같다). */
+.graph-workspace__merge-warning {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    margin: 0 6px 0 0;
+    color: var(--git-warning);
+}
+
+/* 병합하는 동안(머리 줄에 --merging): 경고 삼각형과 제목을 한 덩어리로 가운데에 둔다. */
+.graph-workspace__panel-header--merging > .graph-workspace__merge-warning {
+    margin-left: auto;
+}
+
+.graph-workspace__panel-header--merging > .graph-workspace__panel-title {
+    flex-grow: 0;
+    margin: 0 auto 0 0;
+    padding-right: 30px;
+}
+
+.graph-workspace__merge-info {
+    flex-shrink: 0;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+}
+
+.graph-workspace__merge-ref {
+    padding: 1px 6px;
+    margin: 1px 0;
+    border-radius: 3px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
+    color: var(--git-on-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.graph-workspace__merge-ref--incoming {
+    background-color: #2f5fa8;
+}
+
+.graph-workspace__merge-ref--target {
+    background-color: #1f7a74;
+}
+
+.graph-workspace__merge-text {
+    margin: 0 6px;
+    color: var(--git-text-secondary);
+}
+
 /* 휴지통: 되돌릴 수 없는 작업이라 위험 색 테두리로 구분한다(GitKraken 과 같다). 그림은 흰 Material "delete" 를 글자색으로 물들인다. */
 .graph-workspace__discard-all {
     flex-shrink: 0;

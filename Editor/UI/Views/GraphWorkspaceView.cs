@@ -29,6 +29,13 @@ namespace GitVersionControl
         private readonly VisualElement _wipPanel;
         private readonly VisualElement _detailHost;
         private readonly Label _wipTitle;
+        private readonly WarningGlyph _mergeWarning;
+        private readonly VisualElement _mergeInfo;
+        private readonly Label _mergeIncoming;
+        private readonly Label _mergeTarget;
+
+        /// <summary>이름을 읽어 둔 MERGE_HEAD. 같은 병합이면 git 을 다시 부르지 않는다.</summary>
+        private string _mergeNamedHash;
         private readonly Button _discardAll;
         private readonly CommitGraphList _graph;
         private readonly GitDiffPanel _diff;
@@ -81,7 +88,10 @@ namespace GitVersionControl
         }
         public override string Badge => Services.Repository.Entries.Count > 0 ? Services.Repository.Entries.Count.ToString() : null;
 
-        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{Services.Repository.RefsFingerprint}";
+        // 작업 중 줄이 생기거나 사라지면 열 배치가 바뀐다(있으면 지금 브랜치가 맨 왼쪽, 없으면 맨 위 커밋의 브랜치가 맨 왼쪽 — GitKraken 과 같다).
+        private string CurrentKey => $"{Services.Repository.HeadCommit}|{Services.Repository.UpstreamCommit}|{Services.Repository.Branch?.Name}|{Services.Repository.LastFetchTime}|{Services.Repository.RefsFingerprint}|{HasWip}";
+
+        private bool HasWip => WipCounts.From(Services.Repository.Entries).Total > 0;
 
         public GraphWorkspaceView(GitServices services, StagingState state, ITabNavigator navigator) : base(services, "GraphWorkspaceView")
         {
@@ -94,6 +104,17 @@ namespace GitVersionControl
             _wipPanel = Root.Require<VisualElement>("wip-panel");
             _detailHost = Root.Require<VisualElement>("detail-host");
             _wipTitle = Root.Require<Label>("wip-title");
+            // 병합하는 동안 제목 앞 경고 삼각형과 머리 줄 밑 "A → B 병합 중"(GitKraken 의 Merge conflicts detected / Merging A into B).
+            _mergeWarning = new WarningGlyph();
+            _mergeWarning.AddToClassList("graph-workspace__merge-warning");
+            _wipTitle.parent.Insert(_wipTitle.parent.IndexOf(_wipTitle), _mergeWarning);
+            _mergeInfo = Root.Require<VisualElement>("merge-info");
+            _mergeIncoming = Root.Require<Label>("merge-incoming");
+            _mergeTarget = Root.Require<Label>("merge-target");
+            Root.Require<Label>("merge-arrow").text = GitText.Get("graph.mergingArrow");
+            Root.Require<Label>("merge-suffix").text = GitText.Get("graph.mergingSuffix");
+            _mergeWarning.SetVisible(false);
+            _mergeInfo.SetVisible(false);
             _discardAll = Root.Require<Button>("discard-all");
             _discardAll.tooltip = GitText.Get("graph.discardAll");
             _discardAll.clicked += DiscardAll;
@@ -265,7 +286,7 @@ namespace GitVersionControl
             IReadOnlyList<GitStatusEntry> entries = Services.Repository.Entries;
             _staging.SetEntries(entries);
             _commit.SetStagedCount(_staging.StagedCount);
-            _wipTitle.text = GitText.Format("graph.wipTitle", entries.Count, Services.Repository.Branch?.Name ?? "-");
+            UpdatePanelTitle(entries);
             UpdateDiscardAll();
             UpdateMergeState(entries);
             if (_graph.Graph != null)
@@ -277,6 +298,45 @@ namespace GitVersionControl
                 _diff.Reload();
             }
             NotifyBadgeChanged();
+        }
+
+        /// <summary>
+        /// 작업 패널 머리 줄. 병합하는 동안은 GitKraken 처럼 "⚠ 병합 충돌" 과 그 밑 "[들어오는 브랜치] → [지금 브랜치] 병합 중" —
+        /// 충돌을 다 풀어도 병합을 마치거나 중단할 때까지 그대로다. 그 밖에는 "{브랜치} 의 변경 n개".
+        /// </summary>
+        private void UpdatePanelTitle(IReadOnlyList<GitStatusEntry> entries)
+        {
+            IGitRepositoryState repository = Services.Repository;
+            string branch = repository.Branch?.Name ?? "-";
+            string mergeHead = repository.InProgressOperation == GitOperationKind.Merge ? GitInProgress.MergeHead(GitRepository.GitDir) : null;
+            bool merging = mergeHead != null;
+            _mergeWarning.SetVisible(merging);
+            _wipTitle.parent.EnableInClassList("graph-workspace__panel-header--merging", merging);
+            _mergeInfo.SetVisible(merging);
+            _wipTitle.text = merging ? GitText.Get("graph.mergeConflictsTitle") : GitText.Format("graph.wipTitle", entries.Count, branch);
+            if (merging == false)
+            {
+                _mergeNamedHash = null;
+                return;
+            }
+            _mergeTarget.text = branch;
+            if (_mergeNamedHash != mergeHead)
+            {
+                _mergeNamedHash = mergeHead;
+                _mergeIncoming.text = mergeHead.Length > 7 ? mergeHead.Substring(0, 7) : mergeHead;
+                _ = NameMergeHeadAsync(mergeHead);
+            }
+        }
+
+        /// <summary>들어오는 쪽 이름: MERGE_HEAD 를 가리키는 브랜치(name-rev). 못 찾으면 짧은 해시 그대로.</summary>
+        private async Task NameMergeHeadAsync(string mergeHead)
+        {
+            GitResult name = await GitRepository.RunAsync("name-rev", "--name-only", "--no-undefined", "--exclude=refs/tags/*", mergeHead);
+            string text = name.Success ? name.Output.Trim() : null;
+            if (_mergeNamedHash == mergeHead && string.IsNullOrEmpty(text) == false)
+            {
+                _mergeIncoming.text = text;
+            }
         }
 
         /// <summary>멈춘 병합을 그래프에 알린다: 합쳐 오는 커밋까지 점선, 충돌이 남았으면 작업 중 줄 경고.</summary>
@@ -302,7 +362,7 @@ namespace GitVersionControl
             _summary.text = GitText.Get("common.loading");
             string key = CurrentKey;
 
-            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits, currentFirst: true);
+            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits, topDown: true, headFirst: HasWip);
             _isLoading = false;
             _loadedKey = key;
 
