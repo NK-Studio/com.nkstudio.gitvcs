@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -26,8 +27,8 @@ namespace GitVersionControl
         // 줄 머리표·커밋 이름표가 이미 차지한 자리(캔버스 좌표). 뒤에 놓는 이름표가 겹치면 접는다.
         private readonly List<Rect> _occupied = new();
         // 줄마다 같은 행에서 바로 앞에 끝난 줄의 마지막 칸(없으면 없음). 줄 머리표가 그 커밋 위로 뻗지 않게 한다.
-        private readonly Dictionary<GitGraphLane, int> _previousLaneEnd = new();
-        private GitGraph _previousLaneEndGraph;
+        private readonly Dictionary<GitGraphLane, int> _nextLaneStart = new();
+        private GitGraph _nextLaneStartGraph;
         private string _selectedHash;
         private string _search = string.Empty;
         private bool _centerPending = true;
@@ -240,6 +241,7 @@ namespace GitVersionControl
             }
             Painter2D painter = context.painter2D;
             DrawDateBands(painter);
+            DrawLaneTubes(painter);
             DrawEdges(painter);
             DrawNodes(painter);
         }
@@ -283,22 +285,35 @@ namespace GitVersionControl
                     continue;
                 }
 
-                // 선 색은 새 커밋 쪽 줄 색. 병합으로 들어오는 선은 들어오는 가지(부모) 색.
-                Color color = GraphStyle.LaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
+                // 선(Unity VCS Branch Explorer 와 같은 결): 같은 가지 안은 곧은 선 + 부모 쪽 화살촉, 가지를 만든 선은 부모에서 가지 관 머리까지 곧게,
+                // 병합 선은 초록 곡선. 색은 새 커밋 쪽 가지 색이고 병합 선만 병합 색이다.
+                bool sameLane = edge.Parent.Lane == edge.Child.Lane;
+                Color color = edge.IsMergeEdge ? GraphStyle.MergeLine : GraphStyle.LaneColor(edge.Child.Lane);
                 color.a = Matches(edge.Parent) || Matches(edge.Child) ? 0.9f : 0.25f;
                 painter.strokeColor = color;
 
                 painter.BeginPath();
                 painter.MoveTo(from);
-                if (Mathf.Approximately(from.y, to.y))
+                if (edge.IsMergeEdge && Mathf.Approximately(from.y, to.y) == false)
                 {
+                    MergeCurveTo(painter, from, to);
+                }
+                else if (sameLane == false && Mathf.Approximately(from.y, to.y) == false)
+                {
+                    // 가지를 만든 선: 부모에서 새 가지 관의 왼쪽 머리까지 곧게, 거기서 관 안을 따라 첫 커밋으로.
+                    Vector2 tubeStart = new(Mathf.Max(from.x, to.x - TubeRadius), to.y);
+                    painter.LineTo(tubeStart);
                     painter.LineTo(to);
                 }
                 else
                 {
-                    CurveTo(painter, from, to, edge.IsMergeEdge);
+                    painter.LineTo(to);
                 }
                 painter.Stroke();
+                if (sameLane)
+                {
+                    DrawArrowHead(painter, from, color);
+                }
             }
 
             // 기간 밖으로 이어지는 히스토리: 왼쪽으로 짧은 흐린 선.
@@ -314,27 +329,84 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 다른 줄로 가는 선: 갈라지는 선은 부모에서 부드러운 S 곡선으로 가지 줄에 닿은 뒤 그 줄을 따라 가고,
-        /// 병합으로 들어오는 선은 가지 줄을 따라 오다 병합 커밋 앞에서 S 곡선으로 들어간다. 곡선 폭은 줄 거리와 상관없이 두 칸이다(한 칸이면 먼 줄로 갈 때 거의 수직으로 떨어지다 끝에서 꺾여 각져 보였다) —
-        /// 폭이 같아야 한 커밋에서 여러 가지로 갈라질 때 먼 줄 곡선이 늘 가까운 줄 곡선 바깥으로 지나가 서로 엉키지 않는다.
-        /// 두 커밋 사이 전체에 걸친 비스듬한 곡선은 다른 줄의 커밋·머리표를 가로질러 어느 가지인지 알아보기 어려웠다.
-        /// 가지 줄은 부모·병합 커밋 칸까지 차지하므로(<see cref="GitGraph"/> 줄 나누기) 그 줄 위의 가로선은 남과 겹치지 않는다.
+        /// 병합 선(Unity VCS 와 같다): 들어오는 커밋에서 오른쪽으로 나가 둥글게 휘어 병합 커밋에 위·아래로 꽂힌다.
         /// </summary>
-        private void CurveTo(Painter2D painter, Vector2 from, Vector2 to, bool isMerge)
+        private static void MergeCurveTo(Painter2D painter, Vector2 from, Vector2 to)
         {
-            float width = Mathf.Min(to.x - from.x, GraphStyle.ColumnWidth * 2f * Viewport.Zoom);
-            if (isMerge)
+            float dx = Mathf.Max(to.x - from.x, 1f);
+            painter.BezierCurveTo(from + new Vector2(dx * 0.55f, 0f), to + new Vector2(0f, (from.y - to.y) * 0.55f), to);
+        }
+
+        /// <summary>같은 가지 안의 선 끝(부모 커밋 오른쪽)에 부모를 가리키는 작은 화살촉. 너무 작게 축소하면 그리지 않는다.</summary>
+        private void DrawArrowHead(Painter2D painter, Vector2 parent, Color color)
+        {
+            float zoom = Viewport.Zoom;
+            if (zoom < GraphStyle.TextZoomThreshold)
             {
-                Vector2 start = new(to.x - width, from.y);
-                painter.LineTo(start);
-                painter.BezierCurveTo(start + new Vector2(width * 0.5f, 0f), to - new Vector2(width * 0.5f, 0f), to);
+                return;
             }
-            else
+            float tip = parent.x + (GraphStyle.NodeRadius + 5f) * zoom;
+            float length = 6f * zoom;
+            float half = 3.5f * zoom;
+            painter.fillColor = color;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(tip, parent.y));
+            painter.LineTo(new Vector2(tip + length, parent.y - half));
+            painter.LineTo(new Vector2(tip + length, parent.y + half));
+            painter.ClosePath();
+            painter.Fill();
+        }
+
+        /// <summary>가지 관의 반지름(커밋 원보다 조금 크게 감싼다).</summary>
+        private float TubeRadius => (GraphStyle.NodeRadius + 8f) * Viewport.Zoom;
+
+        private float CanvasX(int column)
+        {
+            return Viewport.ToCanvas(new Vector2(GraphStyle.ColumnCenterX(column), 0f)).x;
+        }
+
+        private float CanvasY(GitGraphLane lane)
+        {
+            return Viewport.ToCanvas(new Vector2(0f, GraphStyle.OriginY + lane.Row * GraphStyle.RowHeight)).y;
+        }
+
+        /// <summary>
+        /// 가지마다 첫 커밋부터 마지막 커밋까지를 감싸는 관(Unity VCS Branch Explorer 와 같다): 옅게 칠한 둥근 막대 + 가지 색 테두리.
+        /// 고른 커밋의 가지는 진하게 칠해 어느 가지인지 보이게 한다.
+        /// </summary>
+        private void DrawLaneTubes(Painter2D painter)
+        {
+            float radius = TubeRadius;
+            GitGraphLane selected = _selectedHash != null && _graph.NodeByHash.TryGetValue(_selectedHash, out GitGraphNode node) ? node.Lane : null;
+            painter.lineWidth = Mathf.Max(1f, 1.5f * Viewport.Zoom);
+            foreach (GitGraphLane lane in _graph.Lanes)
             {
-                Vector2 end = new(from.x + width, to.y);
-                painter.BezierCurveTo(from + new Vector2(width * 0.5f, 0f), end - new Vector2(width * 0.5f, 0f), end);
-                painter.LineTo(to);
+                float x0 = CanvasX(lane.FirstColumn) - radius;
+                float x1 = CanvasX(lane.LastColumn) + radius;
+                if (x1 < -10f || x0 > layout.width + 10f)
+                {
+                    continue;
+                }
+                float y = CanvasY(lane);
+                Color color = GraphStyle.LaneColor(lane);
+                bool isSelected = lane == selected;
+                CapsulePath(painter, x0, x1, y, radius);
+                painter.fillColor = new Color(color.r, color.g, color.b, isSelected ? 0.22f : 0.07f);
+                painter.Fill();
+                painter.strokeColor = new Color(color.r, color.g, color.b, isSelected ? 0.95f : 0.45f);
+                painter.Stroke();
             }
+        }
+
+        private static void CapsulePath(Painter2D painter, float x0, float x1, float y, float radius)
+        {
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(x0 + radius, y - radius));
+            painter.LineTo(new Vector2(x1 - radius, y - radius));
+            painter.Arc(new Vector2(x1 - radius, y), radius, Angle.Degrees(-90f), Angle.Degrees(90f));
+            painter.LineTo(new Vector2(x0 + radius, y + radius));
+            painter.Arc(new Vector2(x0 + radius, y), radius, Angle.Degrees(90f), Angle.Degrees(270f));
+            painter.ClosePath();
         }
 
         private void DrawNodes(Painter2D painter)
@@ -372,11 +444,37 @@ namespace GitVersionControl
                 DrawShadow(painter, p, ringRadius, alpha);
                 FillCircle(painter, p, ringRadius, ring);
 
-                Color fill = GraphStyle.AuthorColor(node.Commit.AuthorName);
+                // 안쪽은 가지 색을 어둡게 — 작성자 색은 혼자 쓰는 저장소에서 모든 커밋이 같은 색(분홍)이라 가지 구분이 흐려졌다. 흰 머리글자가 잘 읽힌다.
+                Color fill = GraphStyle.NodeFill(GraphStyle.LaneColor(node.Lane));
                 fill = Color.Lerp(fill, Color.white, 0.15f * hover);
                 fill.a = alpha;
                 FillCircle(painter, p, radius, fill);
+
+                // 태그가 붙은 커밋은 Unity VCS 의 레이블처럼 바깥에 초록 고리를 두른다(태그 이름은 위에 글자로).
+                if (HasTag(node))
+                {
+                    Color tag = GraphStyle.TagRing;
+                    tag.a = alpha;
+                    painter.strokeColor = tag;
+                    painter.lineWidth = Mathf.Max(1.5f, 2.5f * Viewport.Zoom);
+                    painter.BeginPath();
+                    painter.Arc(p, ringRadius + 4f * Viewport.Zoom, Angle.Degrees(0f), Angle.Degrees(360f));
+                    painter.ClosePath();
+                    painter.Stroke();
+                }
             }
+        }
+
+        private static bool HasTag(GitGraphNode node)
+        {
+            foreach (string label in node.RefLabels)
+            {
+                if (label.StartsWith("tag: ", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -514,9 +612,14 @@ namespace GitVersionControl
             _occupied.Clear();
             if (_graph != null && _graph.Nodes.Count > 0 && layout.width > 1f)
             {
-                EnableInClassList(HiddenTextModifier, Viewport.Zoom < GraphStyle.TextZoomThreshold);
-                PlaceLaneLabels();
-                PlaceNodeLabels();
+                bool hiddenText = Viewport.Zoom < GraphStyle.TextZoomThreshold;
+                EnableInClassList(HiddenTextModifier, hiddenText);
+                PlaceLaneLabels(compact: hiddenText);
+                // 읽을 수 없게 작으면 커밋 글자(머리글자·메시지·이름표)는 놓지 않는다. 놓은 글자는 인라인 display 가 USS 의 숨김 규칙을 이겨 그대로 보였다.
+                if (hiddenText == false)
+                {
+                    PlaceNodeLabels();
+                }
                 PlaceDateLabels();
             }
             _labels.End();
@@ -524,13 +627,22 @@ namespace GitVersionControl
             UpdateTooltip();
         }
 
-        private void PlaceLaneLabels()
+        /// <summary>
+        /// 가지 이름표(Unity VCS Branch Explorer 와 같다): 가지 관 머리의 위쪽에 둔다 — 선 위에 얹지 않아 선·커밋을 가리지 않는다.
+        /// 가지 머리가 화면 왼쪽 밖으로 나가면 가지가 보이는 동안 화면 왼쪽 끝에 붙어 따라오다가, 가지 끝에 닿으면 함께 밀려 나간다.
+        /// 글자는 확대에 맞춰 커진다. 같은 행의 다음 가지 머리를 넘지 않게 자르고 넘치면 말줄임.
+        /// </summary>
+        /// <param name="compact">많이 축소했을 때: 여백을 줄인 작은 이름표(줄 사이에 들어가게).</param>
+        private void PlaceLaneLabels(bool compact)
         {
-            float radius = GraphStyle.NodeRadius * Viewport.Zoom;
+            float radius = TubeRadius;
+            Vector2 padding = compact ? CompactLaneLabelPadding : LaneLabelPadding;
+            float fontSize = Mathf.Clamp(13f * Viewport.Zoom, 6f, 22f);
             foreach (GitGraphLane lane in _graph.Lanes)
             {
-                Vector2 first = Viewport.ToCanvas(new Vector2(GraphStyle.ColumnCenterX(lane.FirstColumn), GraphStyle.OriginY + lane.Row * GraphStyle.RowHeight));
-                if (IsVisibleX(first.x, 300f) == false)
+                float start = CanvasX(lane.FirstColumn) - radius;
+                float end = CanvasX(lane.LastColumn) + radius;
+                if (end < 0f || start > layout.width)
                 {
                     continue;
                 }
@@ -539,72 +651,85 @@ namespace GitVersionControl
                 string text = lane.IsAnonymous == false ? "/" + lane.Name
                     : lane.Name == GitText.Get("graph.mergedBranch") ? lane.Name
                     : GitText.Format("graph.mergedFrom", lane.Name);
-                // 머리표는 줄 첫 커밋 왼쪽으로 뻗는다 — 같은 행에서 앞서 끝난 줄이 있으면 그 마지막 커밋까지만 쓰고 넘치면 말줄임.
-                // 가지가 많은 곳에서 머리표가 남의 커밋·이름표를 덮어 읽기 어려웠다.
-                float right = first.x - radius - 8f;
+                float left = Mathf.Max(start, StickyMargin);
                 float maxWidth = float.PositiveInfinity;
-                if (PreviousLaneEnd(lane, out int previousColumn))
+                if (NextLaneStart(lane, out int nextColumn))
                 {
-                    float previousX = Viewport.ToCanvas(new Vector2(GraphStyle.ColumnCenterX(previousColumn), 0f)).x;
-                    maxWidth = right - (previousX + radius + 6f);
+                    maxWidth = CanvasX(nextColumn) - radius - LabelGap * 2f - left;
                     if (maxWidth < MinLaneLabelWidth)
                     {
                         continue;
                     }
                 }
-                string[] modifiers = lane.IsAnonymous ? new[] { Block + "__lane--anonymous" } : Array.Empty<string>();
-                Label label = _labels.Place(Block + "__lane", text, new Vector2(right, first.y - 11f), Vector2.zero, 0f, 1f, modifiers);
+                List<string> modifiers = new();
+                if (lane.IsAnonymous)
+                {
+                    modifiers.Add(Block + "__lane--anonymous");
+                }
+                if (compact)
+                {
+                    modifiers.Add(Block + "__lane--compact");
+                }
+                Label label = _labels.Place(Block + "__lane", text, Vector2.zero, Vector2.zero, fontSize, 0f, modifiers.ToArray());
                 label.style.maxWidth = float.IsPositiveInfinity(maxWidth) ? new StyleLength(StyleKeyword.None) : new StyleLength(maxWidth);
-                label.style.borderBottomColor = GraphStyle.LaneColor(lane);
+                label.style.borderLeftColor = GraphStyle.LaneColor(lane);
                 ApplyShadow(label);
+                // 글자 크기를 방금 바꿨으면 아직 반영 전이라 잰 크기를 새 크기 비율로 맞춘다.
                 Vector2 size = MeasureText(label);
-                float width = Mathf.Min(size.x + LaneLabelPadding.x, maxWidth);
-                _occupied.Add(new Rect(right - width, first.y - 11f, width, size.y + LaneLabelPadding.y));
+                float resolved = label.resolvedStyle.fontSize;
+                if (resolved > 0f)
+                {
+                    size *= fontSize / resolved;
+                }
+                float width = Mathf.Min(size.x + padding.x, maxWidth);
+                float height = size.y + padding.y;
+                if (start < StickyMargin)
+                {
+                    left = Mathf.Min(left, end - width);
+                }
+                float top = CanvasY(lane) - radius - 4f - height;
+                label.style.left = left;
+                label.style.top = top;
+                _occupied.Add(new Rect(left, top, width, height));
             }
         }
 
+        /// <summary>머리가 화면 왼쪽 밖으로 나간 가지의 이름표가 붙는 자리(왼쪽 끝에서 띄우는 거리).</summary>
+        private const float StickyMargin = 8f;
+
         private const float MinLaneLabelWidth = 28f;
-        // .branch-graph__lane 의 좌우 여백(8 + 8), 위아래 여백(3 + 4)·밑줄(2).
-        private static readonly Vector2 LaneLabelPadding = new(16f, 9f);
+        // .branch-graph__lane 의 좌우 여백(9 + 10)·왼쪽 가지 색 막대(2.5), 위아래 여백(3 + 4).
+        private static readonly Vector2 LaneLabelPadding = new(21.5f, 7f);
+        // .branch-graph__lane--compact 의 좌우 여백(4 + 5)·막대(2), 위아래 여백(0 + 1).
+        private static readonly Vector2 CompactLaneLabelPadding = new(11f, 1f);
         // .branch-graph__pill 의 좌우 여백(5 + 5).
         private const float PillPadding = 10f;
         // 이름표끼리 이만큼은 떨어져 있어야 한다 — 맞닿아도 그림자 때문에 한 덩어리로 보였다.
         private const float LabelGap = 3f;
 
         /// <summary>
-        /// 그 줄과 같은 행에서 그 줄보다 앞에 끝난 줄 가운데 가장 늦게 끝난 줄의 마지막 칸. 그래프가 바뀔 때만 다시 센다.
+        /// 그 줄과 같은 행에서 그 줄이 끝난 뒤 가장 먼저 시작하는 줄의 첫 칸(이름표가 그 머리를 넘지 않게). 그래프가 바뀔 때만 다시 센다.
         /// </summary>
-        private bool PreviousLaneEnd(GitGraphLane lane, out int column)
+        private bool NextLaneStart(GitGraphLane lane, out int column)
         {
-            if (_previousLaneEndGraph != _graph)
+            if (_nextLaneStartGraph != _graph)
             {
-                _previousLaneEndGraph = _graph;
-                _previousLaneEnd.Clear();
-                Dictionary<int, List<GitGraphLane>> byRow = new();
-                foreach (GitGraphLane each in _graph.Lanes)
+                _nextLaneStartGraph = _graph;
+                _nextLaneStart.Clear();
+                foreach (IGrouping<int, GitGraphLane> row in _graph.Lanes.GroupBy(each => each.Row))
                 {
-                    if (byRow.TryGetValue(each.Row, out List<GitGraphLane> row) == false)
+                    List<GitGraphLane> ordered = row.OrderBy(each => each.FirstColumn).ToList();
+                    for (int i = 0; i < ordered.Count; i++)
                     {
-                        row = new List<GitGraphLane>();
-                        byRow[each.Row] = row;
-                    }
-                    row.Add(each);
-                }
-                foreach (List<GitGraphLane> row in byRow.Values)
-                {
-                    row.Sort((a, b) => a.FirstColumn.CompareTo(b.FirstColumn));
-                    int lastEnd = -1;
-                    foreach (GitGraphLane each in row)
-                    {
-                        if (lastEnd >= 0 && lastEnd < each.FirstColumn)
+                        GitGraphLane next = ordered.Skip(i + 1).FirstOrDefault(other => other.FirstColumn > ordered[i].LastColumn);
+                        if (next != null)
                         {
-                            _previousLaneEnd[each] = lastEnd;
+                            _nextLaneStart[ordered[i]] = next.FirstColumn;
                         }
-                        lastEnd = Mathf.Max(lastEnd, each.LastColumn);
                     }
                 }
             }
-            return _previousLaneEnd.TryGetValue(lane, out column);
+            return _nextLaneStart.TryGetValue(lane, out column);
         }
 
         private static Vector2 MeasureText(Label label)
@@ -665,9 +790,8 @@ namespace GitVersionControl
 
         /// <summary>
         /// 커밋 위에 HEAD·브랜치·태그 이름표를 쌓는다. 셋 넘으면 "+n" 으로 줄인다.
-        /// HEAD 커밋은 "HEAD" 대신 지금 브랜치 이름을 HEAD 색으로(detached 면 "HEAD"), 줄 끝 커밋은 그 줄의 브랜치 이름도 붙인다 —
-        /// 줄 이름과 같은 브랜치는 <see cref="GitGraphNode.RefLabels"/> 에서 빠지고(줄 머리표가 맡는다) 그 머리표는 줄이 시작하는 왼쪽 끝에 있어,
-        /// HEAD 근처를 보면 지금 브랜치(master) 이름이 어디에도 보이지 않았다.
+        /// HEAD 커밋은 "HEAD" 대신 지금 브랜치 이름을 HEAD 색으로(detached 면 "HEAD"). 줄 이름과 같은 브랜치는
+        /// <see cref="GitGraphNode.RefLabels"/> 에서 빠진다 — 가지 이름표가 가지가 보이는 동안 화면 왼쪽 끝에 붙어 따라오므로 따로 붙이지 않는다.
         /// </summary>
         private void PlacePills(GitGraphNode node, Vector2 p, float radius)
         {
@@ -677,10 +801,6 @@ namespace GitVersionControl
             {
                 headName = string.IsNullOrEmpty(node.HeadBranch) ? "HEAD" : node.HeadBranch;
                 pills.Add((headName, Block + "__pill--head"));
-            }
-            if (node.Column == node.Lane.LastColumn && node.Lane.IsAnonymous == false && node.Lane.Name != headName)
-            {
-                pills.Add((node.Lane.Name, null));
             }
             foreach (string label in node.RefLabels)
             {
@@ -727,6 +847,11 @@ namespace GitVersionControl
             Vector2 position = new(p.x, p.y - radius - 6f - (slot + 1) * (pillHeight + 2f));
             Label pill = _labels.Place(Block + "__pill", text, position, new Vector2(0f, pillHeight), 0f, 0.5f, modifiers);
             ApplyShadow(pill);
+            // 태그는 상자 없이 글자만 둔다(Unity VCS 의 레이블) — 그림자가 있으면 빈 상자가 비쳤다. 이름표는 돌려 쓰므로 매번 색을 정한다.
+            if (modifier == Block + "__pill--tag")
+            {
+                GitShadow.SetColor(pill, Color.clear);
+            }
             float width = MeasureText(pill).x + PillPadding;
             rect = new Rect(p.x - width / 2f, position.y, width, pillHeight);
             return pill;

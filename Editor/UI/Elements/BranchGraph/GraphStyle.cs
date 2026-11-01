@@ -26,6 +26,12 @@ namespace GitVersionControl
         public static readonly Color SearchMatch = new(1f, 0.9f, 0.2f);
         public static readonly Color Truncated = new(0.6f, 0.6f, 0.6f, 0.5f);
 
+        /// <summary>병합 선(Unity VCS Branch Explorer 처럼 가지 색과 따로 초록).</summary>
+        public static readonly Color MergeLine = new(0.42f, 0.78f, 0.55f);
+
+        /// <summary>태그(레이블)가 붙은 커밋을 두르는 고리.</summary>
+        public static readonly Color TagRing = new(0.33f, 0.86f, 0.6f);
+
         // 가지 색. 선·원·이름표·띠가 모두 이 색을 쓴다 — 밝고 선명한 색(GitKraken·IntelliJ 와 같은 결).
         // 순서: 파랑·초록·주황·보라·분홍·청록·노랑·빨강.
         private static readonly Color[] LaneColors =
@@ -84,6 +90,14 @@ namespace GitVersionControl
         {
             Color color = LaneColors[lane.ColorIndex % LaneColors.Length];
             return lane.IsAnonymous ? Color.Lerp(color, Color.gray, 0.5f) : color;
+        }
+
+        /// <summary>커밋 원 안쪽: 가지 색을 어둡게 섞어 테두리(가지 색)와 이어지면서 흰 머리글자가 읽히게 한다.</summary>
+        public static Color NodeFill(Color laneColor)
+        {
+            Color fill = Color.Lerp(laneColor, Color.black, 0.45f);
+            fill.a = laneColor.a;
+            return fill;
         }
 
         /// <summary>작성자마다 고정된 색. 이름 해시로 색상만 바꾸고 채도·명도는 맞춘다.</summary>
