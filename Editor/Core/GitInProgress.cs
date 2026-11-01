@@ -442,6 +442,17 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>멈춘 병합이 합쳐 오는 커밋(<c>MERGE_HEAD</c> 첫 줄). 병합 중이 아니면 null.</summary>
+        public static string MergeHead(string gitDir)
+        {
+            if (string.IsNullOrEmpty(gitDir))
+            {
+                return null;
+            }
+            string hash = ReadFirstLine(Path.Combine(gitDir, "MERGE_HEAD"));
+            return string.IsNullOrEmpty(hash) ? null : hash;
+        }
+
         private static string ReadFirstLine(string file)
         {
             try

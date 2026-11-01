@@ -330,6 +330,13 @@ namespace GitVersionControl
         /// </summary>
         private GraphRow _wipRow;
 
+        /// <summary>멈춘 병합이 합쳐 오는 커밋(MERGE_HEAD). 있으면 작업 중 원에서 그 커밋까지 점선을 긋는다 — 병합 커밋을 만들면 진짜 선(실선)이 된다.</summary>
+        private string _mergeIncomingHash;
+
+        /// <summary>멈춘 병합에 남은 충돌 수. 있으면 작업 중 줄을 GitKraken 처럼 노란 경고 줄로 바꾼다.</summary>
+        private int _mergeConflicts;
+        private string _mergeTarget;
+
         /// <summary>
         /// 작업 중 줄 입력란에 포커스가 있는가. 쓰는 동안에는 바깥에서 들어온 값으로 덮지 않는다.
         /// </summary>
@@ -580,6 +587,27 @@ namespace GitVersionControl
         }
 
         public GitGraph Graph { get; private set; }
+
+        /// <summary>
+        /// 멈춘 병합 상태를 알린다(<see cref="SetGraph"/> 보다 먼저 부르면 그때 함께 그린다).
+        /// <paramref name="incomingHash"/> 커밋까지 작업 중 원에서 점선을 잇고, <paramref name="conflicts"/> 가 있으면 작업 중 줄에
+        /// "충돌 파일 n개가 있어 {target} 에 병합하지 못했습니다" 경고를 노란 줄로 보인다.
+        /// </summary>
+        public void SetMergeState(string incomingHash, int conflicts, string target)
+        {
+            if (_mergeIncomingHash == incomingHash && _mergeConflicts == conflicts && _mergeTarget == target)
+            {
+                return;
+            }
+            _mergeIncomingHash = incomingHash;
+            _mergeConflicts = conflicts;
+            _mergeTarget = target;
+            if (_wipRow != null && _layout != null && _layout.HasWip)
+            {
+                _list.RefreshItem(0);
+            }
+            _overlay?.MarkDirtyRepaint();
+        }
 
         /// <param name="wip">작업 중인 변경 개수. 하나도 없으면 WIP 줄을 숨긴다.</param>
         public void SetGraph(GitGraph graph, WipCounts wip)
@@ -1559,11 +1587,14 @@ namespace GitVersionControl
             Label subject = message.Q<Label>(className: "commit-row__subject");
 
             bool isWip = _items[index] is WipItem;
+            // 병합이 충돌로 멈췄으면 작업 중 줄은 입력란 대신 노란 경고 줄이다(GitKraken 과 같다). 다 풀면 입력란으로 돌아온다.
+            bool conflictWip = isWip && _mergeConflicts > 0;
             row.EnableInClassList("commit-graph-row--wip", isWip);
-            row.WipEditor?.SetVisible(isWip);
-            row.WipCountsRoot?.SetVisible(isWip);
+            row.EnableInClassList("commit-graph-row--wip-conflict", conflictWip);
+            row.WipEditor?.SetVisible(isWip && conflictWip == false);
+            row.WipCountsRoot?.SetVisible(isWip && conflictWip == false);
             // 작업 중 줄은 제목 글자 대신 입력란·변경 개수를 보인다.
-            subject.SetVisible(isWip == false);
+            subject.SetVisible(isWip == false || conflictWip);
             if (isWip)
             {
                 _wipRow = row;
@@ -1589,7 +1620,7 @@ namespace GitVersionControl
                 }
                 PlaceBand(row);
                 BindWipCounts(row);
-                subject.text = string.Empty;
+                subject.text = conflictWip ? "⚠  " + GitText.Format("graph.mergeConflicts", _mergeConflicts, _mergeTarget ?? "HEAD") : string.Empty;
                 message.tooltip = null;
                 BindDetails(row, null);
                 return;
@@ -2365,6 +2396,8 @@ namespace GitVersionControl
                 }
             }
 
+            DrawMergeIncoming(painter, scrollY, x, y, radius, color);
+
             FillCircle(painter, new Vector2(x, y), radius, _outlineColor);
             // 점선 원: 같은 길이의 호를 고르게 나눠 긋는다.
             const int dashes = 12;
@@ -2375,6 +2408,58 @@ namespace GitVersionControl
                 float start = i * step;
                 painter.BeginPath();
                 painter.Arc(new Vector2(x, y), radius - 1f, Angle.Degrees(start), Angle.Degrees(start + step * 0.55f));
+                painter.Stroke();
+            }
+        }
+
+        /// <summary>
+        /// 멈춘 병합: 작업 중 원에서 합쳐 오는 커밋(MERGE_HEAD)까지 점선. 병합 선과 같은 모양으로 가로로 나가 둥글게 꺾여 내려간다.
+        /// 아직 커밋되지 않은 병합이라 점선이고, 병합 커밋을 만들면 그래프가 진짜 병합 선(실선)으로 바꿔 그린다.
+        /// </summary>
+        private void DrawMergeIncoming(Painter2D painter, float scrollY, float x, float y, float radius, Color headColor)
+        {
+            if (_mergeIncomingHash == null || CompactGraph || Graph == null
+                || Graph.NodeByHash.TryGetValue(_mergeIncomingHash, out GitGraphNode incoming) == false
+                || _layout.RowOf.TryGetValue(incoming, out int row) == false)
+            {
+                return;
+            }
+            float xi = X(incoming.Lane.Row);
+            float yi = VerticalGraphLayout.RowCenterY(row, scrollY) - NodeTopRadius(incoming);
+            painter.strokeColor = GraphStyle.LaneColor(incoming.Lane);
+            painter.lineWidth = 2f;
+            const float dash = 2.5f;
+            const float gap = 2.5f;
+            if (Mathf.Abs(xi - x) < 0.5f)
+            {
+                DashedLine(painter, new Vector2(x, y + radius), new Vector2(x, yi), dash, gap);
+                painter.strokeColor = headColor;
+                return;
+            }
+            float corner = Mathf.Min(EdgeCornerRadius, Mathf.Abs(xi - x), yi - y);
+            float direction = Mathf.Sign(xi - x);
+            DashedLine(painter, new Vector2(x + direction * radius, y), new Vector2(xi - direction * corner, y), dash, gap);
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(xi - direction * corner, y));
+            painter.ArcTo(new Vector2(xi, y), new Vector2(xi, y + corner), corner);
+            painter.Stroke();
+            DashedLine(painter, new Vector2(xi, y + corner), new Vector2(xi, yi), dash, gap);
+            painter.strokeColor = headColor;
+        }
+
+        private static void DashedLine(Painter2D painter, Vector2 from, Vector2 to, float dash, float gap)
+        {
+            float length = Vector2.Distance(from, to);
+            if (length <= 0f)
+            {
+                return;
+            }
+            Vector2 step = (to - from) / length;
+            for (float at = 0f; at < length; at += dash + gap)
+            {
+                painter.BeginPath();
+                painter.MoveTo(from + step * at);
+                painter.LineTo(from + step * Mathf.Min(at + dash, length));
                 painter.Stroke();
             }
         }

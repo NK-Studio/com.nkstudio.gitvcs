@@ -85,6 +85,17 @@ namespace GitVersionControl
         private GitStatusEntry _selectedResolved;
 
         /// <summary>
+        /// 충돌을 푸는 중인지(충돌이 남았거나, 작업이 멈춘 채 이번에 푼 파일이 있다). 그동안은 GitKraken 처럼
+        /// Unstaged 자리가 "충돌 파일"(+ 모두 해결됨으로 표시), Staged 자리가 "해결한 파일" 이 된다.
+        /// </summary>
+        private bool _conflictMode;
+
+        /// <summary>충돌 파일 목록을 줄 수에 맞출지(충돌 아닌 Unstaged 변경도 함께 보일 때). 아니면 Unstaged 칸을 다 쓴다.</summary>
+        private bool _fitConflicts;
+        private VisualElement _unstagedHeader;
+        private VisualElement _unstagedFilesHost;
+
+        /// <summary>
         /// 이번 충돌에서 한 번이라도 충돌로 보인 경로. 지금은 충돌이 아니고 stage 돼 있으면 "해결한 파일" 이다.
         /// 충돌도 진행 중인 작업도 없어지면 비운다.
         /// </summary>
@@ -195,7 +206,7 @@ namespace GitVersionControl
             _unstaged.FolderPathContextMenuRequested += PopulateUnstagedFolderMenu;
             _staged.FolderPathContextMenuRequested += PopulateStagedFolderMenu;
 
-            // 충돌 구역: 경로/트리 전환 줄 바로 밑, Unstaged·Staged 위.
+            // 충돌 구역: 경로/트리 전환 줄 바로 밑, Unstaged·Staged 위. 상태 카드만 둔다 — 충돌 파일 목록은 Unstaged 자리에 들어간다.
             _conflictPanel = new VisualElement();
             _conflictPanel.AddToClassList("staging-conflict");
             _operationCard = new OperationCard(_conflictPanel, services);
@@ -205,9 +216,14 @@ namespace GitVersionControl
             _resolveAllButton.AddToClassList("staging__button");
             _resolveAllButton.AddToClassList("staging-conflict__resolve-all");
             _conflictHeader.Add(_resolveAllButton);
-            _conflictPanel.Add(_conflictHeader);
             _conflictFilesHost = NewConflictFilesHost();
-            _conflictPanel.Add(_conflictFilesHost);
+            // GitKraken 처럼 Unstaged 칸 맨 위에 둔다. 충돌 아닌 Unstaged 변경이 없으면 Unstaged 머리·목록은 숨긴다(ShowConflicts).
+            _unstagedHeader = _unstagedTitle.parent;
+            _unstagedFilesHost = Root.Require<VisualElement>("unstaged-files");
+            _unstagedHeader.parent.Insert(0, _conflictFilesHost);
+            _unstagedHeader.parent.Insert(0, _conflictHeader);
+            _conflictHeader.SetVisible(false);
+            _conflictFilesHost.SetVisible(false);
 
             _resolvedHeader = NewSectionHeader(out _resolvedTitle);
             _conflictPanel.Add(_resolvedHeader);
@@ -231,7 +247,13 @@ namespace GitVersionControl
             _conflicts.SelectionChanged += item => OnConflictSelected(item, resolved: false);
             _resolved.SelectionChanged += item => OnConflictSelected(item, resolved: true);
             // 트리 보기면 폴더 줄도 있고 펼치고 접을 때마다 줄 수가 바뀌므로, 보이는 줄 수가 바뀔 때마다 칸 높이를 다시 맞춘다.
-            _conflicts.RowsChanged += () => FitToRows(_conflictFilesHost, _conflicts);
+            _conflicts.RowsChanged += () =>
+            {
+                if (_fitConflicts)
+                {
+                    FitToRows(_conflictFilesHost, _conflicts);
+                }
+            };
             _resolved.RowsChanged += () => FitToRows(_resolvedFilesHost, _resolved);
 
             // 누른 순간의 Shift 는 클릭 이벤트에서 읽는다(키 추적이 놓쳐도 맞게). null 이면 전부.
@@ -620,7 +642,7 @@ namespace GitVersionControl
             int conflicts = _unstagedEntries.Count(e => e.State == GitFileState.Conflicted);
             _unstagedTitle.text = GitText.Format("staging.unstagedTitle", _unstagedEntries.Count)
                                   + (conflicts > 0 ? GitText.Format("staging.conflictCount", conflicts) : string.Empty);
-            _stagedTitle.text = GitText.Format("staging.stagedTitle", _stagedEntries.Count);
+            _stagedTitle.text = GitText.Format(_conflictMode ? "conflict.resolvedTitle" : "staging.stagedTitle", _stagedEntries.Count);
             bool idle = _services.Runner.IsBusy == false;
             RenderButton(_stageButton, _selectedUnstaged.Count, _unstagedEntries.Count, idle, "staging.stage", "staging.stageSelected", "staging.stageAll");
             RenderButton(_unstageButton, _selectedStaged.Count, _stagedEntries.Count, idle, "staging.unstage", "staging.unstageSelected", "staging.unstageAll");
@@ -786,22 +808,31 @@ namespace GitVersionControl
             _resolvedEntries = _stagedEntries.Where(e => _conflictSeen.Contains(e.RepoPath)).ToList();
             // 상태 카드가 보일 때(작업이 멈춰 있거나 충돌이 남았을 때) 구역을 연다 — 충돌이 없는 rebase(Stage 안 한 변경으로 막힘)도 알린다.
             _operationCard.Render();
-            bool visible = _operationCard.IsShown;
-            _conflictPanel.SetVisible(visible);
+            _conflictPanel.SetVisible(_operationCard.IsShown);
             _conflicts.SetItems(FileListItem.FromStatus(_conflictEntries));
             _resolved.SetItems(FileListItem.FromStatus(_resolvedEntries));
-            if (visible == false)
-            {
-                return;
-            }
 
+            // GitKraken 처럼 Unstaged 자리가 "충돌 파일 (n)", Staged 자리가 "해결한 파일 (n)" 이 된다(따로 구역을 늘리지 않는다).
+            // 다 풀어도 작업을 마칠 때까지는 "충돌 파일 (0)" 으로 남겨 어디서 무엇을 푸는지 이어 보이게 한다.
+            _conflictMode = conflicts.Count > 0 || (kind != GitOperationKind.None && _resolvedEntries.Count > 0);
+            bool otherUnstaged = _unstagedEntries.Count > 0;
+            _fitConflicts = _conflictMode && otherUnstaged;
+            _conflictHeader.SetVisible(_conflictMode);
+            _conflictFilesHost.SetVisible(_conflictMode);
+            _conflictFilesHost.EnableInClassList("staging-conflict__files--fit", _fitConflicts);
+            if (_fitConflicts)
+            {
+                FitToRows(_conflictFilesHost, _conflicts);
+            }
+            else
+            {
+                _conflictFilesHost.style.height = StyleKeyword.Null;
+            }
+            _unstagedHeader.SetVisible(_conflictMode == false || otherUnstaged);
+            _unstagedFilesHost.SetVisible(_conflictMode == false || otherUnstaged);
+            _resolvedHeader.SetVisible(false);
+            _resolvedFilesHost.SetVisible(false);
             _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictEntries.Count);
-            _resolvedTitle.text = GitText.Format("conflict.resolvedTitle", _resolvedEntries.Count);
-            // 다 풀었으면(이번에 푼 파일만 남음) 빈 충돌 목록은 숨긴다.
-            _conflictHeader.SetVisible(_conflictEntries.Count > 0);
-            _conflictFilesHost.SetVisible(_conflictEntries.Count > 0);
-            _resolvedHeader.SetVisible(_resolvedEntries.Count > 0);
-            _resolvedFilesHost.SetVisible(_resolvedEntries.Count > 0);
         }
 
         /// <summary>

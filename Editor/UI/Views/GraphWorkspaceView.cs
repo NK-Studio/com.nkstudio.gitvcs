@@ -266,6 +266,7 @@ namespace GitVersionControl
             _commit.SetStagedCount(_staging.StagedCount);
             _wipTitle.text = GitText.Format("graph.wipTitle", entries.Count, Services.Repository.Branch?.Name ?? "-");
             UpdateDiscardAll();
+            UpdateMergeState(entries);
             if (_graph.Graph != null)
             {
                 _graph.SetGraph(_graph.Graph, WipCounts.From(entries));
@@ -275,6 +276,15 @@ namespace GitVersionControl
                 _diff.Reload();
             }
             NotifyBadgeChanged();
+        }
+
+        /// <summary>멈춘 병합을 그래프에 알린다: 합쳐 오는 커밋까지 점선, 충돌이 남았으면 작업 중 줄 경고.</summary>
+        private void UpdateMergeState(IReadOnlyList<GitStatusEntry> entries)
+        {
+            IGitRepositoryState repository = Services.Repository;
+            string incoming = repository.InProgressOperation == GitOperationKind.Merge ? GitInProgress.MergeHead(GitRepository.GitDir) : null;
+            int conflicts = incoming == null ? 0 : entries.Count(e => e.State == GitFileState.Conflicted);
+            _graph.SetMergeState(incoming, conflicts, repository.Branch?.Name);
         }
 
         private void ReloadIfNeeded()

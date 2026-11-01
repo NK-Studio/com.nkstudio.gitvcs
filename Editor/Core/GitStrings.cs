@@ -311,6 +311,7 @@ namespace GitVersionControl
             ["branchPicker.empty"] = new[] { "일치하는 브랜치가 없습니다", "No matching branches" },
             ["branchPicker.tooltip"] = new[] { "브랜치를 검색해 전환합니다.", "Search and switch branches." },
             ["graph.columnRefs"] = new[] { "브랜치 / 태그", "Branch / Tag" },
+            ["graph.mergeConflicts"] = new[] { "충돌 파일 {0}개가 있어 {1} 에 병합하지 못했습니다", "{0} file conflicts were found when attempting to merge into {1}" },
             ["graph.wipTitle"] = new[] { "{1} 의 변경 {0}개", "{0} changes on {1}" },
             ["graph.discardAll"] = new[] { "모든 변경 버리기", "Discard All Changes" },
             ["graph.discardAllMessage"] = new[] { "{0} 의 변경 {1}개를 모두 버립니다. Stage 한 것도 마지막 커밋 상태로 되돌리고 새 파일은 지웁니다. 되돌릴 수 없습니다.\n\n{2}", "Discard all {1} changes on {0}. Staged changes are reset to the last commit too, and new files are deleted. This cannot be undone.\n\n{2}" },

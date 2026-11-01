@@ -199,9 +199,8 @@
     opacity: 0.5;
 }
 
-/* 충돌 구역(StagingLists 가 코드로 만든다): GitKraken 사이드바처럼 Unstaged·Staged 위에
-   상태 카드(OperationCard, GitWindow.uss) · 충돌 파일 목록과 [모두 해결됨으로 표시] · 해결한 파일 목록.
-   목록 높이는 줄 수에 맞춰 코드가 정한다. */
+/* 충돌 구역(StagingLists 가 코드로 만든다): Unstaged·Staged 위에 상태 카드(OperationCard, GitWindow.uss).
+   충돌 파일 목록과 [모두 해결됨으로 표시] 는 GitKraken 처럼 Unstaged 칸 맨 위에 들어가고, Staged 머리는 "해결한 파일" 이 된다. */
 .staging-conflict {
     flex-shrink: 0;
     border-bottom-width: 1px;
@@ -213,9 +212,10 @@
     min-height: 30px;
 }
 
-/* 목록 칸에는 공용 .list 도 붙어 있어 flex-basis 가 0 이 된다. basis 0 은 코드가 준 height 를 이겨 칸이 0 으로 찌그러지므로
-   auto 로 되돌린다(.list 보다 세게 하려고 클래스 둘로 적는다). */
-.staging-conflict .staging-conflict__files {
+/* 충돌 아닌 Unstaged 변경도 함께 보일 때는 충돌 목록 높이를 줄 수에 맞춘다(코드가 height 를 준다).
+   목록 칸에는 공용 .list 도 붙어 있어 flex-basis 가 0 이 된다. basis 0 은 코드가 준 height 를 이겨 칸이 0 으로 찌그러지므로
+   auto 로 되돌린다(.list 보다 세게 하려고 클래스 둘로 적는다). 그렇지 않으면 Unstaged 칸을 다 쓴다(.list 그대로). */
+.staging .staging-conflict__files--fit {
     flex-grow: 0;
     flex-shrink: 0;
     flex-basis: auto;
@@ -1232,6 +1232,16 @@
     overflow: hidden;
     height: 100%;
     padding-left: 10px;
+}
+
+/* 병합이 충돌로 멈춘 작업 중 줄: 입력란 대신 노란 경고 줄(GitKraken 과 같다). 메시지 칸을 경고색으로 칠하고 글자는 진하게. */
+.commit-graph-row--wip-conflict .commit-graph-row__message {
+    background-color: rgba(224, 160, 48, 0.55);
+}
+
+.commit-graph-row--wip-conflict .commit-row__subject {
+    color: #ffffff;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
 .commit-graph-row .commit-row__subject {
