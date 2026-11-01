@@ -337,6 +337,15 @@ namespace GitVersionControl
                     spans[lane] = (Math.Min(span.start, edge.Parent.Column), Math.Max(span.end, edge.Child.Column));
                 }
             }
+            if (topDown && headFirst)
+            {
+                // 작업 중 줄은 그래프 맨 위에 있고 지금 브랜치 끝 커밋까지 점선으로 이어진다 — 그 사이도 지금 브랜치 열이다(GitKraken 과 같다).
+                // 비워 두지 않으면 끝이 아래에 있는 지금 브랜치 위쪽 빈자리에 다른 가지(develop 등)가 들어와 점선과 같은 열을 썼다.
+                foreach (GitGraphLane lane in Lanes.Where(lane => lane.IsCurrent && lane.IsRemote == false))
+                {
+                    spans[lane] = (spans[lane].start, int.MaxValue);
+                }
+            }
             foreach (GitGraphLane lane in order)
             {
                 (int start, int end) = spans[lane];

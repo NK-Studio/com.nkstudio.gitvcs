@@ -268,6 +268,20 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_Build_TopDownHeadFirst_KeepsColumnFreeAboveCurrentTip()
+        {
+            // 작업 중 줄(맨 위)에서 지금 브랜치 끝(C)까지 점선이 내려간다 — 그 위에 끝이 있는 다른 가지가 같은 열을 쓰면 안 된다.
+            // A ─ B ─ C (current, 아래쪽)
+            //      └─ D ─ E (develop, 위쪽)
+            GitGraph graph = GitGraph.Build(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Commit("D", "B"), Commit("E", "D") }.Reverse().ToList(),
+                new List<GitBranchRef> { Branch("current", "C", isCurrent: true, days: 3), Branch("develop", "E", days: 1) },
+                "C", "merged", topDown: true, headFirst: true);
+
+            Assert.AreEqual(0, LaneNamed(graph, "current").Row);
+            Assert.AreNotEqual(0, LaneNamed(graph, "develop").Row);
+        }
+
+        [Test]
         public void Test_Build_TopDown_TopmostTipTakesFirstRowAndTrunk()
         {
             // GitKraken: 작업 중 줄이 없으면 맨 위 커밋의 브랜치가 맨 왼쪽 열과 줄기를 갖는다. 지금 브랜치라도 끝 커밋이 아래면 오른쪽 열.
