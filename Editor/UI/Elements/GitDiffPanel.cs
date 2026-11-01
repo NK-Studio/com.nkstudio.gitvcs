@@ -221,6 +221,12 @@ namespace GitVersionControl
         /// </summary>
         public event Action CloseRequested;
 
+        /// <summary>병합 편집기가 보이기 시작하거나 사라질 때(true = 보인다). GitKraken 배치는 그동안 오른쪽 패널을 접는다.</summary>
+        public event Action<bool> MergeEditorShownChanged;
+
+        /// <summary>지금 diff 대신 병합 편집기를 보이는 중인지.</summary>
+        public bool IsMergeEditorShown { get; private set; }
+
         /// <summary>
         /// 지금 이 자리에서 파일을 고치는 중인지.
         /// </summary>
@@ -483,6 +489,11 @@ namespace GitVersionControl
             {
                 bool conflicted = _merge.CanOpen(_target);
                 _merge.Root.SetVisible(conflicted);
+                if (IsMergeEditorShown != conflicted)
+                {
+                    IsMergeEditorShown = conflicted;
+                    MergeEditorShownChanged?.Invoke(conflicted);
+                }
                 if (conflicted)
                 {
                     ++_loadVersion;

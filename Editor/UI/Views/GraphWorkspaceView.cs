@@ -136,6 +136,7 @@ namespace GitVersionControl
             // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
             _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
             _diff.CloseRequested += CloseDiff;
+            _diff.MergeEditorShownChanged += _ => UpdateMergeLayout();
 
             // 파일 히스토리는 따로 창을 띄우지 않고 가운데를 덮어 크게 보인다. diff 막대의 "히스토리" 도 여기로 온다.
             _split = Root.Require<VisualElement>("split");
@@ -454,6 +455,28 @@ namespace GitVersionControl
             Root.Require<TwoPaneSplitView>("split").UnCollapse();
         }
 
+        /// <summary>병합 편집기 때문에 오른쪽 패널을 접어 두었는지. 편집기가 닫히면 이것만 보고 다시 편다.</summary>
+        private bool _sideHiddenForMerge;
+
+        /// <summary>
+        /// GitKraken 처럼 충돌 파일의 병합 편집기를 여는 동안은 오른쪽 패널(작업 변경·커밋)을 접어 편집기를 넓게 쓴다.
+        /// 저장해 해결되거나 × 로 닫으면 편다.
+        /// </summary>
+        private void UpdateMergeLayout()
+        {
+            bool merging = _isDiffShown && _diff.IsMergeEditorShown;
+            if (merging && _sideHiddenForMerge == false)
+            {
+                _sideHiddenForMerge = true;
+                HideSidePanel();
+            }
+            else if (merging == false && _sideHiddenForMerge)
+            {
+                _sideHiddenForMerge = false;
+                ShowSidePanel();
+            }
+        }
+
         /// <summary>
         /// 가운데의 diff 를 닫고 그래프로 돌아온다(× 와 같다). 고른 파일 표시도 지운다.
         /// </summary>
@@ -485,6 +508,7 @@ namespace GitVersionControl
             _isDiffShown = target != null;
             _diffHost.SetVisible(target != null);
             _graphHost.SetVisible(target == null);
+            UpdateMergeLayout();
             if (target != null)
             {
                 _diff.SetTarget(target);
