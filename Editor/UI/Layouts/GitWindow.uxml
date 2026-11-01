@@ -47,17 +47,23 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 충돌로 멈춘 rebase·병합·cherry-pick·revert 안내 줄. 진행 중일 때만 OperationBanner 가 보인다. -->
-        <ui:VisualElement name="operation-banner" class="git-window__notice notice notice--warning operation-banner">
-            <ui:Label name="operation-banner-text" class="notice__text" />
-            <ui:Button name="operation-continue-button" text="@inprogress.continue" class="notice__action" />
-            <ui:Button name="operation-skip-button" text="@inprogress.skip" class="notice__action" />
-            <ui:Button name="operation-abort-button" text="@inprogress.abort" class="notice__action" />
-        </ui:VisualElement>
-
-        <!-- 충돌 중 Git 창을 잃을 수 있는 상황(컴파일 오류·패키지 목록 충돌) 경고. OperationBanner 가 채운다. -->
-        <ui:VisualElement name="safety-banner" class="git-window__notice notice notice--error">
-            <ui:Label name="safety-banner-text" class="notice__text" />
+        <!--
+          충돌로 멈춘 rebase·병합·cherry-pick·revert 상태 카드(OperationBanner). 한 장에 제목·설명·버튼을 두고,
+          Git 창을 잃을 수 있는 상황(컴파일 오류·패키지 목록 충돌)은 같은 카드 안 한 줄과 표시 색으로만 알린다.
+        -->
+        <ui:VisualElement name="operation-banner" class="operation-banner">
+            <ui:Label name="operation-banner-badge" text="!" class="operation-banner__badge" />
+            <ui:VisualElement class="operation-banner__body">
+                <ui:Label name="operation-banner-text" class="operation-banner__title" />
+                <ui:Label name="operation-banner-detail" class="operation-banner__detail" />
+                <ui:VisualElement name="operation-banner-risk" class="operation-banner__risk">
+                    <ui:VisualElement class="operation-banner__risk-dot" />
+                    <ui:Label name="operation-banner-risk-text" class="operation-banner__risk-text" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="operation-abort-button" text="@inprogress.abort" class="operation-banner__button" />
+            <ui:Button name="operation-skip-button" text="@inprogress.skip" class="operation-banner__button" />
+            <ui:Button name="operation-continue-button" text="@inprogress.continue" class="operation-banner__button operation-banner__button--primary" />
         </ui:VisualElement>
 
         <ui:VisualElement name="not-ready" class="git-window__notice notice">

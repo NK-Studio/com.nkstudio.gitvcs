@@ -88,6 +88,135 @@
     margin: 8px;
 }
 
+/*
+ * ── operation-banner: 충돌로 멈춘 작업의 상태 카드 ─────────────
+ * 한 장에 제목(굵게) · 설명(흐리게) · 버튼. 테두리 대신 옅은 바탕과 왼쪽 표시로 상태를 보인다.
+ * 평소엔 노랑, Git 창을 잃을 수 있는 상황(--risk)이면 표시와 위험 줄만 빨강으로 바뀐다(줄을 늘리지 않는다).
+ */
+.operation-banner {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 8px 8px 0 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background-color: rgba(214, 174, 88, 0.08);
+    border-width: 1px;
+    border-color: rgba(214, 174, 88, 0.22);
+}
+
+.operation-banner--risk {
+    background-color: rgba(219, 92, 92, 0.07);
+    border-color: rgba(219, 92, 92, 0.28);
+}
+
+.operation-banner--ready {
+    background-color: rgba(95, 184, 101, 0.07);
+    border-color: rgba(95, 184, 101, 0.26);
+}
+
+.operation-banner--ready .operation-banner__badge {
+    background-color: var(--git-success);
+}
+
+.operation-banner__badge {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    margin: 0 12px 0 0;
+    padding: 0;
+    border-radius: 11px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--git-bg);
+    background-color: var(--git-warning);
+    align-self: flex-start;
+}
+
+.operation-banner--risk .operation-banner__badge {
+    background-color: var(--git-danger);
+}
+
+.operation-banner__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.operation-banner__title {
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--git-text);
+    white-space: normal;
+}
+
+.operation-banner__detail {
+    margin: 2px 0 0 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--git-text-muted);
+    white-space: normal;
+}
+
+.operation-banner__risk {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.operation-banner__risk-dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    border-radius: 3px;
+    background-color: var(--git-danger);
+}
+
+.operation-banner__risk-text {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--git-danger);
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.operation-banner > .operation-banner__button {
+    height: 26px;
+    margin: 0 0 0 8px;
+    padding: 0 14px;
+    border-width: 1px;
+    border-radius: 7px;
+    border-color: var(--git-field-border);
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--git-text);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.operation-banner > .operation-banner__button:hover:enabled {
+    background-color: var(--git-hover);
+}
+
+.operation-banner > .operation-banner__button:disabled {
+    opacity: 0.45;
+}
+
+.operation-banner > .operation-banner__button--primary {
+    border-color: var(--git-accent);
+    background-color: var(--git-accent);
+    color: var(--git-accent-text);
+    -unity-font-style: bold;
+}
+
+.operation-banner > .operation-banner__button--primary:hover:enabled {
+    background-color: var(--git-accent-hover);
+}
+
 .git-window--not-ready .git-window__body {
     display: none;
 }
