@@ -1604,9 +1604,11 @@ namespace GitVersionControl
             // 작업 중 줄은 제목 글자 대신 입력란·변경 개수를 보인다.
             subject.SetVisible(isWip == false || conflictWip);
             row.Warning.SetVisible(conflictWip);
-            // 경고 줄은 마우스를 올리거나 골라도 바탕 막(하이라이트)을 깔지 않는다 — 막이 경고색을 덮어 빈 줄처럼 보였다.
-            // 줄 요소가 곧 목록 항목이라 USS 의 자손 선택자로는 :hover 규칙을 이길 수 없어 인라인으로 끈다.
-            row.Highlight.style.display = conflictWip ? DisplayStyle.None : StyleKeyword.Null;
+            // 경고 줄은 바탕 막(하이라이트)을 경고색으로 늘 깐다 — 막은 가지 색 띠와 같은 높이라 노란 칠이 줄 높이를 넘지 않고,
+            // 마우스를 올리거나 골라도 회색·파랑 막이 경고색을 덮지 않는다. 줄 요소가 곧 목록 항목이라
+            // USS 의 자손 선택자로는 :hover 규칙을 이길 수 없어 인라인으로 정한다.
+            row.Highlight.style.display = conflictWip ? DisplayStyle.Flex : StyleKeyword.Null;
+            row.Highlight.style.backgroundColor = conflictWip ? new Color(0.878f, 0.627f, 0.188f, 0.55f) : StyleKeyword.Null;
             if (isWip)
             {
                 _wipRow = row;
@@ -2438,41 +2440,64 @@ namespace GitVersionControl
             }
             float xi = X(incoming.Lane.Row);
             float yi = VerticalGraphLayout.RowCenterY(row, scrollY) - NodeTopRadius(incoming);
-            painter.strokeColor = GraphStyle.LaneColor(incoming.Lane);
-            painter.lineWidth = 2f;
-            const float dash = 2.5f;
-            const float gap = 2.5f;
+            // 모서리 곡선까지 한 줄로 이어 촘촘한 점선을 긋는다(작업 중 원에서 HEAD 로 가는 점선과 같은 굵기·간격).
+            List<Vector2> path = new();
             if (Mathf.Abs(xi - x) < 0.5f)
             {
-                DashedLine(painter, new Vector2(x, y + radius), new Vector2(x, yi), dash, gap);
-                painter.strokeColor = headColor;
-                return;
+                path.Add(new Vector2(x, y + radius));
+                path.Add(new Vector2(x, yi));
             }
-            float corner = Mathf.Min(EdgeCornerRadius, Mathf.Abs(xi - x), yi - y);
-            float direction = Mathf.Sign(xi - x);
-            DashedLine(painter, new Vector2(x + direction * radius, y), new Vector2(xi - direction * corner, y), dash, gap);
-            painter.BeginPath();
-            painter.MoveTo(new Vector2(xi - direction * corner, y));
-            painter.ArcTo(new Vector2(xi, y), new Vector2(xi, y + corner), corner);
-            painter.Stroke();
-            DashedLine(painter, new Vector2(xi, y + corner), new Vector2(xi, yi), dash, gap);
+            else
+            {
+                float corner = Mathf.Min(EdgeCornerRadius, Mathf.Abs(xi - x), yi - y);
+                float direction = Mathf.Sign(xi - x);
+                path.Add(new Vector2(x + direction * radius, y));
+                // 가로에서 세로로 꺾는 사분원(중심은 모서리 안쪽).
+                Vector2 center = new(xi - direction * corner, y + corner);
+                const int arcSteps = 8;
+                for (int i = 0; i <= arcSteps; i++)
+                {
+                    float angle = Mathf.PI * 0.5f * i / arcSteps;
+                    path.Add(center + new Vector2(direction * Mathf.Sin(angle), -Mathf.Cos(angle)) * corner);
+                }
+                path.Add(new Vector2(xi, yi));
+            }
+            painter.strokeColor = GraphStyle.LaneColor(incoming.Lane);
+            painter.lineWidth = 1.5f;
+            DashedPath(painter, path, 3f, 3f);
             painter.strokeColor = headColor;
         }
 
-        private static void DashedLine(Painter2D painter, Vector2 from, Vector2 to, float dash, float gap)
+        /// <summary>꺾인 선을 따라 길이로 이어지는 점선(구간이 바뀌어도 점 간격이 끊기지 않는다).</summary>
+        private static void DashedPath(Painter2D painter, List<Vector2> points, float dash, float gap)
         {
-            float length = Vector2.Distance(from, to);
-            if (length <= 0f)
+            float period = dash + gap;
+            float walked = 0f;
+            for (int i = 1; i < points.Count; i++)
             {
-                return;
-            }
-            Vector2 step = (to - from) / length;
-            for (float at = 0f; at < length; at += dash + gap)
-            {
-                painter.BeginPath();
-                painter.MoveTo(from + step * at);
-                painter.LineTo(from + step * Mathf.Min(at + dash, length));
-                painter.Stroke();
+                Vector2 from = points[i - 1];
+                Vector2 to = points[i];
+                float length = Vector2.Distance(from, to);
+                if (length <= 0f)
+                {
+                    continue;
+                }
+                Vector2 step = (to - from) / length;
+                float at = 0f;
+                while (at < length)
+                {
+                    float phase = (walked + at) % period;
+                    float run = phase < dash ? Mathf.Min(dash - phase, length - at) : Mathf.Min(period - phase, length - at);
+                    if (phase < dash)
+                    {
+                        painter.BeginPath();
+                        painter.MoveTo(from + step * at);
+                        painter.LineTo(from + step * (at + run));
+                        painter.Stroke();
+                    }
+                    at += run;
+                }
+                walked += length;
             }
         }
 

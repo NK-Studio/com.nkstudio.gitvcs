@@ -1234,11 +1234,7 @@
     padding-left: 10px;
 }
 
-/* 병합이 충돌로 멈춘 작업 중 줄: 입력란 대신 노란 경고 줄(GitKraken 과 같다). 메시지 칸을 경고색으로 칠하고 글자는 진하게. */
-.commit-graph-row--wip-conflict .commit-graph-row__message {
-    background-color: rgba(224, 160, 48, 0.55);
-}
-
+/* 병합이 충돌로 멈춘 작업 중 줄: 입력란 대신 노란 경고 줄(GitKraken 과 같다). 경고색은 코드가 하이라이트 막에 깐다(띠와 같은 높이). 글자는 진하게. */
 .commit-graph-row--wip-conflict .commit-row__subject {
     color: #ffffff;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
