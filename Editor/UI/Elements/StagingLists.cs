@@ -95,8 +95,6 @@ namespace GitVersionControl
         /// </summary>
         private List<GitStatusEntry> _resolvedUnchanged = new();
 
-        /// <summary>충돌 파일 목록을 줄 수에 맞출지(충돌 아닌 Unstaged 변경도 함께 보일 때). 아니면 Unstaged 칸을 다 쓴다.</summary>
-        private bool _fitConflicts;
         private VisualElement _unstagedHeader;
         private VisualElement _unstagedFilesHost;
 
@@ -251,13 +249,6 @@ namespace GitVersionControl
             _conflicts.SelectionChanged += item => OnConflictSelected(item, resolved: false);
             _resolved.SelectionChanged += item => OnConflictSelected(item, resolved: true);
             // 트리 보기면 폴더 줄도 있고 펼치고 접을 때마다 줄 수가 바뀌므로, 보이는 줄 수가 바뀔 때마다 칸 높이를 다시 맞춘다.
-            _conflicts.RowsChanged += () =>
-            {
-                if (_fitConflicts)
-                {
-                    FitToRows(_conflictFilesHost, _conflicts);
-                }
-            };
             _resolved.RowsChanged += () => FitToRows(_resolvedFilesHost, _resolved);
 
             // 누른 순간의 Shift 는 클릭 이벤트에서 읽는다(키 추적이 놓쳐도 맞게). null 이면 전부.
@@ -831,21 +822,11 @@ namespace GitVersionControl
             // GitKraken 처럼 Unstaged 자리가 "충돌 파일 (n)", Staged 자리가 "해결한 파일 (n)" 이 된다(따로 구역을 늘리지 않는다).
             // 다 풀어도 작업을 마칠 때까지는 "충돌 파일 (0)" 으로 남겨 어디서 무엇을 푸는지 이어 보이게 한다.
             _conflictMode = conflicts.Count > 0 || (kind != GitOperationKind.None && _resolvedEntries.Count > 0);
-            bool otherUnstaged = _unstagedEntries.Count > 0;
-            _fitConflicts = _conflictMode && otherUnstaged;
+            // 충돌을 푸는 동안은 GitKraken 처럼 충돌 아닌 변경(중간에 Unstage 한 해결 파일 등)은 보이지 않는다 — 충돌 파일과 해결한 파일만.
             _conflictHeader.SetVisible(_conflictMode);
             _conflictFilesHost.SetVisible(_conflictMode);
-            _conflictFilesHost.EnableInClassList("staging-conflict__files--fit", _fitConflicts);
-            if (_fitConflicts)
-            {
-                FitToRows(_conflictFilesHost, _conflicts);
-            }
-            else
-            {
-                _conflictFilesHost.style.height = StyleKeyword.Null;
-            }
-            _unstagedHeader.SetVisible(_conflictMode == false || otherUnstaged);
-            _unstagedFilesHost.SetVisible(_conflictMode == false || otherUnstaged);
+            _unstagedHeader.SetVisible(_conflictMode == false);
+            _unstagedFilesHost.SetVisible(_conflictMode == false);
             _resolvedHeader.SetVisible(false);
             _resolvedFilesHost.SetVisible(false);
             _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictEntries.Count);
