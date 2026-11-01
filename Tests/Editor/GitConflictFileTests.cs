@@ -69,5 +69,13 @@ namespace GitVersionControl.Tests
             choice.SetSide(GitMergeSide.A, true);
             Assert.AreEqual("top\r\na1\r\na2\r\nbottom\r\n", file.Build(new List<GitMergeChoice> { choice }));
         }
+
+        [Test]
+        public void Test_Build_KeepUndecided_LeavesMarkers()
+        {
+            GitConflictFile file = GitConflictFile.Parse(Text);
+            GitMergeChoice choice = new(file.Segments[1]);
+            Assert.AreEqual(Text, file.Build(new List<GitMergeChoice> { choice }, keepUndecided: true));
+        }
     }
 }

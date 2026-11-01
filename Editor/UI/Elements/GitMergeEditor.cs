@@ -14,6 +14,8 @@ namespace GitVersionControl
     /// 충돌 덩어리마다 A·B 를 골라(체크) 출력에 넣는다 — 둘 다 고르면 고른 차례대로 잇고, 줄을 눌러 한 줄씩 빼거나 넣을 수 있다.
     /// 다 고르면 [저장] 이 출력을 파일에 쓰고 해결됨으로 표시한다(<c>git add</c>).
     /// 파일은 작업 사본에 git 이 남긴 충돌 표시를 읽는다(<see cref="GitConflictFile"/>). 표시가 없는 충돌(바이너리·삭제/수정)은 한쪽으로 해결하는 버튼만 둔다.
+    /// 출력은 [직접 고치기] 로 글을 손으로 고칠 수 있다(고른 결과에서 시작한다). 작업 사본에서 충돌 표시를 지워 버렸어도
+    /// git 이 기록한 양쪽 판(<see cref="GitInProgress.ConflictTextFromStagesAsync"/>)으로 A·B 를 다시 보인다.
     /// 이미지 충돌은 GitKraken 처럼 A·B 이미지를 나란히 보이고, 체크로 한쪽을 고르면 아래 출력에 그 이미지가 보인다. [저장] 이 그쪽으로 해결한다.
     /// <see cref="GitDiffPanel"/> 위에 덮어 띄운다.
     /// </summary>
@@ -70,6 +72,12 @@ namespace GitVersionControl
         private readonly ListView _listA;
         private readonly ListView _listB;
         private readonly ListView _output;
+        private readonly TextField _editText;
+        private readonly Button _editButton;
+        private readonly Label _notice;
+        private bool _editing;
+        private bool _fromStages;
+        private int _stageVersion;
         private readonly List<MergeRow> _rowsA = new();
         private readonly List<MergeRow> _rowsB = new();
         private readonly List<MergeRow> _rowsOutput = new();
@@ -119,6 +127,12 @@ namespace GitVersionControl
             header.Add(_close);
             Root.Add(header);
 
+            // 작업 사본에 충돌 표시가 없어 git 이 기록한 판으로 다시 보일 때의 안내.
+            _notice = new Label(GitText.Get("merge.fromStages"));
+            _notice.AddToClassList("git-merge__notice");
+            _notice.SetVisible(false);
+            Root.Add(_notice);
+
             _editor = new VisualElement();
             _editor.AddToClassList("git-merge__editor");
             Root.Add(_editor);
@@ -147,6 +161,9 @@ namespace GitVersionControl
             Button next = new(() => Move(1)) { text = "▼", tooltip = GitText.Get("merge.next") };
             next.AddToClassList("git-merge__nav");
             outputHeader.Add(next);
+            _editButton = new Button(ToggleEditing);
+            _editButton.AddToClassList("git-merge__reset");
+            outputHeader.Add(_editButton);
             Button reset = new(Reset) { text = GitText.Get("merge.reset"), tooltip = GitText.Get("merge.resetTooltip") };
             reset.AddToClassList("git-merge__reset");
             outputHeader.Add(reset);
@@ -154,6 +171,19 @@ namespace GitVersionControl
             _output = List(_rowsOutput, output: true);
             _output.AddToClassList("git-merge__output");
             _editor.Add(_output);
+            // 출력을 손으로 고치는 칸(GitKraken 처럼 고른 결과 위에서 값만 바꾸기 등).
+            _editText = new TextField { multiline = true };
+            _editText.AddToClassList("git-merge__edit");
+            _editText.verticalScrollerVisibility = ScrollerVisibility.Auto;
+            // 칸을 누르자마자 전체가 골라져 한 글자로 덮이지 않게.
+            _editText.textSelection.selectAllOnFocus = false;
+            _editText.textSelection.selectAllOnMouseUp = false;
+            if (_monospace != null)
+            {
+                _editText.style.unityFontDefinition = FontDefinition.FromFont(_monospace);
+            }
+            _editText.SetVisible(false);
+            _editor.Add(_editText);
 
             // 충돌 표시가 없는 충돌(바이너리 에셋·한쪽이 지운 파일): 한쪽으로 해결하거나 지금 파일로 해결됨 표시.
             _binary = new VisualElement();
@@ -205,6 +235,7 @@ namespace GitVersionControl
             _imageView.Add(_imageOutputStage);
             _imageView.SetVisible(false);
             Root.Add(_imageView);
+            SetEditing(false);
 
             Root.RegisterCallback<AttachToPanelEvent>(_ => _services.Runner.StateChanged += UpdateSave);
             Root.RegisterCallback<DetachFromPanelEvent>(_ =>
@@ -265,12 +296,49 @@ namespace GitVersionControl
                 Render();
                 return;
             }
+            // git 이 기록한 판으로 다시 만드는 중에 새로고침이 와도 다시 시작하지 않는다.
+            if (repoPath == _repoPath && _file == null && _fromStages && text == _loadedText)
+            {
+                return;
+            }
             _repoPath = repoPath;
             _loadedText = text;
             _savedText = null;
             _hasBom = hasBom;
             _file = text != null ? GitConflictFile.Parse(text) : null;
             _current = 0;
+            SetEditing(false);
+            _fromStages = _file == null && text != null;
+            _notice.SetVisible(false);
+            if (_fromStages)
+            {
+                // 충돌 표시를 손으로 지운(또는 망친) 글 파일: git 이 기록한 양쪽 판으로 다시 만든다.
+                _editor.SetVisible(false);
+                _binary.SetVisible(false);
+                SetImageMode(false);
+                _count.text = GitText.Get("merge.imageLoading");
+                LoadFromStagesAsync(++_stageVersion, repoPath, text);
+                return;
+            }
+            ShowFile();
+        }
+
+        private async void LoadFromStagesAsync(int version, string repoPath, string text)
+        {
+            GitOperationKind kind = _services.Repository.InProgressOperation;
+            (string ours, string theirs) = await SideNamesAsync(kind);
+            string rebuilt = await GitInProgress.ConflictTextFromStagesAsync(repoPath, ours, theirs);
+            if (version != _stageVersion || repoPath != _repoPath || text != _loadedText)
+            {
+                return;
+            }
+            _file = rebuilt != null ? GitConflictFile.Parse(rebuilt) : null;
+            _notice.SetVisible(_file != null);
+            ShowFile();
+        }
+
+        private void ShowFile()
+        {
             if (_file == null)
             {
                 _conflicts = new List<GitMergeSegment>();
@@ -489,6 +557,7 @@ namespace GitVersionControl
 
         private void Reset()
         {
+            SetEditing(false);
             foreach (GitMergeChoice choice in _choices)
             {
                 choice.Clear();
@@ -496,6 +565,43 @@ namespace GitVersionControl
             _current = 0;
             Render();
             ScrollToCurrent();
+        }
+
+        /// <summary>
+        /// [직접 고치기]: 지금 고른 결과(고르지 않은 덩어리는 충돌 표시 그대로)를 글 칸에 펴서 손으로 고친다.
+        /// [고르기로 돌아가기] 는 고친 글을 버리고 A·B 고르기로 돌아간다.
+        /// </summary>
+        private void ToggleEditing()
+        {
+            if (_file == null)
+            {
+                return;
+            }
+            if (_editing == false)
+            {
+                _editText.SetValueWithoutNotify(_file.Build(_choices, keepUndecided: true).Replace("\r\n", "\n"));
+            }
+            SetEditing(_editing == false);
+            Render();
+            if (_editing)
+            {
+                _editText.Focus();
+            }
+        }
+
+        /// <summary>고치는 동안은 A·B 고르기를 막는다(고른 결과가 고친 글과 어긋나지 않게).</summary>
+        private void SetEditing(bool editing)
+        {
+            _editing = editing;
+            _editText.SetVisible(editing);
+            _output.SetVisible(editing == false);
+            _listA.SetEnabled(editing == false);
+            _listB.SetEnabled(editing == false);
+            _allA.SetEnabled(editing == false);
+            _allB.SetEnabled(editing == false);
+            _editButton.text = GitText.Get(editing ? "merge.editBack" : "merge.edit");
+            _editButton.tooltip = GitText.Get(editing ? "merge.editBackTooltip" : "merge.editTooltip");
+            UpdateSave();
         }
 
         private void Move(int delta)
@@ -550,13 +656,20 @@ namespace GitVersionControl
             _count.text = GitText.Format("merge.count", _conflicts.Count);
             _position.text = GitText.Format("merge.position", Math.Min(_current + 1, _conflicts.Count), _conflicts.Count);
             _save.SetVisible(true);
-            _save.tooltip = left > 0 ? GitText.Format("merge.saveBlocked", left) : GitText.Get("merge.saveTooltip");
+            _save.tooltip = _editing ? GitText.Get("merge.editSaveTooltip")
+                : left > 0 ? GitText.Format("merge.saveBlocked", left)
+                : GitText.Get("merge.saveTooltip");
             UpdateSave();
         }
 
         private void UpdateSave()
         {
             bool idle = _services.Runner.IsBusy == false;
+            if (_editing)
+            {
+                _save.SetEnabled(idle);
+                return;
+            }
             if (_imageMode)
             {
                 _save.SetEnabled(idle && _imageChoice != null);
@@ -641,8 +754,24 @@ namespace GitVersionControl
 
         // ── 저장·해결 ──
 
-        private void Save()
+        private async void Save()
         {
+            if (_editing)
+            {
+                if (_file == null || _services.Runner.IsBusy)
+                {
+                    return;
+                }
+                string edited = _editText.value.Replace("\r\n", "\n").Replace("\n", _file.NewLine);
+                // 충돌 표시를 남긴 채 저장하면 해결되지 않은 파일이 해결됨으로 올라간다. 한 번 묻는다.
+                if (GitConflictFile.Parse(edited) != null
+                    && await _services.Dialogs.ConfirmAsync(GitText.Get("merge.save"), GitText.Format("inprogress.resolveMarkersConfirm", Path.GetFileName(_repoPath)), GitText.Get("merge.save")) == false)
+                {
+                    return;
+                }
+                WriteAndResolve(edited);
+                return;
+            }
             if (_imageMode)
             {
                 if (_imageChoice != null && _services.Runner.IsBusy == false)
@@ -655,10 +784,15 @@ namespace GitVersionControl
             {
                 return;
             }
+            WriteAndResolve(_file.Build(_choices));
+        }
+
+        private void WriteAndResolve(string text)
+        {
             string fullPath = FullPath(_repoPath);
             try
             {
-                _savedText = _file.Build(_choices);
+                _savedText = text;
                 File.WriteAllText(fullPath, _savedText, new UTF8Encoding(_hasBom));
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)

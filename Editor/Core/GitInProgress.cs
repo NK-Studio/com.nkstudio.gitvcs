@@ -256,6 +256,67 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// 작업 사본에서 충돌 표시를 지워 버렸을 때(손으로 고치다 망쳤을 때) git 이 인덱스에 남긴 세 판(:1 공통 조상·:2 우리 쪽·:3 들어오는 쪽)으로
+        /// 충돌 표시가 든 글을 다시 만든다(<c>git merge-file</c>). 작업 사본은 건드리지 않는다.
+        /// 한쪽이 지운 충돌(그 단계가 없다)이거나 다시 합쳐도 충돌이 없으면 null.
+        /// </summary>
+        public static async Task<string> ConflictTextFromStagesAsync(string repoPath, string oursLabel, string theirsLabel)
+        {
+            string directory = Path.Combine(GitRepository.ProjectRoot, "Temp", "GitVcsMerge", Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                string ours = Path.Combine(directory, "ours");
+                string baseFile = Path.Combine(directory, "base");
+                string theirs = Path.Combine(directory, "theirs");
+                if (await ExtractStageAsync(2, repoPath, ours) == false || await ExtractStageAsync(3, repoPath, theirs) == false)
+                {
+                    return null;
+                }
+                // 양쪽이 따로 새로 만든 파일(add/add)은 공통 조상이 없다 — 빈 파일로 본다.
+                if (await ExtractStageAsync(1, repoPath, baseFile) == false)
+                {
+                    File.WriteAllBytes(baseFile, Array.Empty<byte>());
+                }
+                // 충돌이 있으면 그 개수로 끝난다(오류가 아니다). 음수(실패)만 버린다. 결과는 ours 파일에 쓴다.
+                GitResult result = await GitRepository.RunAsync("merge-file", "-L", oursLabel ?? "ours", "-L", "base", "-L", theirsLabel ?? "theirs", ours, baseFile, theirs);
+                if (result.ExitCode <= 0)
+                {
+                    return null;
+                }
+                byte[] bytes = File.ReadAllBytes(ours);
+                if (Array.IndexOf(bytes, (byte)0) >= 0)
+                {
+                    return null;
+                }
+                bool hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+                return new System.Text.UTF8Encoding(false).GetString(bytes, hasBom ? 3 : 0, bytes.Length - (hasBom ? 3 : 0));
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                return null;
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(directory, true);
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                {
+                    // 남아도 프로젝트 Temp 아래라 에디터를 끄면 Unity 가 정리한다.
+                }
+            }
+        }
+
+        /// <summary>인덱스의 충돌 단계 하나를 파일로 꺼낸다(줄 끝 변환·LFS 까지 거친 실제 내용). 그 단계가 없으면 false.</summary>
+        private static async Task<bool> ExtractStageAsync(int stage, string repoPath, string outputPath)
+        {
+            GitResult result = await GitCommand.RunToFileAsync(GitRepository.RepoRoot, new[] { "cat-file", "--filters", $":{stage}:{repoPath}" }, outputPath);
+            return result.Success;
+        }
+
+        /// <summary>
         /// 진행 중인 작업을 이어간다. 끝까지 가면 실행 취소 목록에 한 번 남기고(시작 전 커밋으로 돌아가는 기록), 다음 커밋에서 또 충돌하면 그렇다고 알린다.
         /// </summary>
         public static async Task<GitResult> ContinueAsync()

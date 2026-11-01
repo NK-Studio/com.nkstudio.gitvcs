@@ -1669,3 +1669,30 @@
     border-bottom-width: 2px;
     border-bottom-color: #d9a732;
 }
+
+/* 출력을 손으로 고치는 칸: 출력 목록 자리를 그대로 차지한다. */
+.git-merge__edit {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0;
+}
+
+.git-merge__edit > .unity-text-field__input {
+    padding: 6px 8px;
+    font-size: 12px;
+    -unity-text-align: upper-left;
+    border-radius: 0;
+}
+
+/* 충돌 표시를 지운 파일을 git 기록으로 다시 보일 때의 안내 줄. */
+.git-merge__notice {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 4px 10px;
+    font-size: 11px;
+    white-space: normal;
+    color: var(--git-text);
+    background-color: rgba(214, 174, 88, 0.12);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--git-border);
+}

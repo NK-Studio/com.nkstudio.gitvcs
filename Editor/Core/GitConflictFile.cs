@@ -209,7 +209,8 @@ namespace GitVersionControl
         /// <summary>
         /// 고른 대로 출력 글을 만든다. <paramref name="choices"/> 는 충돌 덩어리 차례(<see cref="Conflicts"/>)와 같다.
         /// </summary>
-        public string Build(IReadOnlyList<GitMergeChoice> choices)
+        /// <param name="keepUndecided">true 면 아직 고르지 않은 덩어리를 충돌 표시 그대로 남긴다(출력을 손으로 고치기 시작할 때).</param>
+        public string Build(IReadOnlyList<GitMergeChoice> choices, bool keepUndecided = false)
         {
             List<string> lines = new();
             int index = 0;
@@ -220,7 +221,17 @@ namespace GitVersionControl
                     lines.AddRange(segment.Common);
                     continue;
                 }
-                lines.AddRange(ChosenLines(segment, choices[index++]));
+                GitMergeChoice choice = choices[index++];
+                if (keepUndecided && choice.IsDecided == false)
+                {
+                    lines.Add(("<<<<<<< " + ALabel).TrimEnd());
+                    lines.AddRange(segment.A);
+                    lines.Add("=======");
+                    lines.AddRange(segment.B);
+                    lines.Add((">>>>>>> " + BLabel).TrimEnd());
+                    continue;
+                }
+                lines.AddRange(ChosenLines(segment, choice));
             }
             StringBuilder builder = new();
             for (int i = 0; i < lines.Count; i++)
