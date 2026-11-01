@@ -89,6 +89,12 @@ namespace GitVersionControl
         /// </summary>
         private bool _conflictMode;
 
+        /// <summary>
+        /// 이번에 풀었지만 바뀐 것이 없는 파일(한쪽을 통째로 골라 HEAD 와 같아져 git 상태에 나오지 않는다). GitKraken 처럼 "해결한 파일" 에 남겨
+        /// 푼 파일이 사라진 것처럼 보이지 않게 한다. 오른쪽에 "변경 없음" 을 적는다.
+        /// </summary>
+        private List<GitStatusEntry> _resolvedUnchanged = new();
+
         /// <summary>충돌 파일 목록을 줄 수에 맞출지(충돌 아닌 Unstaged 변경도 함께 보일 때). 아니면 Unstaged 칸을 다 쓴다.</summary>
         private bool _fitConflicts;
         private VisualElement _unstagedHeader;
@@ -640,7 +646,9 @@ namespace GitVersionControl
             int conflicts = _unstagedEntries.Count(e => e.State == GitFileState.Conflicted);
             _unstagedTitle.text = GitText.Format("staging.unstagedTitle", _unstagedEntries.Count)
                                   + (conflicts > 0 ? GitText.Format("staging.conflictCount", conflicts) : string.Empty);
-            _stagedTitle.text = GitText.Format(_conflictMode ? "conflict.resolvedTitle" : "staging.stagedTitle", _stagedEntries.Count);
+            _stagedTitle.text = _conflictMode
+                ? GitText.Format("conflict.resolvedTitle", _stagedEntries.Count + _resolvedUnchanged.Count)
+                : GitText.Format("staging.stagedTitle", _stagedEntries.Count);
             bool idle = _services.Runner.IsBusy == false;
             RenderButton(_stageButton, _selectedUnstaged.Count, _unstagedEntries.Count, idle, "staging.stage", "staging.stageSelected", "staging.stageAll");
             RenderButton(_unstageButton, _selectedStaged.Count, _stagedEntries.Count, idle, "staging.unstage", "staging.unstageSelected", "staging.unstageAll");
@@ -780,6 +788,19 @@ namespace GitVersionControl
             return host;
         }
 
+        /// <summary>바뀐 것 없이 해결된 파일을 목록 줄로 보이기 위한 항목(git 상태에는 없다).</summary>
+        private static GitStatusEntry UnchangedEntry(string repoPath)
+        {
+            return new GitStatusEntry
+            {
+                RepoPath = repoPath,
+                State = GitFileState.Modified,
+                IndexCode = 'M',
+                WorkTreeCode = ' ',
+                ProjectPath = GitStatusParser.ToProjectPath(repoPath, GitRepository.ProjectPrefix, GitRepository.RepoInProject),
+            };
+        }
+
         private static GitStatusEntry StillPresent(GitStatusEntry selected, List<GitStatusEntry> entries)
         {
             return selected == null ? null : entries.FirstOrDefault(e => e.RepoPath == selected.RepoPath);
@@ -828,6 +849,22 @@ namespace GitVersionControl
             _resolvedHeader.SetVisible(false);
             _resolvedFilesHost.SetVisible(false);
             _conflictTitle.text = GitText.Format("conflict.filesTitle", _conflictEntries.Count);
+
+            _resolvedUnchanged = _conflictMode
+                ? _conflictSeen.Where(path => conflicts.All(e => e.RepoPath != path) && _stagedEntries.All(e => e.RepoPath != path) && _unstagedEntries.All(e => e.RepoPath != path))
+                    .OrderBy(path => path, StringComparer.Ordinal)
+                    .Select(UnchangedEntry)
+                    .ToList()
+                : new List<GitStatusEntry>();
+            if (_resolvedUnchanged.Count > 0)
+            {
+                List<FileListItem> items = FileListItem.FromStatus(Filtered(_stagedEntries.Concat(_resolvedUnchanged).ToList())).ToList();
+                foreach (FileListItem item in items.Where(item => _resolvedUnchanged.Contains(item.Source)))
+                {
+                    item.Note = GitText.Get("conflict.resolvedUnchanged");
+                }
+                _staged.SetItems(items);
+            }
         }
 
         /// <summary>

@@ -25,6 +25,21 @@ namespace GitVersionControl
         /// <summary><see cref="Badge"/> 가 바뀌었을 수 있을 때.</summary>
         public event Action BadgeChanged;
 
+        /// <summary>
+        /// 병합 편집기처럼 이 탭이 창을 넓게 쓰기 시작하거나 그만둘 때(true = 넓게). 창이 왼쪽 사이드바를 아이콘 줄로 접고 편다.
+        /// </summary>
+        public event Action<bool> FullScreenChanged;
+
+        protected void NotifyFullScreen(bool fullScreen)
+        {
+            FullScreenChanged?.Invoke(fullScreen);
+        }
+
+        /// <summary>창이 접힌 사이드바를 다시 펼 때(접힌 줄을 눌렀다) — 넓게 보이던 것(병합 편집기 등)을 닫는다.</summary>
+        public virtual void LeaveFullScreen()
+        {
+        }
+
         protected GitView(GitServices services, string layoutName)
         {
             Services = services;

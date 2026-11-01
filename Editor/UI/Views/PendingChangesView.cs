@@ -86,6 +86,12 @@ namespace GitVersionControl
             _diff.Root.style.flexGrow = 1;
             _diff.ShowReloadButton(false);
             _diff.PopupHostProvider = () => services.PopupHost;
+            // 충돌 파일을 고르면 diff 대신 병합 편집기(A·B 고르기). 여는 동안은 동작 줄·메시지·목록·세부사항을 접고 사이드바도 접어
+            // 편집기가 창을 넓게 쓴다(GitKraken 과 같다). × 로 닫으면 돌아온다.
+            _diff.EnableMergeEditor(services);
+            _diff.ShowMergeCloseButton(true);
+            _diff.MergeEditorShownChanged += SetMergeFullScreen;
+            _diff.CloseRequested += LeaveFullScreen;
             Root.Require<VisualElement>("diff-host").Add(_diff.Root);
 
             // 오른쪽 세부사항: 워크스페이스 탭의 정보·히스토리와 같은 모양. 히스토리에서 커밋을 고르면 그 메시지를 아래에 적는다.
@@ -497,6 +503,34 @@ namespace GitVersionControl
             _selected = entry;
             _diff.SetTarget(entry == null ? null : GitDiffTarget.ForWorkingTree(entry));
             ShowDetails(entry);
+        }
+
+        private void SetMergeFullScreen(bool fullScreen)
+        {
+            Root.Q(className: "pending-changes")?.EnableInClassList("pending-changes--merging", fullScreen);
+            TwoPaneSplitView list = Root.Require<TwoPaneSplitView>("split");
+            if (fullScreen)
+            {
+                list.CollapseChild(0);
+                _detailsSplit.CollapseChild(1);
+            }
+            else
+            {
+                list.UnCollapse();
+                ApplyDetailsVisibility();
+            }
+            NotifyFullScreen(fullScreen);
+        }
+
+        /// <summary>병합 편집기를 닫는다(× 나 접힌 사이드바 누르기). 고른 파일을 풀어 편집기가 사라지면 목록이 돌아온다.</summary>
+        public override void LeaveFullScreen()
+        {
+            if (_diff.IsMergeEditorShown == false)
+            {
+                return;
+            }
+            _files.ClearSelection();
+            ShowSelected(null);
         }
 
         private void ApplyDetailsVisibility()

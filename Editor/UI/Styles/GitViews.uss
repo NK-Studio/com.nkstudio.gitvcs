@@ -207,6 +207,13 @@
 }
 
 /* 동작 줄 아래 커밋 메시지 칸. 높이는 고정이고 메시지가 길면 안에서 스크롤한다. */
+/* 병합 편집기를 여는 동안: 동작 줄·메시지·목록 머리 줄을 숨겨 편집기가 탭을 다 쓴다(목록·세부사항 칸은 코드가 접는다). */
+.pending-changes--merging .pending-changes__actions,
+.pending-changes--merging .pending-changes__commit,
+.pending-changes--merging .pending-changes__header {
+    display: none;
+}
+
 .pending-changes__actions > .pending-changes__action-button--danger {
     color: var(--git-danger);
 }

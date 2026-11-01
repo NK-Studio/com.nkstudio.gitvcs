@@ -657,7 +657,10 @@ namespace GitVersionControl
             switch (GitLayout.Style)
             {
                 case GitLayoutStyle.Fork:
-                    AddView(new ForkChangesView(_services, _state.Staging), content, sidebar);
+                    ForkChangesView fork = new(_services, _state.Staging);
+                    // 병합 편집기를 여는 동안 왼쪽 사이드바도 접어 편집기가 창을 넓게 쓴다(GitKraken 과 같다).
+                    fork.FullScreenChanged += SetSidebarCollapsed;
+                    AddView(fork, content, sidebar);
                     break;
                 case GitLayoutStyle.GitKraken:
                     GraphWorkspaceView graph = new(_services, _state.Staging, this);
@@ -667,7 +670,9 @@ namespace GitVersionControl
                     AddView(graph, content, sidebar);
                     break;
                 default:
-                    AddView(new PendingChangesView(_services, _state.Pending), content, sidebar);
+                    PendingChangesView pending = new(_services, _state.Pending);
+                    pending.FullScreenChanged += SetSidebarCollapsed;
+                    AddView(pending, content, sidebar);
                     break;
             }
             // 브랜치 탐색기 모양은 개인 설정이다. GitKraken 배치는 가로 브랜치 그래프로 고정(GitExplorerStyle.Effective).
@@ -778,6 +783,10 @@ namespace GitVersionControl
         private void RestoreSidebar()
         {
             _views.OfType<GraphWorkspaceView>().FirstOrDefault()?.CloseDiff();
+            foreach (GitView view in _views)
+            {
+                view.LeaveFullScreen();
+            }
             SetSidebarCollapsed(false);
         }
 

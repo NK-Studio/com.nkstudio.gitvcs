@@ -34,12 +34,43 @@ namespace GitVersionControl
             // "이 파일 편집" 의 저장 확인은 운영체제 대화상자 대신 Git 창 위 팝업으로.
             _diff.PopupHostProvider = () => services.PopupHost;
             _diff.EnableMergeEditor(services);
+            // 병합 편집기를 여는 동안은 목록·커밋 칸을 접고 사이드바도 접어 편집기가 창을 넓게 쓴다. × 로 닫으면 돌아온다.
+            _diff.ShowMergeCloseButton(true);
+            _diff.MergeEditorShownChanged += SetMergeFullScreen;
+            _diff.CloseRequested += LeaveFullScreen;
             Root.Require<VisualElement>("diff-host").Add(_diff.Root);
             _commit = new CommitBox(Root.Require<VisualElement>("commit-host"), services, state, showPush: false);
 
             _staging.FileSelected += _diff.SetTarget;
             // 누르자마자 옮겨 보인 목록(짐작)에 맞춰 커밋 상자의 stage 개수도 바로 바꾼다.
             _staging.EntriesShown += () => _commit.SetStagedCount(_staging.StagedCount);
+        }
+
+        /// <summary>병합 편집기가 뜨면 왼쪽 목록과 아래 커밋 칸을 접어 편집기가 창을 넓게 쓴다(GitKraken 과 같다).</summary>
+        private void SetMergeFullScreen(bool fullScreen)
+        {
+            TwoPaneSplitView split = Root.Require<TwoPaneSplitView>("split");
+            if (fullScreen)
+            {
+                split.CollapseChild(0);
+            }
+            else
+            {
+                split.UnCollapse();
+            }
+            _commit.Root.SetVisible(fullScreen == false);
+            NotifyFullScreen(fullScreen);
+        }
+
+        /// <summary>병합 편집기를 닫는다(× 나 접힌 사이드바 누르기). 고른 파일을 풀어 편집기가 사라지면 목록이 돌아온다.</summary>
+        public override void LeaveFullScreen()
+        {
+            if (_diff.IsMergeEditorShown == false)
+            {
+                return;
+            }
+            _staging.ClearSelection();
+            _diff.SetTarget(null);
         }
 
         public override void OnRepositoryChanged()

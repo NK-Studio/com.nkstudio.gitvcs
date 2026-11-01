@@ -240,6 +240,12 @@ namespace GitVersionControl
             _merge?.ShowCloseButton(isVisible);
         }
 
+        /// <summary>병합 편집기에만 닫기(×)를 둔다(diff 에는 두지 않는 배치 — 병합 편집기가 창을 넓게 쓸 때 돌아갈 길).</summary>
+        public void ShowMergeCloseButton(bool isVisible)
+        {
+            _merge?.ShowCloseButton(isVisible);
+        }
+
         /// <summary>
         /// 충돌 파일을 고르면 diff 대신 병합 편집기(<see cref="GitMergeEditor"/>)를 덮어 보인다. Git 창 안의 diff 칸만 켠다(저장·해결에 작업 실행기가 든다).
         /// </summary>

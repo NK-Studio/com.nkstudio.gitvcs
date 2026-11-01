@@ -1143,6 +1143,7 @@ namespace GitVersionControl
             ["safety.quitPackageManifest"] = new[] { "패키지 목록(Packages/manifest.json)이 충돌한 채로 남아 있습니다.\n\n이대로 끄면 다음에 패키지를 읽지 못해 Git 창이 사라질 수 있습니다. 그때는 터미널이나 다른 Git 도구로 이 파일을 풀어야 합니다.\n\n그래도 끌까요?", "The package list (Packages/manifest.json) still has conflicts.\n\nIf you quit now, packages may fail to load next time and the Git window may disappear. You'd have to resolve this file with a terminal or another Git tool.\n\nQuit anyway?" },
             ["safety.quitAnyway"] = new[] { "그래도 끄기", "Quit Anyway" },
             ["conflict.filesTitle"] = new[] { "충돌 파일 ({0})", "Conflicted Files ({0})" },
+            ["conflict.resolvedUnchanged"] = new[] { "변경 없음", "No changes" },
             ["conflict.resolvedTitle"] = new[] { "해결한 파일 ({0})", "Resolved Files ({0})" },
             ["conflict.resolveAll"] = new[] { "모두 해결됨으로 표시", "Mark All Resolved" },
             ["conflict.resolveAllTooltip"] = new[] { "충돌 파일을 모두 지금 내용 그대로 해결됨으로 표시합니다(git add).", "Mark every conflicted file as resolved with its current content (git add)." },
