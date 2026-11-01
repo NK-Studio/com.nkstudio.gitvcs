@@ -65,8 +65,8 @@ namespace GitVersionControl
                 RowOf[NodesNewestFirst[i]] = i + RowOffset;
             }
             LaneCount = graph == null || graph.Lanes.Count == 0 ? 1 : graph.Lanes.Max(lane => lane.Row) + 1;
-            // 기본 폭은 가지 묶음 양옆에 넉넉한 여백(MaxFirstLaneX)을 둔 폭이라 가지가 하나면 가운데에 온다.
-            Width = Mathf.Clamp(MaxFirstLaneX * 2f + (LaneCount - 1) * Spacing, MinWidth, MaxWidth);
+            // 기본 폭은 가지 묶음 양옆에 여백(Padding)만 둔 폭 — 맨 오른쪽 원이 벽에 막 닿는 폭이다.
+            Width = Mathf.Clamp(Padding * 2f + (LaneCount - 1) * Spacing, MinWidth, MaxWidth);
         }
 
         /// <summary>
@@ -88,9 +88,14 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 칸이 넉넉할 때 첫 열을 칸 왼쪽에서 띄우는 최대 거리(가지 간격 두 칸, GitKraken 과 같다).
+        /// 첫 열이 칸 왼쪽에서 떨어진 거리. 칸 폭과 상관없이 이 자리다 — 칸이 좁아져도 첫 열이 미리 물러나지 않는다.
         /// </summary>
-        public float MaxFirstLaneX => Mathf.Max(Padding, Spacing * 2f);
+        public float FirstLaneOffset => Padding;
+
+        /// <summary>
+        /// 벽에 밀려 이웃 원과 맞닿는 간격(원이 겹치지 않는 가장 좁은 간격). 이 간격이 되면 이웃 원도 함께 밀린다.
+        /// </summary>
+        public float PushedSpacing => Mathf.Min(Spacing, HasAvatars ? AvatarRadius * 2f : 12f);
 
         /// <summary>
         /// 커밋 원의 가장 바깥(HEAD 고리) 반지름. <c>CommitGraphList.DrawNodes</c> 의 고리 크기와 맞춘다.
@@ -98,9 +103,8 @@ namespace GitVersionControl
         public float NodeOuterRadius => HasAvatars ? AvatarRadius + 4f : 8f;
 
         /// <summary>
-        /// 그래프 칸 폭에 맞춘 열 간격. 가지 묶음이 양옆 여백(<see cref="Padding"/>) 안에 다 들어가면 기본 간격이고,
-        /// 그보다 좁으면 간격을 이어서 좁혀 맨 오른쪽 가지도 칸 안에 둔다 — 원이 칸 경계에 반쯤 잘리지 않고,
-        /// 가장 좁은 폭(<see cref="OneLaneWidth"/>)에서 0 이 되어 모든 가지가 첫 열에 모인다(그때 한 줄로 접힌다).
+        /// 이웃한 두 열 사이의 가장 좁은 간격. 선을 흐리거나(<c>CommitGraphList.EdgeAlpha</c>) 한 줄로 접을지 정하는 데 쓴다.
+        /// 벽에 밀리는 동안은 맞닿는 간격(<see cref="PushedSpacing"/>) 밑으로 내려가지 않고, 모두 맞닿은 뒤에야 고르게 좁아져 0 이 된다.
         /// </summary>
         /// <param name="contentWidth">그래프 칸에서 오른쪽 가지 색 막대를 뺀 폭.</param>
         /// <param name="laneCount">그릴 열 수.</param>
@@ -110,30 +114,37 @@ namespace GitVersionControl
             {
                 return Spacing;
             }
-            return Mathf.Clamp((contentWidth - Padding * 2f) / (laneCount - 1), 0f, Spacing);
+            float span = contentWidth - Padding - FirstLaneOffset;
+            if (span < (laneCount - 1) * PushedSpacing)
+            {
+                return Mathf.Max(0f, span / (laneCount - 1));
+            }
+            return Mathf.Clamp(span - (laneCount - 2) * Spacing, PushedSpacing, Spacing);
         }
 
         /// <summary>
-        /// 그래프 칸 폭에 맞춘 첫 열의 x. 가지 묶음을 칸 가운데에 두되 왼쪽 여백은 <see cref="MaxFirstLaneX"/> 를 넘지 않고,
-        /// 칸이 좁아지면 여백부터 줄여 <see cref="Padding"/> 까지 내려간다(그다음은 열 간격이 줄어든다 — <see cref="SpacingFor"/>).
-        /// 가지가 하나뿐이면 여백을 줄이지 않고 그 자리에 둔다 — 칸은 원 오른쪽까지만 줄어든다(GitKraken 과 같다).
+        /// 열 하나의 x(칸 왼쪽에서). 칸이 넉넉하면 첫 열 여백(<see cref="FirstLaneOffset"/>)에서 기본 간격으로 놓인다.
+        /// 칸이 좁아지면 오른쪽 벽(칸 끝 - <see cref="Padding"/>)이 맨 오른쪽 원부터 민다: 밀린 원이 이웃 원과 맞닿으면(<see cref="PushedSpacing"/>)
+        /// 그 원도 함께 밀리는 식으로 하나씩 늘어난다 — 벽이 오는 것을 보고 미리 물러나지 않는다.
+        /// 모두 맞닿은 뒤에도 벽이 더 오면 첫 열은 그대로 두고 간격을 고르게 좁혀 0 에서 한 줄로 모인다.
         /// 폭에 따라 이어서 바뀌므로 칸을 끌어도 원이 튀지 않는다.
         /// </summary>
+        /// <param name="lane">열 번호(0 = 첫 열).</param>
         /// <param name="contentWidth">그래프 칸에서 오른쪽 가지 색 막대를 뺀 폭.</param>
         /// <param name="laneCount">그릴 열 수.</param>
-        public float FirstLaneX(float contentWidth, int laneCount)
+        public float LaneOffset(int lane, float contentWidth, int laneCount)
         {
             if (laneCount <= 1)
             {
-                return MaxFirstLaneX;
+                return FirstLaneOffset;
             }
-            float centered = (contentWidth - (laneCount - 1) * SpacingFor(contentWidth, laneCount)) * 0.5f;
-            return Mathf.Clamp(centered, Padding, MaxFirstLaneX);
-        }
-
-        public float LaneX(int laneRow, float firstLaneX, float spacing)
-        {
-            return firstLaneX + laneRow * spacing;
+            float wall = contentWidth - Padding;
+            float span = wall - FirstLaneOffset;
+            if (span < (laneCount - 1) * PushedSpacing)
+            {
+                return FirstLaneOffset + lane * Mathf.Max(0f, span / (laneCount - 1));
+            }
+            return Mathf.Min(FirstLaneOffset + lane * Spacing, wall - (laneCount - 1 - lane) * PushedSpacing);
         }
 
         /// <summary>

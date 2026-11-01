@@ -656,11 +656,11 @@ namespace GitVersionControl
 
         /// <summary>
         /// 그래프 칸을 줄일 수 있는 가장 좁은 폭.
-        /// 가지가 하나면 원을 제자리(<see cref="VerticalGraphLayout.MaxFirstLaneX"/>)에 둔 채 원 오른쪽 + 틈 + 막대까지(GitKraken 과 같다),
-        /// 여럿이면 열 간격이 0 이 되어 모든 가지가 첫 열(여백을 줄인 자리)에 모이는 폭까지 — 이 폭에서 한 줄로 접힌다.
+        /// 가지가 하나면 원을 제자리(<see cref="VerticalGraphLayout.FirstLaneOffset"/>)에 둔 채 원 오른쪽 + 틈 + 막대까지(GitKraken 과 같다),
+        /// 여럿이면 열 간격이 0 이 되어 모든 가지가 첫 열에 모이는 폭까지 — 이 폭에서 한 줄로 접힌다.
         /// </summary>
         private float MinGraphWidth => _layout.LaneCount == 1
-            ? _layout.MaxFirstLaneX + _layout.NodeOuterRadius + NodeBarGap + BarWidth
+            ? _layout.FirstLaneOffset + _layout.NodeOuterRadius + NodeBarGap + BarWidth
             : _layout.OneLaneWidth + BarWidth;
 
         private float ClampRefsWidth(float width)
@@ -2134,7 +2134,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            // 칸이 좁아 열 간격이 줄면 원만 모이고, 선은 원래 간격 자리에 둔 채 원이 많이 움직인 가지의 선부터 흐려져 사라진다(EdgeAlpha).
+            // 칸이 좁아 열 간격이 줄면 선도 원과 함께 모이고, 원이 겹칠 만큼 좁아질 때만 흐려진다(EdgeAlpha).
             float spacing = LaneSpacing;
             painter.lineWidth = 2f;
             foreach (GitGraphEdge edge in Graph.Edges)
@@ -2336,45 +2336,40 @@ namespace GitVersionControl
         private float GraphContentWidth => ColumnWidth(CommitGraphColumn.Graph) - BarWidth;
 
         /// <summary>
-        /// 가지 선 하나의 진하기. 원래 간격일 때 1. 칸이 좁아 열 간격이 <paramref name="spacing"/> 으로 줄면 n 번째 열의 원은 n × (원래 간격 - spacing) 만큼
-        /// 왼쪽으로 옮겨 가므로, 선이 닿는 가장 오른쪽 열(<paramref name="maxLane"/>)의 원이 옮겨 간 만큼 흐려져 <see cref="EdgeFadeDistance"/> 에서 사라진다 —
-        /// 오른쪽 가지의 선부터 하나씩 빠진다. 첫 열끼리 잇는 선은 원이 움직이지 않으므로, 둘째 열 원이 다가와 겹치기 시작하는 마지막 구간(간격이 그 거리 밑)에서 흐려진다.
+        /// 가지 선 하나의 진하기. 선은 원과 함께 모이므로(<see cref="EdgeX"/>) 칸이 조금 좁아져도 그대로 진하다.
+        /// 열 간격이 원이 겹칠 만큼 좁아지면(<see cref="EdgeFadeStart"/> 밑) 흐려지기 시작해, 한 줄로 접히기 직전(<see cref="EdgeFadeEnd"/>)에 사라진다.
+        /// 예전에는 선을 원래 간격 자리에 둔 채 "열 번호 × 줄어든 간격" 만큼 흐렸더니, 1~2px 만 좁아져도 오른쪽 가지 선이 거의 사라졌다.
         /// </summary>
         private float EdgeAlpha(int maxLane, float spacing)
         {
-            float fade = EdgeFadeDistance;
-            if (maxLane == 0)
+            if (maxLane == 0 && spacing >= _layout.Spacing)
             {
-                return Mathf.Clamp01(spacing / fade);
+                return 1f;
             }
-            return Mathf.Clamp01(1f - maxLane * (_layout.Spacing - spacing) / fade);
+            return Mathf.Clamp01((spacing - EdgeFadeEnd) / (EdgeFadeStart - EdgeFadeEnd));
         }
 
-        /// <summary>
-        /// 원이 이만큼 옮겨 가면 그 선이 다 사라진다(원래 열 간격의 절반).
-        /// </summary>
-        private float EdgeFadeDistance => _layout.Spacing * 0.5f;
+        /// <summary>열 간격이 이보다 좁으면 선이 흐려지기 시작한다(원 지름의 절반 남짓 — 이웃 원이 겹치기 시작하는 즈음).</summary>
+        private float EdgeFadeStart => _layout.NodeOuterRadius;
 
-        /// <summary>
-        /// 가지 선의 x: 원래 열 간격 자리(원처럼 모이지 않는다). 칸이 넉넉하면 <see cref="X"/> 와 같다.
-        /// </summary>
+        /// <summary>열 간격이 이만큼이면 선이 다 사라진다.</summary>
+        private const float EdgeFadeEnd = 2f;
+
+        /// <summary>가지 선의 x: 원과 같은 자리(칸이 좁아 열 간격이 줄면 선도 함께 모인다).</summary>
         private float EdgeX(int laneRow)
         {
-            float first = _layout.FirstLaneX(GraphContentWidth, _layout.LaneCount);
-            return _graphOffset + _layout.LaneX(laneRow, first, _layout.Spacing);
+            return X(laneRow);
         }
 
         private float LaneSpacing => _layout.SpacingFor(GraphContentWidth, _layout.LaneCount);
 
         /// <summary>
-        /// 가지 열의 x. 칸 폭에 맞춰 가지 묶음을 가운데에 두고(<see cref="VerticalGraphLayout.FirstLaneX"/>), 칸이 묶음보다 좁으면 열 간격을 줄여
-        /// 맨 오른쪽 가지까지 칸 안에 둔다(<see cref="VerticalGraphLayout.SpacingFor"/>). 선·원 층이 그래프 왼쪽 이름표 칸부터 시작하면 그만큼 민다.
+        /// 가지 열의 x. 칸이 좁아지면 오른쪽 벽이 맨 오른쪽 원부터 하나씩 밀어 모은다(<see cref="VerticalGraphLayout.LaneOffset"/>).
+        /// 선·원 층이 그래프 왼쪽 이름표 칸부터 시작하면 그만큼 민다.
         /// </summary>
         private float X(int laneRow)
         {
-            float contentWidth = GraphContentWidth;
-            float first = _layout.FirstLaneX(contentWidth, _layout.LaneCount);
-            return _graphOffset + _layout.LaneX(laneRow, first, _layout.SpacingFor(contentWidth, _layout.LaneCount));
+            return _graphOffset + _layout.LaneOffset(laneRow, GraphContentWidth, _layout.LaneCount);
         }
 
         /// <summary>
