@@ -25,6 +25,10 @@
 .branch-graph__initials {
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
     -unity-text-align: middle-center;
+    /* 원 크기에 꼭 맞춘 칸이라 기본 여백이 있으면 두 글자가 두 줄로 갈라졌다("N" / "S"). */
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
     color: var(--git-graph-pill-text);
 }
 

@@ -304,22 +304,19 @@ namespace GitVersionControl
                 ? Lanes.Where(lane => lane.IsCurrent && lane.IsRemote == false).Concat(Lanes.Where(lane => lane.IsCurrent == false || lane.IsRemote))
                 : Lanes;
             // 줄이 차지하는 기간. 갈라져 나온 지점(부모)과 같은 칸에 붙지 않도록 앞뒤로 한 칸 여유를 둔다.
-            // 세로 그래프(currentFirst)는 가지 선이 갈라진 부모·들어가는 병합 커밋까지 길게 그어지므로 그 칸까지 친다 —
-            // 그러지 않으면 짧은 가지가 지금 브랜치 열을 나눠 써서 선이 지금 브랜치 커밋들을 뚫고 내려가 보인다.
+            // 가지 선은 갈라진 부모·들어가는 병합 커밋까지 그 줄 위로 길게 그어지므로(세로·가로 그래프 모두) 그 칸까지 친다 —
+            // 그러지 않으면 짧은 가지가 같은 줄을 나눠 써서 선이 남의 커밋·머리표를 뚫고 지나가 보인다.
             Dictionary<GitGraphLane, (int start, int end)> spans = Lanes.ToDictionary(lane => lane, lane => (lane.FirstColumn - 1, lane.LastColumn + 1));
-            if (currentFirst)
+            foreach (GitGraphEdge edge in Edges)
             {
-                foreach (GitGraphEdge edge in Edges)
+                if (edge.Parent.Lane == edge.Child.Lane)
                 {
-                    if (edge.Parent.Lane == edge.Child.Lane)
-                    {
-                        continue;
-                    }
-                    foreach (GitGraphLane lane in new[] { edge.Parent.Lane, edge.Child.Lane })
-                    {
-                        (int start, int end) span = spans[lane];
-                        spans[lane] = (Math.Min(span.start, edge.Parent.Column), Math.Max(span.end, edge.Child.Column));
-                    }
+                    continue;
+                }
+                foreach (GitGraphLane lane in new[] { edge.Parent.Lane, edge.Child.Lane })
+                {
+                    (int start, int end) span = spans[lane];
+                    spans[lane] = (Math.Min(span.start, edge.Parent.Column), Math.Max(span.end, edge.Child.Column));
                 }
             }
             foreach (GitGraphLane lane in order)

@@ -9,7 +9,8 @@ namespace GitVersionControl
     public static class GraphStyle
     {
         public const float ColumnWidth = 110f;
-        public const float RowHeight = 86f;
+        // 가지 줄 사이 높이. 줄 머리표·커밋 제목이 위아래 줄과 붙어 보이지 않게 넉넉히 둔다.
+        public const float RowHeight = 112f;
         public const float OriginX = 120f;
         public const float OriginY = 96f;
         public const float NodeRadius = 15f;

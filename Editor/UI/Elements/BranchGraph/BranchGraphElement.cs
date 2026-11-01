@@ -296,8 +296,7 @@ namespace GitVersionControl
                 }
                 else
                 {
-                    float bend = Mathf.Max(20f, (to.x - from.x) * 0.5f);
-                    painter.BezierCurveTo(from + new Vector2(bend, 0), to - new Vector2(bend, 0), to);
+                    CurveTo(painter, from, to, edge.IsMergeEdge);
                 }
                 painter.Stroke();
             }
@@ -311,6 +310,30 @@ namespace GitVersionControl
                 painter.MoveTo(p);
                 painter.LineTo(p - new Vector2(GraphStyle.ColumnWidth * 0.6f * Viewport.Zoom, 0));
                 painter.Stroke();
+            }
+        }
+
+        /// <summary>
+        /// 다른 줄로 가는 선: 갈라지는 선은 부모에서 부드러운 S 곡선으로 가지 줄에 닿은 뒤 그 줄을 따라 가고,
+        /// 병합으로 들어오는 선은 가지 줄을 따라 오다 병합 커밋 앞에서 S 곡선으로 들어간다. 곡선 폭은 줄 거리와 상관없이 두 칸이다(한 칸이면 먼 줄로 갈 때 거의 수직으로 떨어지다 끝에서 꺾여 각져 보였다) —
+        /// 폭이 같아야 한 커밋에서 여러 가지로 갈라질 때 먼 줄 곡선이 늘 가까운 줄 곡선 바깥으로 지나가 서로 엉키지 않는다.
+        /// 두 커밋 사이 전체에 걸친 비스듬한 곡선은 다른 줄의 커밋·머리표를 가로질러 어느 가지인지 알아보기 어려웠다.
+        /// 가지 줄은 부모·병합 커밋 칸까지 차지하므로(<see cref="GitGraph"/> 줄 나누기) 그 줄 위의 가로선은 남과 겹치지 않는다.
+        /// </summary>
+        private void CurveTo(Painter2D painter, Vector2 from, Vector2 to, bool isMerge)
+        {
+            float width = Mathf.Min(to.x - from.x, GraphStyle.ColumnWidth * 2f * Viewport.Zoom);
+            if (isMerge)
+            {
+                Vector2 start = new(to.x - width, from.y);
+                painter.LineTo(start);
+                painter.BezierCurveTo(start + new Vector2(width * 0.5f, 0f), to - new Vector2(width * 0.5f, 0f), to);
+            }
+            else
+            {
+                Vector2 end = new(from.x + width, to.y);
+                painter.BezierCurveTo(from + new Vector2(width * 0.5f, 0f), end - new Vector2(width * 0.5f, 0f), end);
+                painter.LineTo(to);
             }
         }
 
