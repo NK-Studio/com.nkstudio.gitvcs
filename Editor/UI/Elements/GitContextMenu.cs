@@ -308,8 +308,15 @@ namespace GitVersionControl
             bool isChecked = node.Action != null && (node.Action.status & DropdownMenuAction.Status.Checked) != 0;
             row.EnableInClassList(Block + "__item--disabled", disabled);
 
-            Label check = new(isChecked ? "✓" : string.Empty);
+            // 체크 표시는 앱 전체와 같은 그린 체크(ActionGlyph) — 글자 ✓ 는 글꼴마다 모양이 다르다.
+            VisualElement check = new();
             check.AddToClassList(Block + "__check");
+            if (isChecked)
+            {
+                ActionGlyph glyph = new(ActionGlyphKind.Check);
+                glyph.AddToClassList(Block + "__check-glyph");
+                check.Add(glyph);
+            }
             row.Add(check);
             // 메뉴용으로 바꿔 둔 '∕'(하위 메뉴로 쪼개지지 않게)는 보일 때 다시 '/' 로 — 글꼴에 없을 수 있다.
             Label label = new(GitDisplay.Nfc(node.Label).Replace('∕', '/'));

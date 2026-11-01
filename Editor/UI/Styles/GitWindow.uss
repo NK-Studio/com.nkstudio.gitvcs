@@ -134,6 +134,15 @@
     align-self: flex-start;
 }
 
+.operation-card__badge-check {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    color: var(--git-bg);
+}
+
 .operation-card--risk .operation-card__badge {
     background-color: var(--git-danger);
 }

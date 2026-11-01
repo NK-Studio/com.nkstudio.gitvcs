@@ -16,6 +16,7 @@ namespace GitVersionControl
     {
         private readonly GitServices _services;
         private readonly Label _badge;
+        private readonly ActionGlyph _readyGlyph;
         private readonly Label _title;
         private readonly Label _detail;
         private readonly VisualElement _risk;
@@ -29,6 +30,10 @@ namespace GitVersionControl
             Root = GitUiAssets.CloneBlock(GitUiAssets.Load("OperationCard"));
             host.Add(Root);
             _badge = Root.Require<Label>("operation-card-badge");
+            // 다 풀었을 때의 체크는 앱 전체와 같은 그린 체크(ActionGlyph) — 글자 ✓ 는 글꼴마다 모양이 다르다.
+            _readyGlyph = new ActionGlyph(ActionGlyphKind.Check);
+            _readyGlyph.AddToClassList("operation-card__badge-check");
+            _badge.Add(_readyGlyph);
             _title = Root.Require<Label>("operation-card-title");
             _detail = Root.Require<Label>("operation-card-detail");
             _risk = Root.Require<VisualElement>("operation-card-risk");
@@ -91,7 +96,8 @@ namespace GitVersionControl
             }
             // 다 풀었으면 "!" 대신 초록 체크로 가라앉힌다. 위험 줄이 있으면 빨강이 먼저다.
             Root.EnableInClassList("operation-card--ready", ready && risky == false);
-            _badge.text = ready ? "✓" : "!";
+            _badge.text = ready ? string.Empty : "!";
+            _readyGlyph.SetVisible(ready);
         }
 
         private void ShowDetail(string text)

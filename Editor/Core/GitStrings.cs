@@ -82,7 +82,7 @@ namespace GitVersionControl
             ["account.sourceCredentialManager"] = new[] { "Git Credential Manager", "Git Credential Manager" },
             ["account.sourceUnityLogin"] = new[] { "Unity 로그인(Preferences > Git)", "Unity sign-in (Preferences > Git)" },
             ["account.currentSuffix"] = new[] { " · 지금 사용 중", " · in use" },
-            ["account.canAccess"] = new[] { "✓ 접근 가능", "✓ Has access" },
+            ["account.canAccess"] = new[] { "접근 가능", "Has access" },
             ["account.noAccess"] = new[] { "✗ 권한 없음", "✗ No access" },
             ["account.unknownAccess"] = new[] { "? 확인 못 함", "? Unknown" },
             ["account.ghTokenFailed"] = new[] { "gh 에서 {0} 계정의 토큰을 꺼내지 못했습니다. 터미널에서 gh auth status 로 로그인 상태를 확인하세요.", "Couldn't get the token for {0} from gh. Check the sign-in with gh auth status in a terminal." },

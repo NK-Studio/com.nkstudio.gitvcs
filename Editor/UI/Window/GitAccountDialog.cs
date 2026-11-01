@@ -167,9 +167,19 @@ namespace GitVersionControl
             names.Add(source);
             row.Add(names);
 
-            Label access = new(GitText.Get(candidate.CanAccess == true ? "account.canAccess" : candidate.CanAccess == false ? "account.noAccess" : "account.unknownAccess"));
+            // 접근 가능하면 앞에 앱 전체와 같은 그린 체크(ActionGlyph)를 둔다. 색은 줄 색(--yes)을 따른다.
+            VisualElement access = new();
             access.AddToClassList("account-dialog__access");
             access.AddToClassList(candidate.CanAccess == true ? "account-dialog__access--yes" : candidate.CanAccess == false ? "account-dialog__access--no" : "account-dialog__access--unknown");
+            if (candidate.CanAccess == true)
+            {
+                ActionGlyph check = new(ActionGlyphKind.Check);
+                check.AddToClassList("account-dialog__access-check");
+                access.Add(check);
+            }
+            Label accessText = new(GitText.Get(candidate.CanAccess == true ? "account.canAccess" : candidate.CanAccess == false ? "account.noAccess" : "account.unknownAccess"));
+            accessText.AddToClassList("account-dialog__access-text");
+            access.Add(accessText);
             row.Add(access);
 
             Button use = new(() => _ = ChooseAsync(candidate)) { text = GitText.Get(_failure != null ? "account.useAndRetry" : "account.use") };

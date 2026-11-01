@@ -1253,9 +1253,23 @@
 }
 
 .account-dialog__access {
+    flex-direction: row;
+    align-items: center;
     margin: 0 10px;
     padding: 0;
+}
+
+.account-dialog__access-text {
+    margin: 0;
+    padding: 0;
     font-size: 12px;
+    color: inherit;
+}
+
+.account-dialog__access-check {
+    width: 14px;
+    height: 14px;
+    margin-right: 3px;
 }
 
 .account-dialog__access--yes {
