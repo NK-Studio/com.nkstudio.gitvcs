@@ -106,7 +106,8 @@ namespace GitVersionControl
 
             VisualElement header = new();
             header.AddToClassList("git-merge__header");
-            Label warning = new("⚠");
+            // 그래프 작업 중 줄의 병합 경고와 같은 삼각형(글꼴의 "⚠" 는 글꼴마다 모양이 달라 쓰지 않는다).
+            WarningGlyph warning = new();
             warning.AddToClassList("git-merge__warning");
             header.Add(warning);
             _path = new Label();
