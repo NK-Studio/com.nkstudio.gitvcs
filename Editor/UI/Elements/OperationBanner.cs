@@ -1,4 +1,6 @@
 using System.Linq;
+using UnityEditor;
+using UnityEditor.Compilation;
 using UnityEngine.UIElements;
 
 namespace GitVersionControl
@@ -8,6 +10,7 @@ namespace GitVersionControl
     /// 충돌 파일이 몇 개인지 보이고 [이어가기]·[건너뛰기](rebase 만)·[취소] 를 둔다(<see cref="GitInProgress"/>).
     /// 이어가기는 충돌을 모두 풀어 stage 했을 때만 켠다 — 막는 까닭은 글과 툴팁으로 알린다.
     /// stash pop·apply 충돌처럼 진행 중인 작업 없이 충돌만 남았으면 버튼 없이 충돌 개수만 알린다.
+    /// 그 아래 빨간 줄은 충돌 중 Git 창을 잃을 수 있는 상황(<see cref="GitConflictSafety"/>)을 알린다.
     /// </summary>
     public sealed class OperationBanner
     {
@@ -17,6 +20,8 @@ namespace GitVersionControl
         private readonly Button _continue;
         private readonly Button _skip;
         private readonly Button _abort;
+        private readonly VisualElement _safety;
+        private readonly Label _safetyText;
         private GitOperationKind _kind;
 
         public OperationBanner(VisualElement layout, GitServices services)
@@ -31,6 +36,29 @@ namespace GitVersionControl
             _skip.clicked += Skip;
             _abort.clicked += Abort;
             _root.SetVisible(false);
+            _safety = layout.Require<VisualElement>("safety-banner");
+            _safetyText = layout.Require<Label>("safety-banner-text");
+            _safety.SetVisible(false);
+            // 컴파일이 실패해도 도메인은 그대로라 이 창이 살아 있다. 그때 경고를 바로 갱신한다.
+            CompilationPipeline.compilationFinished += OnCompilationFinished;
+            _root.RegisterCallback<DetachFromPanelEvent>(_ => CompilationPipeline.compilationFinished -= OnCompilationFinished);
+        }
+
+        private void OnCompilationFinished(object _)
+        {
+            _root.schedule.Execute(Render).StartingIn(100);
+        }
+
+        private void RenderSafety(bool active)
+        {
+            GitConflictRisk risk = active
+                ? GitConflictSafety.Check(_services.Repository.Entries, _kind != GitOperationKind.None, EditorUtility.scriptCompilationFailed)
+                : GitConflictRisk.None;
+            _safety.SetVisible(risk != GitConflictRisk.None);
+            if (risk != GitConflictRisk.None)
+            {
+                _safetyText.text = GitText.Get("safety." + risk);
+            }
         }
 
         public void Render()
@@ -38,6 +66,7 @@ namespace GitVersionControl
             IGitRepositoryState repository = _services.Repository;
             bool active = repository.IsRunning && repository.IsRepository;
             _kind = active ? repository.InProgressOperation : GitOperationKind.None;
+            RenderSafety(active);
             if (_kind == GitOperationKind.None)
             {
                 // stash pop·apply 처럼 진행 중인 작업(MERGE_HEAD 등) 없이 남은 충돌: 개수만 알린다. 이어가기·취소할 작업이 없으니 버튼은 숨긴다.

@@ -55,6 +55,11 @@
             <ui:Button name="operation-abort-button" text="@inprogress.abort" class="notice__action" />
         </ui:VisualElement>
 
+        <!-- 충돌 중 Git 창을 잃을 수 있는 상황(컴파일 오류·패키지 목록 충돌) 경고. OperationBanner 가 채운다. -->
+        <ui:VisualElement name="safety-banner" class="git-window__notice notice notice--error">
+            <ui:Label name="safety-banner-text" class="notice__text" />
+        </ui:VisualElement>
+
         <ui:VisualElement name="not-ready" class="git-window__notice notice">
             <ui:Label name="not-ready-message" class="notice__text" />
             <ui:Button name="not-ready-action" text="git init" class="notice__action" />

@@ -529,7 +529,8 @@ namespace GitVersionControl
             {
                 _unstaged.SetItems(FileListItem.FromStatus(Filtered(_unstagedEntries)));
                 _staged.SetItems(FileListItem.FromStatus(Filtered(_stagedEntries)));
-                ShowConflicts(unstaged.Where(e => e.State == GitFileState.Conflicted).ToList());
+                // 패키지 목록 충돌은 먼저 풀어야 해서 맨 위로(GitConflictSafety).
+                ShowConflicts(GitConflictSafety.ManifestFirst(unstaged.Where(e => e.State == GitFileState.Conflicted)));
             }
             finally
             {
