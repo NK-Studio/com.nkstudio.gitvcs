@@ -1126,14 +1126,15 @@ namespace GitVersionControl
                         continue;
                     }
                     Vector2 center = new(X(node.Lane.Row), y);
+                    float opacity = NodeOpacity(node.Lane.Row);
                     Texture2D avatar = _avatars.TryGet(node.Commit.AuthorEmail, node.Commit.Hash);
                     if (avatar != null)
                     {
-                        _avatarLayer.PlaceCircleImage("commit-graph__avatar", avatar, center, radius);
+                        _avatarLayer.PlaceCircleImage("commit-graph__avatar", avatar, center, radius).style.opacity = opacity;
                         continue;
                     }
                     _avatarLayer.Place("commit-graph__initials", GitDisplay.Initials(node.Commit.AuthorName),
-                        center - new Vector2(radius, radius), new Vector2(radius * 2f, radius * 2f), 10f);
+                        center - new Vector2(radius, radius), new Vector2(radius * 2f, radius * 2f), 10f).style.opacity = opacity;
                 }
             }
             _avatarLayer.End();
@@ -2134,7 +2135,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            // 칸이 좁아 열 간격이 줄면 선도 원과 함께 모이고, 원이 겹칠 만큼 좁아질 때만 흐려진다(EdgeAlpha).
+            // 칸이 좁아지면 원은 벽에 밀리지만 선은 제 열에 남고, 벽이 다가오는 선부터 하나씩 흐려져 사라진다(EdgeAlpha).
             float spacing = LaneSpacing;
             painter.lineWidth = 2f;
             foreach (GitGraphEdge edge in Graph.Edges)
@@ -2336,35 +2337,29 @@ namespace GitVersionControl
         private float GraphContentWidth => ColumnWidth(CommitGraphColumn.Graph) - BarWidth;
 
         /// <summary>
-        /// 가지 선 하나의 진하기. 선은 원과 함께 모이므로(<see cref="EdgeX"/>) 칸이 조금 좁아져도 그대로 진하다.
-        /// 열 간격이 원이 겹칠 만큼 좁아지면(<see cref="EdgeFadeStart"/> 밑) 흐려지기 시작해, 한 줄로 접히기 직전(<see cref="EdgeFadeEnd"/>)에 사라진다.
-        /// 예전에는 선을 원래 간격 자리에 둔 채 "열 번호 × 줄어든 간격" 만큼 흐렸더니, 1~2px 만 좁아져도 오른쪽 가지 선이 거의 사라졌다.
+        /// 가지 선 하나의 진하기. 선은 원과 따로 논다: 원은 벽에 닿으면 밀려 가지만 선은 제 열 자리(<see cref="EdgeX"/>)에 그대로 있고,
+        /// 오른쪽 벽이 그 선(선이 닿는 가장 오른쪽 열)에 <see cref="EdgeFadeDistance"/> 만큼 다가오면 1 에서 0 으로 흐려져 벽에 닿을 때 사라진다 — 선마다 따로.
         /// </summary>
         private float EdgeAlpha(int maxLane, float spacing)
         {
-            if (maxLane == 0 && spacing >= _layout.Spacing)
-            {
-                return 1f;
-            }
-            return Mathf.Clamp01((spacing - EdgeFadeEnd) / (EdgeFadeStart - EdgeFadeEnd));
+            float wall = GraphContentWidth - _layout.WallInset;
+            float lineX = _layout.FirstLaneOffset + maxLane * _layout.Spacing;
+            return Mathf.Clamp01((wall - lineX) / EdgeFadeDistance);
         }
 
-        /// <summary>열 간격이 이보다 좁으면 선이 흐려지기 시작한다(원 지름의 절반 남짓 — 이웃 원이 겹치기 시작하는 즈음).</summary>
-        private float EdgeFadeStart => _layout.NodeOuterRadius;
+        /// <summary>벽이 선에 이만큼 다가오면 흐려지기 시작한다(열 간격의 절반).</summary>
+        private float EdgeFadeDistance => _layout.Spacing * 0.5f;
 
-        /// <summary>열 간격이 이만큼이면 선이 다 사라진다.</summary>
-        private const float EdgeFadeEnd = 2f;
-
-        /// <summary>가지 선의 x: 원과 같은 자리(칸이 좁아 열 간격이 줄면 선도 함께 모인다).</summary>
+        /// <summary>가지 선의 x: 제 열 자리(원처럼 벽에 밀리지 않는다).</summary>
         private float EdgeX(int laneRow)
         {
-            return X(laneRow);
+            return _graphOffset + _layout.FirstLaneOffset + laneRow * _layout.Spacing;
         }
 
         private float LaneSpacing => _layout.SpacingFor(GraphContentWidth, _layout.LaneCount);
 
         /// <summary>
-        /// 가지 열의 x. 칸이 좁아지면 오른쪽 벽이 맨 오른쪽 원부터 하나씩 밀어 모은다(<see cref="VerticalGraphLayout.LaneOffset"/>).
+        /// 가지 열의 x. 칸이 좁아지면 오른쪽 벽에 닿은 원만 밀린다(<see cref="VerticalGraphLayout.LaneOffset"/>).
         /// 선·원 층이 그래프 왼쪽 이름표 칸부터 시작하면 그만큼 민다.
         /// </summary>
         private float X(int laneRow)
@@ -2538,25 +2533,43 @@ namespace GitVersionControl
             }
         }
 
+        /// <summary>
+        /// 원의 진하기: 제자리면 1, 오른쪽 벽에 밀려 간 만큼 흐려져 열 간격 하나만큼 밀리면 <see cref="PushedNodeOpacity"/>(GitKraken 처럼 벽에 쌓인 원은 가라앉는다).
+        /// 벽이 첫 열 가까이(열 간격 하나 안) 오면 다시 진해져, 모든 가지가 한 줄로 모이면 원래 색이다 — 그때는 한 줄 그래프다.
+        /// </summary>
+        private float NodeOpacity(int laneRow)
+        {
+            float contentWidth = GraphContentWidth;
+            float natural = _layout.FirstLaneOffset + laneRow * _layout.Spacing;
+            float pushed = natural - _layout.LaneOffset(laneRow, contentWidth, _layout.LaneCount);
+            float dim = Mathf.Clamp01(pushed / _layout.Spacing) * Mathf.Clamp01(_layout.WallRoom(contentWidth) / _layout.Spacing);
+            return Mathf.Lerp(1f, PushedNodeOpacity, dim);
+        }
+
+        private const float PushedNodeOpacity = 0.45f;
+
         private void DrawNode(Painter2D painter, GitGraphNode node, Vector2 center)
         {
-            Color laneColor = GraphStyle.LaneColor(node.Lane);
+            // 벽에 밀린 원은 바탕색 쪽으로 섞어 가라앉힌다(겹쳐 쌓여도 비쳐 보이지 않게 투명도 대신 섞는다).
+            float opacity = NodeOpacity(node.Lane.Row);
+            Color Dim(Color color) => Color.Lerp(_outlineColor, color, opacity);
+            Color laneColor = Dim(GraphStyle.LaneColor(node.Lane));
             if (_layout.HasAvatars && node.Commit.IsMerge == false)
             {
                 // 아바타 원: 줄 색 테두리 + 작성자 색 바탕(그림을 받기 전·머리글자 뒤에 보인다). 그림은 위 층이 얹는다.
                 const float avatarRadius = VerticalGraphLayout.AvatarRadius;
                 if (node.IsHead)
                 {
-                    FillCircle(painter, center, avatarRadius + 4f, _headColor);
+                    FillCircle(painter, center, avatarRadius + 4f, Dim(_headColor));
                     FillCircle(painter, center, avatarRadius + 3f, _outlineColor);
                 }
                 FillCircle(painter, center, avatarRadius + 2f, laneColor);
-                FillCircle(painter, center, avatarRadius, GraphStyle.AuthorColor(node.Commit.AuthorName));
+                FillCircle(painter, center, avatarRadius, Dim(GraphStyle.AuthorColor(node.Commit.AuthorName)));
                 return;
             }
             if (node.IsHead)
             {
-                FillCircle(painter, center, 8f, _headColor);
+                FillCircle(painter, center, 8f, Dim(_headColor));
             }
             FillCircle(painter, center, 6.5f, _outlineColor);
             FillCircle(painter, center, 5f, node.Commit.IsMerge ? _outlineColor : laneColor);

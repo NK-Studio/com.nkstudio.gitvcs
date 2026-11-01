@@ -110,21 +110,21 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
-        public void Test_VerticalGraph_RightWallPushesLanesOneByOne()
+        public void Test_VerticalGraph_RightWallPushesOnlyLanesItTouches()
         {
-            // 아바타 배치: 기본 간격 30, 맞닿는 간격 24, 왼쪽·오른쪽 여백 20. 가지 4개면 원이 20·50·80·110 에 있다(벽 = 폭 - 20).
+            // 아바타 배치: 기본 간격 30, 첫 열 여백 20, 벽은 칸 끝에서 18(원 바깥 반지름 16 + 2). 가지 4개면 원이 20·50·80·110 에 있다.
             VerticalGraphLayout layout = VerticalGraphLayout.Build(null, hasWip: false, hasAvatars: true);
             float[] At(float width) => new[] { 0, 1, 2, 3 }.Select(lane => layout.LaneOffset(lane, width, 4)).ToArray();
 
-            // 벽(130)이 아직 맨 오른쪽 원(110)에 닿지 않았다 — 아무것도 움직이지 않는다.
+            // 벽(132)이 아직 맨 오른쪽 원(110)에 닿지 않았다 — 아무것도 움직이지 않는다.
             CollectionAssert.AreEqual(new[] { 20f, 50f, 80f, 110f }, At(150f));
-            // 벽(124)이 맨 오른쪽 원만 민다 — 이웃 원(80)과 아직 맞닿지 않았다.
-            CollectionAssert.AreEqual(new[] { 20f, 50f, 80f, 104f }, At(124f));
-            // 벽(100)에 밀린 원이 이웃과 맞닿아 둘이 함께 밀린다(76 = 100 - 24). 앞의 둘은 그대로.
-            CollectionAssert.AreEqual(new[] { 20f, 50f, 76f, 100f }, At(120f));
-            Assert.AreEqual(24f, layout.SpacingFor(120f, 4), 0.001f);
-            // 모두 맞닿은 뒤에는 고르게 좁아져 0 에서 첫 열에 모인다. 첫 열은 움직이지 않는다.
-            CollectionAssert.AreEqual(new[] { 20f, 20f, 20f, 20f }, At(40f));
+            // 벽(102)이 맨 오른쪽 원만 민다. 원끼리는 밀지 않는다.
+            CollectionAssert.AreEqual(new[] { 20f, 50f, 80f, 102f }, At(120f));
+            // 벽(72)이 셋째 원에도 닿아 둘이 벽 자리에 겹쳐 함께 밀린다. 둘째 원은 아직 그대로다.
+            CollectionAssert.AreEqual(new[] { 20f, 50f, 72f, 72f }, At(90f));
+            // 벽이 첫 열까지 오면 모두 한 자리에 모인다.
+            CollectionAssert.AreEqual(new[] { 20f, 20f, 20f, 20f }, At(38f));
+            Assert.AreEqual(0f, layout.SpacingFor(38f, 4), 0.001f);
         }
 
         [Test]

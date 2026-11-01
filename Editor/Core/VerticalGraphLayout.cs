@@ -72,7 +72,7 @@ namespace GitVersionControl
         /// <summary>
         /// 첫 열의 커밋 원(HEAD 고리까지)이 잘리지 않는 가장 좁은 폭. 첫 열이 왼쪽 여백 자리에 있으므로 여백의 두 배.
         /// </summary>
-        public float OneLaneWidth => Padding * 2f;
+        public float OneLaneWidth => FirstLaneOffset + WallInset;
 
         /// <summary>
         /// 칸이 넉넉할 때의 열 간격(좁아지면 <see cref="SpacingFor"/> 가 줄인다).
@@ -93,18 +93,17 @@ namespace GitVersionControl
         public float FirstLaneOffset => Padding;
 
         /// <summary>
-        /// 벽에 밀려 이웃 원과 맞닿는 간격(원이 겹치지 않는 가장 좁은 간격). 이 간격이 되면 이웃 원도 함께 밀린다.
-        /// </summary>
-        public float PushedSpacing => Mathf.Min(Spacing, HasAvatars ? AvatarRadius * 2f : 12f);
-
-        /// <summary>
         /// 커밋 원의 가장 바깥(HEAD 고리) 반지름. <c>CommitGraphList.DrawNodes</c> 의 고리 크기와 맞춘다.
         /// </summary>
         public float NodeOuterRadius => HasAvatars ? AvatarRadius + 4f : 8f;
 
         /// <summary>
-        /// 이웃한 두 열 사이의 가장 좁은 간격. 선을 흐리거나(<c>CommitGraphList.EdgeAlpha</c>) 한 줄로 접을지 정하는 데 쓴다.
-        /// 벽에 밀리는 동안은 맞닿는 간격(<see cref="PushedSpacing"/>) 밑으로 내려가지 않고, 모두 맞닿은 뒤에야 고르게 좁아져 0 이 된다.
+        /// 오른쪽 벽이 칸 끝에서 들어온 거리: 원(HEAD 고리까지)의 오른쪽 가장자리가 칸 경계에 닿는 자리에 원 가운데가 온다.
+        /// </summary>
+        public float WallInset => NodeOuterRadius + 2f;
+
+        /// <summary>
+        /// 열 간격의 평균(첫 열에서 벽까지를 고르게 나눈 값, 기본 간격을 넘지 않는다). 0 이면 모든 가지가 첫 열에 모였다 — 한 줄로 접을지 정하는 데 쓴다.
         /// </summary>
         /// <param name="contentWidth">그래프 칸에서 오른쪽 가지 색 막대를 뺀 폭.</param>
         /// <param name="laneCount">그릴 열 수.</param>
@@ -114,19 +113,19 @@ namespace GitVersionControl
             {
                 return Spacing;
             }
-            float span = contentWidth - Padding - FirstLaneOffset;
-            if (span < (laneCount - 1) * PushedSpacing)
-            {
-                return Mathf.Max(0f, span / (laneCount - 1));
-            }
-            return Mathf.Clamp(span - (laneCount - 2) * Spacing, PushedSpacing, Spacing);
+            return Mathf.Clamp(WallRoom(contentWidth) / (laneCount - 1), 0f, Spacing);
+        }
+
+        /// <summary>첫 열에서 오른쪽 벽까지의 거리. 0 이하면 벽이 첫 열까지 왔다.</summary>
+        public float WallRoom(float contentWidth)
+        {
+            return contentWidth - WallInset - FirstLaneOffset;
         }
 
         /// <summary>
-        /// 열 하나의 x(칸 왼쪽에서). 칸이 넉넉하면 첫 열 여백(<see cref="FirstLaneOffset"/>)에서 기본 간격으로 놓인다.
-        /// 칸이 좁아지면 오른쪽 벽(칸 끝 - <see cref="Padding"/>)이 맨 오른쪽 원부터 민다: 밀린 원이 이웃 원과 맞닿으면(<see cref="PushedSpacing"/>)
-        /// 그 원도 함께 밀리는 식으로 하나씩 늘어난다 — 벽이 오는 것을 보고 미리 물러나지 않는다.
-        /// 모두 맞닿은 뒤에도 벽이 더 오면 첫 열은 그대로 두고 간격을 고르게 좁혀 0 에서 한 줄로 모인다.
+        /// 열 하나의 x(칸 왼쪽에서). 원은 제자리(첫 열 여백 + 열 번호 × 기본 간격)에 있다가, 칸이 좁아져 오른쪽 벽(<see cref="WallInset"/>)에
+        /// 그 원이 닿을 때 비로소 벽에 밀린다 — 원끼리 밀어 주지 않는다. 그래서 벽에 닿은 원들은 벽 자리에 겹쳐 함께 가고,
+        /// 아직 닿지 않은 원은 그대로 있다가 벽이 오면 그때 밀린다. 첫 열까지 벽이 오면 모두 한 자리에 모인다.
         /// 폭에 따라 이어서 바뀌므로 칸을 끌어도 원이 튀지 않는다.
         /// </summary>
         /// <param name="lane">열 번호(0 = 첫 열).</param>
@@ -138,13 +137,8 @@ namespace GitVersionControl
             {
                 return FirstLaneOffset;
             }
-            float wall = contentWidth - Padding;
-            float span = wall - FirstLaneOffset;
-            if (span < (laneCount - 1) * PushedSpacing)
-            {
-                return FirstLaneOffset + lane * Mathf.Max(0f, span / (laneCount - 1));
-            }
-            return Mathf.Min(FirstLaneOffset + lane * Spacing, wall - (laneCount - 1 - lane) * PushedSpacing);
+            float wall = contentWidth - WallInset;
+            return Mathf.Max(FirstLaneOffset, Mathf.Min(FirstLaneOffset + lane * Spacing, wall));
         }
 
         /// <summary>
