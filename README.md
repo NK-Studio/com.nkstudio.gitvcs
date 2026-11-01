@@ -1,5 +1,7 @@
 # Git Version Control for Unity
 
+<img width="2807" height="1587" alt="bbb copy" src="https://github.com/user-attachments/assets/a918e7d7-f56d-4572-9ea8-c181dd8a8149" />
+
 Unity 에디터 안에서 쓰는 Git 클라이언트입니다. GitKraken·Fork·Unity Version Control 과 같은 모양의 Git 창으로
 커밋 그래프를 보고, 파일·줄 단위로 Stage 하고, 커밋·푸시·풀·병합 충돌 해결까지 에디터를 떠나지 않고 합니다.
 
