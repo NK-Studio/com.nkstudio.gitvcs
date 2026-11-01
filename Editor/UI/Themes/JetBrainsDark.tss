@@ -58,11 +58,14 @@
     --git-success-strong-pressed: #4f9d55;
     --git-danger-strong: #db5c5c;
     --git-danger-strong-pressed: #c24c4c;
+    --git-warning-strong: #d6ae58;
+    --git-warning-strong-pressed: #bf9a4a;
     --git-on-strong: #ffffff;
     /* 색 버튼의 평소 바탕: 그 색을 옅게 깐다(테두리는 원색, 마우스를 올리면 원색으로 꽉 채움). */
     --git-accent-soft: rgba(56, 113, 225, 0.28);
     --git-success-soft: rgba(95, 184, 101, 0.24);
     --git-danger-soft: rgba(219, 92, 92, 0.26);
+    --git-warning-soft: rgba(214, 174, 88, 0.22);
     --git-refs: #3876fd;
     --git-badge-bg: #33353b;
     --git-field-bg: #191a1c;

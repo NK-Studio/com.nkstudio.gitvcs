@@ -225,16 +225,21 @@
 .staging__button.staging-conflict__resolve-all {
     border-width: 1px;
     border-color: var(--git-warning);
-    background-color: rgba(224, 160, 48, 0.18);
+    background-color: var(--git-warning-soft);
     color: var(--git-text);
 }
 
+/* Stage·Unstage 버튼과 같은 모양: 평소엔 옅은 바탕 + 원색 테두리, 마우스를 올리면 원색으로 꽉 채운다. */
 .staging__button.staging-conflict__resolve-all:hover:enabled {
-    background-color: rgba(224, 160, 48, 0.32);
+    background-color: var(--git-warning-strong);
+    border-color: var(--git-warning-strong);
+    color: var(--git-on-strong);
 }
 
 .staging__button.staging-conflict__resolve-all:active:enabled {
-    background-color: rgba(224, 160, 48, 0.45);
+    background-color: var(--git-warning-strong-pressed);
+    border-color: var(--git-warning-strong-pressed);
+    color: var(--git-on-strong);
 }
 
 .staging--fork .staging__button.staging-conflict__resolve-all {
