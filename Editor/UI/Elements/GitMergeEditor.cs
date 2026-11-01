@@ -27,6 +27,14 @@ namespace GitVersionControl
         private const float RowGutterWidth = 100f;
         private const float CharWidth = 7.3f;
 
+        private enum HunkPiece
+        {
+            None,
+            Whole,
+            TopHalf,
+            BottomHalf,
+        }
+
         private sealed class MergeRow
         {
             public string Text;
@@ -35,9 +43,12 @@ namespace GitVersionControl
             public int Line = -1;
             public bool HunkStart;
 
-            /// <summary>덩어리 체크 상자를 다는 줄(덩어리 가운데 줄). 줄 수가 짝수면 상자를 반 줄 아래로 내려 덩어리 한가운데에 둔다.</summary>
-            public bool HunkAnchor;
-            public bool HunkHalfDown;
+            /// <summary>
+            /// 덩어리 체크 상자를 덩어리 한가운데에 둔다. 줄 수가 홀수면 가운데 줄에 통째로(<see cref="HunkPiece.Whole"/>),
+            /// 짝수면 가운데 두 줄의 경계에 걸치게 위 줄에 위 반쪽, 아래 줄에 아래 반쪽을 그린다 — 상자 하나를 두 줄이 반씩 그려,
+            /// 아래 줄 바탕(마우스 올림 등)이 위 줄에서 내려온 상자를 덮지 않는다.
+            /// </summary>
+            public HunkPiece Hunk;
             public bool Placeholder;
             public GitMergeSide Side;
             public bool Chosen;
@@ -464,6 +475,16 @@ namespace GitVersionControl
         {
             VisualElement row = new();
             row.AddToClassList("merge-row");
+            // ListView 가 항목 전체에 칠하는 마우스 올림·고른 줄 바탕은 끈다(인라인이라 테마 USS 보다 앞선다). 체크 칸까지 칠해져
+            // 두 줄에 걸친 덩어리 체크 상자의 반쪽만 회색이 됐다. 항목 클래스는 줄 자체나 감싸는 요소에 붙는다.
+            row.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                VisualElement item = row.ClassListContains(BaseVerticalCollectionView.itemUssClassName) ? row : row.parent;
+                if (item != null)
+                {
+                    item.style.backgroundColor = Color.clear;
+                }
+            });
             // GitKraken 처럼 덩어리 체크는 띠 밖 왼쪽 칸(gutter)에 두고, 색 띠·왼쪽 막대는 그 오른쪽 몸통(body)에만 깐다.
             VisualElement gutter = new();
             gutter.AddToClassList("merge-row__gutter");
@@ -547,9 +568,15 @@ namespace GitVersionControl
             if (output == false)
             {
                 hunk.SetVisible(true);
-                hunk.style.visibility = inConflict && data.HunkAnchor ? Visibility.Visible : Visibility.Hidden;
-                hunk.style.translate = new Translate(0f, data.HunkHalfDown ? RowHeight * 0.5f : 0f);
-                hunk.SetValueWithoutNotify(inConflict && _choices[data.Conflict].IsChosen(data.Side));
+                hunk.style.visibility = inConflict && data.Hunk != HunkPiece.None ? Visibility.Visible : Visibility.Hidden;
+                // 반쪽은 체크 칸(넘침 숨김)이 잘라 준다: 위 반쪽은 반 줄 아래로, 아래 반쪽은 반 줄 위로 옮긴다.
+                float shift = data.Hunk == HunkPiece.TopHalf ? RowHeight * 0.5f : data.Hunk == HunkPiece.BottomHalf ? -RowHeight * 0.5f : 0f;
+                hunk.style.translate = new Translate(0f, shift);
+                // 덩어리의 줄을 일부만 골랐으면 체크 상자를 "일부"(−)로 보인다. 누르면 그 쪽 줄을 모두 고른다.
+                bool chosen = inConflict && _choices[data.Conflict].IsChosen(data.Side);
+                bool every = chosen && _choices[data.Conflict].LinesOf(data.Side).All(on => on);
+                hunk.SetValueWithoutNotify(chosen && every);
+                hunk.showMixedValue = chosen && every == false;
             }
             number.text = data.Number > 0 ? data.Number.ToString() : string.Empty;
             bool showCheck = inConflict && data.Placeholder == false && (output || data.Chosen);
@@ -679,8 +706,8 @@ namespace GitVersionControl
             _listB.RefreshItems();
             _output.RefreshItems();
 
-            _allA.SetValueWithoutNotify(_choices.Count > 0 && _choices.All(c => c.IsChosen(GitMergeSide.A)));
-            _allB.SetValueWithoutNotify(_choices.Count > 0 && _choices.All(c => c.IsChosen(GitMergeSide.B)));
+            RenderAll(_allA, GitMergeSide.A);
+            RenderAll(_allB, GitMergeSide.B);
             int left = _choices.Count(c => c.IsDecided == false);
             _count.text = GitText.Format("merge.count", _conflicts.Count);
             _position.text = GitText.Format("merge.position", Math.Min(_current + 1, _conflicts.Count), _conflicts.Count);
@@ -689,6 +716,15 @@ namespace GitVersionControl
                 : left > 0 ? GitText.Format("merge.saveBlocked", left)
                 : GitText.Get("merge.saveTooltip");
             UpdateSave();
+        }
+
+        /// <summary>칸 머리의 "모두 고르기" 체크: 모든 덩어리를 통째로 골랐으면 체크, 일부만(덩어리 일부·줄 일부) 골랐으면 "일부"(−).</summary>
+        private void RenderAll(Toggle all, GitMergeSide side)
+        {
+            bool every = _choices.Count > 0 && _choices.All(c => c.IsChosen(side) && c.LinesOf(side).All(on => on));
+            bool any = _choices.Any(c => c.IsChosen(side));
+            all.SetValueWithoutNotify(every);
+            all.showMixedValue = any && every == false;
         }
 
         private void UpdateSave()
@@ -733,18 +769,27 @@ namespace GitVersionControl
                 if (lines.Count == 0)
                 {
                     // 이 쪽은 그 자리를 비웠다(지웠다). 고르면 "아무것도 넣지 않음" 이다.
-                    rows.Add(new MergeRow { Text = GitText.Get("merge.emptySide"), Conflict = conflict, Side = side, HunkStart = true, HunkAnchor = true, Placeholder = true, Chosen = chosen });
+                    rows.Add(new MergeRow { Text = GitText.Get("merge.emptySide"), Conflict = conflict, Side = side, HunkStart = true, Hunk = HunkPiece.Whole, Placeholder = true, Chosen = chosen });
                 }
                 for (int i = 0; i < lines.Count; i++)
                 {
                     rows.Add(new MergeRow
                     {
                         Text = lines[i], Number = number++, Conflict = conflict, Line = i, Side = side, HunkStart = i == 0, Chosen = chosen && on[i],
-                        HunkAnchor = i == (lines.Count - 1) / 2, HunkHalfDown = lines.Count % 2 == 0,
+                        Hunk = HunkPieceAt(i, lines.Count),
                     });
                 }
                 conflict++;
             }
+        }
+
+        private static HunkPiece HunkPieceAt(int line, int count)
+        {
+            if (count % 2 == 1)
+            {
+                return line == count / 2 ? HunkPiece.Whole : HunkPiece.None;
+            }
+            return line == count / 2 - 1 ? HunkPiece.TopHalf : line == count / 2 ? HunkPiece.BottomHalf : HunkPiece.None;
         }
 
         private void BuildOutputRows()

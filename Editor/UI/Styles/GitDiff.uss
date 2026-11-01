@@ -1498,14 +1498,15 @@
     overflow: visible;
 }
 
-/* 덩어리 체크 칸: 띠 밖. 상자는 덩어리 가운데 줄에 달고(짝수 줄이면 반 줄 아래로 — 코드가 translate), 이웃 줄에 걸쳐도 보이게 넘침을 둔다. */
+/* 덩어리 체크 칸: 띠 밖. 상자는 덩어리 가운데 줄에 단다. 짝수 줄이면 가운데 두 줄이 상자를 반씩 그리고(코드가 translate),
+   넘침을 숨겨 각 줄이 제 반쪽만 보인다 — 아래 줄 바탕이 위 줄 상자를 덮지 않는다. */
 .merge-row__gutter {
     width: 22px;
     height: 100%;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    overflow: visible;
+    overflow: hidden;
 }
 
 /* 줄 몸통: 번호·줄 체크·글. 색 띠와 왼쪽 막대는 여기에만 깐다. */
