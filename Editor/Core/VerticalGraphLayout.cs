@@ -32,9 +32,10 @@ namespace GitVersionControl
         public const float MinWidth = 48f;
 
         /// <summary>
-        /// 그래프 칸의 최대 폭. 브랜치가 아주 많아도 메시지 칸을 밀어내지 않게 자른다(넘는 열은 가려진다).
+        /// 그래프 칸의 최대 폭. 브랜치가 아주 많아도 메시지 칸을 밀어내지 않게 자른다(넘으면 열 간격이 좁아지고 먼 가지 선부터 흐려진다).
+        /// 지금 브랜치를 맨 왼쪽에 두면 가지마다 열을 따로 쓰므로, 아바타 간격으로 열 열세 개 남짓이 다 보이게 넉넉히 둔다.
         /// </summary>
-        public const float MaxWidth = 260f;
+        public const float MaxWidth = 480f;
 
         public readonly List<GitGraphNode> NodesNewestFirst;
         public readonly Dictionary<GitGraphNode, int> RowOf = new();

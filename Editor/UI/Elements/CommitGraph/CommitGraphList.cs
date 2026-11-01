@@ -425,7 +425,12 @@ namespace GitVersionControl
                 () => FixedWidth(CommitGraphColumn.Graph),
                 width => SetColumnWidths(_refsWidth, ClampGraphWidth(ClampToRoom(CommitGraphColumn.Graph, width)), _messageWidth),
                 () => settings.GraphColumnWidth = _graphWidthOverride,
-                () => SetColumnWidths(_refsWidth, 0f, _messageWidth));
+                () =>
+                {
+                    // 두 번 누르면 가지 수에 맞추는 폭으로 돌아가고, 다음에 창을 열 때도 그 폭이다(끌어 둔 폭을 지운다).
+                    SetColumnWidths(_refsWidth, 0f, _messageWidth);
+                    settings.GraphColumnWidth = 0f;
+                });
             _resizers[(int)CommitGraphColumn.Message] = new ColumnResizer(
                 () => FixedWidth(CommitGraphColumn.Message),
                 width => SetColumnWidths(_refsWidth, _graphWidthOverride, ClampMessageWidth(ClampToRoom(CommitGraphColumn.Message, width))),
