@@ -1600,6 +1600,11 @@ namespace GitVersionControl
             bool conflictWip = isWip && _mergeConflicts > 0;
             row.EnableInClassList("commit-graph-row--wip", isWip);
             row.EnableInClassList("commit-graph-row--wip-conflict", conflictWip);
+            if (isWip)
+            {
+                // 입력란은 줄이 작업 중 줄에 처음 묶일 때 만든다 — 보이기·숨기기 전에 만들어야 경고 줄에서 입력란이 잠깐 비치지 않는다.
+                EnsureWipEditor(row);
+            }
             row.WipEditor?.SetVisible(isWip && conflictWip == false);
             row.WipCountsRoot?.SetVisible(isWip && conflictWip == false);
             // 작업 중 줄은 제목 글자 대신 입력란·변경 개수를 보인다.
@@ -1613,7 +1618,6 @@ namespace GitVersionControl
             if (isWip)
             {
                 _wipRow = row;
-                EnsureWipEditor(row);
                 if (_wipEditing == false)
                 {
                     row.WipInput.SetValueWithoutNotify(_wipSubject);

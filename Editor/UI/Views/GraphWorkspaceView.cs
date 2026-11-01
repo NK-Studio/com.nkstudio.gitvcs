@@ -309,6 +309,8 @@ namespace GitVersionControl
             _errorNotice.SetVisible(string.IsNullOrEmpty(error) == false);
             _errorText.text = error ?? string.Empty;
 
+            // 병합 상태를 먼저 알려야 작업 중 줄이 입력란으로 한 번 그려졌다가 경고 줄로 바뀌지 않는다.
+            UpdateMergeState(Services.Repository.Entries);
             _graph.SetGraph(graph, WipCounts.From(Services.Repository.Entries));
             _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count)
                             + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
