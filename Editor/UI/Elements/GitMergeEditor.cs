@@ -34,6 +34,10 @@ namespace GitVersionControl
             public int Conflict = -1;
             public int Line = -1;
             public bool HunkStart;
+
+            /// <summary>덩어리 체크 상자를 다는 줄(덩어리 가운데 줄). 줄 수가 짝수면 상자를 반 줄 아래로 내려 덩어리 한가운데에 둔다.</summary>
+            public bool HunkAnchor;
+            public bool HunkHalfDown;
             public bool Placeholder;
             public GitMergeSide Side;
             public bool Chosen;
@@ -449,6 +453,13 @@ namespace GitVersionControl
         {
             VisualElement row = new();
             row.AddToClassList("merge-row");
+            // GitKraken 처럼 덩어리 체크는 띠 밖 왼쪽 칸(gutter)에 두고, 색 띠·왼쪽 막대는 그 오른쪽 몸통(body)에만 깐다.
+            VisualElement gutter = new();
+            gutter.AddToClassList("merge-row__gutter");
+            row.Add(gutter);
+            VisualElement body = new();
+            body.AddToClassList("merge-row__body");
+            row.Add(body);
             Toggle hunk = new();
             hunk.AddToClassList("merge-row__hunk");
             hunk.RegisterValueChangedCallback(evt =>
@@ -458,28 +469,29 @@ namespace GitVersionControl
                     ChooseSide(data.Conflict, data.Side, evt.newValue);
                 }
             });
-            row.Add(hunk);
+            gutter.Add(hunk);
             Label number = new();
             number.AddToClassList("merge-row__number");
-            row.Add(number);
+            body.Add(number);
             Label check = new();
             check.AddToClassList("merge-row__check");
-            row.Add(check);
+            body.Add(check);
             Label text = new();
             text.AddToClassList("merge-row__text");
             if (_monospace != null)
             {
                 text.style.unityFontDefinition = FontDefinition.FromFont(_monospace);
             }
-            row.Add(text);
-            hunk.SetVisible(output == false);
+            body.Add(text);
+            gutter.SetVisible(output == false);
 
             // 충돌 줄을 누르면 그 줄 하나를 넣거나 뺀다(체크 상자는 따로 받는다). 출력 칸에서는 아무것도 하지 않는다.
             if (output == false)
             {
                 row.RegisterCallback<ClickEvent>(evt =>
                 {
-                    if (evt.target is VisualElement target && hunk.Contains(target))
+                    // 체크 칸(gutter)을 누르면 줄을 넣고 빼지 않는다 — 반 줄 내려온 위 줄의 덩어리 상자 아랫부분이 이 줄 체크 칸에 걸쳐 있을 수 있다.
+                    if (evt.target is VisualElement target && gutter.Contains(target))
                     {
                         return;
                     }
@@ -520,7 +532,8 @@ namespace GitVersionControl
             if (output == false)
             {
                 hunk.SetVisible(true);
-                hunk.style.visibility = inConflict && data.HunkStart ? Visibility.Visible : Visibility.Hidden;
+                hunk.style.visibility = inConflict && data.HunkAnchor ? Visibility.Visible : Visibility.Hidden;
+                hunk.style.translate = new Translate(0f, data.HunkHalfDown ? RowHeight * 0.5f : 0f);
                 hunk.SetValueWithoutNotify(inConflict && _choices[data.Conflict].IsChosen(data.Side));
             }
             number.text = data.Number > 0 ? data.Number.ToString() : string.Empty;
@@ -705,11 +718,15 @@ namespace GitVersionControl
                 if (lines.Count == 0)
                 {
                     // 이 쪽은 그 자리를 비웠다(지웠다). 고르면 "아무것도 넣지 않음" 이다.
-                    rows.Add(new MergeRow { Text = GitText.Get("merge.emptySide"), Conflict = conflict, Side = side, HunkStart = true, Placeholder = true, Chosen = chosen });
+                    rows.Add(new MergeRow { Text = GitText.Get("merge.emptySide"), Conflict = conflict, Side = side, HunkStart = true, HunkAnchor = true, Placeholder = true, Chosen = chosen });
                 }
                 for (int i = 0; i < lines.Count; i++)
                 {
-                    rows.Add(new MergeRow { Text = lines[i], Number = number++, Conflict = conflict, Line = i, Side = side, HunkStart = i == 0, Chosen = chosen && on[i] });
+                    rows.Add(new MergeRow
+                    {
+                        Text = lines[i], Number = number++, Conflict = conflict, Line = i, Side = side, HunkStart = i == 0, Chosen = chosen && on[i],
+                        HunkAnchor = i == (lines.Count - 1) / 2, HunkHalfDown = lines.Count % 2 == 0,
+                    });
                 }
                 conflict++;
             }

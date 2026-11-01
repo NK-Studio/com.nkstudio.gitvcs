@@ -1488,13 +1488,32 @@
     flex-direction: row;
     align-items: center;
     height: 18px;
+    overflow: visible;
+}
+
+/* 덩어리 체크 칸: 띠 밖. 상자는 덩어리 가운데 줄에 달고(짝수 줄이면 반 줄 아래로 — 코드가 translate), 이웃 줄에 걸쳐도 보이게 넘침을 둔다. */
+.merge-row__gutter {
+    width: 22px;
+    height: 100%;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+/* 줄 몸통: 번호·줄 체크·글. 색 띠와 왼쪽 막대는 여기에만 깐다. */
+.merge-row__body {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    height: 100%;
     border-left-width: 3px;
     border-left-color: rgba(0, 0, 0, 0);
 }
 
 .merge-row__hunk {
     width: 16px;
-    margin: 0 2px 0 2px;
+    margin: 0;
     flex-shrink: 0;
 }
 
@@ -1540,21 +1559,21 @@
     color: var(--git-diff-text);
 }
 
-.merge-row--a {
+.merge-row--a > .merge-row__body {
     background-color: rgba(47, 164, 194, 0.22);
     border-left-color: #2fa4c2;
 }
 
-.merge-row--b {
+.merge-row--b > .merge-row__body {
     background-color: rgba(217, 167, 50, 0.24);
     border-left-color: #d9a732;
 }
 
-.merge-row--current.merge-row--a {
+.merge-row--current.merge-row--a > .merge-row__body {
     background-color: rgba(47, 164, 194, 0.32);
 }
 
-.merge-row--current.merge-row--b {
+.merge-row--current.merge-row--b > .merge-row__body {
     background-color: rgba(217, 167, 50, 0.34);
 }
 
@@ -1564,7 +1583,7 @@
 }
 
 /* 출력에서 아직 고르지 않은 충돌 자리: 경고색 테두리. */
-.merge-row--unresolved {
+.merge-row--unresolved > .merge-row__body {
     background-color: rgba(224, 160, 48, 0.08);
     border-left-color: var(--git-warning);
 }
