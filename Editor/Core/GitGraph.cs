@@ -86,7 +86,8 @@ namespace GitVersionControl
         /// 어느 스레드에서나 부를 수 있다. 커밋·브랜치가 수천 개면 수십 ms 가 걸리므로 창은 작업 스레드에서 만든다.
         /// </summary>
         /// <param name="anonymousLaneName">병합 메시지에서 이름을 찾지 못한 줄의 이름.</param>
-        public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName)
+        /// <param name="currentFirst">true 면 지금 브랜치 줄을 맨 앞 줄(세로 그래프의 맨 왼쪽 열)에 둔다(GitKraken·Fork). false 면 main 이 앞이다(Branch Explorer).</param>
+        public static GitGraph Build(List<GitCommitInfo> commitsNewestFirst, List<GitBranchRef> branches, string headHash, string anonymousLaneName, bool currentFirst = false)
         {
             GitGraph graph = new();
             graph.Branches.AddRange(branches);
@@ -108,7 +109,7 @@ namespace GitVersionControl
             graph.AssignAnonymousLanes(anonymousLaneName);
             graph.CollectRefLabels();
             graph.BuildEdges();
-            graph.PackRows();
+            graph.PackRows(currentFirst);
             return graph;
         }
 
@@ -294,17 +295,38 @@ namespace GitVersionControl
         /// <summary>
         /// 줄을 화면 줄에 채운다. 우선순위 순서대로, 기간(+여백)이 겹치지 않는 가장 위 줄에 놓는다.
         /// 브랜치가 많아도 그래프가 아래로만 끝없이 길어지지 않게 한다.
+        /// <paramref name="currentFirst"/> 면 지금 브랜치 줄을 먼저 놓아 0번 줄을 차지하게 한다 — 다른 가지는 모두 그 오른쪽으로 갈라져 나간다.
         /// </summary>
-        private void PackRows()
+        private void PackRows(bool currentFirst)
         {
             List<List<GitGraphLane>> rows = new();
-            foreach (GitGraphLane lane in Lanes)
+            IEnumerable<GitGraphLane> order = currentFirst
+                ? Lanes.Where(lane => lane.IsCurrent && lane.IsRemote == false).Concat(Lanes.Where(lane => lane.IsCurrent == false || lane.IsRemote))
+                : Lanes;
+            // 줄이 차지하는 기간. 갈라져 나온 지점(부모)과 같은 칸에 붙지 않도록 앞뒤로 한 칸 여유를 둔다.
+            // 세로 그래프(currentFirst)는 가지 선이 갈라진 부모·들어가는 병합 커밋까지 길게 그어지므로 그 칸까지 친다 —
+            // 그러지 않으면 짧은 가지가 지금 브랜치 열을 나눠 써서 선이 지금 브랜치 커밋들을 뚫고 내려가 보인다.
+            Dictionary<GitGraphLane, (int start, int end)> spans = Lanes.ToDictionary(lane => lane, lane => (lane.FirstColumn - 1, lane.LastColumn + 1));
+            if (currentFirst)
             {
-                // 갈라져 나온 지점(부모)과 같은 칸에 붙지 않도록 앞쪽에 한 칸 여유를 둔다.
-                int start = lane.FirstColumn - 1;
-                int end = lane.LastColumn + 1;
+                foreach (GitGraphEdge edge in Edges)
+                {
+                    if (edge.Parent.Lane == edge.Child.Lane)
+                    {
+                        continue;
+                    }
+                    foreach (GitGraphLane lane in new[] { edge.Parent.Lane, edge.Child.Lane })
+                    {
+                        (int start, int end) span = spans[lane];
+                        spans[lane] = (Math.Min(span.start, edge.Parent.Column), Math.Max(span.end, edge.Child.Column));
+                    }
+                }
+            }
+            foreach (GitGraphLane lane in order)
+            {
+                (int start, int end) = spans[lane];
                 int row = 0;
-                while (row < rows.Count && rows[row].Any(other => other.FirstColumn - 1 <= end && start <= other.LastColumn + 1))
+                while (row < rows.Count && rows[row].Any(other => spans[other].start <= end && start <= spans[other].end))
                 {
                     row++;
                 }

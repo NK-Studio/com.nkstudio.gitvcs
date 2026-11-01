@@ -252,6 +252,20 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(0, graph.NodeByHash["B"].RefLabels.Count);
         }
 
+        [Test]
+        public void Test_Build_CurrentFirst_PutsCurrentLaneInFirstRow()
+        {
+            // A ─ B ─ C (master, 오래됨)
+            //          └─ D ─ E (current)
+            //              └─ F (feature, 짧은 가지)
+            GitGraph graph = GitGraph.Build(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Commit("D", "C"), Commit("F", "D"), Commit("E", "D") }.Reverse().ToList(),
+                new List<GitBranchRef> { Branch("master", "B", days: 1), Branch("current", "E", isCurrent: true, days: 5), Branch("feature", "F", days: 4) },
+                "E", "merged", currentFirst: true);
+
+            Assert.AreEqual(0, LaneNamed(graph, "current").Row);
+            Assert.AreNotEqual(0, LaneNamed(graph, "feature").Row);
+        }
+
         private static GitGraph Build(GitCommitInfo[] commitsOldestFirst, GitBranchRef[] branches, string headHash)
         {
             List<GitCommitInfo> newestFirst = commitsOldestFirst.Reverse().ToList();

@@ -291,7 +291,7 @@ namespace GitVersionControl
             _summary.text = GitText.Get("common.loading");
             string key = CurrentKey;
 
-            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits);
+            (GitGraph graph, string error) = await GraphLoader.LoadAsync(Services.History, Services.Repository.HeadCommit, null, MaxCommits, currentFirst: true);
             _isLoading = false;
             _loadedKey = key;
 
