@@ -183,6 +183,9 @@ namespace GitVersionControl
         /// <summary>원격에만 있는 브랜치 이름표: 로컬보다 한 단계 어둡게 채운다(GitKraken). 테두리 없이 채움만.</summary>
         private const float RemoteRefAlpha = 0.2f;
 
+        /// <summary>가지 선이 가로에서 세로로 꺾이는 둥근 모서리 반지름. 열 간격이 좁으면 그 간격까지 줄인다.</summary>
+        private const float EdgeCornerRadius = 10f;
+
         /// <summary>
         /// 칸 폭이 최소 폭에서 이만큼 안이면 끝까지 줄인 것으로 본다(끌어 놓은 폭의 소수점 오차).
         /// </summary>
@@ -2114,19 +2117,14 @@ namespace GitVersionControl
                 {
                     painter.LineTo(new Vector2(xp, yp));
                 }
-                else if (edge.IsMergeEdge)
-                {
-                    // 병합: 병합 커밋 바로 아래에서 옆 가지로 꺾여 내려간다.
-                    float bendEnd = Mathf.Min(yc + rowHeight, yp);
-                    painter.BezierCurveTo(new Vector2(xc, bendEnd), new Vector2(xp, yc), new Vector2(xp, bendEnd));
-                    painter.LineTo(new Vector2(xp, yp));
-                }
                 else
                 {
-                    // 갈라짐: 가지 줄을 따라 내려오다 부모 바로 위에서 부모 줄로 꺾인다.
-                    float bendStart = Mathf.Max(yp - rowHeight, yc);
-                    painter.LineTo(new Vector2(xc, bendStart));
-                    painter.BezierCurveTo(new Vector2(xc, yp), new Vector2(xp, bendStart), new Vector2(xp, yp));
+                    // GitKraken 처럼 가로로 나가 둥근 모서리에서 세로로 꺾는다(줄 사이를 비스듬히 가로지르지 않는다).
+                    // 병합은 병합 커밋 줄에서 옆 가지로 나가 내려가고, 갈라짐은 가지 줄을 따라 내려와 부모 줄에서 부모로 들어간다.
+                    float radius = Mathf.Min(EdgeCornerRadius, Mathf.Abs(xp - xc), yp - yc);
+                    Vector2 corner = edge.IsMergeEdge ? new Vector2(xp, yc) : new Vector2(xc, yp);
+                    painter.ArcTo(corner, new Vector2(xp, yp), radius);
+                    painter.LineTo(new Vector2(xp, yp));
                 }
                 painter.Stroke();
             }
