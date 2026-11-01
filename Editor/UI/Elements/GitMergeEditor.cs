@@ -492,8 +492,18 @@ namespace GitVersionControl
             VisualElement body = new();
             body.AddToClassList("merge-row__body");
             row.Add(body);
-            Toggle hunk = new();
+            Toggle hunk = new() { focusable = false };
             hunk.AddToClassList("merge-row__hunk");
+            // 짝수 줄 덩어리는 두 줄이 상자를 반씩 그린다. 마우스 올림은 요소마다 따로라 한쪽 반만 밝아졌다 —
+            // 어느 반쪽에 올려도 같은 덩어리 상자를 함께 밝힌다(SetHoveredHunk).
+            hunk.RegisterCallback<PointerEnterEvent>(_ =>
+            {
+                if (row.userData is MergeRow data && data.Conflict >= 0)
+                {
+                    SetHoveredHunk(data.Conflict, data.Side);
+                }
+            });
+            hunk.RegisterCallback<PointerLeaveEvent>(_ => SetHoveredHunk(-1, GitMergeSide.A));
             hunk.RegisterValueChangedCallback(evt =>
             {
                 if (row.userData is MergeRow data && data.Conflict >= 0)
@@ -577,6 +587,7 @@ namespace GitVersionControl
                 bool every = chosen && _choices[data.Conflict].LinesOf(data.Side).All(on => on);
                 hunk.SetValueWithoutNotify(chosen && every);
                 hunk.showMixedValue = chosen && every == false;
+                hunk.EnableInClassList(HunkHoverClass, inConflict && data.Conflict == _hoveredConflict && data.Side == _hoveredSide);
             }
             number.text = data.Number > 0 ? data.Number.ToString() : string.Empty;
             bool showCheck = inConflict && data.Placeholder == false && (output || data.Chosen);
@@ -781,6 +792,23 @@ namespace GitVersionControl
                 }
                 conflict++;
             }
+        }
+
+        private const string HunkHoverClass = "merge-row__hunk--hover";
+        private int _hoveredConflict = -1;
+        private GitMergeSide _hoveredSide;
+
+        /// <summary>마우스가 올라간 덩어리 상자. 그 덩어리의 상자 조각(반쪽 둘)을 함께 밝힌다. -1 이면 없다.</summary>
+        private void SetHoveredHunk(int conflict, GitMergeSide side)
+        {
+            _hoveredConflict = conflict;
+            _hoveredSide = side;
+            Root.Query<Toggle>(className: "merge-row__hunk").ForEach(toggle =>
+            {
+                bool hovered = conflict >= 0 && toggle.parent?.parent?.userData is MergeRow data
+                               && data.Conflict == conflict && data.Side == side;
+                toggle.EnableInClassList(HunkHoverClass, hovered);
+            });
         }
 
         private static HunkPiece HunkPieceAt(int line, int count)
