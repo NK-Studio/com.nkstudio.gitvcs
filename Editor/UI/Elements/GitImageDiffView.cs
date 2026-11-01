@@ -678,7 +678,8 @@ namespace GitVersionControl
             ApplyTransform();
         }
 
-        private static Texture2D Checker
+        /// <summary>투명한 곳에 깔 체커 무늬(병합 편집기의 이미지 충돌 칸도 쓴다).</summary>
+        internal static Texture2D Checker
         {
             get
             {

@@ -31,6 +31,12 @@ namespace GitVersionControl
         /// 바이너리 파일 카드(Fork 처럼 "created · 242 KB")에 쓸 양쪽 판의 크기(바이트). 없는 쪽(추가·삭제)은 null.
         /// </summary>
         Task<(long? left, long? right, string error)> LoadSizesAsync(GitDiffTarget target);
+
+        /// <summary>
+        /// 충돌한 이미지의 양쪽 판(인덱스 2단계 = 우리 쪽 A, 3단계 = 들어오는 쪽 B)을 텍스처로 읽는다. 한쪽이 파일을 지웠으면 그쪽은 텍스처가 없다.
+        /// 받은 쪽이 <see cref="GitImagePair.Dispose"/> 로 텍스처를 지운다.
+        /// </summary>
+        Task<(GitImagePair pair, string error)> LoadConflictImagesAsync(string repoPath);
     }
 
     public sealed class GitDiffService : IGitDiffService
@@ -105,6 +111,42 @@ namespace GitVersionControl
                 // 작업 사본 쪽은 실제 파일(이 폴더 밖)이라 지워지지 않는다.
                 TryDeleteDirectory(directory);
             }
+        }
+
+        public async Task<(GitImagePair pair, string error)> LoadConflictImagesAsync(string repoPath)
+        {
+            string directory = CreateTempDirectory();
+            try
+            {
+                string format = Path.GetExtension(repoPath);
+                GitImagePair pair = new()
+                {
+                    Left = new GitImageSide { Format = format },
+                    Right = new GitImageSide { Format = format },
+                };
+                string error = await LoadStageAsync(pair.Left, 2, repoPath, directory) ?? await LoadStageAsync(pair.Right, 3, repoPath, directory);
+                if (error != null)
+                {
+                    pair.Dispose();
+                    return (null, error);
+                }
+                return (pair, null);
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        /// <summary>인덱스의 충돌 단계 하나(<c>:2:경로</c>)를 꺼내 읽는다. 그 단계가 없으면(그쪽이 지웠다) 빈 칸으로 두고 오류로 보지 않는다.</summary>
+        private static async Task<string> LoadStageAsync(GitImageSide side, int stage, string repoPath, string directory)
+        {
+            string path = Path.Combine(directory, $"stage{stage}{Path.GetExtension(repoPath)}");
+            if (await ExtractAsync($":{stage}", repoPath, path) != null)
+            {
+                return null;
+            }
+            return LoadSide(side, path);
         }
 
         public async Task<(long? left, long? right, string error)> LoadSizesAsync(GitDiffTarget target)

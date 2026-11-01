@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,6 +14,7 @@ namespace GitVersionControl
     /// 충돌 덩어리마다 A·B 를 골라(체크) 출력에 넣는다 — 둘 다 고르면 고른 차례대로 잇고, 줄을 눌러 한 줄씩 빼거나 넣을 수 있다.
     /// 다 고르면 [저장] 이 출력을 파일에 쓰고 해결됨으로 표시한다(<c>git add</c>).
     /// 파일은 작업 사본에 git 이 남긴 충돌 표시를 읽는다(<see cref="GitConflictFile"/>). 표시가 없는 충돌(바이너리·삭제/수정)은 한쪽으로 해결하는 버튼만 둔다.
+    /// 이미지 충돌은 GitKraken 처럼 A·B 이미지를 나란히 보이고, 체크로 한쪽을 고르면 아래 출력에 그 이미지가 보인다. [저장] 이 그쪽으로 해결한다.
     /// <see cref="GitDiffPanel"/> 위에 덮어 띄운다.
     /// </summary>
     public sealed class GitMergeEditor
@@ -47,6 +49,19 @@ namespace GitVersionControl
         private readonly Button _binaryA;
         private readonly Button _binaryB;
         private readonly Button _binaryAsIs;
+        private readonly VisualElement _imageView;
+        private readonly ImagePane _imageA;
+        private readonly ImagePane _imageB;
+        private readonly VisualElement _imageOutputStage;
+        private readonly VisualElement _imageOutputFrame;
+        private readonly Image _imageOutput;
+        private readonly Label _imageOutputHint;
+        private readonly Button _imageAsIs;
+        private GitImagePair _images;
+        private string _imagesPath;
+        private GitConflictSide? _imageChoice;
+        private int _imageVersion;
+        private bool _imageMode;
         private readonly Toggle _allA;
         private readonly Toggle _allB;
         private readonly Label _titleA;
@@ -160,8 +175,43 @@ namespace GitVersionControl
             _binary.SetVisible(false);
             Root.Add(_binary);
 
+            // 이미지 충돌: 위 A·B 이미지, 아래 고른 이미지(출력).
+            _imageView = new VisualElement();
+            _imageView.AddToClassList("git-merge__editor");
+            _imageView.AddToClassList("git-merge__images");
+            VisualElement imageTop = new();
+            imageTop.AddToClassList("git-merge__top");
+            _imageA = new ImagePane(GitMergeSide.A, value => ChooseImage(GitConflictSide.Ours, value));
+            _imageB = new ImagePane(GitMergeSide.B, value => ChooseImage(GitConflictSide.Theirs, value));
+            imageTop.Add(_imageA.Root);
+            imageTop.Add(_imageB.Root);
+            _imageView.Add(imageTop);
+            VisualElement imageOutputHeader = new();
+            imageOutputHeader.AddToClassList("git-merge__pane-header");
+            imageOutputHeader.AddToClassList("git-merge__output-header");
+            Label imageOutputTitle = new(GitText.Get("merge.output"));
+            imageOutputTitle.AddToClassList("git-merge__output-title");
+            imageOutputHeader.Add(imageOutputTitle);
+            VisualElement imageOutputSpacer = new();
+            imageOutputSpacer.AddToClassList("git-merge__spacer");
+            imageOutputHeader.Add(imageOutputSpacer);
+            // 다른 프로그램(포토샵 등)에서 직접 고쳐 둔 파일을 그대로 쓸 때.
+            _imageAsIs = new Button(() => ResolveWith(GitConflictSide.AsIs)) { text = GitText.Get("inprogress.resolveMarked"), tooltip = GitText.Get("merge.imageAsIsTooltip") };
+            _imageAsIs.AddToClassList("git-merge__reset");
+            imageOutputHeader.Add(_imageAsIs);
+            _imageView.Add(imageOutputHeader);
+            _imageOutputStage = ImageStage(out _imageOutputFrame, out _imageOutput, out _imageOutputHint);
+            _imageOutputStage.AddToClassList("git-merge__image-stage--output");
+            _imageView.Add(_imageOutputStage);
+            _imageView.SetVisible(false);
+            Root.Add(_imageView);
+
             Root.RegisterCallback<AttachToPanelEvent>(_ => _services.Runner.StateChanged += UpdateSave);
-            Root.RegisterCallback<DetachFromPanelEvent>(_ => _services.Runner.StateChanged -= UpdateSave);
+            Root.RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                _services.Runner.StateChanged -= UpdateSave;
+                ReleaseImages();
+            });
         }
 
         public void ShowCloseButton(bool isVisible)
@@ -231,6 +281,8 @@ namespace GitVersionControl
             _conflicts = _file.Conflicts.ToList();
             _choices = _conflicts.Select(segment => new GitMergeChoice(segment)).ToList();
             _binary.SetVisible(false);
+            SetImageMode(false);
+            ReleaseImages();
             _editor.SetVisible(true);
             GitOperationKind kind = _services.Repository.InProgressOperation;
             _titleA.text = SideTitle(GitText.Get("inprogress.ours." + kind), _file.ALabel);
@@ -247,6 +299,13 @@ namespace GitVersionControl
         private void ShowBinary()
         {
             _editor.SetVisible(false);
+            if (GitImageDiff.IsImage(_repoPath))
+            {
+                ShowImages();
+                return;
+            }
+            ReleaseImages();
+            SetImageMode(false);
             _binary.SetVisible(true);
             _count.text = string.Empty;
             GitOperationKind kind = _services.Repository.InProgressOperation;
@@ -498,6 +557,12 @@ namespace GitVersionControl
         private void UpdateSave()
         {
             bool idle = _services.Runner.IsBusy == false;
+            if (_imageMode)
+            {
+                _save.SetEnabled(idle && _imageChoice != null);
+                _imageAsIs.SetEnabled(idle);
+                return;
+            }
             _save.SetEnabled(idle && _file != null && _choices.All(c => c.IsDecided));
             _binaryA.SetEnabled(idle);
             _binaryB.SetEnabled(idle);
@@ -578,6 +643,14 @@ namespace GitVersionControl
 
         private void Save()
         {
+            if (_imageMode)
+            {
+                if (_imageChoice != null && _services.Runner.IsBusy == false)
+                {
+                    ResolveWith(_imageChoice.Value);
+                }
+                return;
+            }
             if (_file == null || _choices.Any(c => c.IsDecided == false) || _services.Runner.IsBusy)
             {
                 return;
@@ -605,6 +678,241 @@ namespace GitVersionControl
             }
             _ = _services.Runner.RunAsync(GitText.Format("inprogress.opResolve", Path.GetFileName(_repoPath)),
                 () => _services.Commands.ResolveConflictAsync(entry, side), refreshAssets: true, workingTreeOnly: true);
+        }
+
+        // ── 이미지 충돌 ──
+
+        /// <summary>
+        /// 이미지 충돌을 A·B 나란히 보인다. 같은 파일을 다시 열 때(저장소 새로고침)는 읽어 둔 이미지와 고른 쪽을 그대로 둔다.
+        /// </summary>
+        private void ShowImages()
+        {
+            _binary.SetVisible(false);
+            SetImageMode(true);
+            _count.text = string.Empty;
+            _save.SetVisible(true);
+            if (_imagesPath == _repoPath && _images != null)
+            {
+                RenderImages();
+                return;
+            }
+            ReleaseImages();
+            _imagesPath = _repoPath;
+            _imageChoice = null;
+            GitOperationKind kind = _services.Repository.InProgressOperation;
+            _imageA.SetTitle(GitText.Get("inprogress.ours." + kind));
+            _imageB.SetTitle(GitText.Get("inprogress.theirs." + kind));
+            _imageA.ShowLoading();
+            _imageB.ShowLoading();
+            RenderImages();
+            LoadImagesAsync(++_imageVersion, _repoPath, kind);
+        }
+
+        private async void LoadImagesAsync(int version, string repoPath, GitOperationKind kind)
+        {
+            (GitImagePair pair, string error) = await _services.Diff.LoadConflictImagesAsync(repoPath);
+            (string ours, string theirs) = await SideNamesAsync(kind);
+            if (version != _imageVersion || repoPath != _repoPath || _imageMode == false)
+            {
+                pair?.Dispose();
+                return;
+            }
+            _images = pair;
+            _imageA.SetTitle(SideTitle(GitText.Get("inprogress.ours." + kind), ours));
+            _imageB.SetTitle(SideTitle(GitText.Get("inprogress.theirs." + kind), theirs));
+            _imageA.Show(pair?.Left, error);
+            _imageB.Show(pair?.Right, error);
+            RenderImages();
+        }
+
+        /// <summary>
+        /// A·B 머리에 붙일 이름: 우리 쪽은 지금 브랜치(또는 짧은 해시), 들어오는 쪽은 MERGE_HEAD 등이 가리키는 브랜치 이름(없으면 짧은 해시).
+        /// </summary>
+        private static async Task<(string ours, string theirs)> SideNamesAsync(GitOperationKind kind)
+        {
+            string branch = GitRepository.Branch?.Detached == false ? GitRepository.Branch.Name : null;
+            string ours = string.IsNullOrEmpty(branch) ? await ShortHashAsync("HEAD") : branch;
+            string incoming = kind switch
+            {
+                GitOperationKind.Merge => "MERGE_HEAD",
+                GitOperationKind.CherryPick => "CHERRY_PICK_HEAD",
+                GitOperationKind.Revert => "REVERT_HEAD",
+                GitOperationKind.Rebase => "REBASE_HEAD",
+                _ => null,
+            };
+            if (incoming == null)
+            {
+                return (ours, null);
+            }
+            GitResult name = await GitRepository.RunAsync("name-rev", "--name-only", "--no-undefined", "--exclude=refs/tags/*", incoming);
+            string theirs = name.Success ? name.Output.Trim() : null;
+            return (ours, string.IsNullOrEmpty(theirs) ? await ShortHashAsync(incoming) : theirs);
+        }
+
+        private static async Task<string> ShortHashAsync(string revision)
+        {
+            GitResult result = await GitRepository.RunAsync("rev-parse", "--short", "--verify", "--quiet", revision);
+            return result.Success ? result.Output.Trim() : null;
+        }
+
+        /// <summary>한쪽만 고른다(이미지는 섞을 수 없다). 고른 쪽을 다시 누르면 고르지 않은 상태로.</summary>
+        private void ChooseImage(GitConflictSide side, bool chosen)
+        {
+            _imageChoice = chosen ? side : _imageChoice == side ? null : _imageChoice;
+            RenderImages();
+        }
+
+        private void RenderImages()
+        {
+            _imageA.SetChosen(_imageChoice == GitConflictSide.Ours);
+            _imageB.SetChosen(_imageChoice == GitConflictSide.Theirs);
+            GitImageSide chosen = _imageChoice == GitConflictSide.Ours ? _images?.Left
+                : _imageChoice == GitConflictSide.Theirs ? _images?.Right
+                : null;
+            Texture2D texture = chosen?.Texture;
+            _imageOutput.image = texture;
+            _imageOutputFrame.SetVisible(texture != null);
+            _imageOutputHint.text = _imageChoice == null ? GitText.Get("merge.imagePick")
+                : texture == null ? GitText.Get("merge.imageDeleteChosen")
+                : string.Empty;
+            _imageOutputHint.SetVisible(texture == null);
+            FitImage(_imageOutputStage, _imageOutputFrame, texture);
+            _save.tooltip = _imageChoice == null ? GitText.Get("merge.imagePick") : GitText.Get("merge.imageSaveTooltip");
+            UpdateSave();
+        }
+
+        private void SetImageMode(bool on)
+        {
+            _imageMode = on;
+            _imageView.SetVisible(on);
+        }
+
+        private void ReleaseImages()
+        {
+            _imageVersion++;
+            _images?.Dispose();
+            _images = null;
+            _imagesPath = null;
+            _imageA.Show(null, null);
+            _imageB.Show(null, null);
+            _imageOutput.image = null;
+        }
+
+        /// <summary>이미지를 담는 칸: 체커 무늬를 깐 틀(이미지 비율대로 칸 안에 맞춘다) 안에 이미지, 비었을 때의 안내.</summary>
+        private static VisualElement ImageStage(out VisualElement frame, out Image image, out Label hint)
+        {
+            VisualElement stage = new();
+            stage.AddToClassList("git-merge__image-stage");
+            VisualElement fitFrame = new();
+            fitFrame.AddToClassList("git-merge__image-frame");
+            fitFrame.AddToClassList("git-image-diff__checker");
+            fitFrame.style.backgroundImage = GitImageDiffView.Checker;
+            Image fitImage = new() { scaleMode = ScaleMode.StretchToFill };
+            fitImage.AddToClassList("git-merge__image");
+            fitFrame.Add(fitImage);
+            stage.Add(fitFrame);
+            hint = new Label();
+            hint.AddToClassList("git-merge__image-hint");
+            stage.Add(hint);
+            stage.RegisterCallback<GeometryChangedEvent>(_ => FitImage(stage, fitFrame, fitImage.image as Texture2D));
+            frame = fitFrame;
+            image = fitImage;
+            return stage;
+        }
+
+        /// <summary>
+        /// 틀 크기를 이미지 비율대로 칸 안에 맞춘다. 작은 이미지(아이콘·픽셀 아트)도 잘 보이게 칸에 맞춰 키운다 — 점 필터라 흐려지지 않는다.
+        /// </summary>
+        private static void FitImage(VisualElement stage, VisualElement frame, Texture2D texture)
+        {
+            if (texture == null || texture.width <= 0 || texture.height <= 0)
+            {
+                return;
+            }
+            float width = stage.contentRect.width;
+            float height = stage.contentRect.height;
+            if (float.IsNaN(width) || float.IsNaN(height) || width <= 0f || height <= 0f)
+            {
+                return;
+            }
+            float scale = Mathf.Min(width / texture.width, height / texture.height);
+            frame.style.width = Mathf.Floor(texture.width * scale);
+            frame.style.height = Mathf.Floor(texture.height * scale);
+        }
+
+        /// <summary>A·B 이미지 칸 하나: 머리(고르기 체크·배지·이름), 이미지, 아래 크기 정보.</summary>
+        private sealed class ImagePane
+        {
+            public readonly VisualElement Root;
+            private readonly Toggle _choose;
+            private readonly Label _title;
+            private readonly VisualElement _stage;
+            private readonly VisualElement _frame;
+            private readonly Image _image;
+            private readonly Label _hint;
+            private readonly Label _info;
+
+            public ImagePane(GitMergeSide side, Action<bool> chosen)
+            {
+                Root = new VisualElement();
+                Root.AddToClassList("git-merge__pane");
+                Root.AddToClassList(side == GitMergeSide.A ? "git-merge__pane--a" : "git-merge__pane--b");
+                VisualElement header = new();
+                header.AddToClassList("git-merge__pane-header");
+                _choose = new Toggle { tooltip = GitText.Get(side == GitMergeSide.A ? "merge.imageChooseA" : "merge.imageChooseB") };
+                _choose.AddToClassList("git-merge__all");
+                _choose.RegisterValueChangedCallback(evt => chosen(evt.newValue));
+                header.Add(_choose);
+                Label badge = new(side == GitMergeSide.A ? "A" : "B");
+                badge.AddToClassList("git-merge__badge");
+                header.Add(badge);
+                _title = new Label();
+                _title.AddToClassList("git-merge__pane-title");
+                header.Add(_title);
+                Root.Add(header);
+                _stage = ImageStage(out _frame, out _image, out _hint);
+                // 이미지를 눌러도 고른다(작은 체크 칸만 누르지 않아도 되게).
+                _stage.RegisterCallback<ClickEvent>(_ => _choose.value = _choose.value == false);
+                Root.Add(_stage);
+                _info = new Label();
+                _info.AddToClassList("git-merge__image-info");
+                Root.Add(_info);
+            }
+
+            public void SetTitle(string title)
+            {
+                _title.text = title ?? string.Empty;
+            }
+
+            public void SetChosen(bool chosen)
+            {
+                _choose.SetValueWithoutNotify(chosen);
+                Root.EnableInClassList("git-merge__pane--chosen", chosen);
+            }
+
+            public void ShowLoading()
+            {
+                _image.image = null;
+                _frame.SetVisible(false);
+                _hint.text = GitText.Get("merge.imageLoading");
+                _hint.SetVisible(true);
+                _info.text = string.Empty;
+            }
+
+            public void Show(GitImageSide side, string error)
+            {
+                Texture2D texture = side?.Texture;
+                if (texture != null)
+                {
+                    texture.filterMode = FilterMode.Point;
+                }
+                _image.image = texture;
+                _frame.SetVisible(texture != null);
+                _hint.text = error ?? (side == null ? string.Empty : side.IsMissingLfs ? GitText.Get("merge.imageMissingLfs") : GitText.Get("merge.imageDeleted"));
+                _hint.SetVisible(texture == null);
+                _info.text = texture != null ? GitText.Format("merge.imageInfo", texture.width, texture.height, GitImageDiff.FormatBytes(side.ByteSize)) : string.Empty;
+                FitImage(_stage, _frame, texture);
+            }
         }
 
         private static string FullPath(string repoPath)

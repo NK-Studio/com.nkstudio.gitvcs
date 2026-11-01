@@ -1599,3 +1599,73 @@
     margin: 4px;
     padding: 0 12px;
 }
+
+/* ── 이미지 충돌(GitKraken 과 같은 배치): 위 A·B 이미지, 아래 고른 이미지(출력) ──
+   이미지는 체커 무늬 틀 안에 비율대로 칸에 맞춰 키운다. 고른 칸은 머리에 칸 색 줄을 긋는다. */
+.git-merge__images .git-merge__top {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.git-merge__images .git-merge__pane {
+    flex-direction: column;
+}
+
+.git-merge__image-stage {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 80px;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow: hidden;
+}
+
+.git-merge__images .git-merge__pane .git-merge__image-stage {
+    cursor: link;
+}
+
+.git-merge__image-stage--output {
+    flex-grow: 1;
+}
+
+.git-merge__image-frame {
+    flex-shrink: 0;
+}
+
+.git-merge__image {
+    flex-grow: 1;
+}
+
+.git-merge__image-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 16px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+    font-size: 12px;
+    color: var(--git-text-muted);
+}
+
+.git-merge__image-info {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0 0 8px 0;
+    -unity-text-align: middle-center;
+    font-size: 11px;
+    color: var(--git-text-muted);
+}
+
+.git-merge__pane--a.git-merge__pane--chosen > .git-merge__pane-header {
+    border-bottom-width: 2px;
+    border-bottom-color: #2fa4c2;
+}
+
+.git-merge__pane--b.git-merge__pane--chosen > .git-merge__pane-header {
+    border-bottom-width: 2px;
+    border-bottom-color: #d9a732;
+}
