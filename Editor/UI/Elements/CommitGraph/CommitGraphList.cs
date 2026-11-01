@@ -45,6 +45,9 @@ namespace GitVersionControl
             public VisualElement Graph;
             public VisualElement Message;
 
+            /// <summary>작업 중 줄이 병합 충돌 경고일 때 메시지 앞의 경고 삼각형.</summary>
+            public WarningGlyph Warning;
+
             /// <summary>
             /// Fork 형태에서 메시지 뒤에 붙는 [작성자][SHA][날짜] 묶음(<see cref="CommitGraphList(VisualElement, IAvatarProvider, bool)"/> 의 detailColumns). 없으면 null.
             /// </summary>
@@ -1539,6 +1542,11 @@ namespace GitVersionControl
             message.Add(highlight);
             row.Highlight = highlight;
             // 글자는 마우스를 받지 않는다(줄이 받는다). 툴팁은 메시지 칸에 단다(BindRow).
+            WarningGlyph warning = new();
+            warning.AddToClassList("commit-graph-row__warning");
+            warning.SetVisible(false);
+            message.Add(warning);
+            row.Warning = warning;
             Label subject = new() { pickingMode = PickingMode.Ignore };
             subject.AddToClassList("commit-row__subject");
             subject.AddToClassList("ellipsis");
@@ -1595,6 +1603,10 @@ namespace GitVersionControl
             row.WipCountsRoot?.SetVisible(isWip && conflictWip == false);
             // 작업 중 줄은 제목 글자 대신 입력란·변경 개수를 보인다.
             subject.SetVisible(isWip == false || conflictWip);
+            row.Warning.SetVisible(conflictWip);
+            // 경고 줄은 마우스를 올리거나 골라도 바탕 막(하이라이트)을 깔지 않는다 — 막이 경고색을 덮어 빈 줄처럼 보였다.
+            // 줄 요소가 곧 목록 항목이라 USS 의 자손 선택자로는 :hover 규칙을 이길 수 없어 인라인으로 끈다.
+            row.Highlight.style.display = conflictWip ? DisplayStyle.None : StyleKeyword.Null;
             if (isWip)
             {
                 _wipRow = row;
@@ -1620,7 +1632,7 @@ namespace GitVersionControl
                 }
                 PlaceBand(row);
                 BindWipCounts(row);
-                subject.text = conflictWip ? "⚠  " + GitText.Format("graph.mergeConflicts", _mergeConflicts, _mergeTarget ?? "HEAD") : string.Empty;
+                subject.text = conflictWip ? GitText.Format("graph.mergeConflicts", _mergeConflicts, _mergeTarget ?? "HEAD") : string.Empty;
                 message.tooltip = null;
                 BindDetails(row, null);
                 return;

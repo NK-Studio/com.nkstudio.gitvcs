@@ -1244,6 +1244,14 @@
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
+.commit-graph-row__warning {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    color: #ffffff;
+}
+
 .commit-graph-row .commit-row__subject {
     font-size: 13px;
 }
