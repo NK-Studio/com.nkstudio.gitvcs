@@ -74,7 +74,7 @@ namespace GitVersionControl
         private const float MutedSaturation = 0.45f;
 
         /// <summary>어두운 배경에서 밝기 배율.</summary>
-        private const float MutedValue = 0.15f;
+        private const float MutedValue = 0.2f;
 
         /// <summary>밝은 배경에서 배경색 쪽으로 섞는 비율.</summary>
         private const float MutedLightBlend = 0.85f;
