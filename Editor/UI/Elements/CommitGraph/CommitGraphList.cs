@@ -2468,37 +2468,54 @@ namespace GitVersionControl
             painter.strokeColor = headColor;
         }
 
-        /// <summary>꺾인 선을 따라 길이로 이어지는 점선(구간이 바뀌어도 점 간격이 끊기지 않는다).</summary>
+        /// <summary>
+        /// 꺾인 선을 따라 길이로 이어지는 점선(구간이 바뀌어도 점 간격이 끊기지 않는다).
+        /// 점 하나마다 시작·끝 거리를 정해 두고 그 사이 꺾인 점을 이어 긋는다 — 남은 길이를 조금씩 줄여 가는 방식은
+        /// 부동소수 오차로 0 에 가까운 걸음이 되풀이되어 끝나지 않을 수 있다(에디터가 멈췄다).
+        /// </summary>
         private static void DashedPath(Painter2D painter, List<Vector2> points, float dash, float gap)
         {
-            float period = dash + gap;
-            float walked = 0f;
+            if (points.Count < 2 || dash <= 0f)
+            {
+                return;
+            }
+            float[] at = new float[points.Count];
             for (int i = 1; i < points.Count; i++)
             {
-                Vector2 from = points[i - 1];
-                Vector2 to = points[i];
-                float length = Vector2.Distance(from, to);
-                if (length <= 0f)
-                {
-                    continue;
-                }
-                Vector2 step = (to - from) / length;
-                float at = 0f;
-                while (at < length)
-                {
-                    float phase = (walked + at) % period;
-                    float run = phase < dash ? Mathf.Min(dash - phase, length - at) : Mathf.Min(period - phase, length - at);
-                    if (phase < dash)
-                    {
-                        painter.BeginPath();
-                        painter.MoveTo(from + step * at);
-                        painter.LineTo(from + step * (at + run));
-                        painter.Stroke();
-                    }
-                    at += run;
-                }
-                walked += length;
+                at[i] = at[i - 1] + Vector2.Distance(points[i - 1], points[i]);
             }
+            float total = at[points.Count - 1];
+            int count = Mathf.CeilToInt(total / (dash + gap));
+            for (int n = 0; n < count; n++)
+            {
+                float from = n * (dash + gap);
+                float to = Mathf.Min(from + dash, total);
+                painter.BeginPath();
+                painter.MoveTo(PointAt(points, at, from));
+                for (int i = 1; i < points.Count - 1; i++)
+                {
+                    if (at[i] > from && at[i] < to)
+                    {
+                        painter.LineTo(points[i]);
+                    }
+                }
+                painter.LineTo(PointAt(points, at, to));
+                painter.Stroke();
+            }
+        }
+
+        /// <summary>꺾인 선에서 처음부터 <paramref name="distance"/> 만큼 간 자리.</summary>
+        private static Vector2 PointAt(List<Vector2> points, float[] at, float distance)
+        {
+            for (int i = 1; i < points.Count; i++)
+            {
+                if (distance <= at[i])
+                {
+                    float length = at[i] - at[i - 1];
+                    return length <= 0f ? points[i] : Vector2.Lerp(points[i - 1], points[i], (distance - at[i - 1]) / length);
+                }
+            }
+            return points[points.Count - 1];
         }
 
         /// <summary>
