@@ -232,7 +232,7 @@ namespace GitVersionControl
 
         private async Task LoadAsync(int openCount, GitPullRequestInfo info, GitHubRemoteRepo repository)
         {
-            bool signedIn = GitHubAccount.IsSignedIn;
+            bool signedIn = GitAccounts.HasApiAccount;
             _signIn.SetVisible(signedIn == false);
             if (signedIn == false || info == null || repository == null)
             {

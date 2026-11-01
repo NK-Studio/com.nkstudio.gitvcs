@@ -44,7 +44,7 @@ namespace GitVersionControl
             _accountText = AddContent(_account, ActionGlyphKind.GitHub);
             _account.tooltip = GitText.Get("account.menu");
             _account.clicked += () => AccountRequested?.Invoke();
-            _accountText.text = GitHubAccount.IsSignedIn ? GitHubAccount.Login : "GitHub";
+            SetAccount();
 
             Label version = layout.Require<Label>("footer-version");
             UnityEditor.PackageManager.PackageInfo package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(GitFooter).Assembly);
@@ -68,6 +68,14 @@ namespace GitVersionControl
                 : set.NoGitHubRemote ? GitText.Get("prList.noRemote")
                 : set.Error != null ? GitText.Get("prList.error") + " " + set.Error
                 : set.Repository;
+        }
+
+        /// <summary>
+        /// 이 저장소에 쓰는 GitHub 계정(<see cref="GitAccounts.ApiLogin"/> — 고른 계정, 없으면 패키지 로그인). 계정을 고르거나 로그인이 바뀔 때 부른다.
+        /// </summary>
+        public void SetAccount()
+        {
+            _accountText.text = GitAccounts.ApiLogin ?? "GitHub";
         }
 
         public void SetScale(float scale)

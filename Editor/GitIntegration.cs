@@ -57,6 +57,9 @@ namespace GitVersionControl
             RestoreVisibleMetaFiles();
             // 이 저장소에 패키지 로그인을 골라 뒀으면 그 토큰을 git 에 넘긴다(도메인 리로드마다 다시 정한다).
             GitAccounts.ApplyTokenOverride();
+            // 서브모듈을 열거나 돌아오면 그 저장소에 고른 계정으로 다시 정한다(계정 이름은 저장소 설정에 있다).
+            GitRepository.RepositorySwitched -= GitAccounts.ApplyTokenOverride;
+            GitRepository.RepositorySwitched += GitAccounts.ApplyTokenOverride;
             GitRepository.Start();
         }
 

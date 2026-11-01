@@ -126,6 +126,9 @@ namespace GitVersionControl
             // 로그인하면 연결 화면에서 본체로, 로그아웃하면 다시 연결 화면으로 바꾼다.
             GitHubAccount.Changed -= OnAccountChanged;
             GitHubAccount.Changed += OnAccountChanged;
+            // 이 저장소의 GitHub 계정을 고르면 아래쪽 계정 표시와 Pull Request 목록을 그 계정으로 다시.
+            GitAccounts.Changed -= OnRepositoryAccountChanged;
+            GitAccounts.Changed += OnRepositoryAccountChanged;
             // 서브모듈을 열거나 돌아오면 탭을 다시 만든다 — 지난 저장소의 커밋 목록·선택·diff 가 남지 않게.
             GitRepository.RepositorySwitched -= Rebuild;
             GitRepository.RepositorySwitched += Rebuild;
@@ -395,6 +398,12 @@ namespace GitVersionControl
         /// <summary>
         /// 로그인·로그아웃. 연결 화면에서 로그인에 성공했으면 연출과 함께 본체로(<see cref="LeaveConnect"/>), 그 밖에는 다시 만든다.
         /// </summary>
+        private void OnRepositoryAccountChanged()
+        {
+            _footer?.SetAccount();
+            _refs?.ReloadPullRequests();
+        }
+
         private void OnAccountChanged()
         {
             if (_connect != null && NeedsGitHubConnect == false)
@@ -510,6 +519,7 @@ namespace GitVersionControl
             GitLayout.Changed -= Rebuild;
             GitExplorerStyle.Changed -= Rebuild;
             GitHubAccount.Changed -= OnAccountChanged;
+            GitAccounts.Changed -= OnRepositoryAccountChanged;
             GitRepository.RepositorySwitched -= Rebuild;
             GitPopupHosts.Unregister(this);
             TearDown();

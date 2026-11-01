@@ -62,10 +62,31 @@ namespace GitVersionControl
         private const int SourceUnityLogin = 2;
 
         /// <summary>
+        /// 이 저장소의 GitHub API(Pull Request·커밋 아바타)와 Git 창 아래쪽 계정 표시에 쓰는 계정 이름.
+        /// 이 저장소에 계정을 골랐으면(gh·Git Credential Manager) 그 계정, 아니면 패키지 로그인(Preferences > Git). 둘 다 없으면 null.
+        /// 계정을 골라도 git 통신만 바뀌고 PR 목록·아래쪽 표시는 패키지 로그인 그대로여서, 다른 계정의 저장소에서 PR 이 보이지 않았다.
+        /// </summary>
+        public static string ApiLogin => s_apiToken != null ? s_apiLogin : GitHubAccount.IsSignedIn ? GitHubAccount.Login : null;
+
+        /// <summary><see cref="ApiLogin"/> 의 토큰. 없으면 null. 저장하지 않는다(에디터를 열 때마다 다시 꺼낸다).</summary>
+        public static string ApiToken => s_apiToken ?? (GitHubAccount.IsSignedIn ? GitHubAccount.Token : null);
+
+        /// <summary>GitHub API 를 부를 계정이 있는지(없으면 PR 목록 등은 로그인 안내).</summary>
+        public static bool HasApiAccount => string.IsNullOrEmpty(ApiToken) == false;
+
+        private static string s_apiLogin;
+        private static string s_apiToken;
+
+        /// <summary>
         /// 고른 계정의 토큰을 git 에 넘길지 다시 정한다(<see cref="GitAuth.TokenOverride"/>). 설정·로그인이 바뀔 때와 에디터를 열 때 부른다.
         /// gh 계정은 <c>gh auth token --user</c> 로 꺼낸다 — gh 의 자격 증명 도우미는 저장소에 적은 이름을 무시하고 늘 활성 계정을 돌려주기 때문이다.
         /// </summary>
         public static async void ApplyTokenOverride()
+        {
+            await ApplyTokenOverrideAsync();
+        }
+
+        private static async Task ApplyTokenOverrideAsync()
         {
             GitVcsSettings settings = GitVcsSettings.instance;
             switch (settings.AccountSource)
@@ -86,6 +107,48 @@ namespace GitVersionControl
                     GitAuth.TokenOverride = null;
                     break;
             }
+            await RefreshApiAccountAsync();
+        }
+
+        /// <summary>
+        /// <see cref="ApiLogin"/>·<see cref="ApiToken"/> 을 다시 정하고 <see cref="Changed"/> 를 알린다.
+        /// gh 계정은 그 토큰을, Git Credential Manager·키체인 계정(저장소 설정에 이름을 적은 계정)은 <c>git credential fill</c> 로 꺼낸 토큰을 쓴다.
+        /// 패키지 로그인을 골랐거나 따로 고른 계정이 없으면 비워 패키지 로그인을 따르게 한다.
+        /// </summary>
+        private static async Task RefreshApiAccountAsync()
+        {
+            GitVcsSettings settings = GitVcsSettings.instance;
+            string login = null;
+            string token = null;
+            if (settings.AccountSource == SourceGitHubCli)
+            {
+                login = settings.AccountName;
+                token = GitAuth.TokenOverride ?? await GhTokenAsync(login);
+            }
+            else if (settings.AccountSource == SourceDefault && GitRepository.IsRepository == false)
+            {
+                // 에디터를 막 열어 저장소를 아직 못 읽었다 — 읽고 나면 다시 정한다.
+                GitRepository.Changed -= OnRepositoryReady;
+                GitRepository.Changed += OnRepositoryReady;
+            }
+            else if (settings.AccountSource == SourceDefault)
+            {
+                GitResult chosen = await GitRepository.RunAsync("config", "--local", "--get", GitAuth.UsernameConfigKey);
+                string name = chosen.Success ? chosen.Output.Trim() : null;
+                (string owner, string repository)? remote = string.IsNullOrEmpty(name) ? null : await GitHubRemoteAsync();
+                if (remote.HasValue)
+                {
+                    (string username, string password) = await FillAsync(remote.Value.owner, remote.Value.repository, name);
+                    if (string.IsNullOrEmpty(password) == false)
+                    {
+                        login = string.IsNullOrEmpty(username) ? name : username;
+                        token = password;
+                    }
+                }
+            }
+            s_apiLogin = string.IsNullOrEmpty(token) ? null : login;
+            s_apiToken = string.IsNullOrEmpty(token) ? null : token;
+            Changed?.Invoke();
         }
 
         /// <summary>
@@ -97,6 +160,16 @@ namespace GitVersionControl
             return result.Success && GitAvatarSources.TryParseGitHubRemote(result.Output, out string owner, out string repository)
                 ? (owner, repository)
                 : null;
+        }
+
+        private static void OnRepositoryReady()
+        {
+            if (GitRepository.IsRepository == false)
+            {
+                return;
+            }
+            GitRepository.Changed -= OnRepositoryReady;
+            _ = RefreshApiAccountAsync();
         }
 
         /// <summary>
@@ -228,11 +301,15 @@ namespace GitVersionControl
                     result = await GitRepository.RunAsync("config", "--local", GitAuth.UsernameConfigKey, candidate.Login);
                     break;
             }
-            if (candidate.Source != GitAccountSource.GitHubCli)
+            // git 에 넘길 토큰과 PR·아래쪽 표시에 쓸 계정을 함께 다시 정한다(끝나면 Changed).
+            if (candidate.Source == GitAccountSource.GitHubCli)
             {
-                ApplyTokenOverride();
+                await RefreshApiAccountAsync();
             }
-            Changed?.Invoke();
+            else
+            {
+                await ApplyTokenOverrideAsync();
+            }
             return result;
         }
 
@@ -243,9 +320,8 @@ namespace GitVersionControl
         {
             GitVcsSettings.instance.AccountSource = SourceDefault;
             GitVcsSettings.instance.AccountName = string.Empty;
-            ApplyTokenOverride();
             await GitRepository.RunAsync("config", "--local", "--unset", GitAuth.UsernameConfigKey);
-            Changed?.Invoke();
+            await ApplyTokenOverrideAsync();
         }
 
         /// <summary>

@@ -457,16 +457,17 @@ namespace GitVersionControl
             List<GitHubRemoteRepo> remotes = GitPullRequestForm.GitHubRemotes(_refs.RemoteUrls);
             GitHubRemoteRepo target = remotes.FirstOrDefault(r => r.Remote == "upstream") ?? remotes.FirstOrDefault();
             // Fetch 할 때마다(수동·자동) 다시 받는다 — GitHub 에서 병합·닫힌 PR 이 목록에 남지 않게.
-            string key = $"{GitHubAccount.Login}|{target?.FullName}|{_services.Repository.LastFetchTime}";
+            // 계정은 이 저장소에 고른 계정(없으면 패키지 로그인) — 다른 계정의 저장소도 그 계정으로 읽는다.
+            string key = $"{GitAccounts.ApiLogin}|{target?.FullName}|{_services.Repository.LastFetchTime}";
             if (key == _pullRequestsKey)
             {
                 return;
             }
             _pullRequestsKey = key;
             int request = ++_pullRequestsRequest;
-            if (GitHubAccount.IsSignedIn == false || target == null)
+            if (GitAccounts.HasApiAccount == false || target == null)
             {
-                ApplyPullRequests(new GitPullRequestSet { NeedsSignIn = GitHubAccount.IsSignedIn == false, NoGitHubRemote = target == null });
+                ApplyPullRequests(new GitPullRequestSet { NeedsSignIn = GitAccounts.HasApiAccount == false, NoGitHubRemote = target == null });
                 return;
             }
             // 처음 읽을 때만 "읽는 중" 을 보인다. 다시 읽을 때는 받을 때까지 지금 목록을 그대로 둔다.
@@ -484,7 +485,7 @@ namespace GitVersionControl
                 // 다음 새로고침 때 다시 시도한다.
                 _pullRequestsKey = null;
             }
-            GitPullRequestSet set = new() { Repository = target.FullName, Remote = target.Remote, Login = GitHubAccount.Login, All = pulls, Error = error };
+            GitPullRequestSet set = new() { Repository = target.FullName, Remote = target.Remote, Login = GitAccounts.ApiLogin, All = pulls, Error = error };
             ApplyPullRequests(set);
             if (error == null)
             {

@@ -35,7 +35,7 @@ namespace GitVersionControl
                 using UnityWebRequest request = UnityWebRequest.Get(url);
                 request.SetRequestHeader("User-Agent", UserAgent);
                 request.SetRequestHeader("Accept", "application/vnd.github+json");
-                request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+                request.SetRequestHeader("Authorization", "Bearer " + GitAccounts.ApiToken);
                 await GitHubAccount.SendAsync(request);
                 if (request.result != UnityWebRequest.Result.Success)
                 {
@@ -62,7 +62,7 @@ namespace GitVersionControl
             using UnityWebRequest request = UnityWebRequest.Get(url);
             request.SetRequestHeader("User-Agent", UserAgent);
             request.SetRequestHeader("Accept", "application/vnd.github+json");
-            request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+            request.SetRequestHeader("Authorization", "Bearer " + GitAccounts.ApiToken);
             await GitHubAccount.SendAsync(request);
             if (request.result != UnityWebRequest.Result.Success)
             {
@@ -206,7 +206,7 @@ namespace GitVersionControl
         {
             request.SetRequestHeader("User-Agent", UserAgent);
             request.SetRequestHeader("Accept", "application/vnd.github+json");
-            request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+            request.SetRequestHeader("Authorization", "Bearer " + GitAccounts.ApiToken);
         }
 
         /// <returns>성공하면 (번호, 주소, null), 실패하면 (0, null, 오류 문구).</returns>
@@ -221,7 +221,7 @@ namespace GitVersionControl
             request.SetRequestHeader("User-Agent", UserAgent);
             request.SetRequestHeader("Accept", "application/vnd.github+json");
             request.SetRequestHeader("Content-Type", "application/json");
-            request.SetRequestHeader("Authorization", "Bearer " + GitHubAccount.Token);
+            request.SetRequestHeader("Authorization", "Bearer " + GitAccounts.ApiToken);
             await GitHubAccount.SendAsync(request);
             string text = request.downloadHandler?.text;
             if (request.result != UnityWebRequest.Result.Success)

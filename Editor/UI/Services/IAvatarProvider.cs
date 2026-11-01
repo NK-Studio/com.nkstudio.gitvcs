@@ -220,7 +220,7 @@ namespace GitVersionControl
             (string owner, string repository)? remote = await GitHubRemoteAsync();
             if (remote.HasValue && string.IsNullOrEmpty(commitHash) == false)
             {
-                (string avatarUrl, bool answered) = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash, GitHubAccount.Token);
+                (string avatarUrl, bool answered) = await GitHubCommitAvatarAsync(remote.Value.owner, remote.Value.repository, commitHash, GitAccounts.ApiToken);
                 gitHubAnswered = answered;
                 if (string.IsNullOrEmpty(avatarUrl) == false)
                 {
