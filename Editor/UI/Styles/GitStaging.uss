@@ -199,8 +199,8 @@
     opacity: 0.5;
 }
 
-/* 충돌 구역(StagingLists 가 코드로 만든다): Unstaged·Staged 위에 상태 카드(OperationCard, GitWindow.uss).
-   충돌 파일 목록과 [모두 해결됨으로 표시] 는 GitKraken 처럼 Unstaged 칸 맨 위에 들어가고, Staged 머리는 "해결한 파일" 이 된다. */
+/* 충돌 중(StagingLists 가 코드로 만든다): GitKraken 처럼 충돌 파일 목록과 [모두 해결됨으로 표시] 가 Unstaged 칸 맨 위에 들어가고,
+   Staged 머리는 "해결한 파일" 이 된다. */
 .staging-conflict {
     flex-shrink: 0;
     border-bottom-width: 1px;

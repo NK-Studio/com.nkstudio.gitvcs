@@ -69,7 +69,6 @@ namespace GitVersionControl
         private const int ConflictMaxRows = 6;
 
         private readonly VisualElement _conflictPanel;
-        private readonly OperationCard _operationCard;
         private readonly Label _conflictTitle;
         private readonly Button _resolveAllButton;
         private readonly VisualElement _conflictHeader;
@@ -206,10 +205,9 @@ namespace GitVersionControl
             _unstaged.FolderPathContextMenuRequested += PopulateUnstagedFolderMenu;
             _staged.FolderPathContextMenuRequested += PopulateStagedFolderMenu;
 
-            // 충돌 구역: 경로/트리 전환 줄 바로 밑, Unstaged·Staged 위. 상태 카드만 둔다 — 충돌 파일 목록은 Unstaged 자리에 들어간다.
+            // 예전 "해결한 파일" 목록을 담던 칸. 보이지 않는다 — GitKraken 처럼 충돌 파일은 Unstaged 자리, 해결한 파일은 Staged 자리에 보인다.
             _conflictPanel = new VisualElement();
             _conflictPanel.AddToClassList("staging-conflict");
-            _operationCard = new OperationCard(_conflictPanel, services);
 
             _conflictHeader = NewSectionHeader(out _conflictTitle);
             _resolveAllButton = new Button(ResolveAll) { text = GitText.Get("conflict.resolveAll"), tooltip = GitText.Get("conflict.resolveAllTooltip") };
@@ -806,9 +804,6 @@ namespace GitVersionControl
 
             _conflictEntries = conflicts;
             _resolvedEntries = _stagedEntries.Where(e => _conflictSeen.Contains(e.RepoPath)).ToList();
-            // 상태 카드가 보일 때(작업이 멈춰 있거나 충돌이 남았을 때) 구역을 연다 — 충돌이 없는 rebase(Stage 안 한 변경으로 막힘)도 알린다.
-            _operationCard.Render();
-            _conflictPanel.SetVisible(_operationCard.IsShown);
             _conflicts.SetItems(FileListItem.FromStatus(_conflictEntries));
             _resolved.SetItems(FileListItem.FromStatus(_resolvedEntries));
 
@@ -844,79 +839,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// "origin/develop 을 develop 에 병합 중" 처럼 무엇을 어디에 합치는 중인지. 표시 파일을 읽지 못하면 짧은 해시·HEAD 로 대신한다.
-        /// </summary>
-        internal static string DescribeOperation(GitOperationKind kind)
-        {
-            string gitDir = GitRepository.GitDir;
-            string current = GitRepository.Branch?.Detached == false && string.IsNullOrEmpty(GitRepository.Branch?.Name) == false ? GitRepository.Branch.Name : "HEAD";
-            switch (kind)
-            {
-                case GitOperationKind.Merge:
-                {
-                    string source = ShortHash(ReadFirstLine(gitDir, "MERGE_HEAD"));
-                    string target = current;
-                    Match match = Regex.Match(ReadFirstLine(gitDir, "MERGE_MSG"), @"^Merge (?:remote-tracking )?(?:branch|tag|commit) '([^']+)'(?: of \S+)?(?: into (.+))?$");
-                    if (match.Success)
-                    {
-                        source = match.Groups[1].Value;
-                        if (match.Groups[2].Success)
-                        {
-                            target = match.Groups[2].Value.Trim();
-                        }
-                    }
-                    return GitText.Format("conflict.detail.Merge", source, target);
-                }
-                case GitOperationKind.Rebase:
-                {
-                    string head = ReadFirstLine(gitDir, "rebase-merge/head-name");
-                    string onto = ReadFirstLine(gitDir, "rebase-merge/onto");
-                    if (head.Length == 0 && onto.Length == 0)
-                    {
-                        head = ReadFirstLine(gitDir, "rebase-apply/head-name");
-                        onto = ReadFirstLine(gitDir, "rebase-apply/onto");
-                    }
-                    head = head.StartsWith("refs/heads/", StringComparison.Ordinal) ? head.Substring("refs/heads/".Length) : head.Length > 0 ? head : "HEAD";
-                    return GitText.Format("conflict.detail.Rebase", head, ShortHash(onto));
-                }
-                case GitOperationKind.CherryPick:
-                    return GitText.Format("conflict.detail.CherryPick", ShortHash(ReadFirstLine(gitDir, "CHERRY_PICK_HEAD")), current);
-                case GitOperationKind.Revert:
-                    return GitText.Format("conflict.detail.Revert", ShortHash(ReadFirstLine(gitDir, "REVERT_HEAD")), current);
-                default:
-                    return GitText.Format("conflict.detail.None", current);
-            }
-        }
-
-        private static string ShortHash(string hash)
-        {
-            return hash.Length > 7 ? hash.Substring(0, 7) : hash.Length > 0 ? hash : "?";
-        }
-
-        private static string ReadFirstLine(string gitDir, string relativePath)
-        {
-            if (string.IsNullOrEmpty(gitDir))
-            {
-                return string.Empty;
-            }
-            try
-            {
-                string file = Path.Combine(gitDir, relativePath);
-                if (File.Exists(file) == false)
-                {
-                    return string.Empty;
-                }
-                using StreamReader reader = new(file);
-                return (reader.ReadLine() ?? string.Empty).Trim();
-            }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
-            {
-                return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// git 이 병합·cherry-pick·revert 를 멈추며 MERGE_MSG 끝에 적는 충돌 목록("# Conflicts:" 아래 "#\t경로" 줄).
+        /// git 이 병합·cherry-pick·revert 를 멈추며 MERGE_MSG 끝에 적는 충돌 목록("# Conflicts:" 아래 "#	경로" 줄).
         /// </summary>
         private static IEnumerable<string> ConflictsFromMergeMessage(string gitDir)
         {

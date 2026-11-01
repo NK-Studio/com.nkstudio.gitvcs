@@ -23,8 +23,7 @@ namespace GitVersionControl
     }
 
     /// <summary>
-    /// 충돌을 푸는 동안 Git 창 자체를 잃게 되는 상황을 알아본다. 충돌 구역의 상태 카드(<see cref="OperationCard"/>)와
-    /// Unity 종료 확인(GitQuitGuard), 충돌 목록 정렬이 함께 쓴다.
+    /// 충돌을 푸는 동안 Git 창 자체를 잃게 되는 상황을 알아본다. Unity 종료 확인(GitQuitGuard)과 충돌 목록 정렬이 쓴다.
     /// </summary>
     public static class GitConflictSafety
     {

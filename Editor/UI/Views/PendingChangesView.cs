@@ -34,7 +34,6 @@ namespace GitVersionControl
         private readonly Button _discardButton;
         private readonly Button _abortButton;
         private readonly Button _skipButton;
-        private readonly OperationCard _operationCard;
         private readonly Button _detailsButton;
         private readonly TwoPaneSplitView _detailsSplit;
         private readonly GitDiffPanel _diff;
@@ -78,7 +77,6 @@ namespace GitVersionControl
             _discardButton = Root.Require<Button>("discard-button");
             _abortButton = Root.Require<Button>("operation-abort-button");
             _skipButton = Root.Require<Button>("operation-skip-button");
-            _operationCard = new OperationCard(Root.Require<VisualElement>("operation-card-host"), services);
             _detailsButton = Root.Require<Button>("details-button");
             _detailsSplit = Root.Require<TwoPaneSplitView>("details-split");
             _message.textEdition.placeholder = GitText.Get("pending.commitTitle");
@@ -362,7 +360,6 @@ namespace GitVersionControl
 
             bool idle = Services.Runner.IsBusy == false;
             _discardButton.SetEnabled(idle && selected > 0);
-            _operationCard.Render();
             GitOperationKind operation = repository.IsRepository ? repository.InProgressOperation : GitOperationKind.None;
             _abortButton.SetVisible(operation != GitOperationKind.None);
             _skipButton.SetVisible(GitInProgress.CanSkip(operation));

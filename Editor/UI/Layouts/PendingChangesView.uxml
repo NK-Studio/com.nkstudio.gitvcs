@@ -11,9 +11,6 @@
             <ui:Button name="details-button" text="@pending.showDetails" class="pending-changes__action-button pending-changes__details-button" />
         </ui:VisualElement>
 
-        <!-- 충돌로 멈춘 작업의 상태 카드(OperationCard). 마치기 버튼 바로 아래에 둔다. -->
-        <ui:VisualElement name="operation-card-host" class="pending-changes__operation" />
-
         <ui:VisualElement class="pending-changes__commit">
             <ui:TextField name="commit-message" multiline="true" vertical-scroller-visibility="Auto" class="pending-changes__message" />
             <ui:VisualElement name="author-notice" class="notice notice--warning">

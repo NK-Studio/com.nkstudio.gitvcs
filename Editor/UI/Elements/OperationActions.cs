@@ -1,7 +1,7 @@
 namespace GitVersionControl
 {
     /// <summary>
-    /// 충돌로 멈춘 작업을 마치기·건너뛰기·중단하기. 버튼은 상태 카드(<see cref="OperationCard"/>)가 아니라 커밋 버튼 자리에 둔다:
+    /// 충돌로 멈춘 작업을 마치기·건너뛰기·중단하기. 버튼은 커밋 버튼 자리에 둔다:
     /// 병합·cherry-pick·revert 는 결국 커밋 하나로 끝나니 커밋 버튼이 [병합 마치기] 가 되고(입력란 메시지로 커밋), rebase 는 [rebase 이어가기] 가 된다.
     /// 중단·건너뛰기는 그 옆의 작은 단추다(GitKraken 과 같은 배치).
     /// </summary>
