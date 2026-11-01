@@ -151,7 +151,7 @@ namespace GitVersionControl
             if (NeedsInitCard)
             {
                 BuildConnect();
-                _connect.ShowInitStep();
+                ShowInitStep();
                 return;
             }
             if (NeedsGitHubConnect)
@@ -309,6 +309,28 @@ namespace GitVersionControl
             minSize = MinLayoutSize * UiScaleController.Clamp(GitVcsSettings.instance.GitWindowScale);
         }
 
+        /// <summary>
+        /// 저장소 만들기 카드를 띄운다. 창을 만든 순간 git 상태를 아직 못 읽었거나(패키지 다시 읽기·도메인 리로드와 브랜치 전환이 겹칠 때)
+        /// 다른 곳에서 git init 했으면 저장소가 나중에 보인다. 그때 카드에 머물지 않도록 저장소 상태를 듣다가 저장소가 보이면 창을 다시 만든다.
+        /// </summary>
+        private void ShowInitStep()
+        {
+            _connect.ShowInitStep();
+            GitRepository.Changed -= OnRepositoryAppeared;
+            GitRepository.Changed += OnRepositoryAppeared;
+        }
+
+        private void OnRepositoryAppeared()
+        {
+            // 이 카드에서 만들었으면 카드가 다음 단계(로그인 권하기)로 넘긴다.
+            if (_connect == null || NeedsRepository || _connect.CreatedRepository)
+            {
+                return;
+            }
+            GitRepository.Changed -= OnRepositoryAppeared;
+            Rebuild();
+        }
+
         private void BuildConnect()
         {
             TemplateContainer layout = GitUiAssets.CloneLayout("GitHubConnect");
@@ -355,7 +377,7 @@ namespace GitVersionControl
         {
             if (_connect != null && NeedsRepository && _connect.CreatedRepository == false)
             {
-                _connect.ShowInitStep();
+                ShowInitStep();
                 return;
             }
             LeaveConnect();
@@ -495,6 +517,7 @@ namespace GitVersionControl
 
         private void TearDown()
         {
+            GitRepository.Changed -= OnRepositoryAppeared;
             _connect?.Dispose();
             _connect = null;
             _refs?.Dispose();
