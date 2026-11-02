@@ -131,7 +131,19 @@ namespace GitVersionControl
             buttons.AddToClassList("branch-dialog__buttons");
             _copyAll = new Button(() => Copy(_copyAll, _message, GitText.Get("error.copyAll"))) { text = GitText.Get("error.copyAll") };
             _copyAll.AddToClassList("branch-dialog__cancel");
+            _copyAll.AddToClassList("error-dialog__copy");
             buttons.Add(_copyAll);
+            // SSL 인증서 오류는 고칠 곳이 Preferences 에 있어 바로 연다.
+            if (_advice.Kind == GitErrorKind.Ssl)
+            {
+                Button settingsButton = new(() =>
+                {
+                    Finish();
+                    GitPreferences.Open();
+                }) { text = GitText.Get("error.openSslSettings") };
+                settingsButton.AddToClassList("branch-dialog__cancel");
+                buttons.Add(settingsButton);
+            }
             Button okButton = new(Finish) { text = GitText.Get("common.ok") };
             okButton.AddToClassList("branch-dialog__create");
             buttons.Add(okButton);

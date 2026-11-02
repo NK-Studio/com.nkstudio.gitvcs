@@ -56,7 +56,7 @@ namespace GitVersionControl
         public bool LastRunWasWorkingTreeOnly { get; private set; }
 
         /// <summary>
-        /// 원격 작업이 인증 문제로 실패했을 때(<see cref="GitAuth.IsAuthFailure"/>) 오류 알림 대신 부른다. 계정을 골라 다시 해야 하면 true.
+        /// 원격 작업이 인증 문제로 실패했을 때(<see cref="GitAuth.IsAuthFailure"/>, 비밀번호를 받는 SSH 서버 <see cref="GitRemoteLogin.ParseFailure"/>) 오류 알림 대신 부른다. 계정을 골라·로그인해 다시 해야 하면 true.
         /// null 이면 다른 실패처럼 알린다. 창이 <see cref="GitAccountDialog"/> 를 넣는다.
         /// </summary>
         public Func<string, Task<bool>> AuthFailureHandler { get; set; }
@@ -94,15 +94,22 @@ namespace GitVersionControl
                     result = await operation();
                 }
                 // 끝나면 "~ 완료" 를 남기지 않고 비운다(GitKraken 처럼 결과는 화면이 바뀐 것으로 보인다). 실패만 남긴다.
-                // 계정이 틀렸거나 로그인이 없어 원격이 거부했으면, 오류 글 대신 어느 계정이 거부됐는지 알리고 계정을 고르게 한다(고르면 한 번 더).
+                // 계정이 틀렸거나 로그인이 없어 원격이 거부했으면, 오류 글 대신 어느 계정이 거부됐는지 알리고 계정을 고르게·로그인하게 한다(그러면 한 번 더).
+                // 오류 알림을 스스로 하는 작업(Push 등, showErrorDialog=false)에도 건다 — 그런 작업이 직접 다루는 건 거절·충돌 같은 다른 실패다.
                 bool authHandled = false;
-                if (result.Success == false && showErrorDialog && AuthFailureHandler != null && GitAuth.IsAuthFailure(result.Message))
+                if (result.Success == false && AuthFailureHandler != null
+                    && (GitAuth.IsAuthFailure(result.Message) || GitRemoteLogin.ParseFailure(result.Message) != null))
                 {
                     authHandled = true;
                     if (await AuthFailureHandler(result.Message))
                     {
                         result = await operation();
                         authHandled = false;
+                    }
+                    else if (showErrorDialog == false)
+                    {
+                        // 팝업을 닫았다: 부른 쪽이 같은 실패를 오류로 또 알리지 않게 취소로 돌려준다.
+                        result = GitResult.Cancelled;
                     }
                 }
                 // 로컬 변경 때문에 받지·합치지·전환하지 못했으면, 오류와 함께 "Stash 하고 다시" 를 권한다(고르면 stash 뒤 한 번 더).

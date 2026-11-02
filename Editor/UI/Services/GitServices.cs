@@ -86,7 +86,10 @@ namespace GitVersionControl
             GitServices services = new(repository, new GitHistoryService(), new GitCommandService(),
                 runner, dialogs, new EditorAssetNavigator(), new EditorFileIconProvider(), new FileViewPreference(), AvatarProvider, new GitDiffService(dialogs));
             dialogs.HostProvider = () => services.PopupHost;
-            runner.AuthFailureHandler = message => GitAccountDialog.ShowAsync(services, message);
+            // GitHub 는 이 PC 의 계정 중에서 고르고, 그 밖의 서버(회사 NAS·사내 GitLab)는 아이디·비밀번호를 받는다.
+            runner.AuthFailureHandler = message => GitRemoteLogin.ParseFailure(message) != null
+                ? GitLoginDialog.ShowAsync(services, message)
+                : GitAccountDialog.ShowAsync(services, message);
             runner.ErrorHandler = (title, message) => GitErrorDialog.ShowAsync(services, title, message);
             runner.LocalChangesHandler = (title, message) => OfferStashAndRetryAsync(services, title, message);
             return services;

@@ -23,12 +23,15 @@ namespace GitVersionControl
         FileTooLarge,
         ProtectedBranch,
         LockFile,
+        Ssl,
+        SshHostKey,
+        SshHostChanged,
     }
 
     /// <summary>
     /// git 오류 글을 짧은 해설(원인 한 줄·해결 한 줄)로 바꾼다. 오류 팝업의 "설명" 이 쓴다(<see cref="GitErrorDialog"/>).
     /// <see cref="GitAuth.IsAuthFailure"/> 처럼 소문자로 바꾼 글에 든 문구로 알아본다. 겹치는 문구가 있어 순서가 중요하다
-    /// (보호된 브랜치·큰 파일 거절도 "[remote rejected]" 이고, 403 도 "unable to access" 다).
+    /// (보호된 브랜치·큰 파일 거절도 "[remote rejected]" 이고, 403·SSL 인증서 오류도 "unable to access" 다).
     /// </summary>
     public sealed class GitErrorAdvice
     {
@@ -42,6 +45,7 @@ namespace GitVersionControl
         private static readonly Regex ConflictFile = new(@"Merge conflict in (?<file>.+)$", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex LargeFile = new(@"File (?<file>.+?) is [\d.]+ ?MB; this exceeds", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex LockPath = new(@"'(?<path>[^']*\.lock)'", RegexOptions.Compiled);
+        private static readonly Regex SshDenied = new(@"@(?<host>[^\s:']+): Permission denied \((?<methods>[^)]*)\)", RegexOptions.Compiled);
 
         public GitErrorKind Kind { get; private set; }
 
@@ -70,7 +74,16 @@ namespace GitVersionControl
                 return GitErrorKind.Unknown;
             }
             string lower = message.ToLowerInvariant();
-            if (lower.Contains("permission denied (publickey)"))
+            // 알던 SSH 서버의 키가 바뀜(위험) → 처음 보는 서버 → 키·비밀번호 거부 순으로 본다.
+            if (lower.Contains("remote host identification has changed"))
+            {
+                return GitErrorKind.SshHostChanged;
+            }
+            if (lower.Contains("host key verification failed"))
+            {
+                return GitErrorKind.SshHostKey;
+            }
+            if (lower.Contains("permission denied (publickey"))
             {
                 return GitErrorKind.SshKey;
             }
@@ -93,6 +106,10 @@ namespace GitVersionControl
             if (lower.Contains("[rejected]") && (lower.Contains("fetch first") || lower.Contains("non-fast-forward")))
             {
                 return GitErrorKind.RemoteAhead;
+            }
+            if (GitSsl.IsSslFailure(message))
+            {
+                return GitErrorKind.Ssl;
             }
             if (GitAuth.IsAuthFailure(message))
             {
@@ -159,6 +176,12 @@ namespace GitVersionControl
                 case GitErrorKind.LockFile:
                     advice.Cause = GitText.Format(key + ".cause", MatchGroup(LockPath, message, "path") ?? "index.lock");
                     break;
+                case GitErrorKind.SshKey:
+                    advice.Cause = GitText.Format(key + ".cause", MatchGroup(SshDenied, message, "host") ?? GitText.Get("error.server"));
+                    // 비밀번호도 받는 서버(NAS 등)면 다시 해서 로그인하라고 한다. 키만 받으면 키를 등록해야 한다.
+                    string methods = MatchGroup(SshDenied, message, "methods") ?? string.Empty;
+                    advice.Fix = GitText.Get(methods.Contains("password") || methods.Contains("keyboard-interactive") ? key + ".fixPassword" : key + ".fix");
+                    return advice;
                 default:
                     advice.Cause = GitText.Get(key + ".cause");
                     break;

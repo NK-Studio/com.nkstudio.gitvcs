@@ -42,7 +42,7 @@ namespace GitVersionControl
             string title = GitText.Get("op.pull");
             GitResult result = await _services.Runner.RunAsync(title, () => _services.Commands.PullAsync(mode), refreshAssets: true,
                 showErrorDialog: mode != GitPullMode.FastForwardOnly);
-            if (result.Success || mode != GitPullMode.FastForwardOnly)
+            if (result.Success || result.IsCancelled || mode != GitPullMode.FastForwardOnly)
             {
                 return result;
             }

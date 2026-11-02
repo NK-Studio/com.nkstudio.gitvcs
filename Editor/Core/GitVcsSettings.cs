@@ -83,6 +83,10 @@ namespace GitVersionControl
         [SerializeField] private float _graphColumnWidth;
         [SerializeField] private float _graphMessageColumnWidth;
         [SerializeField] private string _graphColumnOrder = string.Empty;
+        [SerializeField] private bool _sslVerify = true;
+        [SerializeField] private string _sslCaFile = string.Empty;
+        [SerializeField] private bool _sslUseSystemStore;
+        [SerializeField] private bool _sslSkipRevocationCheck;
 
         /// <summary>
         /// 내장 diff 의 git 옵션(알고리즘·공백·문맥 줄 수)이 바뀌었을 때. 열려 있는 diff 가 다시 읽는다 — 설정 화면에서만 바꾼다.
@@ -460,6 +464,36 @@ namespace GitVersionControl
         }
 
         /// <summary>
+        /// SSL 인증서를 확인할지. 끄면 회사 프록시 인증서도 그냥 믿는다 — 다른 방법이 안 될 때만 쓴다(<see cref="GitSsl"/>).
+        /// </summary>
+        public bool SslVerify
+        {
+            get => _sslVerify;
+            set => SetAndSave(ref _sslVerify, value, nameof(SslVerify));
+        }
+
+        /// <summary>회사 루트 인증서가 든 PEM 파일(<c>http.sslCAInfo</c>). 비우면 git 기본값.</summary>
+        public string SslCaFile
+        {
+            get => _sslCaFile ?? string.Empty;
+            set => SetAndSave(ref _sslCaFile, (value ?? string.Empty).Trim(), nameof(SslCaFile));
+        }
+
+        /// <summary>Windows: git 이 운영체제 인증서 저장소를 쓰게 한다(<c>http.sslBackend=schannel</c>).</summary>
+        public bool SslUseSystemStore
+        {
+            get => _sslUseSystemStore;
+            set => SetAndSave(ref _sslUseSystemStore, value, nameof(SslUseSystemStore));
+        }
+
+        /// <summary>Windows schannel: 인증서 해지 확인을 끈다(<c>http.schannelCheckRevoke=false</c>). 회사 인증서는 해지 목록 주소에 닿지 않는 일이 많다.</summary>
+        public bool SslSkipRevocationCheck
+        {
+            get => _sslSkipRevocationCheck;
+            set => SetAndSave(ref _sslSkipRevocationCheck, value, nameof(SslSkipRevocationCheck));
+        }
+
+        /// <summary>
         /// Preferences > Git 에 있는 개인 설정을 EditorPrefs 에 두는 키 앞부분. 이 PC 의 모든 프로젝트가 같은 값을 쓴다.
         /// </summary>
         private const string PrefsPrefix = "GitVersionControl.";
@@ -490,6 +524,10 @@ namespace GitVersionControl
             SyncPref(nameof(StopOnRebaseConflict), ref _stopOnRebaseConflict);
             SyncPref(nameof(StageMetaPairs), ref _stageMetaPairs);
             SyncPref(nameof(GroupMetaPairs), ref _groupMetaPairs);
+            SyncPref(nameof(SslVerify), ref _sslVerify);
+            SyncPref(nameof(SslCaFile), ref _sslCaFile);
+            SyncPref(nameof(SslUseSystemStore), ref _sslUseSystemStore);
+            SyncPref(nameof(SslSkipRevocationCheck), ref _sslSkipRevocationCheck);
         }
 
         private static void SyncPref(string key, ref string field)

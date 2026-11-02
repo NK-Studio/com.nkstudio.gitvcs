@@ -51,7 +51,7 @@ namespace GitVersionControl
             {
                 label = "Git",
                 guiHandler = _ => Draw(),
-                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork", "Language", "Theme", "Layout", "Diff", "Menu", "Fetch", "Version Control" },
+                keywords = new[] { "Git", "GitHub", "Avatar", "Login", "Toolbar", "Explorer", "Fork", "Language", "Theme", "Layout", "Diff", "Menu", "Fetch", "SSL", "Certificate", "Proxy", "Version Control" },
             };
         }
 
@@ -71,6 +71,8 @@ namespace GitVersionControl
                     DrawGeneral();
                     GUILayout.Space(SectionGap);
                     GitSettingsGUI.DrawPersonalDiff();
+                    GUILayout.Space(SectionGap);
+                    GitSettingsGUI.DrawPersonalSsl();
                     GUILayout.Space(SectionGap);
                     DrawAccount();
                 }

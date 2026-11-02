@@ -86,13 +86,24 @@ namespace GitVersionControl
 
         /// <summary>
         /// UnityWebRequest 의 완료 콜백은 메인 스레드에서 오므로, await 뒤도 메인 스레드다.
+        /// 인증서는 운영체제 저장소로 확인한다. Preferences > Git 에서 SSL 확인을 껐으면 git 과 같이 확인하지 않는다(<see cref="GitSsl.VerifyDisabled"/>).
         /// </summary>
         public static Task SendAsync(UnityWebRequest request)
         {
             TaskCompletionSource<bool> completion = new();
             request.timeout = 15;
+            if (GitSsl.VerifyDisabled)
+            {
+                request.certificateHandler = new AcceptAnyCertificate();
+            }
             request.SendWebRequest().completed += _ => completion.TrySetResult(true);
             return completion.Task;
+        }
+
+        /// <summary>SSL 확인을 끈 사용자를 위한, 어떤 인증서든 받아들이는 처리기.</summary>
+        private sealed class AcceptAnyCertificate : CertificateHandler
+        {
+            protected override bool ValidateCertificate(byte[] certificateData) => true;
         }
 
         [Serializable]

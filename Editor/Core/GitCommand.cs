@@ -92,6 +92,7 @@ namespace GitVersionControl
         private static void CaptureMainThread()
         {
             s_mainThreadId = Thread.CurrentThread.ManagedThreadId;
+            GitSsl.Refresh();
         }
 
         /// <summary>
@@ -104,6 +105,7 @@ namespace GitVersionControl
             if (s_gitPath == null || Thread.CurrentThread.ManagedThreadId == s_mainThreadId)
             {
                 s_gitPath = GitVcsSettings.instance.GitExecutable;
+                GitSsl.Refresh();
             }
             return s_gitPath;
         }
@@ -131,7 +133,7 @@ namespace GitVersionControl
                 // 그냥 "git" 으로 실행하면 macOS 에서는 Xcode 껍데기(/usr/bin/git)가 설치 창을 띄울 수 있다. 실행하지 않고 해결 방법을 돌려준다.
                 return new GitResult(-1, string.Empty, git.Hint);
             }
-            return RunProcess(git.Path, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride);
+            return RunProcess(git.Path, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride, isGit: true);
         }
 
         /// <summary>
@@ -139,7 +141,7 @@ namespace GitVersionControl
         /// </summary>
         public static GitResult RunTool(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs = DefaultTimeoutMs)
         {
-            return RunProcess(executablePath, workingDirectory, args, timeoutMs, null, null, applyTokenOverride: false);
+            return RunProcess(executablePath, workingDirectory, args, timeoutMs, null, null, applyTokenOverride: false, isGit: false);
         }
 
         /// <summary><c>git stash push …</c> 인가(앞의 <c>-c</c> 같은 전역 옵션은 건너뛴다). 순수 함수라 테스트로 확인한다.</summary>
@@ -191,12 +193,12 @@ namespace GitVersionControl
 
         public static bool IsBusyOrRecent => Volatile.Read(ref s_running) > 0 || Stopwatch.GetTimestamp() < Interlocked.Read(ref s_hotUntil);
 
-        private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
+        private static GitResult RunProcess(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride, bool isGit)
         {
             Interlocked.Increment(ref s_running);
             try
             {
-                return RunProcessCore(executablePath, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride);
+                return RunProcessCore(executablePath, workingDirectory, args, timeoutMs, environment, input, applyTokenOverride, isGit);
             }
             finally
             {
@@ -205,7 +207,8 @@ namespace GitVersionControl
             }
         }
 
-        private static GitResult RunProcessCore(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride)
+        /// <param name="isGit">git 이면 SSL 설정(<see cref="GitSsl.CurrentArguments"/>)을 앞에 붙인다. gh 같은 다른 도구는 <c>-c</c> 를 모른다.</param>
+        private static GitResult RunProcessCore(string executablePath, string workingDirectory, IReadOnlyList<string> args, int timeoutMs, IReadOnlyDictionary<string, string> environment, string input, bool applyTokenOverride, bool isGit)
         {
             string gitPath = executablePath;
             // 이 저장소에 "패키지 로그인 쓰기" 를 골랐으면 그 토큰을 돌려주는 도우미를 앞에 붙인다. 토큰은 환경 변수로만 넘긴다(GitAuth).
@@ -215,7 +218,7 @@ namespace GitVersionControl
             {
                 args = LiteralStashPaths(args);
             }
-            IReadOnlyList<string> finalArgs = string.IsNullOrEmpty(tokenOverride) ? args : GitAuth.TokenHelperArguments().Concat(args).ToList();
+            IReadOnlyList<string> finalArgs = WithGlobalOptions(args, tokenOverride, isGit ? GitSsl.CurrentArguments : null);
             ProcessStartInfo startInfo = new(executablePath)
             {
                 Arguments = BuildArguments(finalArgs),
@@ -242,6 +245,11 @@ namespace GitVersionControl
             if (string.IsNullOrEmpty(tokenOverride) == false)
             {
                 startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;
+            }
+            // Git 창에서 로그인한 SSH 서버(회사 NAS 등)의 비밀번호를 ssh 가 물으면 넘긴다.
+            if (isGit)
+            {
+                GitRemoteLogin.ApplyEnvironment(startInfo.EnvironmentVariables);
             }
             if (environment != null)
             {
@@ -301,6 +309,7 @@ namespace GitVersionControl
         {
             string gitPath = CurrentGitPath();
             string tokenOverride = GitAuth.TokenOverride;
+            IReadOnlyList<string> sslArgs = GitSsl.CurrentArguments;
             return Task.Run(() =>
             {
                 GitLocator.Location git = GitLocator.Resolve(gitPath);
@@ -308,7 +317,7 @@ namespace GitVersionControl
                 {
                     return new GitResult(-1, string.Empty, git.Hint);
                 }
-                IReadOnlyList<string> finalArgs = string.IsNullOrEmpty(tokenOverride) ? args : GitAuth.TokenHelperArguments().Concat(args).ToList();
+                IReadOnlyList<string> finalArgs = WithGlobalOptions(args, tokenOverride, sslArgs);
                 ProcessStartInfo startInfo = new(git.Path)
                 {
                     Arguments = BuildArguments(finalArgs),
@@ -328,6 +337,7 @@ namespace GitVersionControl
                 {
                     startInfo.EnvironmentVariables[GitAuth.TokenEnvironmentVariable] = tokenOverride;
                 }
+                GitRemoteLogin.ApplyEnvironment(startInfo.EnvironmentVariables);
                 try
                 {
                     using Process process = Process.Start(startInfo);
@@ -367,6 +377,25 @@ namespace GitVersionControl
                     return new GitResult(-1, string.Empty, GitText.Format("command.notFound", git.Path, e.Message));
                 }
             });
+        }
+
+        /// <summary>
+        /// git 명령 앞에 전역 <c>-c</c> 옵션을 붙인다: SSL 설정(<see cref="GitSsl"/>), 그 다음 패키지 로그인 토큰 도우미(<see cref="GitAuth.TokenHelperArguments"/>).
+        /// </summary>
+        public static IReadOnlyList<string> WithGlobalOptions(IReadOnlyList<string> args, string tokenOverride, IReadOnlyList<string> sslArguments)
+        {
+            bool hasSsl = sslArguments != null && sslArguments.Count > 0;
+            bool hasToken = string.IsNullOrEmpty(tokenOverride) == false;
+            if (hasSsl == false && hasToken == false)
+            {
+                return args;
+            }
+            IEnumerable<string> options = hasSsl ? sslArguments : Enumerable.Empty<string>();
+            if (hasToken)
+            {
+                options = options.Concat(GitAuth.TokenHelperArguments());
+            }
+            return options.Concat(args).ToList();
         }
 
         /// <summary>

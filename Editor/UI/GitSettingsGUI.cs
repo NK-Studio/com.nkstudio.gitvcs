@@ -113,6 +113,237 @@ namespace GitVersionControl
             }
         }
 
+        private static string s_sslTestText;
+        private static MessageType s_sslTestType;
+        private static bool s_sslBusy;
+        private static bool s_sslConfirmNoVerify;
+
+        /// <summary>
+        /// Preferences > Git 의 SSL 묶음. 회사망처럼 SSL 을 가로채는 곳에서 Push·Pull·Fetch 가 인증서 오류로 실패할 때 쓴다(<see cref="GitSsl"/>).
+        /// 이 패키지가 부르는 git 에만 붙고 .gitconfig 는 바꾸지 않는다. Diff 묶음처럼 굵은 제목 아래 들여 쓰고, 안내·결과는 입력 칸 열에 맞춘다.
+        /// </summary>
+        public static void DrawPersonalSsl()
+        {
+            GitVcsSettings settings = GitVcsSettings.instance;
+            bool windows = Application.platform == RuntimePlatform.WindowsEditor;
+            bool mac = Application.platform == RuntimePlatform.OSXEditor;
+
+            EditorGUILayout.LabelField(new GUIContent(GitText.Get("settings.sslHeader"), GitText.Get("settings.sslDescription")), EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            using (new EditorGUI.IndentLevelScope())
+            {
+                using (new EditorGUI.DisabledScope(settings.SslVerify == false))
+                {
+                    if (windows)
+                    {
+                        settings.SslUseSystemStore = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.sslSystemStore"), GitText.Get("settings.sslSystemStoreTooltip")), settings.SslUseSystemStore);
+                        using (new EditorGUI.DisabledScope(settings.SslUseSystemStore == false))
+                        using (new EditorGUI.IndentLevelScope())
+                        {
+                            settings.SslSkipRevocationCheck = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.sslSkipRevocation"), GitText.Get("settings.sslSkipRevocationTooltip")), settings.SslSkipRevocationCheck);
+                        }
+                    }
+                    // schannel 은 운영체제 저장소만 보므로 CA 파일을 쓰지 않는다.
+                    using (new EditorGUI.DisabledScope(windows && settings.SslUseSystemStore))
+                    {
+                        DrawCaFile(settings, mac);
+                    }
+                }
+                DrawNoVerify(settings);
+                DrawConnectionTest();
+            }
+            if (EditorGUI.EndChangeCheck())
+            {
+                GitSsl.Refresh();
+            }
+        }
+
+        /// <summary>회사 루트 인증서 파일 한 줄: 경로 · [찾기] · (macOS) [키체인].</summary>
+        private static void DrawCaFile(GitVcsSettings settings, bool mac)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                settings.SslCaFile = EditorGUILayout.DelayedTextField(new GUIContent(GitText.Get("settings.sslCaFile"), GitText.Get("settings.sslCaFileTooltip")), settings.SslCaFile);
+                if (GUILayout.Button(GitText.Get("settings.browse"), GUILayout.Width(60)))
+                {
+                    string picked = EditorUtility.OpenFilePanelWithFilters(GitText.Get("settings.sslCaFile"), string.Empty, new[] { GitText.Get("settings.sslCaFileFilter"), "pem,crt,cer", "All", "*" });
+                    if (string.IsNullOrEmpty(picked) == false)
+                    {
+                        settings.SslCaFile = picked;
+                        GUI.changed = true;
+                    }
+                }
+                if (mac)
+                {
+                    using (new EditorGUI.DisabledScope(s_sslBusy))
+                    {
+                        if (GUILayout.Button(new GUIContent(GitText.Get("settings.sslExportKeychain"), GitText.Get("settings.sslExportKeychainTooltip")), GUILayout.Width(60)))
+                        {
+                            ExportKeychainAsync();
+                        }
+                    }
+                }
+            }
+            if (string.IsNullOrEmpty(settings.SslCaFile) == false && System.IO.File.Exists(settings.SslCaFile) == false)
+            {
+                Note(GitText.Format("settings.sslCaFileMissing", settings.SslCaFile), MessageType.Warning);
+            }
+        }
+
+        /// <summary>인증서 확인 끄기. 끄는 쪽만 이 자리에서 한 번 묻는다 — 중간자 공격을 막지 못하게 된다(OS 대화상자는 쓰지 않는다).</summary>
+        private static void DrawNoVerify(GitVcsSettings settings)
+        {
+            bool noVerify = EditorGUILayout.Toggle(new GUIContent(GitText.Get("settings.sslNoVerify"), GitText.Get("settings.sslNoVerifyTooltip")), settings.SslVerify == false || s_sslConfirmNoVerify);
+            if (noVerify == false)
+            {
+                settings.SslVerify = true;
+                s_sslConfirmNoVerify = false;
+                return;
+            }
+            if (settings.SslVerify == false)
+            {
+                Note(GitText.Get("settings.sslNoVerifyWarning"), MessageType.Warning);
+                return;
+            }
+            s_sslConfirmNoVerify = true;
+            using (new EditorGUILayout.HorizontalScope())
+            using (new IndentReset())
+            {
+                GUILayout.Space(EditorGUIUtility.labelWidth + 2);
+                using (new EditorGUILayout.VerticalScope())
+                {
+                    EditorGUILayout.HelpBox(GitText.Get("settings.sslNoVerifyConfirm"), MessageType.Warning);
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(GitText.Get("common.cancel"), GUILayout.Width(80)))
+                        {
+                            s_sslConfirmNoVerify = false;
+                        }
+                        if (GUILayout.Button(GitText.Get("settings.sslNoVerifyOk"), GUILayout.Width(100)))
+                        {
+                            settings.SslVerify = false;
+                            s_sslConfirmNoVerify = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>"연결 테스트 [확인]" 한 줄과, 그 아래 입력 칸 열에 결과.</summary>
+        private static void DrawConnectionTest()
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.PrefixLabel(new GUIContent(GitText.Get("settings.sslTest"), GitText.Get("settings.sslTestTooltip")));
+                using (new EditorGUI.DisabledScope(s_sslBusy))
+                {
+                    if (GUILayout.Button(GitText.Get("settings.check"), GUILayout.Width(60)))
+                    {
+                        TestConnectionAsync();
+                    }
+                }
+                GUILayout.FlexibleSpace();
+            }
+            if (string.IsNullOrEmpty(s_sslTestText) == false)
+            {
+                Note(s_sslTestText, s_sslTestType);
+            }
+        }
+
+        /// <summary>
+        /// 입력 칸 열에서 시작하는 짧은 안내. 성공·진행은 작은 글자 한 줄(git 경로 아래 "사용 중:" 과 같은 모양), 경고·오류는 그 열 폭의 HelpBox.
+        /// </summary>
+        private static void Note(string text, MessageType type)
+        {
+            if (type == MessageType.Warning || type == MessageType.Error)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                using (new IndentReset())
+                {
+                    GUILayout.Space(EditorGUIUtility.labelWidth + 2);
+                    EditorGUILayout.HelpBox(text, type);
+                }
+                return;
+            }
+            EditorGUILayout.LabelField(" ", text, EditorStyles.wordWrappedMiniLabel);
+        }
+
+        /// <summary>
+        /// 들여쓰기를 잠깐 0 으로. HelpBox 는 들여쓰기를 한 번 더 먹어서, 입력 칸 열(라벨 폭 뒤)에 맞춘 자리에서 그만큼 오른쪽으로 밀린다.
+        /// </summary>
+        private sealed class IndentReset : System.IDisposable
+        {
+            private readonly int _saved;
+
+            public IndentReset()
+            {
+                _saved = EditorGUI.indentLevel;
+                EditorGUI.indentLevel = 0;
+            }
+
+            public void Dispose() => EditorGUI.indentLevel = _saved;
+        }
+
+        private static async void ExportKeychainAsync()
+        {
+            s_sslBusy = true;
+            (string path, string error) = await System.Threading.Tasks.Task.Run(GitSsl.ExportMacKeychainCertificates);
+            s_sslBusy = false;
+            if (path != null)
+            {
+                GitVcsSettings.instance.SslCaFile = path;
+                GitSsl.Refresh();
+                s_sslTestText = GitText.Format("settings.sslExported", path);
+                s_sslTestType = MessageType.Info;
+            }
+            else
+            {
+                s_sslTestText = GitText.Format("settings.sslExportFailed", error);
+                s_sslTestType = MessageType.Warning;
+            }
+            SettingsService.RepaintAllSettingsWindow();
+        }
+
+        /// <summary>
+        /// 지금 설정으로 원격(origin, 없으면 첫 원격)에 붙어 본다(<c>git ls-remote</c>). 받기만 하고 아무것도 바꾸지 않는다.
+        /// </summary>
+        private static async void TestConnectionAsync()
+        {
+            s_sslBusy = true;
+            s_sslTestText = GitText.Get("settings.sslTesting");
+            s_sslTestType = MessageType.None;
+            GitSsl.Refresh();
+            try
+            {
+                GitResult remotes = await GitRepository.RunAsync("remote");
+                string[] names = remotes.Success ? remotes.Output.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToArray() : System.Array.Empty<string>();
+                if (names.Length == 0)
+                {
+                    s_sslTestText = GitText.Get("settings.sslNoRemote");
+                    s_sslTestType = MessageType.Warning;
+                    return;
+                }
+                string remote = names.Contains("origin") ? "origin" : names[0];
+                GitResult result = await GitRepository.RunAsync("ls-remote", remote, "HEAD");
+                if (result.Success)
+                {
+                    s_sslTestText = GitText.Format("settings.sslTestOk", remote);
+                    s_sslTestType = MessageType.Info;
+                    return;
+                }
+                GitErrorAdvice advice = GitErrorAdvice.Explain(result.Message);
+                string firstLine = result.Message.Split('\n').Select(line => line.Trim()).FirstOrDefault(line => line.Length > 0) ?? string.Empty;
+                s_sslTestText = advice.Cause + "\n" + advice.Fix + "\n\n" + firstLine;
+                s_sslTestType = advice.Kind == GitErrorKind.Ssl ? MessageType.Error : MessageType.Warning;
+            }
+            finally
+            {
+                s_sslBusy = false;
+                SettingsService.RepaintAllSettingsWindow();
+            }
+        }
+
         /// <summary>Preferences > Git 의 Diff 묶음.</summary>
         public static void DrawPersonalDiff() => DrawDiff(GitVcsSettings.instance);
 

@@ -23,6 +23,10 @@ namespace GitVersionControl.Tests
         [TestCase("remote: error: File Assets/Big.fbx is 120.50 MB; this exceeds GitHub's file size limit of 100.00 MB\nremote: error: GH001: Large files detected.\n ! [remote rejected] main -> main (pre-receive hook declined)", GitErrorKind.FileTooLarge)]
         [TestCase("remote: error: GH006: Protected branch update failed for refs/heads/main.\n ! [remote rejected] main -> main (protected branch hook declined)", GitErrorKind.ProtectedBranch)]
         [TestCase("fatal: Unable to create 'E:/p/.git/index.lock': File exists.\n\nAnother git process seems to be running in this repository", GitErrorKind.LockFile)]
+        [TestCase("fatal: unable to access 'https://github.com/o/r.git/': SSL certificate problem: unable to get local issuer certificate", GitErrorKind.Ssl)]
+        [TestCase("fatal: unable to access 'https://github.com/o/r.git/': SSL certificate problem: self-signed certificate in certificate chain", GitErrorKind.Ssl)]
+        [TestCase("fatal: unable to access 'https://github.com/o/r.git/': schannel: next InitializeSecurityContext failed: Unknown error (0x80092012) - The revocation function was unable to check revocation for the certificate.", GitErrorKind.Ssl)]
+        [TestCase("batch request: Post \"https://github.com/o/r.git/info/lfs/objects/batch\": tls: failed to verify certificate: x509: certificate signed by unknown authority", GitErrorKind.Ssl)]
         [TestCase("fatal: something nobody has seen before", GitErrorKind.Unknown)]
         [TestCase("", GitErrorKind.Unknown)]
         public void Test_Classify_KnownMessages(string message, GitErrorKind expected)

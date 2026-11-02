@@ -1194,8 +1194,8 @@
     color: var(--git-text);
 }
 
-/* 전체 복사(왼쪽 끝)와 확인(오른쪽) 사이를 벌린다. */
-.error-dialog .branch-dialog__buttons .branch-dialog__cancel {
+/* 전체 복사(왼쪽 끝)와 확인(오른쪽) 사이를 벌린다. 다른 버튼([SSL 설정 열기])은 확인 옆에 붙는다. */
+.error-dialog .branch-dialog__buttons .error-dialog__copy {
     margin-left: 0;
     margin-right: auto;
 }
@@ -1727,4 +1727,30 @@
     padding: 0;
     color: var(--git-accent-fg);
     cursor: link;
+}
+
+/* ── login-dialog: GitHub 가 아닌 서버 로그인(GitLoginDialog). 막·카드·입력란은 branch-dialog 를 쓴다 ─────────── */
+.login-dialog {
+    width: 460px;
+}
+
+.login-dialog .login-dialog__hint {
+    white-space: normal;
+}
+
+.login-dialog .login-dialog__label {
+    width: 92px;
+}
+
+.login-dialog .login-dialog__problem {
+    min-height: 16px;
+    margin: 0 0 0 102px;
+}
+
+.login-dialog__note {
+    margin: 8px 0 0 0;
+    padding: 0;
+    font-size: 11px;
+    color: var(--git-text-muted);
+    white-space: normal;
 }
