@@ -2,6 +2,29 @@
 
 이 패키지의 바뀐 점을 버전별로 적는다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/) 을 따른다.
 
+## [1.1.0] - 2026-11-02
+
+회사망·회사 서버에서 쓸 수 있게 했다: SSL 을 검사하는 네트워크와, 등록된 계정으로만 들어가는 사내 git 서버(NAS·GitLab 등).
+
+### 회사 서버 로그인(NAS·사내 GitLab)
+- GitHub 가 아닌 서버가 계정을 요구해 Push·Pull·Fetch 가 실패하면 Git 창에 로그인 팝업을 띄우고, 로그인하면 그 작업을 바로 다시 한다.
+  - SSH(회사 NAS 등 "Permission denied (publickey,password)"): 계정 비밀번호를 받아 `SSH_ASKPASS` 로 ssh 에 넘긴다. 비밀번호는 환경 변수로만 넘기고 Unity 를 끌 때까지만 기억한다(스크립트를 다시 컴파일해도 다시 묻지 않는다). 처음 접속하는 서버는 로그인할 때 신뢰 목록(known_hosts)에 넣는다.
+  - https(사내 GitLab·Gitea 등 "could not read Username"): 사용자 이름·비밀번호(또는 액세스 토큰)를 `git credential approve` 로 이 PC 의 자격 증명 저장소에 넣는다.
+  - 비밀번호가 틀렸거나 바뀌었으면 다음 작업에서 "비밀번호가 맞지 않습니다" 와 함께 다시 묻는다.
+- Push 처럼 오류를 스스로 알리는 작업에도 계정 고르기·로그인이 걸리게 했다(전에는 오류 알림만 떴다). 팝업을 닫으면 같은 오류를 또 띄우지 않는다.
+- SSH 오류 해설이 GitHub 이 아닌 서버도 맞게 안내한다: 서버 이름, 비밀번호로 들어갈 수 있는지, 처음 보는 서버·키가 바뀐 서버(위험)를 구별한다.
+
+### SSL 인증서
+- 회사망처럼 SSL 을 검사하는 환경에서 Push·Pull·Fetch 가 인증서 오류("SSL certificate problem")로 실패하던 문제를 고칠 수 있는 설정을 Preferences > Git > SSL 인증서 에 추가했다. 이 패키지가 실행하는 git(git-lfs 포함)에만 `-c` 로 붙고 .gitconfig 는 바꾸지 않는다.
+  - Windows 인증서 저장소 사용(`http.sslBackend=schannel`), 인증서 해지 확인 안 함(`http.schannelCheckRevoke=false`)
+  - CA 인증서 파일(`http.sslCAInfo`). macOS 는 키체인 인증서를 모아 파일을 만들 수 있다.
+  - 인증서 확인 끄기(`http.sslVerify=false`, 그 자리에서 한 번 더 확인한 뒤에만 켜짐). GitHub API·아바타 요청에도 적용된다.
+  - 지금 설정으로 원격에 붙어 보는 연결 테스트(`git ls-remote`).
+- 오류 팝업이 SSL·인증서 오류(git·schannel·git-lfs 문구)를 알아보고 원인·해결을 설명하며 [SSL 설정 열기] 로 바로 이동한다.
+
+### 고침
+- 오류 팝업의 보조 버튼이 버튼 줄 가운데로 밀리던 것. [전체 복사] 만 왼쪽 끝에 두고 나머지는 [확인] 옆에 붙는다.
+
 ## [1.0.0] - 2026-11-01
 
 첫 정식 버전. Unity 기본 Version Control 모드(Visible Meta Files) 그대로 컴퓨터에 설치된 git 으로 동작한다.
