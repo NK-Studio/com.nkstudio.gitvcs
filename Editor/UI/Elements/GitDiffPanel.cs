@@ -83,6 +83,14 @@ namespace GitVersionControl
         private Button _splitLayoutButton;
         private Button _whitespaceButton;
         private Button _wrapButton;
+        private Button _contextLessButton;
+        private Button _contextMoreButton;
+        private Button _entireFileButton;
+
+        /// <summary>
+        /// 문맥 줄 −/+ 버튼이 오가는 단계(Fork 처럼 한 번에 한 칸). 설정에 단계 밖의 값이 있으면 그 값의 바로 위·아래 단계로 간다.
+        /// </summary>
+        private static readonly int[] ContextSteps = { 0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 50, 100 };
 
         /// <summary>
         /// 텍스트 diff 에만 뜻이 있는 막대 묶음(파일/Diff 보기·변경 이동·보기 방식·공백·줄 바꿈). 이미지·바이너리면 숨긴다.
@@ -347,7 +355,8 @@ namespace GitVersionControl
 
         /// <summary>
         /// Fork 처럼 hunk 머리 줄 버튼을 붙은 한 묶음 [Stage | 되돌리기…](Staged 면 [Unstage])으로 그린다.
-        /// 보기는 Fork 처럼 늘 파일 전체를 이어서 보이는 diff 로 고정하고(파일 보기·Diff 보기·레이아웃 버튼을 숨긴다), 줄 단위 Stage 는 그 보기에서 한다.
+        /// 보기는 Fork 처럼 통합 diff 하나로 고정하고(파일 보기·Diff 보기·레이아웃 버튼을 숨긴다), 줄 단위 Stage 는 그 보기에서 한다.
+        /// 파일 전체인지 문맥 줄만인지는 Fork 처럼 막대의 ↕ 와 −/+ 로 정한다.
         /// 끄면 GitKraken 식 초록·빨강 두 버튼.
         /// </summary>
         public bool ForkHunkStyle
@@ -392,19 +401,25 @@ namespace GitVersionControl
         /// </summary>
         private bool ShownFileView => _forkHunkStyle == false && GitVcsSettings.instance.DiffFileView;
 
-        /// <summary>지금 보이는 diff 레이아웃. Fork 식은 늘 통합·파일 전체(<see cref="DiffLayout.Inline"/>).</summary>
+        /// <summary>지금 보이는 diff 레이아웃. Fork 식은 늘 통합(<see cref="DiffLayout.Inline"/>)이고, 파일 전체인지는 ↕(<see cref="GitVcsSettings.DiffShowEntireFile"/>)가 정한다.</summary>
         private DiffLayout ShownLayout => _forkHunkStyle ? DiffLayout.Inline : GitVcsSettings.instance.DiffLayout;
 
         /// <summary>
-        /// 이번에 git 에 넘길 diff 옵션. 변경 묶음(Hunk) 보기만 설정의 문맥 줄 수를 쓰고, 통합·나란히·파일 보기는 GitKraken 처럼 파일 전체를 읽는다.
+        /// 이번에 git 에 넘길 diff 옵션. 파일 보기와 "파일 전체 보기"(↕)를 켠 통합·나란히 보기(Fork 식 포함)는 파일 전체를 읽고,
+        /// 변경 묶음(Hunk) 보기와 ↕ 를 끈 통합·나란히 보기는 설정의 문맥 줄 수만 읽는다.
         /// </summary>
         private GitDiffOptions EffectiveOptions()
         {
             GitVcsSettings settings = GitVcsSettings.instance;
             GitDiffOptions options = settings.DiffOptions;
-            bool wholeFile = ShownFileView || ShownLayout != DiffLayout.Unified;
-            return wholeFile ? new GitDiffOptions(options.Algorithm, options.Whitespace, GitDiffOptions.MaxContextLines) : options;
+            return ShowsEntireFile ? new GitDiffOptions(options.Algorithm, options.Whitespace, GitDiffOptions.MaxContextLines) : options;
         }
+
+        /// <summary>지금 보기가 파일 전체를 읽는지(문맥 줄 수가 쓰이지 않는지).</summary>
+        private bool ShowsEntireFile => ShownFileView || (EntireFileApplies && GitVcsSettings.instance.DiffShowEntireFile);
+
+        /// <summary>↕ 가 뜻이 있는 보기인지: 파일 보기·변경 묶음(Hunk) 보기가 아닐 때. Fork 식은 늘 통합 보기라 늘 뜻이 있다.</summary>
+        private bool EntireFileApplies => ShownFileView == false && ShownLayout != DiffLayout.Unified;
 
         /// <summary>
         /// Staged 목록의 diff 면 버튼은 내리기(Unstage)다.
@@ -842,6 +857,19 @@ namespace GitVersionControl
             right.Add(layouts);
             _textOnlyControls.Add(layouts);
 
+            // Fork 의 [−≡|+≡] [↕]: 문맥 줄 수와 파일 전체 보기. 세 레이아웃(Unity VCS·Fork·GitKraken) 모두 이 막대를 쓴다.
+            _contextLessButton = BarButton(() => StepContextLines(-1), null, "context-less", null);
+            _contextMoreButton = BarButton(() => StepContextLines(1), null, "context-more", null);
+            VisualElement context = Segment(_contextLessButton, _contextMoreButton);
+            context.AddToClassList("git-diff__segment--context");
+            right.Add(context);
+            _textOnlyControls.Add(context);
+            _entireFileButton = BarButton(ToggleEntireFile, GitText.Get("diff.entireFile"), "entire-file", null);
+            VisualElement entireFile = Segment(_entireFileButton);
+            entireFile.AddToClassList("git-diff__segment--context");
+            right.Add(entireFile);
+            _textOnlyControls.Add(entireFile);
+
             _whitespaceButton = BarButton(ToggleWhitespace, GitText.Get("diff.showWhitespace"), "whitespace", null);
             _wrapButton = BarButton(ToggleWrap, GitText.Get("diff.wordWrap"), "wrap", null);
             VisualElement display = Segment(_whitespaceButton, _wrapButton);
@@ -967,6 +995,7 @@ namespace GitVersionControl
             _splitLayoutButton.SetEnabled(fileView == false);
             SetChecked(_whitespaceButton, settings.DiffShowWhitespace);
             SetChecked(_wrapButton, settings.DiffWordWrap);
+            UpdateContextButtons(settings);
 
             bool exists = System.IO.File.Exists(FullPathOf(_target));
             _editButton.SetEnabled(exists);
@@ -1454,6 +1483,73 @@ namespace GitVersionControl
             ApplyLayout();
         }
 
+        /// <summary>
+        /// 문맥 줄 −/+ 와 ↕ 의 눌림·쓸 수 있음·툴팁. ↕ 는 파일 보기·변경 묶음(Hunk) 보기에서 끈다(그 보기는 읽는 범위가 정해져 있다).
+        /// −/+ 는 파일 전체를 보이는 중엔 끈다(Fork 와 같다). 끝 단계면 그쪽 버튼만 끈다.
+        /// </summary>
+        private void UpdateContextButtons(GitVcsSettings settings)
+        {
+            bool applies = EntireFileApplies;
+            SetChecked(_entireFileButton, applies && settings.DiffShowEntireFile);
+            _entireFileButton.SetEnabled(applies);
+            bool fileView = ShownFileView;
+            _entireFileButton.tooltip = GitText.Get(fileView ? "diff.contextFileView" : applies ? "diff.entireFile" : "diff.entireFileHunkView");
+
+            int lines = settings.DiffContextLines;
+            bool entire = ShowsEntireFile;
+            _contextLessButton.SetEnabled(entire == false && NextContextStep(lines, -1) != lines);
+            _contextMoreButton.SetEnabled(entire == false && NextContextStep(lines, 1) != lines);
+            // 끈 까닭을 알린다: 파일 보기면 Diff 보기로, ↕ 가 켜졌으면 ↕ 를 끄라고.
+            string disabledTip = GitText.Get(fileView ? "diff.contextFileView" : "diff.contextEntireFile");
+            _contextLessButton.tooltip = entire ? disabledTip : GitText.Format("diff.contextLess", lines);
+            _contextMoreButton.tooltip = entire ? disabledTip : GitText.Format("diff.contextMore", lines);
+        }
+
+        /// <summary>
+        /// <paramref name="current"/> 에서 <paramref name="direction"/>(−1·+1) 쪽 다음 단계. 끝이면 그대로.
+        /// </summary>
+        public static int NextContextStep(int current, int direction)
+        {
+            if (direction < 0)
+            {
+                for (int i = ContextSteps.Length - 1; i >= 0; i--)
+                {
+                    if (ContextSteps[i] < current)
+                    {
+                        return ContextSteps[i];
+                    }
+                }
+                return current;
+            }
+            foreach (int step in ContextSteps)
+            {
+                if (step > current)
+                {
+                    return step;
+                }
+            }
+            return current;
+        }
+
+        /// <summary>
+        /// 문맥 줄 수를 한 단계 바꾼다. 설정이 바뀌면 <see cref="GitVcsSettings.DiffOptionsChanged"/> 로 열린 diff 가 모두 다시 읽힌다.
+        /// </summary>
+        private void StepContextLines(int direction)
+        {
+            GitVcsSettings settings = GitVcsSettings.instance;
+            settings.DiffContextLines = NextContextStep(settings.DiffContextLines, direction);
+            UpdateBar();
+        }
+
+        /// <summary>
+        /// 파일 전체 보기(↕)를 켜고 끈다. 읽을 범위가 달라지므로 git 을 다시 부른다.
+        /// </summary>
+        private void ToggleEntireFile()
+        {
+            GitVcsSettings.instance.DiffShowEntireFile = GitVcsSettings.instance.DiffShowEntireFile == false;
+            ReloadOrRelayout();
+        }
+
         private void ToggleWrap()
         {
             GitVcsSettings.instance.DiffWordWrap = GitVcsSettings.instance.DiffWordWrap == false;
@@ -1508,7 +1604,9 @@ namespace GitVersionControl
             Root.EnableInClassList("git-diff--wrap", _wrap);
             Root.EnableInClassList("git-diff--file-view", fileView);
             // 변경 묶음(Hunk) 보기의 머리 줄은 [Discard Hunk][Stage Hunk] 가 다른 버튼과 같은 크기로 들어가게 높다(GitKraken 과 같다).
-            bool tallHunks = fileView == false && ShownLayout == DiffLayout.Unified;
+            // ↕ 를 끈 통합·나란히 보기도 머리 줄에 버튼이 들어가므로 같이 높인다. Fork 식은 머리 줄 버튼 대신 떠 있는 버튼을 쓴다.
+            bool tallHunks = fileView == false && _forkHunkStyle == false
+                && (ShownLayout == DiffLayout.Unified || _loadedContextLines < GitDiffOptions.MaxContextLines);
             Root.EnableInClassList("git-diff--tall-hunks", tallHunks);
             _variableHeights = _wrap || tallHunks;
             UpdateBar();
@@ -3409,6 +3507,8 @@ namespace GitVersionControl
             bool leftSelected = BindSide(row[0], diffRow.Left, index, isLeft: true, hunk: row[2]);
             bool rightSelected = BindSide(row[1], diffRow.Right, index, isLeft: false, hunk: null);
             row.EnableInClassList("diff-row--selected", leftSelected || rightSelected);
+            // ↕ 를 끈 나란히 보기에도 머리 줄이 있고 버튼이 들어간다. 줄 전체를 통합 보기의 머리 줄처럼 높인다(.git-diff--tall-hunks).
+            row.EnableInClassList("diff-row--split-hunk", (diffRow.Left ?? diffRow.Right)?.Kind == GitDiffLineKind.Hunk);
         }
 
         private bool BindSide(VisualElement side, GitDiffLine line, int rowIndex, bool isLeft, VisualElement hunk)

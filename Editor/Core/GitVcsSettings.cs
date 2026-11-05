@@ -69,6 +69,7 @@ namespace GitVersionControl
         [SerializeField] private bool _diffFileView;
         [SerializeField] private bool _diffShowWhitespace;
         [SerializeField] private bool _diffWordWrap;
+        [SerializeField] private bool _diffShowEntireFile = true;
         [SerializeField] private int _imageDiffMode = (int)ImageDiffMode.TwoUp;
         [SerializeField] private bool _imageDiffShowProperties;
         [SerializeField] private float _imageDiffPropertiesHeight = 90f;
@@ -324,6 +325,16 @@ namespace GitVersionControl
         {
             get => _diffWordWrap;
             set => SetAndSave(ref _diffWordWrap, value);
+        }
+
+        /// <summary>
+        /// 파일 전체를 이어서 보일지(Fork 의 Show Entire File). 끄면 바뀐 곳 앞뒤로 <see cref="DiffContextLines"/> 줄만 보이고 묶음(hunk)으로 나뉜다.
+        /// Fork 레이아웃의 diff 와 다른 레이아웃의 통합·나란히 보기에 쓴다. 변경 묶음(Hunk) 보기는 늘 문맥 줄만 보인다.
+        /// </summary>
+        public bool DiffShowEntireFile
+        {
+            get => _diffShowEntireFile;
+            set => SetAndSave(ref _diffShowEntireFile, value);
         }
 
         /// <summary>

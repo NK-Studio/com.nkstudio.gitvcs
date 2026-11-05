@@ -198,6 +198,9 @@
 .git-diff__bar-icon--split { background-image: url("../Icons/DiffViewSplit.png"); }
 .git-diff__bar-icon--whitespace { background-image: url("../Icons/DiffWhitespace.png"); }
 .git-diff__bar-icon--wrap { background-image: url("../Icons/DiffWrap.png"); }
+.git-diff__bar-icon--context-less { background-image: url("../Icons/DiffContextLess.png"); }
+.git-diff__bar-icon--context-more { background-image: url("../Icons/DiffContextMore.png"); }
+.git-diff__bar-icon--entire-file { background-image: url("../Icons/DiffEntireFile.png"); }
 
 .git-diff__bar-text {
     margin: 0;
@@ -290,6 +293,8 @@
 .git-diff__bar--tiny .git-diff__segment--display {
     display: none;
 }
+
+/* 문맥 줄 −/+·↕ 는 Fork 레이아웃(보기 방식 묶음이 없다)에서 주로 쓰므로 보기 방식 묶음보다 늦게 뺀다. 그래서 micro 에서도 남긴다. */
 
 /* Git 창 가운데 칸처럼 아주 좁으면 보기 방식 셋도 뺀다(마지막에 고른 방식이 그대로 쓰인다). */
 .git-diff__bar--micro .git-diff__segment--layouts {
@@ -689,7 +694,8 @@
 }
 
 /* 변경 묶음(Hunk) 보기의 머리 줄은 버튼이 들어가게 높인다(GitKraken 도 머리 줄이 코드 줄보다 높다). 목록은 이때 가변 높이다. */
-.git-diff--tall-hunks .diff-row--hunk {
+.git-diff--tall-hunks .diff-row--hunk,
+.git-diff--tall-hunks .diff-row--split-hunk {
     height: 30px;
 }
 
