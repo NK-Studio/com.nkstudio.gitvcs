@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace GitVersionControl
 {
     /// <summary>
-    /// 파일 목록의 트리 보기(UI Toolkit TreeView). 폴더 줄은 아래 파일 수와 세 가지 상태 체크박스(전체·일부·없음)를 가진다.
+    /// 파일 목록의 트리 보기(UI Toolkit TreeView). 폴더 줄은 세 가지 상태 체크박스(전체·일부·없음)를 가지고, 접혀 있을 때만 아래 파일의 상태별 수를 보인다.
     /// 목록이 새로 들어와도(파일 저장마다) 접어 둔 폴더는 접힌 채로 둔다 — 폴더 경로로 펼침 상태를 기억한다.
     /// </summary>
     public sealed class FileTree
@@ -139,6 +139,15 @@ namespace GitVersionControl
                 }
             };
             _tree.itemExpandedChanged += _ => QueueToggleRefresh();
+            // 접힌 폴더만 상태별 수를 보이므로, 펼치고 접을 때 그 폴더 줄을 다시 묶는다.
+            _tree.itemExpandedChanged += args =>
+            {
+                int index = _tree.viewController.GetIndexForId(args.id);
+                if (index >= 0)
+                {
+                    _tree.RefreshItem(index);
+                }
+            };
             _tree.itemExpandedChanged += _ => RowsChanged?.Invoke();
             // 펼침 상태가 늦게 반영되는 버전도 있어, 실제로 그려진 내용 높이가 바뀔 때도 알린다.
             _tree.Q<ScrollView>()?.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => RowsChanged?.Invoke());
@@ -434,7 +443,8 @@ namespace GitVersionControl
             if (node.IsFolder)
             {
                 int checkedFiles = IsChecked == null ? 0 : node.Files().Count(IsChecked);
-                _binder.BindFolder(row, node, IsChecked != null, checkedFiles);
+                bool collapsed = _tree.IsExpanded(_tree.GetIdForIndex(index)) == false;
+                _binder.BindFolder(row, node, IsChecked != null, checkedFiles, collapsed);
             }
             else
             {

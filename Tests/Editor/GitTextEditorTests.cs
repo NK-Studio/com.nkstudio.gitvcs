@@ -364,6 +364,155 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_Tokenize_Html_TagsAttributesValuesPunctuation()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("<", GitSyntaxKind.Punctuation),
+                ("meta", GitSyntaxKind.Tag),
+                ("charset", GitSyntaxKind.Attribute),
+                ("=", GitSyntaxKind.Punctuation),
+                ("\"UTF-8\"", GitSyntaxKind.String),
+                (">", GitSyntaxKind.Punctuation),
+                ("</", GitSyntaxKind.Punctuation),
+                ("p", GitSyntaxKind.Tag),
+                (">", GitSyntaxKind.Punctuation),
+            }, Spans("    <meta charset=\"UTF-8\">text</p>", GitSyntaxLanguage.Html));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("<", GitSyntaxKind.Punctuation),
+                ("!DOCTYPE", GitSyntaxKind.Tag),
+                ("html", GitSyntaxKind.Attribute),
+                (">", GitSyntaxKind.Punctuation),
+            }, Spans("<!DOCTYPE html>", GitSyntaxLanguage.Html));
+        }
+
+        [Test]
+        public void Test_Tokenize_Html_ScriptContentIsJavaScript()
+        {
+            List<GitSyntaxSpan> spans = new();
+            int state = GitSyntax.Tokenize("<script type=\"text/javascript\">", GitSyntaxLanguage.Html, GitSyntax.StateNormal, spans);
+
+            List<(string, GitSyntaxKind)> body = Spans("    var url = \"manual/index.html\"; // go", GitSyntaxLanguage.Html, state);
+            CollectionAssert.AreEqual(new[]
+            {
+                ("var", GitSyntaxKind.Keyword),
+                ("\"manual/index.html\"", GitSyntaxKind.String),
+                ("// go", GitSyntaxKind.Comment),
+            }, body);
+
+            List<GitSyntaxSpan> closing = new();
+            int after = GitSyntax.Tokenize("</script>", GitSyntaxLanguage.Html, state, closing);
+            Assert.AreEqual(GitSyntax.StateNormal, after);
+            Assert.AreEqual(GitSyntaxKind.Tag, closing[1].Kind);
+        }
+
+        [Test]
+        public void Test_Tokenize_Html_TagSpanningLines()
+        {
+            List<GitSyntaxSpan> spans = new();
+            int state = GitSyntax.Tokenize("<link rel=\"stylesheet\"", GitSyntaxLanguage.Html, GitSyntax.StateNormal, spans);
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("href", GitSyntaxKind.Attribute),
+                ("=", GitSyntaxKind.Punctuation),
+                ("\"a.css\"", GitSyntaxKind.String),
+                (">", GitSyntaxKind.Punctuation),
+            }, Spans("      href=\"a.css\">", GitSyntaxLanguage.Html, state));
+        }
+
+        [Test]
+        public void Test_Tokenize_Uss_UnityPropertiesAreKeys()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("-unity-font-style", GitSyntaxKind.Key),
+            }, Spans("    -unity-font-style: bold;", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("-unity-slice-left", GitSyntaxKind.Key),
+                ("4", GitSyntaxKind.Number),
+            }, Spans("    -unity-slice-left: 4;", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("--accent-color", GitSyntaxKind.Key),
+                ("#ff5c6c", GitSyntaxKind.Number),
+            }, Spans("    --accent-color: #ff5c6c;", GitSyntaxLanguage.Css));
+        }
+
+        [Test]
+        public void Test_Tokenize_Uss_FunctionsUnitsAndAtRules()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("background-image", GitSyntaxKind.Key),
+                ("resource", GitSyntaxKind.Keyword),
+                ("\"Icons/d_Trash\"", GitSyntaxKind.String),
+            }, Spans("    background-image: resource(\"Icons/d_Trash\");", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("-unity-font-definition", GitSyntaxKind.Key),
+                ("url", GitSyntaxKind.Keyword),
+                ("../Fonts/A.ttf", GitSyntaxKind.String),
+            }, Spans("    -unity-font-definition: url(../Fonts/A.ttf);", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("@import", GitSyntaxKind.Keyword),
+                ("url", GitSyntaxKind.Keyword),
+                ("\"unity-theme://default\"", GitSyntaxKind.String),
+            }, Spans("@import url(\"unity-theme://default\");", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                ("max-width", GitSyntaxKind.Key),
+                ("50%", GitSyntaxKind.Number),
+                ("-2px", GitSyntaxKind.Number),
+            }, Spans("    max-width: 50% -2px;", GitSyntaxLanguage.Css));
+        }
+
+        [Test]
+        public void Test_Tokenize_Uss_SelectorsAreNotProperties()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("Button", GitSyntaxKind.Tag),
+                (":hover", GitSyntaxKind.Keyword),
+                (",", GitSyntaxKind.Punctuation),
+            }, Spans("Button:hover,", GitSyntaxLanguage.Css));
+
+            CollectionAssert.AreEqual(new[]
+            {
+                (".git-themed", GitSyntaxKind.Attribute),
+                (".unity-scroller", GitSyntaxKind.Attribute),
+                (">", GitSyntaxKind.Punctuation),
+                (".unity-scroller__slider", GitSyntaxKind.Attribute),
+                (":hover", GitSyntaxKind.Keyword),
+                (":enabled", GitSyntaxKind.Keyword),
+            }, Spans(".git-themed .unity-scroller > .unity-scroller__slider:hover:enabled {", GitSyntaxLanguage.Css));
+
+            // #아이디는 16진 색이 아니다.
+            CollectionAssert.AreEqual(new[] { ("#delete-test-footer", GitSyntaxKind.Attribute) }, Spans("#delete-test-footer {", GitSyntaxLanguage.Css));
+            CollectionAssert.AreEqual(new[] { (":root", GitSyntaxKind.Keyword) }, Spans(":root {", GitSyntaxLanguage.Css));
+        }
+
+        [Test]
+        public void Test_Tokenize_Uss_SingleLineRule()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                (".state-badge--added", GitSyntaxKind.Attribute),
+                ("background-color", GitSyntaxKind.Key),
+                ("var", GitSyntaxKind.Keyword),
+            }, Spans(".state-badge--added { background-color: var(--git-state-added); }", GitSyntaxLanguage.Css));
+        }
+
+        [Test]
         public void Test_LanguageOf_ByExtension()
         {
             Assert.AreEqual(GitSyntaxLanguage.CLike, GitSyntax.LanguageOf("Assets/A.cs"));
@@ -371,6 +520,9 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(GitSyntaxLanguage.Yaml, GitSyntax.LanguageOf("Assets/Scenes/A.unity"));
             Assert.AreEqual(GitSyntaxLanguage.Css, GitSyntax.LanguageOf("Editor/UI/Styles/GitDiff.uss"));
             Assert.AreEqual(GitSyntaxLanguage.Xml, GitSyntax.LanguageOf("A.uxml"));
+            Assert.AreEqual(GitSyntaxLanguage.Html, GitSyntax.LanguageOf("Assets/Web/index.html"));
+            Assert.AreEqual(GitSyntaxLanguage.Css, GitSyntax.LanguageOf("Assets/Web/style.css"));
+            Assert.AreEqual(GitSyntaxLanguage.CLike, GitSyntax.LanguageOf("Assets/Web/app.js"));
             Assert.AreEqual(GitSyntaxLanguage.None, GitSyntax.LanguageOf("README.md"));
         }
     }

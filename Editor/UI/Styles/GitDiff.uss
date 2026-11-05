@@ -19,6 +19,15 @@
     color: var(--git-text);
     /* 코드에서 끌어 고른 글의 배경. 코드(GitDiffPanel)가 읽어 리치 텍스트 <mark> 색으로 쓴다. */
     --diff-text-selection: var(--git-diff-text-selection);
+    /* diff 줄의 문법 색. 코드(GitDiffPanel)가 읽어 리치 텍스트 <color> 로 칠한다. */
+    --code-keyword: var(--git-code-keyword);
+    --code-string: var(--git-code-string);
+    --code-number: var(--git-code-number);
+    --code-comment: var(--git-code-comment);
+    --code-key: var(--git-code-key);
+    --code-tag: var(--git-code-tag);
+    --code-attribute: var(--git-code-attribute);
+    --code-punctuation: var(--git-code-punctuation);
 }
 
 /* 테마의 .git-theme--* .unity-toolbar(높이 26px)보다 세게. */
@@ -1181,6 +1190,9 @@
     --code-number: var(--git-code-number);
     --code-comment: var(--git-code-comment);
     --code-key: var(--git-code-key);
+    --code-tag: var(--git-code-tag);
+    --code-attribute: var(--git-code-attribute);
+    --code-punctuation: var(--git-code-punctuation);
     --editor-current-line: var(--git-editor-current-line);
     --editor-indent-guide: var(--git-editor-indent-guide);
     --editor-selection: var(--git-diff-text-selection);

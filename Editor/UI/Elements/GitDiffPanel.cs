@@ -192,6 +192,36 @@ namespace GitVersionControl
         private static readonly CustomStyleProperty<Color> TextSelectionProperty = new("--diff-text-selection");
 
         /// <summary>
+        /// diff 줄의 문법 색(<see cref="GitSyntax"/>). 테마 토큰(<c>--git-code-*</c>)을 GitDiff.uss 가 <c>--code-*</c> 로 넘기고, 리치 텍스트 &lt;color&gt; 로 칠한다.
+        /// 색은 갈래(<see cref="GitSyntaxKind"/>) 순서로 둔다. Plain 은 칠하지 않는다.
+        /// </summary>
+        private static readonly (GitSyntaxKind kind, CustomStyleProperty<Color> property)[] SyntaxColorProperties =
+        {
+            (GitSyntaxKind.Keyword, new CustomStyleProperty<Color>("--code-keyword")),
+            (GitSyntaxKind.String, new CustomStyleProperty<Color>("--code-string")),
+            (GitSyntaxKind.Number, new CustomStyleProperty<Color>("--code-number")),
+            (GitSyntaxKind.Comment, new CustomStyleProperty<Color>("--code-comment")),
+            (GitSyntaxKind.Key, new CustomStyleProperty<Color>("--code-key")),
+            (GitSyntaxKind.Tag, new CustomStyleProperty<Color>("--code-tag")),
+            (GitSyntaxKind.Attribute, new CustomStyleProperty<Color>("--code-attribute")),
+            (GitSyntaxKind.Punctuation, new CustomStyleProperty<Color>("--code-punctuation")),
+        };
+
+        private readonly string[] _syntaxColors = new string[Enum.GetValues(typeof(GitSyntaxKind)).Length];
+
+        /// <summary>
+        /// 지금 보이는 파일의 말 갈래와, 줄마다 그 줄을 칠하기 시작할 상태(앞 줄의 블록 주석·&lt;script&gt; 안 등). <see cref="UpdateSyntaxStates"/> 가 채운다.
+        /// </summary>
+        private GitSyntaxLanguage _syntaxLanguage;
+        private readonly Dictionary<GitDiffLine, int> _syntaxStates = new();
+        private readonly List<GitSyntaxSpan> _syntaxSpans = new();
+
+        /// <summary>
+        /// 이보다 줄이 많은 diff 는 칠하지 않는다(처음 열 때 모든 줄을 한 번 훑는다).
+        /// </summary>
+        private const int MaxSyntaxLines = 50000;
+
+        /// <summary>
         /// 화면에서 탭 하나가 차지하는 글자 수(<see cref="ExpandTabs"/>·공백 보이기의 "→   " 와 같다).
         /// </summary>
         private const int TabDisplayWidth = 4;
@@ -1513,6 +1543,7 @@ namespace GitVersionControl
             IReadOnlyList<GitDiffLine> lines = _document == null ? null
                 : _loadedContextLines >= GitDiffOptions.MaxContextLines ? _document.Lines.Where(line => line.Kind != GitDiffLineKind.Hunk).ToList()
                 : _document.Lines;
+            UpdateSyntaxStates(lines);
             _rows = lines == null ? new List<GitDiffRow>()
                 : fileView ? FileViewRows(lines)
                 : isSplit ? GitDiff.ToSideBySide(lines)
@@ -2226,11 +2257,71 @@ namespace GitVersionControl
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
         {
+            bool syntaxChanged = false;
+            foreach ((GitSyntaxKind kind, CustomStyleProperty<Color> property) in SyntaxColorProperties)
+            {
+                if (evt.customStyle.TryGetValue(property, out Color syntaxColor))
+                {
+                    string hex = "#" + ColorUtility.ToHtmlStringRGBA(syntaxColor);
+                    syntaxChanged |= _syntaxColors[(int)kind] != hex;
+                    _syntaxColors[(int)kind] = hex;
+                }
+            }
             if (evt.customStyle.TryGetValue(TextSelectionProperty, out Color color))
             {
                 _textSelectionColor = color;
                 RefreshTextSelection();
             }
+            else if (syntaxChanged && _syntaxLanguage != GitSyntaxLanguage.None)
+            {
+                _list.RefreshItems();
+            }
+        }
+
+        /// <summary>
+        /// 파일 확장자로 말 갈래를 고르고, 줄마다 칠하기 시작할 상태를 미리 구한다.
+        /// 옛 판(지운 줄)과 새 판(더한 줄)은 따로 이어서 훑고, 바뀌지 않은 줄은 새 판 상태로 칠한 뒤 두 판을 같은 상태로 맞춘다.
+        /// 묶음(@@) 머리 줄에서는 앞 내용을 모르므로 보통 상태로 돌아간다.
+        /// </summary>
+        private void UpdateSyntaxStates(IReadOnlyList<GitDiffLine> lines)
+        {
+            _syntaxStates.Clear();
+            _syntaxLanguage = lines == null || lines.Count > MaxSyntaxLines ? GitSyntaxLanguage.None : GitSyntax.LanguageOf(_target?.RepoPath);
+            if (_syntaxLanguage == GitSyntaxLanguage.None)
+            {
+                return;
+            }
+            int oldState = GitSyntax.StateNormal;
+            int newState = GitSyntax.StateNormal;
+            foreach (GitDiffLine line in lines)
+            {
+                switch (line.Kind)
+                {
+                    case GitDiffLineKind.Removed:
+                        _syntaxStates[line] = oldState;
+                        oldState = TokenizeForState(line, oldState);
+                        break;
+                    case GitDiffLineKind.Added:
+                        _syntaxStates[line] = newState;
+                        newState = TokenizeForState(line, newState);
+                        break;
+                    case GitDiffLineKind.Context:
+                        _syntaxStates[line] = newState;
+                        newState = TokenizeForState(line, newState);
+                        oldState = newState;
+                        break;
+                    case GitDiffLineKind.Hunk:
+                        oldState = GitSyntax.StateNormal;
+                        newState = GitSyntax.StateNormal;
+                        break;
+                }
+            }
+        }
+
+        private int TokenizeForState(GitDiffLine line, int state)
+        {
+            _syntaxSpans.Clear();
+            return GitSyntax.Tokenize(line.Text ?? string.Empty, _syntaxLanguage, state, _syntaxSpans);
         }
 
         private bool HasTextSelection => _textAnchorRow >= 0 && (_textAnchorRow != _textFocusRow || _textAnchorOffset != _textFocusOffset);
@@ -3397,6 +3488,7 @@ namespace GitVersionControl
                 return;
             }
             string raw = line.Text ?? string.Empty;
+            List<GitSyntaxSpan> spans = SyntaxSpansOf(line, raw);
             (int selectStart, int selectEnd, bool selectsLineEnd) = TextSelectionIn(rowIndex, IsRightCode(code), raw.Length);
             int lastPart = IsSplitIntoParts(line) ? 2 : 0;
             // 탭을 펼치기 전 위치로 자른 뒤 각 조각을 펼친다(펼친 뒤에는 위치가 달라진다).
@@ -3409,11 +3501,39 @@ namespace GitVersionControl
                 int localEnd = selectStart < 0 ? -1 : Math.Clamp(selectEnd - from, 0, to - from);
                 bool marked = selectStart >= 0 && (localEnd > localStart || (selectsLineEnd && isLast));
                 Label part = (Label)code[i];
-                // 공백 보이기는 흐린 · → 를, 고른 글은 <mark> 를 리치 텍스트로 칠한다. 코드의 < > 는 <noparse> 로 감싸 태그로 읽히지 않게 한다.
-                part.enableRichText = _showWhitespace || marked;
+                // 공백 보이기는 흐린 · → 를, 고른 글은 <mark> 를, 문법 색은 <color> 를 리치 텍스트로 칠한다. 코드의 < > 는 <noparse> 로 감싸 태그로 읽히지 않게 한다.
+                bool colored = HasSpanIn(spans, from, to);
+                part.enableRichText = _showWhitespace || marked || colored;
                 string text = raw.Substring(from, to - from);
-                part.text = marked ? RenderSelected(text, localStart, localEnd, selectsLineEnd && isLast) : Render(text);
+                part.text = marked || colored
+                    ? RenderSelected(raw, from, to, spans, marked ? localStart : 0, marked ? localEnd : 0, marked && selectsLineEnd && isLast)
+                    : Render(text);
             }
+        }
+
+        /// <summary>
+        /// 이 줄의 문법 색 조각(칠하지 않는 파일이면 비어 있다). 돌려준 목록은 다음 호출에 다시 쓴다.
+        /// </summary>
+        private List<GitSyntaxSpan> SyntaxSpansOf(GitDiffLine line, string raw)
+        {
+            _syntaxSpans.Clear();
+            if (_syntaxLanguage != GitSyntaxLanguage.None && raw.Length > 0 && _syntaxStates.TryGetValue(line, out int state))
+            {
+                GitSyntax.Tokenize(raw, _syntaxLanguage, state, _syntaxSpans);
+            }
+            return _syntaxSpans;
+        }
+
+        private static bool HasSpanIn(List<GitSyntaxSpan> spans, int from, int to)
+        {
+            foreach (GitSyntaxSpan span in spans)
+            {
+                if (span.Start < to && span.Start + span.Length > from)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -3446,21 +3566,72 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 고른 부분 [<paramref name="selectStart"/>, <paramref name="selectEnd"/>)을 &lt;mark&gt; 로 칠한 코드 글. 나머지는 <see cref="Render"/> 와 같게 그린다.
+        /// 줄 글 <paramref name="raw"/> 의 [<paramref name="from"/>, <paramref name="to"/>) 조각을 리치 텍스트로 그린다.
+        /// 문법 색 조각은 &lt;color&gt; 로, 고른 부분(조각 기준 [<paramref name="selectStart"/>, <paramref name="selectEnd"/>))은 &lt;mark&gt; 로 칠한다.
         /// </summary>
         /// <param name="selectsLineEnd">고른 범위가 다음 줄로 이어진다. 줄바꿈 자리를 빈칸 하나로 칠한다(빈 줄도 고른 것이 보이게).</param>
-        private string RenderSelected(string text, int selectStart, int selectEnd, bool selectsLineEnd)
+        private string RenderSelected(string raw, int from, int to, List<GitSyntaxSpan> spans, int selectStart, int selectEnd, bool selectsLineEnd)
         {
-            StringBuilder builder = new(text.Length * 2 + 32);
-            builder.Append(RenderRich(text.Substring(0, selectStart)));
-            builder.Append("<mark=#").Append(ColorUtility.ToHtmlStringRGBA(_textSelectionColor)).Append('>');
-            builder.Append(RenderRich(text.Substring(selectStart, selectEnd - selectStart)));
-            if (selectsLineEnd)
+            int markFrom = from + selectStart;
+            int markTo = from + selectEnd;
+            bool marks = markTo > markFrom || selectsLineEnd;
+            StringBuilder builder = new((to - from) * 2 + spans.Count * 24 + 32);
+            int position = from;
+            int spanIndex = 0;
+            bool opened = false;
+            // 줄 끝만 고른 경우(markFrom == to)는 글을 다 그린 뒤 한 번 더 돌아 빈칸 하나를 칠한다.
+            while (position < to || (marks && markFrom == to))
             {
-                builder.Append(' ');
+                if (marks && opened == false && position == markFrom)
+                {
+                    builder.Append("<mark=#").Append(ColorUtility.ToHtmlStringRGBA(_textSelectionColor)).Append('>');
+                    opened = true;
+                }
+                // 다음 경계: 색 조각의 시작·끝, 고른 부분의 시작·끝, 조각 끝.
+                while (spanIndex < spans.Count && spans[spanIndex].Start + spans[spanIndex].Length <= position)
+                {
+                    spanIndex++;
+                }
+                bool inSpan = spanIndex < spans.Count && spans[spanIndex].Start <= position;
+                int next = to;
+                if (spanIndex < spans.Count)
+                {
+                    next = Math.Min(next, inSpan ? spans[spanIndex].Start + spans[spanIndex].Length : spans[spanIndex].Start);
+                }
+                if (marks && markFrom > position)
+                {
+                    next = Math.Min(next, markFrom);
+                }
+                if (marks && markTo > position)
+                {
+                    next = Math.Min(next, markTo);
+                }
+                string segment = raw.Substring(position, next - position);
+                string color = inSpan ? _syntaxColors[(int)spans[spanIndex].Kind] : null;
+                if (color != null && segment.Length > 0)
+                {
+                    builder.Append("<color=").Append(color).Append('>').Append(RenderRich(segment)).Append("</color>");
+                }
+                else
+                {
+                    builder.Append(RenderRich(segment));
+                }
+                position = next;
+                if (opened && position == markTo)
+                {
+                    if (selectsLineEnd && position == to)
+                    {
+                        builder.Append(' ');
+                    }
+                    builder.Append("</mark>");
+                    marks = false;
+                    opened = false;
+                }
             }
-            builder.Append("</mark>");
-            builder.Append(RenderRich(text.Substring(selectEnd)));
+            if (opened)
+            {
+                builder.Append("</mark>");
+            }
             return builder.ToString();
         }
 

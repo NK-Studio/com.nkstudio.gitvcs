@@ -100,16 +100,22 @@ namespace GitVersionControl
         private Color _numberColor = new(0.16f, 0.67f, 0.72f);
         private Color _commentColor = new(0.48f, 0.49f, 0.52f);
         private Color _keyColor = new(0.78f, 0.49f, 0.73f);
+        private Color _tagColor = new(0.34f, 0.61f, 0.84f);
+        private Color _attributeColor = new(0.61f, 0.86f, 1f);
+        private Color _punctuationColor = new(0.5f, 0.5f, 0.5f);
         private Color _currentLineColor = new(1f, 1f, 1f, 0.04f);
         private Color _indentGuideColor = new(1f, 1f, 1f, 0.08f);
         private Color _selectionColor = new(0.13f, 0.26f, 0.51f, 0.95f);
-        private readonly string[] _kindColors = new string[6];
+        private readonly string[] _kindColors = new string[Enum.GetValues(typeof(GitSyntaxKind)).Length];
 
         private static readonly CustomStyleProperty<Color> KeywordProperty = new("--code-keyword");
         private static readonly CustomStyleProperty<Color> StringProperty = new("--code-string");
         private static readonly CustomStyleProperty<Color> NumberProperty = new("--code-number");
         private static readonly CustomStyleProperty<Color> CommentProperty = new("--code-comment");
         private static readonly CustomStyleProperty<Color> KeyProperty = new("--code-key");
+        private static readonly CustomStyleProperty<Color> TagProperty = new("--code-tag");
+        private static readonly CustomStyleProperty<Color> AttributeProperty = new("--code-attribute");
+        private static readonly CustomStyleProperty<Color> PunctuationProperty = new("--code-punctuation");
         private static readonly CustomStyleProperty<Color> CurrentLineProperty = new("--editor-current-line");
         private static readonly CustomStyleProperty<Color> IndentGuideProperty = new("--editor-indent-guide");
         private static readonly CustomStyleProperty<Color> SelectionProperty = new("--editor-selection");
@@ -496,6 +502,9 @@ namespace GitVersionControl
             _kindColors[(int)GitSyntaxKind.Number] = Hex(_numberColor);
             _kindColors[(int)GitSyntaxKind.Comment] = Hex(_commentColor);
             _kindColors[(int)GitSyntaxKind.Key] = Hex(_keyColor);
+            _kindColors[(int)GitSyntaxKind.Tag] = Hex(_tagColor);
+            _kindColors[(int)GitSyntaxKind.Attribute] = Hex(_attributeColor);
+            _kindColors[(int)GitSyntaxKind.Punctuation] = Hex(_punctuationColor);
         }
 
         private static string Hex(Color color)
@@ -750,6 +759,9 @@ namespace GitVersionControl
             custom.TryGetValue(NumberProperty, out _numberColor);
             custom.TryGetValue(CommentProperty, out _commentColor);
             custom.TryGetValue(KeyProperty, out _keyColor);
+            custom.TryGetValue(TagProperty, out _tagColor);
+            custom.TryGetValue(AttributeProperty, out _attributeColor);
+            custom.TryGetValue(PunctuationProperty, out _punctuationColor);
             custom.TryGetValue(CurrentLineProperty, out _currentLineColor);
             custom.TryGetValue(IndentGuideProperty, out _indentGuideColor);
             custom.TryGetValue(SelectionProperty, out _selectionColor);

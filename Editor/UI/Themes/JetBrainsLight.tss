@@ -77,7 +77,7 @@
     --git-radius-small: 4px;
     --git-state-modified: #3574f0;
     --git-state-added: #208a3c;
-    --git-state-deleted: #6c707e;
+    --git-state-deleted: #db3b4b;
     --git-state-renamed: #078080;
     --git-state-untracked: #db3b4b;
     --git-state-conflicted: #d81b60;
@@ -109,8 +109,8 @@
     --git-diff-bg: #ffffff;
     --git-diff-added-line: #eaf5ea;
     --git-diff-added-change: #bee6c1;
-    --git-diff-removed-line: #fbebeb;
-    --git-diff-removed-change: #f5c2c2;
+    --git-diff-removed-line: #ffe1e3;
+    --git-diff-removed-change: #ffb8bf;
     --git-diff-hunk: #edf3ff;
     --git-diff-hunk-text: #3574f0;
     --git-diff-gutter: #ffffff;
@@ -127,6 +127,10 @@
     --git-code-number: #1750eb;
     --git-code-comment: #8c8c8c;
     --git-code-key: #871094;
+    /* HTML: 태그 이름·속성 이름·꺾쇠. */
+    --git-code-tag: #0033b3;
+    --git-code-attribute: #174ad4;
+    --git-code-punctuation: #8c8c8c;
     --git-editor-current-line: rgba(0,0,0,0.045);
     --git-editor-indent-guide: rgba(0,0,0,0.10);
     --git-editor-caret: #000000;

@@ -16,7 +16,6 @@ namespace GitVersionControl
         private const string ToggleColumnHiddenModifier = "file-row__toggle-column--hidden";
         private const string BadgeHiddenModifier = "file-row__badge--hidden";
         private const string FolderModifier = "file-row--folder";
-        private const string CountModifier = "file-row__note--count";
 
         private readonly IFileIconProvider _icons;
         private Texture _folderIcon;
@@ -89,9 +88,9 @@ namespace GitVersionControl
             original.SetVisible(item.OriginalRepoPath != null);
 
             Label note = row.Require<Label>("note");
-            note.RemoveFromClassList(CountModifier);
             note.text = item.Note ?? string.Empty;
             note.SetVisible(string.IsNullOrEmpty(item.Note) == false);
+            row.Q<VisualElement>("summary")?.SetVisible(false);
             BindAction(row, item);
         }
 
@@ -133,7 +132,8 @@ namespace GitVersionControl
         }
 
         /// <param name="checkedFiles">아래 파일 중 체크된 수. 체크박스가 없으면 무시한다.</param>
-        public void BindFolder(VisualElement row, FileTreeNode folder, bool showToggle, int checkedFiles)
+        /// <param name="collapsed">접힌 폴더면 아래 파일의 상태별 수(✏ 1 + 1 − 1)를 보인다. 펼친 폴더는 아무 수도 보이지 않는다(GitKraken 과 같다).</param>
+        public void BindFolder(VisualElement row, FileTreeNode folder, bool showToggle, int checkedFiles, bool collapsed = false)
         {
             row.AddToClassList(FolderModifier);
             bool? isChecked = showToggle ? checkedFiles == folder.FileCount : null;
@@ -155,11 +155,50 @@ namespace GitVersionControl
 
             row.Require<Label>("original").SetVisible(false);
 
+            // 폴더 줄은 파일 수를 보이지 않는다. 접힌 폴더만 상태별 수를 보이고, 펼친 폴더는 아래 파일이 다 보이므로 아무 수도 없다(GitKraken 과 같다).
             Label note = row.Require<Label>("note");
-            note.AddToClassList(CountModifier);
-            note.text = folder.FileCount.ToString();
-            note.SetVisible(true);
+            note.text = string.Empty;
+            note.SetVisible(false);
+            BindSummary(row.Q<VisualElement>("summary"), collapsed ? FileTreeBuilder.StateSummary(folder.Files()) : null);
             BindAction(row, null);
+        }
+
+        /// <summary>
+        /// 상태별 수 칸을 채운다. 상태마다 배지(<see cref="StateBadge"/>)와 수 하나. 줄은 재사용되므로 칸 수를 맞추고 다시 묶는다.
+        /// </summary>
+        private static void BindSummary(VisualElement summary, List<(GitFileState state, int count)> counts)
+        {
+            if (summary == null)
+            {
+                return;
+            }
+            summary.SetVisible(counts is { Count: > 0 });
+            if (counts == null)
+            {
+                return;
+            }
+            while (summary.childCount < counts.Count * 2)
+            {
+                Label badge = new();
+                badge.AddToClassList("state-badge");
+                badge.AddToClassList("file-row__summary-badge");
+                Label count = new();
+                count.AddToClassList("file-row__summary-count");
+                summary.Add(badge);
+                summary.Add(count);
+            }
+            for (int i = 0; i < summary.childCount; i++)
+            {
+                summary[i].SetVisible(i < counts.Count * 2);
+            }
+            for (int i = 0; i < counts.Count; i++)
+            {
+                (GitFileState state, int number) = counts[i];
+                StateBadge.Apply(summary[i * 2], state);
+                Label count = (Label)summary[i * 2 + 1];
+                count.text = number.ToString();
+                count.tooltip = summary[i * 2].tooltip;
+            }
         }
 
         /// <summary>

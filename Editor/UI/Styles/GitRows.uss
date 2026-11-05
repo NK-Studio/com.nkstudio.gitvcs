@@ -41,7 +41,9 @@
     display: none;
 }
 
+/* 폴더 이름은 글자 길이만큼만 차지해서, 뒤의 파일 수·상태별 수(✏ 1 + 1 − 1)가 이름 바로 옆에 붙는다(GitKraken 과 같다). 좁으면 이름이 줄어 … 으로 잘린다. */
 .file-row--folder .file-row__path {
+    flex-grow: 0;
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
@@ -78,10 +80,28 @@
     -unity-font-definition: url("../Fonts/IBMPlexSansKR-Bold.ttf");
 }
 
-/* 폴더 이름 옆 파일 수. */
-.file-row__note--count {
-    color: var(--git-text-muted);
-    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Regular.ttf");
+/* 접힌 폴더 이름 옆 상태별 수(GitKraken 처럼 ✏ 1 + 1 − 1). 배지 모양·색은 GitCommon.uss 의 .state-badge 를 그대로 쓴다.
+   이름과 10px 띄우고, 아이콘(12px)과 수 사이 4px, 묶음 사이 10px. 수는 흰 글자(밝은 테마는 검정)·중간 굵기. */
+.file-row__summary {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    height: 100%;
+    padding-left: 10px;
+}
+
+/* .state-badge--glyph-* 의 좌우 1px 여백보다 세게. */
+.file-row__summary > .file-row__summary-badge {
+    margin: 0 4px 0 0;
+}
+
+.file-row__summary-count {
+    margin: 0 10px 0 0;
+    padding: 0;
+    color: var(--git-text-strong);
+    font-size: 12px;
+    -unity-font-definition: url("../Fonts/IBMPlexSansKR-Medium.ttf");
+    -unity-text-align: middle-left;
 }
 
 /* 줄에 마우스를 올리면 오른쪽에 나오는 버튼(GitKraken 의 Stage File·Unstage File). 쓰는 쪽이 모양 클래스(--stage·--unstage)를

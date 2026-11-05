@@ -7,7 +7,7 @@ namespace GitVersionControl
     /// <summary>파일 트리의 한 마디. <see cref="Item"/> 이 null 이면 폴더.</summary>
     public sealed class FileTreeNode
     {
-        /// <summary>트리에 보이는 이름. 합쳐진 폴더는 "Assets/Plugins/Android" 처럼 여러 단계가 한 이름이 된다.</summary>
+        /// <summary>트리에 보이는 이름(폴더는 그 단계의 이름 하나).</summary>
         public string Name;
 
         /// <summary>폴더는 그 폴더의 경로, 파일은 표시 경로. 펼침 상태를 기억하는 열쇠로 쓴다.</summary>
@@ -16,7 +16,7 @@ namespace GitVersionControl
         public FileListItem Item;
         public readonly List<FileTreeNode> Children = new();
 
-        /// <summary>아래에 있는 파일 수(폴더 이름 옆 숫자).</summary>
+        /// <summary>아래에 있는 파일 수(폴더 체크박스의 전체·일부 판단에 쓴다).</summary>
         public int FileCount;
 
         public bool IsFolder => Item == null;
@@ -46,11 +46,38 @@ namespace GitVersionControl
     /// <summary>
     /// 파일 목록을 폴더 트리로 바꾼다(UI 와 무관한 순수 로직).
     /// - 폴더가 먼저, 그다음 파일. 각각 이름순(대소문자 무시).
-    /// - 파일 없이 하위 폴더 하나만 가진 폴더는 그 하위 폴더와 한 줄로 합친다("Assets" › "Plugins" › "Android" → "Assets/Plugins/Android").
-    ///   변경이 깊은 곳 하나에만 있을 때 펼치기를 여러 번 하지 않아도 되게.
+    /// - 폴더는 한 단계에 한 줄이다. 하위 폴더 하나만 가진 폴더도 "StatusTest/Scripts" 처럼 합치지 않는다(GitKraken 과 같다).
     /// </summary>
     public static class FileTreeBuilder
     {
+        /// <summary>
+        /// 접힌 폴더 옆에 보일 상태별 파일 수(GitKraken 처럼 ✏ 1 + 1 − 1). 수정·추가·삭제·이름 변경·충돌 순이고 0 인 상태는 뺀다.
+        /// untracked 는 추가와 같은 + 로 보이므로 추가에 더한다.
+        /// </summary>
+        public static List<(GitFileState state, int count)> StateSummary(IEnumerable<FileListItem> files)
+        {
+            int[] counts = new int[Enum.GetValues(typeof(GitFileState)).Length];
+            foreach (FileListItem file in files)
+            {
+                GitFileState state = file.State == GitFileState.Untracked ? GitFileState.Added : file.State;
+                counts[(int)state]++;
+            }
+            List<(GitFileState, int)> summary = new();
+            foreach (GitFileState state in SummaryOrder)
+            {
+                if (counts[(int)state] > 0)
+                {
+                    summary.Add((state, counts[(int)state]));
+                }
+            }
+            return summary;
+        }
+
+        private static readonly GitFileState[] SummaryOrder =
+        {
+            GitFileState.Modified, GitFileState.Added, GitFileState.Deleted, GitFileState.Renamed, GitFileState.Conflicted,
+        };
+
         public static List<FileTreeNode> Build(IEnumerable<FileListItem> items)
         {
             FileTreeNode root = new() { Name = string.Empty, Path = string.Empty };
@@ -63,7 +90,7 @@ namespace GitVersionControl
                 Finish(child);
             }
             Sort(root);
-            return root.Children.Select(Compact).ToList();
+            return root.Children;
         }
 
         private static void Insert(FileTreeNode root, FileListItem item)
@@ -109,26 +136,6 @@ namespace GitVersionControl
             {
                 Sort(child);
             }
-        }
-
-        private static FileTreeNode Compact(FileTreeNode node)
-        {
-            if (node.IsFolder == false)
-            {
-                return node;
-            }
-            while (node.Children.Count == 1 && node.Children[0].IsFolder)
-            {
-                FileTreeNode only = node.Children[0];
-                FileTreeNode merged = new() { Name = node.Name + "/" + only.Name, Path = only.Path, FileCount = only.FileCount };
-                merged.Children.AddRange(only.Children);
-                node = merged;
-            }
-            for (int i = 0; i < node.Children.Count; i++)
-            {
-                node.Children[i] = Compact(node.Children[i]);
-            }
-            return node;
         }
     }
 }
