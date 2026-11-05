@@ -323,6 +323,123 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_Tokenize_CSharp_UnityTypesAndMessages()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("public", GitSyntaxKind.Keyword),
+                ("class", GitSyntaxKind.Keyword),
+                ("MonoBehaviour", GitSyntaxKind.Type),
+            }, Spans("public class Player : MonoBehaviour", GitSyntaxLanguage.CSharp));
+            // 메시지 선언은 함수 색, Debug.Log 의 Log·transform.position 은 멤버라 칠하지 않는다.
+            CollectionAssert.AreEqual(new[]
+            {
+                ("private", GitSyntaxKind.Keyword),
+                ("void", GitSyntaxKind.Keyword),
+                ("Update", GitSyntaxKind.Function),
+                ("Debug", GitSyntaxKind.Type),
+            }, Spans("    private void Update() { Debug.Log(transform.position); }", GitSyntaxLanguage.CSharp));
+            CollectionAssert.AreEqual(new[]
+            {
+                ("IEnumerator", GitSyntaxKind.Type),
+                ("Start", GitSyntaxKind.Function),
+            }, Spans("IEnumerator Start()", GitSyntaxLanguage.CSharp));
+        }
+
+        [Test]
+        public void Test_Tokenize_CSharp_TypePositions()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("var", GitSyntaxKind.Keyword),
+                ("Rigidbody", GitSyntaxKind.Type),
+                ("var", GitSyntaxKind.Keyword),
+                ("new", GitSyntaxKind.Keyword),
+                ("Vector3", GitSyntaxKind.Type),
+                ("1", GitSyntaxKind.Number),
+                ("2", GitSyntaxKind.Number),
+            }, Spans("var rb = GetComponent<Rigidbody>(); var v = new Vector3(1, 2);", GitSyntaxLanguage.CSharp));
+            // . 앞이 네임스페이스면 타입.
+            CollectionAssert.AreEqual(new[]
+            {
+                ("Debug", GitSyntaxKind.Type),
+                ("\"a\"", GitSyntaxKind.String),
+            }, Spans("UnityEngine.Debug.Log(\"a\");", GitSyntaxLanguage.CSharp));
+            CollectionAssert.AreEqual(new[]
+            {
+                ("List", GitSyntaxKind.Type),
+                ("GameObject", GitSyntaxKind.Type),
+            }, Spans("List<GameObject> targets;", GitSyntaxLanguage.CSharp));
+        }
+
+        [Test]
+        public void Test_Tokenize_CSharp_Attributes()
+        {
+            // Range 는 흔한 이름이라 타입 표에서 빠지지만, 어트리뷰트 자리에서는 어트리뷰트만 올 수 있어 칠한다.
+            CollectionAssert.AreEqual(new[]
+            {
+                ("SerializeField", GitSyntaxKind.Type),
+                ("Range", GitSyntaxKind.Type),
+                ("0", GitSyntaxKind.Number),
+                ("1", GitSyntaxKind.Number),
+                ("private", GitSyntaxKind.Keyword),
+                ("float", GitSyntaxKind.Keyword),
+            }, Spans("[SerializeField, Range(0, 1)] private float speed;", GitSyntaxLanguage.CSharp));
+            CollectionAssert.AreEqual(new[]
+            {
+                ("RequireComponent", GitSyntaxKind.Type),
+                ("typeof", GitSyntaxKind.Keyword),
+                ("Rigidbody", GitSyntaxKind.Type),
+            }, Spans("[RequireComponent(typeof(Rigidbody))]", GitSyntaxLanguage.CSharp));
+        }
+
+        [TestCase("for (int i = 0; i < Length; i++)", new[] { "for", "int", "0" })]
+        [TestCase("var n = items.Length;", new[] { "var" })]
+        [TestCase("Mode = 1; return Result;", new[] { "1", "return" })]
+        [TestCase("Settings.Value = State;", new string[0])]
+        [TestCase("Rigidbody = other;", new string[0])]
+        [TestCase("Start(); Position.Set(1);", new[] { "1" })]
+        public void Test_Tokenize_CSharp_CommonNamesStayPlain(string line, string[] colored)
+        {
+            List<(string text, GitSyntaxKind kind)> spans = Spans(line, GitSyntaxLanguage.CSharp);
+
+            CollectionAssert.AreEqual(colored, spans.Select(span => span.text).ToArray());
+            Assert.IsFalse(spans.Any(span => span.kind == GitSyntaxKind.Type || span.kind == GitSyntaxKind.Function));
+        }
+
+        [Test]
+        public void Test_Tokenize_CSharp_DeclaredNameIsNotAType()
+        {
+            CollectionAssert.AreEqual(new[]
+            {
+                ("public", GitSyntaxKind.Keyword),
+                ("Camera", GitSyntaxKind.Type),
+                ("get", GitSyntaxKind.Keyword),
+            }, Spans("public Camera Camera { get; }", GitSyntaxLanguage.CSharp));
+        }
+
+        [Test]
+        public void Test_Tokenize_UnityTypesOnlyInCSharp()
+        {
+            CollectionAssert.AreEqual(new[] { ("var", GitSyntaxKind.Keyword) }, Spans("var v = Vector3;", GitSyntaxLanguage.CLike));
+            CollectionAssert.AreEqual(new[] { ("void", GitSyntaxKind.Keyword) }, Spans("void Update()", GitSyntaxLanguage.CLike));
+        }
+
+        [Test]
+        public void Test_UnityApi_DropsCommonNames()
+        {
+            Assert.IsTrue(GitUnityApi.IsType("GameObject"));
+            Assert.IsTrue(GitUnityApi.IsType("EditorWindow"));
+            Assert.IsTrue(GitUnityApi.IsType("Debug"), "흔하지만 핵심인 이름은 남긴다");
+            Assert.IsFalse(GitUnityApi.IsType("Length"));
+            Assert.IsFalse(GitUnityApi.IsType("Position"));
+            Assert.IsFalse(GitUnityApi.IsType("State"));
+            Assert.IsTrue(GitUnityApi.IsAttribute("Header"));
+            Assert.IsTrue(GitUnityApi.IsAttribute("HeaderAttribute"));
+            Assert.IsTrue(GitUnityApi.IsMessage("OnTriggerEnter"));
+        }
+
+        [Test]
         public void Test_Tokenize_Json_KeysValuesLiterals()
         {
             List<(string, GitSyntaxKind)> spans = Spans("\"com.unity.burst\": \"2.0.0\", \"n\": -1.5e3, \"b\": true", GitSyntaxLanguage.Json);
@@ -515,7 +632,8 @@ namespace GitVersionControl.Tests
         [Test]
         public void Test_LanguageOf_ByExtension()
         {
-            Assert.AreEqual(GitSyntaxLanguage.CLike, GitSyntax.LanguageOf("Assets/A.cs"));
+            Assert.AreEqual(GitSyntaxLanguage.CSharp, GitSyntax.LanguageOf("Assets/A.cs"));
+            Assert.AreEqual(GitSyntaxLanguage.CLike, GitSyntax.LanguageOf("Assets/Shaders/A.shader"));
             Assert.AreEqual(GitSyntaxLanguage.Json, GitSyntax.LanguageOf("Packages/manifest.json"));
             Assert.AreEqual(GitSyntaxLanguage.Yaml, GitSyntax.LanguageOf("Assets/Scenes/A.unity"));
             Assert.AreEqual(GitSyntaxLanguage.Css, GitSyntax.LanguageOf("Editor/UI/Styles/GitDiff.uss"));

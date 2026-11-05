@@ -28,6 +28,8 @@
     --code-tag: var(--git-code-tag);
     --code-attribute: var(--git-code-attribute);
     --code-punctuation: var(--git-code-punctuation);
+    --code-type: var(--git-code-type);
+    --code-function: var(--git-code-function);
 }
 
 /* 테마의 .git-theme--* .unity-toolbar(높이 26px)보다 세게. */
@@ -1199,6 +1201,8 @@
     --code-tag: var(--git-code-tag);
     --code-attribute: var(--git-code-attribute);
     --code-punctuation: var(--git-code-punctuation);
+    --code-type: var(--git-code-type);
+    --code-function: var(--git-code-function);
     --editor-current-line: var(--git-editor-current-line);
     --editor-indent-guide: var(--git-editor-indent-guide);
     --editor-selection: var(--git-diff-text-selection);

@@ -23,6 +23,8 @@ namespace GitVersionControl
         Xml,
         /// <summary>HTML: 꺾쇠·태그 이름·속성 이름·값을 따로 칠하고, &lt;script&gt;·&lt;style&gt; 안은 JS·CSS 로 칠한다.</summary>
         Html,
+        /// <summary>C#: <see cref="CLike"/> 에 더해 Unity·C# 타입 이름, [어트리뷰트], Unity 메시지 메서드 선언을 칠한다(<see cref="GitUnityApi"/>).</summary>
+        CSharp,
     }
 
     /// <summary>
@@ -43,6 +45,10 @@ namespace GitVersionControl
         Attribute,
         /// <summary>HTML 꺾쇠와 기호(&lt; &lt;/ &gt; /&gt; =).</summary>
         Punctuation,
+        /// <summary>C# 의 Unity·C# 타입 이름(GameObject·Vector3·List)과 [어트리뷰트] 이름.</summary>
+        Type,
+        /// <summary>C# 의 Unity 메시지 메서드 선언(void Update()).</summary>
+        Function,
     }
 
     /// <summary>
@@ -104,6 +110,22 @@ namespace GitVersionControl
             "instanceof", "delete", "of",
         };
 
+        /// <summary>
+        /// C# 에만 있는 문맥 키워드 가운데 변수 이름으로는 거의 안 쓰는 것(file·with·or 처럼 이름과 겹치기 쉬운 것은 넣지 않는다).
+        /// </summary>
+        private static readonly HashSet<string> CSharpOnlyKeywords = new(StringComparer.Ordinal)
+        {
+            "required", "scoped", "unmanaged", "notnull", "nint", "nuint", "dynamic",
+        };
+
+        /// <summary>
+        /// Unity 메시지 메서드의 반환 타입(void Update()·IEnumerator Start()·Awaitable Start()).
+        /// </summary>
+        private static readonly HashSet<string> MessageReturnTypes = new(StringComparer.Ordinal)
+        {
+            "void", "IEnumerator", "Awaitable",
+        };
+
         private static readonly HashSet<string> LiteralKeywords = new(StringComparer.Ordinal)
         {
             "true", "false", "null", "True", "False", "Null", "NULL", "yes", "no", "on", "off", "~",
@@ -118,6 +140,7 @@ namespace GitVersionControl
             switch (extension)
             {
                 case ".cs":
+                    return GitSyntaxLanguage.CSharp;
                 case ".shader":
                 case ".hlsl":
                 case ".cginc":
@@ -199,6 +222,8 @@ namespace GitVersionControl
             {
                 case GitSyntaxLanguage.CLike:
                     return TokenizeCLike(line, state, spans);
+                case GitSyntaxLanguage.CSharp:
+                    return TokenizeCLike(line, state, spans, true);
                 case GitSyntaxLanguage.Css:
                     return TokenizeCss(line, state, spans);
                 case GitSyntaxLanguage.Json:
@@ -216,10 +241,15 @@ namespace GitVersionControl
             }
         }
 
-        private static int TokenizeCLike(string line, int state, List<GitSyntaxSpan> spans)
+        /// <param name="csharp">C# 이면 Unity·C# 타입·어트리뷰트·메시지 메서드도 칠한다(<see cref="ClassifyCSharpName"/>).</param>
+        private static int TokenizeCLike(string line, int state, List<GitSyntaxSpan> spans, bool csharp = false)
         {
             int i = 0;
             int length = line.Length;
+            // C# 어트리뷰트 줄([SerializeField]·[Header("a"), Range(0, 1)]): [ ] 와 ( ) 깊이로 어트리뷰트 이름 자리를 고른다.
+            bool attributeLine = false;
+            int bracketDepth = 0;
+            int parenDepth = 0;
             if (state == StateBlockComment)
             {
                 int close = line.IndexOf("*/", StringComparison.Ordinal);
@@ -242,6 +272,10 @@ namespace GitVersionControl
                 }
                 Add(spans, firstNonSpace, end - firstNonSpace, GitSyntaxKind.Keyword);
                 i = end;
+            }
+            if (csharp && i <= firstNonSpace && firstNonSpace < length && line[firstNonSpace] == '[')
+            {
+                attributeLine = true;
             }
             while (i < length)
             {
@@ -287,16 +321,132 @@ namespace GitVersionControl
                     {
                         end++;
                     }
-                    if (CSharpKeywords.Contains(line.Substring(i, end - i)))
+                    string word = line.Substring(i, end - i);
+                    if (CSharpKeywords.Contains(word) || (csharp && CSharpOnlyKeywords.Contains(word)))
                     {
                         Add(spans, i, end - i, GitSyntaxKind.Keyword);
+                    }
+                    else if (csharp)
+                    {
+                        bool attributeSlot = attributeLine && bracketDepth > 0 && parenDepth == 0;
+                        GitSyntaxKind kind = ClassifyCSharpName(line, i, end, word, attributeSlot);
+                        if (kind != GitSyntaxKind.Plain)
+                        {
+                            Add(spans, i, end - i, kind);
+                        }
                     }
                     i = end;
                     continue;
                 }
+                if (csharp)
+                {
+                    switch (c)
+                    {
+                        case '[':
+                            bracketDepth++;
+                            break;
+                        case ']':
+                            bracketDepth = Math.Max(0, bracketDepth - 1);
+                            break;
+                        case '(':
+                            parenDepth++;
+                            break;
+                        case ')':
+                            parenDepth = Math.Max(0, parenDepth - 1);
+                            break;
+                    }
+                }
                 i++;
             }
             return StateNormal;
+        }
+
+        /// <summary>
+        /// C# 낱말 하나(키워드가 아닌 것)를 Unity·C# 타입(<see cref="GitSyntaxKind.Type"/>)·메시지 메서드(<see cref="GitSyntaxKind.Function"/>)로 칠할지 고른다.
+        /// 줄 하나만 보고 고르므로, 애매하면 칠하지 않는다.
+        /// <list type="bullet">
+        /// <item>타입 표(<see cref="GitUnityApi.IsType"/>)에 있어도 . 바로 뒤(arr.Length)·호출(Foo()) ·대입(X = 1)·선언된 이름(Camera Camera)은 칠하지 않는다.</item>
+        /// <item>예외: UnityEngine.Debug 처럼 . 앞이 네임스페이스면 타입, new Vector3( 는 타입.</item>
+        /// <item>어트리뷰트 줄의 [ 바로 뒤·, 뒤 이름은 어트리뷰트 표(<see cref="GitUnityApi.IsAttribute"/>)로 본다.</item>
+        /// <item>메시지 메서드는 void·IEnumerator·Awaitable 뒤의 선언(void Update()) 만.</item>
+        /// </list>
+        /// </summary>
+        private static GitSyntaxKind ClassifyCSharpName(string line, int start, int end, string word, bool attributeSlot)
+        {
+            // Unity·C# 타입과 메시지는 모두 대문자로 시작한다. 지역 변수·필드는 여기서 바로 빠진다.
+            if (char.IsUpper(word[0]) == false)
+            {
+                return GitSyntaxKind.Plain;
+            }
+            int before = PreviousNonWhitespaceIndex(line, start);
+            char previous = before >= 0 ? line[before] : '\0';
+            if (attributeSlot && (previous == '[' || previous == ',' || previous == ':') && GitUnityApi.IsAttribute(word))
+            {
+                return GitSyntaxKind.Type;
+            }
+            string previousWord = WordEndingAt(line, before);
+            int after = SkipWhitespace(line, end);
+            char next = after < line.Length ? line[after] : '\0';
+            if (next == '(')
+            {
+                if (previousWord != null && MessageReturnTypes.Contains(previousWord) && GitUnityApi.IsMessage(word))
+                {
+                    return GitSyntaxKind.Function;
+                }
+                return previousWord == "new" && GitUnityApi.IsType(word) ? GitSyntaxKind.Type : GitSyntaxKind.Plain;
+            }
+            if (previous == '.')
+            {
+                // . 앞 낱말이 네임스페이스 조각(UnityEngine·SceneManagement·Generic)일 때만 타입. 그 밖은 멤버(arr.Length·transform.position).
+                string qualifier = WordEndingAt(line, PreviousNonWhitespaceIndex(line, before));
+                if (qualifier == null || GitUnityApi.IsNamespaceSegment(qualifier) == false)
+                {
+                    return GitSyntaxKind.Plain;
+                }
+            }
+            else if (previousWord != null && CSharpKeywords.Contains(previousWord) == false && CSharpOnlyKeywords.Contains(previousWord) == false)
+            {
+                // 앞이 키워드가 아닌 이름이면 이 낱말은 선언된 이름이다(public Camera Camera { get; }).
+                return GitSyntaxKind.Plain;
+            }
+            if (next == '=' && (after + 1 >= line.Length || (line[after + 1] != '=' && line[after + 1] != '>')))
+            {
+                // Rigidbody = x 는 같은 이름의 속성·변수에 대입하는 것.
+                return GitSyntaxKind.Plain;
+            }
+            return GitUnityApi.IsType(word) ? GitSyntaxKind.Type : GitSyntaxKind.Plain;
+        }
+
+        /// <summary>
+        /// <paramref name="index"/> 앞(그 자리는 빼고)에서 공백이 아닌 마지막 글자 자리. 없으면 -1.
+        /// </summary>
+        private static int PreviousNonWhitespaceIndex(string line, int index)
+        {
+            for (int i = index - 1; i >= 0; i--)
+            {
+                if (line[i] != ' ' && line[i] != '\t')
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// <paramref name="last"/> 자리에서 끝나는 낱말. 그 자리가 낱말 글자가 아니면 null.
+        /// </summary>
+        private static string WordEndingAt(string line, int last)
+        {
+            if (last < 0 || IsWordChar(line[last]) == false)
+            {
+                return null;
+            }
+            int first = last;
+            while (first > 0 && IsWordChar(line[first - 1]))
+            {
+                first--;
+            }
+            return IsWordStart(line[first]) ? line.Substring(first, last - first + 1) : null;
         }
 
         /// <summary>

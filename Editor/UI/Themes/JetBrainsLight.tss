@@ -131,6 +131,9 @@
     --git-code-tag: #0033b3;
     --git-code-attribute: #174ad4;
     --git-code-punctuation: #8c8c8c;
+    /* C#: Unity·C# 타입 이름·[어트리뷰트], Unity 메시지 메서드 선언(함수 선언 색). */
+    --git-code-type: #7a3e9d;
+    --git-code-function: #00627a;
     --git-editor-current-line: rgba(0,0,0,0.045);
     --git-editor-indent-guide: rgba(0,0,0,0.10);
     --git-editor-caret: #000000;

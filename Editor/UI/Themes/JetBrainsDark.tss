@@ -132,6 +132,9 @@
     --git-code-tag: #569cd6;
     --git-code-attribute: #9cdcfe;
     --git-code-punctuation: #808080;
+    /* C#: Unity·C# 타입 이름·[어트리뷰트](Rider 의 클래스 색), Unity 메시지 메서드 선언(함수 선언 색). */
+    --git-code-type: #c191ff;
+    --git-code-function: #56a8f5;
     --git-editor-current-line: rgba(255,255,255,0.045);
     --git-editor-indent-guide: rgba(255,255,255,0.09);
     --git-editor-caret: #cecfd2;

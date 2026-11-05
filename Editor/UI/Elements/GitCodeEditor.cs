@@ -103,6 +103,8 @@ namespace GitVersionControl
         private Color _tagColor = new(0.34f, 0.61f, 0.84f);
         private Color _attributeColor = new(0.61f, 0.86f, 1f);
         private Color _punctuationColor = new(0.5f, 0.5f, 0.5f);
+        private Color _typeColor = new(0.76f, 0.57f, 1f);
+        private Color _functionColor = new(0.34f, 0.66f, 0.96f);
         private Color _currentLineColor = new(1f, 1f, 1f, 0.04f);
         private Color _indentGuideColor = new(1f, 1f, 1f, 0.08f);
         private Color _selectionColor = new(0.13f, 0.26f, 0.51f, 0.95f);
@@ -116,6 +118,8 @@ namespace GitVersionControl
         private static readonly CustomStyleProperty<Color> TagProperty = new("--code-tag");
         private static readonly CustomStyleProperty<Color> AttributeProperty = new("--code-attribute");
         private static readonly CustomStyleProperty<Color> PunctuationProperty = new("--code-punctuation");
+        private static readonly CustomStyleProperty<Color> TypeProperty = new("--code-type");
+        private static readonly CustomStyleProperty<Color> FunctionProperty = new("--code-function");
         private static readonly CustomStyleProperty<Color> CurrentLineProperty = new("--editor-current-line");
         private static readonly CustomStyleProperty<Color> IndentGuideProperty = new("--editor-indent-guide");
         private static readonly CustomStyleProperty<Color> SelectionProperty = new("--editor-selection");
@@ -505,6 +509,8 @@ namespace GitVersionControl
             _kindColors[(int)GitSyntaxKind.Tag] = Hex(_tagColor);
             _kindColors[(int)GitSyntaxKind.Attribute] = Hex(_attributeColor);
             _kindColors[(int)GitSyntaxKind.Punctuation] = Hex(_punctuationColor);
+            _kindColors[(int)GitSyntaxKind.Type] = Hex(_typeColor);
+            _kindColors[(int)GitSyntaxKind.Function] = Hex(_functionColor);
         }
 
         private static string Hex(Color color)
@@ -762,6 +768,8 @@ namespace GitVersionControl
             custom.TryGetValue(TagProperty, out _tagColor);
             custom.TryGetValue(AttributeProperty, out _attributeColor);
             custom.TryGetValue(PunctuationProperty, out _punctuationColor);
+            custom.TryGetValue(TypeProperty, out _typeColor);
+            custom.TryGetValue(FunctionProperty, out _functionColor);
             custom.TryGetValue(CurrentLineProperty, out _currentLineColor);
             custom.TryGetValue(IndentGuideProperty, out _indentGuideColor);
             custom.TryGetValue(SelectionProperty, out _selectionColor);

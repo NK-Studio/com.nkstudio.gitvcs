@@ -213,6 +213,8 @@ namespace GitVersionControl
             (GitSyntaxKind.Tag, new CustomStyleProperty<Color>("--code-tag")),
             (GitSyntaxKind.Attribute, new CustomStyleProperty<Color>("--code-attribute")),
             (GitSyntaxKind.Punctuation, new CustomStyleProperty<Color>("--code-punctuation")),
+            (GitSyntaxKind.Type, new CustomStyleProperty<Color>("--code-type")),
+            (GitSyntaxKind.Function, new CustomStyleProperty<Color>("--code-function")),
         };
 
         private readonly string[] _syntaxColors = new string[Enum.GetValues(typeof(GitSyntaxKind)).Length];
