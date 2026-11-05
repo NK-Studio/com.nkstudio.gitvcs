@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -21,6 +23,22 @@ namespace GitVersionControl
         private List<bool> _blockStarts = new();
         private List<bool> _oddBlocks = new();
         private Font _monospace;
+
+        /// <summary>
+        /// 코드 칸의 문법 색(<see cref="GitSyntax"/>). diff 와 같은 테마 토큰을 GitStaging.uss 의 <c>.blame-list</c> 가 <c>--code-*</c> 로 넘긴다.
+        /// 갈래 이름을 소문자로 붙인 이름(<c>--code-keyword</c> 등)이라 갈래가 늘어도 여기는 그대로 둔다. Plain 은 칠하지 않는다.
+        /// </summary>
+        private static readonly CustomStyleProperty<Color>[] SyntaxColorProperties = MakeSyntaxColorProperties();
+
+        private readonly string[] _syntaxColors = new string[Enum.GetValues(typeof(GitSyntaxKind)).Length];
+        private readonly List<GitSyntaxSpan> _syntaxSpans = new();
+
+        /// <summary>파일의 말 갈래와, 줄마다 그 줄을 칠하기 시작할 상태(앞 줄의 블록 주석 안 등). <see cref="UpdateSyntaxStates"/> 가 채운다.</summary>
+        private GitSyntaxLanguage _syntaxLanguage;
+        private int[] _syntaxStates = Array.Empty<int>();
+
+        /// <summary>이보다 줄이 많은 파일은 칠하지 않는다(열 때 모든 줄을 한 번 훑는다). diff 와 같은 한도.</summary>
+        private const int MaxSyntaxLines = 50000;
 
         public static void Open(string repoPath)
         {
@@ -51,6 +69,8 @@ namespace GitVersionControl
                 bindItem = BindRow,
             };
             _list.AddToClassList("git-diff__list");
+            _list.AddToClassList("blame-list");
+            _list.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             Content.Add(_list);
             Load();
         }
@@ -65,6 +85,7 @@ namespace GitVersionControl
             (List<GitBlameLine> lines, string error) = await GitFileOperations.BlameAsync(_repoPath);
             _lines = lines;
             MarkBlocks();
+            UpdateSyntaxStates();
             _summary.text = error ?? GitText.Format("blame.summary", GitDisplay.Nfc(_repoPath), lines.Count);
             _list.itemsSource = _lines;
             _list.Rebuild();
@@ -126,8 +147,111 @@ namespace GitVersionControl
             ((Label)row[1]).text = isStart && line.IsUncommitted == false ? line.AuthorName : string.Empty;
             ((Label)row[2]).text = isStart && line.IsUncommitted == false ? GitDisplay.FormatDate(line.Date) : string.Empty;
             ((Label)row[3]).text = line.LineNumber.ToString();
-            ((Label)row[4]).text = (line.Text ?? string.Empty).Replace("\t", "    ");
+            BindCode((Label)row[4], index);
             row.tooltip = line.IsUncommitted ? GitText.Get("blame.uncommitted") : $"{line.ShortHash}  {line.AuthorName}  {GitDisplay.FormatDate(line.Date)}\n{line.Summary}";
+        }
+
+        private static CustomStyleProperty<Color>[] MakeSyntaxColorProperties()
+        {
+            Array kinds = Enum.GetValues(typeof(GitSyntaxKind));
+            CustomStyleProperty<Color>[] properties = new CustomStyleProperty<Color>[kinds.Length];
+            foreach (GitSyntaxKind kind in kinds)
+            {
+                properties[(int)kind] = new CustomStyleProperty<Color>("--code-" + kind.ToString().ToLowerInvariant());
+            }
+            return properties;
+        }
+
+        private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
+        {
+            bool changed = false;
+            for (int kind = 1; kind < SyntaxColorProperties.Length; kind++)
+            {
+                string hex = evt.customStyle.TryGetValue(SyntaxColorProperties[kind], out Color color) ? "#" + ColorUtility.ToHtmlStringRGBA(color) : null;
+                changed |= _syntaxColors[kind] != hex;
+                _syntaxColors[kind] = hex;
+            }
+            if (changed && _syntaxLanguage != GitSyntaxLanguage.None)
+            {
+                _list.RefreshItems();
+            }
+        }
+
+        /// <summary>
+        /// 확장자로 말 갈래를 고르고, 첫 줄부터 이어서 훑어 줄마다 칠하기 시작할 상태를 구한다(blame 은 파일 전체가 차례대로라 diff 처럼 판을 나눌 일이 없다).
+        /// </summary>
+        private void UpdateSyntaxStates()
+        {
+            _syntaxLanguage = _lines.Count > MaxSyntaxLines ? GitSyntaxLanguage.None : GitSyntax.LanguageOf(_repoPath);
+            _syntaxStates = new int[_lines.Count];
+            if (_syntaxLanguage == GitSyntaxLanguage.None)
+            {
+                return;
+            }
+            int state = GitSyntax.StateNormal;
+            for (int i = 0; i < _lines.Count; i++)
+            {
+                _syntaxStates[i] = state;
+                _syntaxSpans.Clear();
+                state = GitSyntax.Tokenize(_lines[i].Text ?? string.Empty, _syntaxLanguage, state, _syntaxSpans);
+            }
+        }
+
+        /// <summary>
+        /// 코드 칸. 칠할 조각이 있으면 리치 텍스트로 조각마다 &lt;color&gt; 를 두르고, 코드의 &lt; &gt; 는 &lt;noparse&gt; 로 감싼다. 탭은 4칸으로 펼친다.
+        /// </summary>
+        private void BindCode(Label code, int index)
+        {
+            string raw = _lines[index].Text ?? string.Empty;
+            _syntaxSpans.Clear();
+            if (_syntaxLanguage != GitSyntaxLanguage.None && raw.Length > 0 && index < _syntaxStates.Length)
+            {
+                GitSyntax.Tokenize(raw, _syntaxLanguage, _syntaxStates[index], _syntaxSpans);
+            }
+            bool colored = false;
+            foreach (GitSyntaxSpan span in _syntaxSpans)
+            {
+                colored |= _syntaxColors[(int)span.Kind] != null && span.Length > 0;
+            }
+            code.enableRichText = colored;
+            if (colored == false)
+            {
+                code.text = raw.Replace("\t", "    ");
+                return;
+            }
+            StringBuilder builder = new(raw.Length * 2 + _syntaxSpans.Count * 32);
+            int position = 0;
+            foreach (GitSyntaxSpan span in _syntaxSpans)
+            {
+                int start = Math.Clamp(span.Start, position, raw.Length);
+                int end = Math.Clamp(span.Start + span.Length, start, raw.Length);
+                AppendPlain(builder, raw, position, start);
+                string color = _syntaxColors[(int)span.Kind];
+                if (color != null && end > start)
+                {
+                    builder.Append("<color=").Append(color).Append('>');
+                    AppendPlain(builder, raw, start, end);
+                    builder.Append("</color>");
+                }
+                else
+                {
+                    AppendPlain(builder, raw, start, end);
+                }
+                position = end;
+            }
+            AppendPlain(builder, raw, position, raw.Length);
+            code.text = builder.ToString();
+        }
+
+        private static void AppendPlain(StringBuilder builder, string raw, int from, int to)
+        {
+            if (to <= from)
+            {
+                return;
+            }
+            // 코드에 </noparse> 가 그대로 있으면 감싼 구간이 거기서 끝난다. 사이에 폭 없는 공백을 넣어 끊는다(diff 와 같다).
+            string text = raw.Substring(from, to - from).Replace("\t", "    ").Replace("</noparse>", "</no​parse>");
+            builder.Append("<noparse>").Append(text).Append("</noparse>");
         }
     }
 }

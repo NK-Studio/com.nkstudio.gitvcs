@@ -1407,6 +1407,20 @@
 }
 
 /* ── blame-row: 파일 Blame 창의 한 줄 ─────────────────── */
+/* 코드 칸의 문법 색. 코드(GitBlameWindow)가 읽어 리치 텍스트 <color> 로 칠한다(diff 와 같은 테마 토큰). */
+.blame-list {
+    --code-keyword: var(--git-code-keyword);
+    --code-string: var(--git-code-string);
+    --code-number: var(--git-code-number);
+    --code-comment: var(--git-code-comment);
+    --code-key: var(--git-code-key);
+    --code-tag: var(--git-code-tag);
+    --code-attribute: var(--git-code-attribute);
+    --code-punctuation: var(--git-code-punctuation);
+    --code-type: var(--git-code-type);
+    --code-function: var(--git-code-function);
+}
+
 .blame-row {
     flex-direction: row;
     align-items: center;
