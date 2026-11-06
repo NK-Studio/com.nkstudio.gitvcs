@@ -99,7 +99,7 @@ namespace GitVersionControl
                 return;
             }
             bool atHead = startPoint == _services.Repository.HeadCommit;
-            if (atHead == false && await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (atHead == false && await BranchActions.PrepareWorkingTreeAsync(_services) == false)
             {
                 return;
             }
@@ -124,7 +124,7 @@ namespace GitVersionControl
                 await _services.Dialogs.AlertAsync(title, GitText.Format("branches.invalidName", name), ActionGlyphKind.Branch);
                 return;
             }
-            if (switchTo && await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (switchTo && await BranchActions.PrepareWorkingTreeAsync(_services) == false)
             {
                 return;
             }
@@ -173,7 +173,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            if (await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("commit.actionSwitch", commit.ShortHash)) == false)
+            if (await BranchActions.PrepareWorkingTreeAsync(_services) == false)
             {
                 return;
             }

@@ -218,6 +218,11 @@ namespace GitVersionControl
             {
                 args = LiteralStashPaths(args);
             }
+            // 원격 작업(pull·push·fetch·clone)은 진행을 받아 Git 창의 진행 카드에 보인다(GitProgress). 조용히 하는 자동 fetch 는 빼고.
+            if (isGit)
+            {
+                args = GitProgress.WithProgress(args);
+            }
             IReadOnlyList<string> finalArgs = WithGlobalOptions(args, tokenOverride, isGit ? GitSsl.CurrentArguments : null);
             ProcessStartInfo startInfo = new(executablePath)
             {
@@ -276,7 +281,8 @@ namespace GitVersionControl
                 // ReadToEndAsync 대신 전용 스레드에서 동기 ReadToEnd 를 쓴다: Mono 의 비동기 스트림 읽기는 continuation 을
                 // Unity 메인 스레드 동기화 컨텍스트로 보낼 수 있어서, 메인 스레드가 이 작업을 기다리면 교착된다.
                 Task<string> outputTask = Task.Factory.StartNew(() => process.StandardOutput.ReadToEnd(), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-                Task<string> errorTask = Task.Factory.StartNew(() => process.StandardError.ReadToEnd(), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                // stderr 는 흘려 읽으며 진행 줄(받기 45% 등)을 GitProgress 로 넘기고, 나머지만 오류 글로 남긴다.
+                Task<string> errorTask = Task.Factory.StartNew(() => GitProgress.Drain(process.StandardError), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                 if (process.WaitForExit(timeoutMs) == false)
                 {

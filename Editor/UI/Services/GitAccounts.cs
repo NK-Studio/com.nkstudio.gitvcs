@@ -63,7 +63,8 @@ namespace GitVersionControl
 
         /// <summary>
         /// 이 저장소의 GitHub API(Pull Request·커밋 아바타)와 Git 창 아래쪽 계정 표시에 쓰는 계정 이름.
-        /// 이 저장소에 계정을 골랐으면(gh·Git Credential Manager) 그 계정, 아니면 패키지 로그인(Preferences > Git). 둘 다 없으면 null.
+        /// 이 저장소에 계정을 골랐으면(gh·Git Credential Manager) 그 계정, 고르지 않았으면 git 이 이 저장소에 쓰는 계정(자격 증명 도우미가 돌려주는 계정),
+        /// 그것도 없으면 패키지 로그인(Preferences > Git). 모두 없으면 null.
         /// 계정을 골라도 git 통신만 바뀌고 PR 목록·아래쪽 표시는 패키지 로그인 그대로여서, 다른 계정의 저장소에서 PR 이 보이지 않았다.
         /// </summary>
         public static string ApiLogin => s_apiToken != null ? s_apiLogin : GitHubAccount.IsSignedIn ? GitHubAccount.Login : null;
@@ -113,7 +114,8 @@ namespace GitVersionControl
         /// <summary>
         /// <see cref="ApiLogin"/>·<see cref="ApiToken"/> 을 다시 정하고 <see cref="Changed"/> 를 알린다.
         /// gh 계정은 그 토큰을, Git Credential Manager·키체인 계정(저장소 설정에 이름을 적은 계정)은 <c>git credential fill</c> 로 꺼낸 토큰을 쓴다.
-        /// 패키지 로그인을 골랐거나 따로 고른 계정이 없으면 비워 패키지 로그인을 따르게 한다.
+        /// 따로 고르지 않았으면 git 이 이 저장소에 쓰는 계정(<c>git credential fill</c>)을 따른다.
+        /// 패키지 로그인을 골랐거나 도우미가 계정을 돌려주지 않으면 비워 패키지 로그인을 따르게 한다.
         /// </summary>
         private static async Task RefreshApiAccountAsync()
         {
@@ -133,15 +135,19 @@ namespace GitVersionControl
             }
             else if (settings.AccountSource == SourceDefault)
             {
+                // 이름을 적지 않았어도 git 이 이 저장소에 실제로 쓰는 계정(도우미가 돌려주는 계정, 예: gh 의 활성 계정)을 따른다.
+                // 그러지 않으면 git 은 gh 계정으로 통신하는데 아래쪽 표시·PR 목록은 패키지 로그인으로 보여 계정이 어긋났다.
                 GitResult chosen = await GitRepository.RunAsync("config", "--local", "--get", GitAuth.UsernameConfigKey);
                 string name = chosen.Success ? chosen.Output.Trim() : null;
-                (string owner, string repository)? remote = string.IsNullOrEmpty(name) ? null : await GitHubRemoteAsync();
+                (string owner, string repository)? remote = await GitHubRemoteAsync();
                 if (remote.HasValue)
                 {
-                    (string username, string password) = await FillAsync(remote.Value.owner, remote.Value.repository, name);
-                    if (string.IsNullOrEmpty(password) == false)
+                    (string username, string password) = await FillAsync(remote.Value.owner, remote.Value.repository, string.IsNullOrEmpty(name) ? null : name);
+                    string resolved = string.IsNullOrEmpty(username) ? name : username;
+                    // 토큰만 있고 이름이 없거나(x-access-token 등) 계정 이름이 아니면 패키지 로그인을 따른다.
+                    if (string.IsNullOrEmpty(password) == false && string.IsNullOrEmpty(resolved) == false && resolved != "x-access-token")
                     {
-                        login = string.IsNullOrEmpty(username) ? name : username;
+                        login = resolved;
                         token = password;
                     }
                 }

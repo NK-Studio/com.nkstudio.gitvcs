@@ -39,6 +39,7 @@ namespace GitVersionControl
         private readonly TwoPaneSplitView _split;
         private readonly CommitGraphList _list;
         private readonly CommitMenu _commitMenu;
+        private readonly RefActions _refActions;
         private readonly CommitFileMenu _fileMenu;
 
         private readonly Label _placeholder;
@@ -120,6 +121,7 @@ namespace GitVersionControl
             _state = state;
             _avatars = services.Avatars;
             _commitMenu = new CommitMenu(services);
+            _refActions = new RefActions(services);
 
             _range = Root.Require<DropdownField>("range");
             _summary = Root.Require<Label>("summary");
@@ -134,7 +136,11 @@ namespace GitVersionControl
 
             _list = new CommitGraphList(Root.Require<VisualElement>("list-host"), services.Avatars, detailColumns: true);
             _list.CommitSelected += Show;
+            _list.CommitChosen += node => GitCompareWindow.OpenCommit(node.Commit.Hash);
             _list.ContextMenuRequested += PopulateCommitMenu;
+            // 이름표(브랜치·태그)를 두 번 누르면 그 참조로 체크아웃한다(그래프 탭과 같다).
+            BranchActions branchActions = new(services);
+            _list.RefActivated += (node, commitRef) => _ = branchActions.SwitchToRefAsync(_list.Graph, node, commitRef);
 
             _placeholder = Root.Require<Label>("placeholder");
             AddPage(Page.Commit, "tab-commit", "commit-page");
@@ -298,7 +304,10 @@ namespace GitVersionControl
                 ShowPlaceholder();
             }
 
-            _summary.text = GitText.Format("explorer.summary", graph.Nodes.Count, graph.Lanes.Count) + (graph.Nodes.Count >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
+            // stash 는 커밋·가지 수에 넣지 않는다.
+            int commitCount = graph.Nodes.Count(node => node.Commit.IsStash == false);
+            int laneCount = graph.Lanes.Count(lane => lane.IsStash == false);
+            _summary.text = GitText.Format("explorer.summary", commitCount, laneCount) + (commitCount >= MaxCommits ? GitText.Format("explorer.capped", MaxCommits) : string.Empty);
             Render();
             TryReveal();
             // 기다리는 동안 저장소가 또 바뀌었으면 한 번 더 읽는다(도메인 리로드 직후 HEAD 를 모른 채 시작한 읽기가 빈 목록으로 남지 않게).
@@ -636,7 +645,9 @@ namespace GitVersionControl
             Texture2D texture = _avatars != null && _avatars.IsEnabled ? _avatars.TryGet(email, commitHash) : null;
             avatar.style.backgroundImage = texture == null ? StyleKeyword.Null : new StyleBackground(texture);
             avatar.style.backgroundColor = texture == null ? GraphStyle.AuthorColor(name) : Color.clear;
-            initials.text = texture == null ? GitDisplay.Initials(name) : string.Empty;
+            // 받는 중이면 머리글자 없이 색 동그라미만 둔다(받으면 사진, 못 받으면 머리글자로 다시 묶는다).
+            bool loading = texture == null && _avatars != null && _avatars.IsEnabled && _avatars.IsLoading(email);
+            initials.text = texture == null && loading == false ? GitDisplay.Initials(name) : string.Empty;
         }
 
         /// <summary>
@@ -856,6 +867,12 @@ namespace GitVersionControl
 
         private void PopulateCommitMenu(DropdownMenu menu, GitGraphNode node)
         {
+            // stash 줄은 사이드바 스태시와 같은 메뉴.
+            if (node.Commit.IsStash)
+            {
+                _refActions.PopulateStashMenu(menu, RefActions.StashOf(node.Commit));
+                return;
+            }
             string[] parents = node.Commit.Parents;
             GitGraphNode parent = parents.Length > 0 && _list.Graph != null && _list.Graph.NodeByHash.TryGetValue(parents[0], out GitGraphNode found) ? found : null;
             _commitMenu.Populate(menu, node.Commit, new CommitMenu.Hooks

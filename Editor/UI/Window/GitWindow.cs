@@ -208,6 +208,8 @@ namespace GitVersionControl
             _services.InlineBranches = this;
             _services.PopupHost = _window;
             GitPopupHosts.Register(this, _window);
+            // 오래 걸리는 작업(Pull·Push·Fetch)의 진행 카드: 오른쪽 아래에 단계·진행률·지난 시간을 보인다.
+            _ = new GitOperationCard(_window, _services.Runner);
             GitContextMenu.Attach(layout, _window);
             _refs =new RefSidebar(layout.Require<VisualElement>("sidebar-refs"), _services, _state.Refs);
             // 사이드바는 혼자 걷지 않고 처음 보이는 탭의 칸과 함께 걷는다(CoverWhileLoading).
@@ -268,6 +270,7 @@ namespace GitVersionControl
             _refs.CreatePullRequestRequested += createPullRequest.OpenFor;
             _services.AddRemoteRequested = addRemote.OpenForPublish;
             _services.ShowConflictsRequested = ShowConflicts;
+            _services.StashApplied = ShowAppliedStash;
             _services.CreatePullRequestRequested = createPullRequest.OpenFor;
             createPullRequest.Created += _refs.ReloadPullRequests;
             foreach (RefSection section in RefTreeBuilder.Sections)
@@ -833,6 +836,21 @@ namespace GitVersionControl
             }
             SelectTab(index);
             _views[index].ShowConflicts();
+        }
+
+        /// <summary>
+        /// stash 를 Apply·Pop 하면 그 변경이 Unstaged 로 돌아온다. 브랜치 탐색기 등 다른 탭에 있었어도 지금 레이아웃의 변경 탭
+        /// (GitKraken 작업 공간·Fork 로컬 변경·Unity VCS 대기 중인 변경)으로 옮기고 커밋 제목 칸에 그 stash 메시지를 적는다.
+        /// </summary>
+        private void ShowAppliedStash(string message)
+        {
+            int index = _views.FindIndex(view => view.ShowsChanges);
+            if (index < 0)
+            {
+                return;
+            }
+            SelectTab(index);
+            _views[index].ShowAppliedStash(GitStashRef.Label(message));
         }
 
         public T SelectTab<T>() where T : GitView

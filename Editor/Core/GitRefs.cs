@@ -25,6 +25,14 @@ namespace GitVersionControl
     public sealed class GitStashRef
     {
         /// <summary>
+        /// stash 메시지 앞의 "WIP on main: "·"On main: " 를 뗀 글. 그래프 stash 줄 제목과, 적용한 뒤 커밋 제목 칸에 채우는 글.
+        /// </summary>
+        public static string Label(string message)
+        {
+            return System.Text.RegularExpressions.Regex.Replace(message ?? string.Empty, @"^(WIP on|On) [^:]+: ", string.Empty).Trim();
+        }
+
+        /// <summary>
         /// "stash@{0}". git 명령에 그대로 넘긴다.
         /// </summary>
         public string Name;

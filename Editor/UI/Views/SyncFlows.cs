@@ -178,6 +178,9 @@ namespace GitVersionControl
         public async Task<GitResult> StashPopAsync()
         {
             string title = GitText.Get("op.pop");
+            // Pop 하면 목록에서 빠지므로 맨 위 stash 의 메시지를 먼저 읽어 둔다(끝나면 커밋 제목 칸에 적는다).
+            GitResult stashes = await GitRepository.RunAsync(GitRefs.StashesCommand);
+            string message = stashes.Success ? GitRefs.ParseStashes(stashes.Output).FirstOrDefault()?.Message : null;
             // stash 에 든 새 파일(untracked)이 작업 폴더에 이미 있으면 git 은 추적 파일만 되돌린 채 멈춰 반쪽 상태가 된다.
             // 그래서 Pop 전에 겹치는 파일을 찾는다: 내용이 같으면 조용히 치우고, 다르면 버릴지 묻는다.
             (List<string> same, List<string> differ) = await UntrackedCollisionsAsync();
@@ -192,6 +195,10 @@ namespace GitVersionControl
                 DeleteWorkingFiles(clear);
                 return _services.Commands.StashPopAsync();
             }, refreshAssets: true, showErrorDialog: false);
+            if (result.Success)
+            {
+                _services.StashApplied?.Invoke(message);
+            }
             if (result.Success || result.IsCancelled)
             {
                 return result;
@@ -209,7 +216,7 @@ namespace GitVersionControl
             {
                 return result;
             }
-            return await _services.Runner.RunAsync(title, async () =>
+            GitResult retried = await _services.Runner.RunAsync(title, async () =>
             {
                 GitResult discard = await GitRepository.RunAsync(new[] { "checkout", "--" }.Concat(blocking).ToArray());
                 if (discard.Success == false)
@@ -221,6 +228,11 @@ namespace GitVersionControl
                 DeleteWorkingFiles(restoredSame.Concat(restoredDiffer));
                 return await _services.Commands.StashPopAsync();
             }, refreshAssets: true);
+            if (retried.Success)
+            {
+                _services.StashApplied?.Invoke(message);
+            }
+            return retried;
         }
 
         /// <summary>

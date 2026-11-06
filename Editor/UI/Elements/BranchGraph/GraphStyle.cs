@@ -86,6 +86,30 @@ namespace GitVersionControl
         /// <summary>밝은 배경에서 배경색 쪽으로 섞는 비율.</summary>
         private const float MutedLightBlend = 0.85f;
 
+        // 세로 그래프 열 색. GitKraken 기본 테마와 같은 열 번호 순서: 청록·파랑·보라·자홍·분홍·빨강·주황·노랑·연두·초록.
+        private static readonly Color[] ColumnColors =
+        {
+            new(0.082f, 0.627f, 0.749f),
+            new(0.024f, 0.412f, 0.969f),
+            new(0.557f, 0f, 0.761f),
+            new(0.773f, 0.090f, 0.714f),
+            new(0.851f, 0.004f, 0.443f),
+            new(0.804f, 0.004f, 0.004f),
+            new(0.949f, 0.365f, 0.180f),
+            new(0.949f, 0.792f, 0.200f),
+            new(0.482f, 0.851f, 0.220f),
+            new(0.180f, 0.808f, 0.616f),
+        };
+
+        /// <summary>
+        /// 세로 그래프(GitKraken) 가지 색. 브랜치 이름이 아니라 열 번호(<see cref="GitGraphLane.Row"/>)로만 정한다 — GitKraken 과 같다.
+        /// </summary>
+        public static Color VerticalLaneColor(GitGraphLane lane)
+        {
+            return ColumnColors[Mathf.Max(0, lane.Row) % ColumnColors.Length];
+        }
+
+        /// <summary>가로 탐색기 가지 색. 브랜치 이름에서 정한 번호, 이름 없는 줄은 회색 쪽으로 섞는다.</summary>
         public static Color LaneColor(GitGraphLane lane)
         {
             Color color = LaneColors[lane.ColorIndex % LaneColors.Length];

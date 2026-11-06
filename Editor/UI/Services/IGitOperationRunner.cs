@@ -20,6 +20,14 @@ namespace GitVersionControl
         /// <summary>IsBusy 나 StatusText 가 바뀔 때.</summary>
         event Action StateChanged;
 
+        /// <summary>작업을 시작했다(작업 이름). 진행 카드(<see cref="GitOperationCard"/>)가 듣는다.</summary>
+        event Action<string> OperationStarted;
+
+        /// <summary>
+        /// git 결과가 나왔다(작업 이름, 성공). 오류 알림을 띄우기 전·새로고침을 기다리기 전에 부른다 — 진행 카드가 바로 "완료" 를 보이거나 닫히게.
+        /// </summary>
+        event Action<string, bool> OperationFinished;
+
         /// <param name="refreshAssets">작업 트리 파일이 바뀌는 작업(Pull·전환·되돌리기)이면 끝난 뒤 AssetDatabase 를 새로고침한다.</param>
         /// <param name="workingTreeOnly">HEAD·브랜치·stash 를 바꾸지 않는 작업(Stage·Unstage)이면 true — 끝난 뒤 git status 만 다시 읽는다.</param>
         Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false);
@@ -70,6 +78,8 @@ namespace GitVersionControl
         /// </summary>
         public Func<string, string, Task<bool>> LocalChangesHandler { get; set; }
         public event Action StateChanged;
+        public event Action<string> OperationStarted;
+        public event Action<string, bool> OperationFinished;
 
         public async Task<GitResult> RunAsync(string title, Func<Task<GitResult>> operation, bool refreshAssets, bool showErrorDialog = true, bool workingTreeOnly = false)
         {
@@ -77,6 +87,8 @@ namespace GitVersionControl
             IsBusy = true;
             s_activeCount++;
             SetStatus(GitText.Format("runner.running", title));
+            OperationStarted?.Invoke(title);
+            bool finishedReported = false;
             GitResult result;
             try
             {
@@ -124,6 +136,8 @@ namespace GitVersionControl
                     }
                 }
                 SetStatus(result.Success ? string.Empty : GitText.Format("runner.failed", title));
+                finishedReported = true;
+                OperationFinished?.Invoke(title, result.Success);
                 if (result.Success == false)
                 {
                     ClearStatusLater(StatusText);
@@ -147,6 +161,11 @@ namespace GitVersionControl
             }
             finally
             {
+                // 도중에 예외로 끝났으면 진행 카드를 닫는다.
+                if (finishedReported == false)
+                {
+                    OperationFinished?.Invoke(title, false);
+                }
                 // 결과가 화면에 반영될 때까지(새로고침 뒤 Changed) 바쁨으로 둔다 — 그 전에 버튼이 다시 켜지면 낡은 목록 위에서
                 // 또 누를 수 있다(GitKraken 도 그때까지 버튼을 끈다). 새로고침이 멈춰도 버튼이 영영 꺼져 있지 않게 시간을 둔다.
                 _repository.RequestRefresh(immediate: true, workingTreeOnly);

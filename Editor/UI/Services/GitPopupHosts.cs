@@ -90,6 +90,24 @@ namespace GitVersionControl
             return host;
         }
 
+        /// <summary>
+        /// <paramref name="host"/> 를 가진 창에 키보드 포커스를 준다. 컨텍스트 메뉴 등에서 띄워 창에 포커스가 없으면 Esc·Enter 가 팝업에 오지 않는다.
+        /// </summary>
+        public static void FocusWindowOf(VisualElement host)
+        {
+            foreach ((EditorWindow window, VisualElement registered) in s_hosts)
+            {
+                if (window != null && registered == host)
+                {
+                    if (EditorWindow.focusedWindow != window)
+                    {
+                        window.Focus();
+                    }
+                    return;
+                }
+            }
+        }
+
         private static Task s_tail = Task.CompletedTask;
 
         /// <summary>

@@ -1761,6 +1761,12 @@
     border-radius: 0;
 }
 
+/* Unity 기본 스킨은 마우스를 올리거나(:hover) 포커스하면 입력란 안쪽 여백을 바꿔(좌우 2·아래 0) 글자와 칸 높이가 흔들린다 — 같은 여백을 그 상태에도 더 세게 적는다. */
+.git-merge__edit.unity-base-text-field.unity-text-field:hover:enabled > .unity-text-field__input,
+.git-merge__edit.unity-base-text-field.unity-text-field:focus:enabled > .unity-text-field__input {
+    padding: 6px 8px;
+}
+
 /* 충돌 표시를 지운 파일을 git 기록으로 다시 보일 때의 안내 줄. */
 .git-merge__notice {
     flex-shrink: 0;

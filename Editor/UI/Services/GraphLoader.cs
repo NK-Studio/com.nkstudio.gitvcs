@@ -16,6 +16,7 @@ namespace GitVersionControl
         /// <param name="headHash">없으면(커밋 없는 저장소) 커밋은 읽지 않는다.</param>
         /// <param name="topDown">세로 그래프: GitKraken 처럼 위부터 열을 준다(<see cref="GitGraph.Build(List{GitCommitInfo}, List{GitBranchRef}, string, string, bool, bool)"/>).</param>
         /// <param name="headFirst">작업 중 줄이 맨 위에 있어 지금 브랜치가 맨 왼쪽 열을 차지한다.</param>
+        /// <remarks>세로 그래프(<paramref name="topDown"/>)는 stash 를 만든 자리 위에 끼워 함께 그린다.</remarks>
         public static async Task<(GitGraph graph, string error)> LoadAsync(IGitHistoryService history, string headHash, DateTime? since, int maxCommits,
             bool topDown = false, bool headFirst = false)
         {
@@ -27,7 +28,7 @@ namespace GitVersionControl
             {
                 Task<(List<GitCommitInfo> commits, string error)> logTask = headHash == null
                     ? Task.FromResult((new List<GitCommitInfo>(), (string)null))
-                    : history.GraphLogAsync(since, maxCommits);
+                    : history.GraphLogAsync(since, maxCommits, withStashes: topDown);
                 Task<(List<GitBranchRef> branches, string error)> branchTask = history.BranchesAsync();
                 (List<GitCommitInfo> commits, string logError) = await logTask;
                 (List<GitBranchRef> branches, string branchError) = await branchTask;

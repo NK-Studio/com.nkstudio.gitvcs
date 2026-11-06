@@ -297,6 +297,160 @@ namespace GitVersionControl.Tests
             Assert.AreEqual(1, LaneNamed(graph, "current").Row);
         }
 
+        [Test]
+        public void Test_Build_TopDown_MergedBranchOpensNextToItsMerge()
+        {
+            // GitKraken: M(main) 이 X2 를 병합하면 병합 줄에서 바로 옆 빈 열을 잡는다 — 그 아래 끝 커밋 T 보다 먼저.
+            GitGraph graph = TopDown(
+                new[] { Commit("A"), Commit("X1", "A"), Commit("X2", "X1"), Commit("T", "A"), Commit("B", "A"), Commit("M", "B", "X2") },
+                new[] { Branch("main", "M", isCurrent: true, days: 2), Branch("topic", "T", days: 1) }, "M");
+
+            Assert.AreEqual(0, graph.NodeByHash["M"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["X2"].Lane.Row);
+            Assert.AreSame(graph.NodeByHash["X2"].Lane, graph.NodeByHash["X1"].Lane);
+            Assert.AreEqual(2, graph.NodeByHash["T"].Lane.Row);
+            Assert.AreEqual(3, graph.RowCount);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_ColumnIsReusedRightAfterBranchEnds()
+        {
+            // f1 은 C 줄에서 끝나고, 바로 아래 줄의 g1 이 그 열을 이어 쓴다(여유 칸 없이 — GitKraken 과 같다).
+            GitGraph graph = TopDown(
+                new[] { Commit("A"), Commit("B", "A"), Commit("g1", "A"), Commit("C", "B"), Commit("f1", "C"), Commit("D", "C") },
+                new[] { Branch("main", "D", isCurrent: true, days: 3), Branch("f", "f1", days: 2), Branch("g", "g1", days: 1) }, "D");
+
+            Assert.AreEqual(1, graph.NodeByHash["f1"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["g1"].Lane.Row);
+            Assert.AreEqual(0, graph.NodeByHash["A"].Lane.Row);
+            Assert.AreEqual(2, graph.RowCount);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_ParentGoesToLeftmostBranchChild()
+        {
+            // X(1열)가 먼저 P 를 잡아도 아래의 0열 자식 Y1 이 P 를 데려간다 — X 의 열은 P 줄에서 꺾여 끝난다.
+            GitGraph graph = TopDown(
+                new[] { Commit("P"), Commit("Y1", "P"), Commit("X", "P"), Commit("Y2", "Y1") },
+                new[] { Branch("y", "Y2", isCurrent: true, days: 2), Branch("x", "X", days: 1) }, "Y2");
+
+            Assert.AreEqual(0, graph.NodeByHash["Y2"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["X"].Lane.Row);
+            Assert.AreSame(graph.NodeByHash["Y1"].Lane, graph.NodeByHash["P"].Lane);
+            Assert.AreEqual(0, graph.NodeByHash["P"].Lane.Row);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_LaneTipLabelFollowsBranchNotColumn()
+        {
+            // 열은 GitKraken 규칙으로 다시 짜도, 가지 끝 이름표는 브랜치 끝 커밋에만 붙는다.
+            GitGraph graph = TopDown(
+                new[] { Commit("A"), Commit("X1", "A"), Commit("B", "A"), Commit("M", "B", "X1") },
+                new[] { Branch("main", "M", isCurrent: true) }, "M");
+
+            Assert.AreEqual("main", graph.NodeByHash["M"].BranchLane.Name);
+            Assert.AreEqual("main", graph.NodeByHash["A"].BranchLane.Name);
+            Assert.IsTrue(graph.NodeByHash["X1"].BranchLane.IsAnonymous);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_StashOnBranchTipContinuesItsColumn()
+        {
+            GitGraph graph = TopDown(new[] { Commit("A"), Commit("B", "A"), Stash("S", "stash@{0}", "B") },
+                new[] { Branch("main", "B", isCurrent: true, days: 1) }, "B");
+
+            GitGraphLane lane = graph.NodeByHash["S"].Lane;
+            Assert.IsTrue(lane.IsStash);
+            Assert.AreEqual("stash@{0}", lane.Name);
+            Assert.AreEqual(graph.NodeByHash["B"].Lane.Row, lane.Row);
+            Assert.AreEqual(0, graph.NodeByHash["S"].RefLabels.Count);
+            Assert.AreEqual(1, graph.RowCount);
+        }
+
+        [Test]
+        public void Test_Build_TopDown_StashDoesNotPushBranchLanes()
+        {
+            // B 에서 stash 한 뒤 C 를 커밋: stash 는 main 줄기를 밀어내지 않고 옆 열에.
+            GitGraph graph = TopDown(new[] { Commit("A"), Commit("B", "A"), Commit("C", "B"), Stash("S", "stash@{0}", "B") },
+                new[] { Branch("main", "C", isCurrent: true, days: 1) }, "C");
+            Assert.AreEqual(0, graph.NodeByHash["C"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["S"].Lane.Row);
+
+            // 같은 끝에서 만든 stash 둘: 새 것(위)이 이어 쓰고 다른 하나는 옆 열.
+            graph = TopDown(new[] { Commit("A"), Stash("S1", "stash@{1}", "A"), Stash("S0", "stash@{0}", "A") },
+                new[] { Branch("main", "A", isCurrent: true, days: 1) }, "A");
+            Assert.AreEqual(0, graph.NodeByHash["S0"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["S1"].Lane.Row);
+
+            // 옆 가지 끝(F) 바로 위는 비어 있으면 쓴다.
+            graph = TopDown(new[] { Commit("A"), Commit("F", "A"), Commit("C", "A"), Stash("S1", "stash@{1}", "C"), Stash("S0", "stash@{0}", "C") },
+                new[] { Branch("main", "C", isCurrent: true, days: 1), Branch("feature", "F", days: 2) }, "C");
+            Assert.AreEqual(0, graph.NodeByHash["C"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["F"].Lane.Row);
+            Assert.AreEqual(0, graph.NodeByHash["S0"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["S1"].Lane.Row);
+            Assert.AreEqual(2, graph.RowCount);
+        }
+
+        [Test]
+        public void Test_Build_TopDownHeadFirst_StashLeavesCurrentColumnToWorkInProgress()
+        {
+            GitGraph graph = TopDown(new[] { Commit("A"), Commit("B", "A"), Stash("S", "stash@{0}", "B") },
+                new[] { Branch("main", "B", isCurrent: true, days: 1) }, "B", headFirst: true);
+
+            Assert.AreEqual(0, graph.NodeByHash["B"].Lane.Row);
+            Assert.AreEqual(1, graph.NodeByHash["S"].Lane.Row);
+        }
+
+        [Test]
+        public void Test_InsertStashes_GoAboveTheirBaseInTimeOrder()
+        {
+            List<GitCommitInfo> commits = new() { At("c3", 30, "c2"), At("c2", 20, "c1"), At("c1", 10) };
+            List<(string, GitCommitInfo)> stashes = new()
+            {
+                // 만든 뒤 c3 가 커밋됐다.
+                ("stash@{0}", At("s0", 25, "c2", "i0", "u0")),
+                // 시각이 바탕 커밋보다 이르게 찍혀도 바탕 위.
+                ("stash@{1}", At("s1", 5, "c1", "i1")),
+                // 바탕이 읽은 범위 밖: 시각으로.
+                ("stash@{2}", At("s2", 15, "gone")),
+            };
+            GitHistory.InsertStashes(commits, stashes, truncated: false);
+            CollectionAssert.AreEqual(new[] { "c3", "s0", "c2", "s2", "s1", "c1" }, commits.Select(c => c.Hash).ToArray());
+            CollectionAssert.AreEqual(new[] { "c2" }, commits[1].Parents, "index·새 파일 부모는 버린다");
+            Assert.AreEqual("stash@{0}", commits[1].StashName);
+            Assert.IsFalse(commits[0].IsStash);
+
+            // 같은 시각의 stash 둘은 새 것이 위, 둘 다 바탕 위.
+            commits = new List<GitCommitInfo> { At("c1", 10) };
+            GitHistory.InsertStashes(commits, new List<(string, GitCommitInfo)> { ("stash@{0}", At("s0", 10, "c1")), ("stash@{1}", At("s1", 10, "c1")) }, truncated: false);
+            CollectionAssert.AreEqual(new[] { "s0", "s1", "c1" }, commits.Select(c => c.Hash).ToArray());
+
+            // 잘린 히스토리보다 오래되고 바탕도 없으면 뺀다.
+            commits = new List<GitCommitInfo> { At("c2", 20, "c1") };
+            GitHistory.InsertStashes(commits, new List<(string, GitCommitInfo)> { ("stash@{0}", At("s0", 5, "old")) }, truncated: true);
+            CollectionAssert.AreEqual(new[] { "c2" }, commits.Select(c => c.Hash).ToArray());
+        }
+
+        private static GitCommitInfo At(string hash, int minutes, params string[] parents)
+        {
+            GitCommitInfo commit = Commit(hash, parents);
+            commit.Date = BaseDate.AddMinutes(minutes);
+            return commit;
+        }
+
+        private static GitCommitInfo Stash(string hash, string name, string baseHash)
+        {
+            GitCommitInfo commit = Commit(hash, baseHash);
+            commit.StashName = name;
+            return commit;
+        }
+
+        private static GitGraph TopDown(GitCommitInfo[] commitsOldestFirst, GitBranchRef[] branches, string headHash, bool headFirst = false)
+        {
+            return GitGraph.Build(commitsOldestFirst.Reverse().ToList(), branches.ToList(), headHash, "merged", topDown: true, headFirst: headFirst);
+        }
+
         private static GitGraph Build(GitCommitInfo[] commitsOldestFirst, GitBranchRef[] branches, string headHash)
         {
             List<GitCommitInfo> newestFirst = commitsOldestFirst.Reverse().ToList();

@@ -43,6 +43,7 @@ namespace GitVersionControl
         private readonly CommitBox _commit;
         private readonly GraphCommitDetail _detail;
         private readonly CommitMenu _commitMenu;
+        private readonly RefActions _refActions;
         private readonly CommitActions _actions;
         private readonly BranchActions _branchActions;
 
@@ -141,6 +142,7 @@ namespace GitVersionControl
             };
             _detail.ParentRequested += hash => _graph.SelectCommit(hash);
             _commitMenu = new CommitMenu(services);
+            _refActions = new RefActions(services);
             _actions = new CommitActions(services);
             _branchActions = new BranchActions(services);
 
@@ -470,6 +472,14 @@ namespace GitVersionControl
 
         public override bool ShowsChanges => true;
 
+        public override void ShowAppliedStash(string subject)
+        {
+            CloseDiff();
+            ShowWorkingChanges();
+            _graph.SelectWip();
+            _commit.FillFromStash(subject);
+        }
+
         /// <summary>충돌 안내의 "충돌 보기": 작업 변경으로 바꾸고 첫 충돌 파일의 diff 를 연다.</summary>
         public override void ShowConflicts()
         {
@@ -589,24 +599,7 @@ namespace GitVersionControl
         /// </summary>
         private void SwitchToRef(GitGraphNode node, CommitRef commitRef)
         {
-            if (Services.Runner.IsBusy || commitRef.Kind == CommitRefKind.Current)
-            {
-                return;
-            }
-            if (commitRef.Kind == CommitRefKind.Tag)
-            {
-                _ = _actions.SwitchToAsync(node.Commit);
-                return;
-            }
-            IReadOnlyList<GitBranchRef> branches = _graph.Graph?.Branches ?? new List<GitBranchRef>();
-            GitBranchRef branch = branches.FirstOrDefault(b => b.Name == commitRef.Name)
-                                  ?? new GitBranchRef { Name = commitRef.Name, IsRemote = commitRef.Kind == CommitRefKind.Remote };
-            if (branch.IsCurrent)
-            {
-                return;
-            }
-            HashSet<string> localNames = new(branches.Where(b => b.IsRemote == false).Select(b => b.Name));
-            _ = _branchActions.SwitchAsync(branch, localNames);
+            _ = _branchActions.SwitchToRefAsync(_graph.Graph, node, commitRef);
         }
 
         /// <summary>
@@ -615,6 +608,12 @@ namespace GitVersionControl
         private void PopulateCommitMenu(DropdownMenu menu, GitGraphNode node)
         {
             GitCommitInfo commit = node.Commit;
+            // stash 줄은 사이드바 스태시와 같은 메뉴.
+            if (commit.IsStash)
+            {
+                _refActions.PopulateStashMenu(menu, RefActions.StashOf(commit));
+                return;
+            }
             string parent = commit.Parents.Length > 0 && _graph.Graph != null && _graph.Graph.NodeByHash.ContainsKey(commit.Parents[0]) ? commit.Parents[0] : null;
             _commitMenu.Populate(menu, commit, new CommitMenu.Hooks
             {

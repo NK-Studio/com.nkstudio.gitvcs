@@ -98,6 +98,13 @@ namespace GitVersionControl
         }
 
         /// <summary>"충돌 보기": 탭을 앞으로 가져온 뒤에 불린다. 첫 충돌 파일의 diff 를 연다.</summary>
+        /// <summary>
+        /// stash 를 Apply·Pop 한 뒤(변경 탭만): 작업 변경을 보이고, 커밋 제목이 비어 있으면 그 stash 메시지(<see cref="GitStashRef.Label"/>)를 적는다.
+        /// </summary>
+        public virtual void ShowAppliedStash(string subject)
+        {
+        }
+
         public virtual void ShowConflicts()
         {
         }

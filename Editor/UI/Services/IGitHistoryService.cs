@@ -8,7 +8,7 @@ namespace GitVersionControl
     public interface IGitHistoryService
     {
         Task<(List<GitCommitInfo> commits, string error)> LogAsync(string revisionRange, bool allRefs, int skip, int maxCount);
-        Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount);
+        Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount, bool withStashes = false);
         Task<List<GitFileChange>> CommitFilesAsync(string hash);
         Task<string> CommitMessageAsync(string hash);
         Task<List<GitFileChange>> ChangedSinceMergeBaseAsync(string from, string to);
@@ -26,8 +26,8 @@ namespace GitVersionControl
         public Task<(List<GitCommitInfo> commits, string error)> LogAsync(string revisionRange, bool allRefs, int skip, int maxCount)
             => GitHistory.LogAsync(revisionRange, allRefs, skip, maxCount);
 
-        public Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount)
-            => GitHistory.GraphLogAsync(since, maxCount);
+        public Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount, bool withStashes = false)
+            => GitHistory.GraphLogAsync(since, maxCount, withStashes);
 
         public Task<List<GitFileChange>> CommitFilesAsync(string hash) => GitHistory.CommitFilesAsync(hash);
 

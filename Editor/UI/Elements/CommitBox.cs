@@ -103,6 +103,27 @@ namespace GitVersionControl
             _subject.value = subject ?? string.Empty;
         }
 
+        /// <summary>앞서 stash 로 채운 제목. 그대로면 다음 stash 를 적용할 때 바꿔 적는다.</summary>
+        private string _stashSubject;
+
+        /// <summary>
+        /// stash 를 적용한 뒤: 제목이 비어 있으면(템플릿 그대로·앞서 stash 로 채운 그대로 포함) 그 stash 메시지를 적는다. 쓰던 제목과 Amend 중이면 건드리지 않는다.
+        /// </summary>
+        public void FillFromStash(string subject)
+        {
+            if (string.IsNullOrEmpty(subject) || _amend.value)
+            {
+                return;
+            }
+            bool untouched = (_stashSubject != null && _subject.value == _stashSubject) || IsUntouched();
+            if (untouched == false)
+            {
+                return;
+            }
+            _stashSubject = subject;
+            _subject.value = subject;
+        }
+
         private void RefillIfEmpty(TextField field, string templateText)
         {
             if (_template != null && string.IsNullOrWhiteSpace(field.value))

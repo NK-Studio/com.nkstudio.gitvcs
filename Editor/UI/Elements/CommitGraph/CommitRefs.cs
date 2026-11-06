@@ -54,10 +54,11 @@ namespace GitVersionControl
         public static IReadOnlyList<CommitRef> Of(GitGraphNode node, bool mergeRemotes = true)
         {
             List<CommitRef> refs = new();
-            if (node.Column == node.Lane.LastColumn && node.Lane.IsAnonymous == false)
+            GitGraphLane branch = node.BranchLane ?? node.Lane;
+            if (node.Column == branch.LastColumn && branch.IsAnonymous == false && branch.IsStash == false)
             {
-                CommitRefKind kind = node.Lane.IsCurrent ? CommitRefKind.Current : node.Lane.IsRemote ? CommitRefKind.Remote : CommitRefKind.Local;
-                refs.Add(new CommitRef(node.Lane.Name, kind));
+                CommitRefKind kind = branch.IsCurrent ? CommitRefKind.Current : branch.IsRemote ? CommitRefKind.Remote : CommitRefKind.Local;
+                refs.Add(new CommitRef(branch.Name, kind));
             }
             foreach (string label in node.RefLabels)
             {

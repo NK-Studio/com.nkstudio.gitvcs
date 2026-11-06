@@ -864,6 +864,12 @@
     font-size: 13px;
 }
 
+/* Unity 기본 스킨은 마우스를 올리거나(:hover) 포커스하면 입력란 안쪽 여백을 바꿔(좌우 2·아래 0) 글자와 칸 높이가 흔들린다 — 같은 여백을 그 상태에도 더 세게 적는다. */
+.branch-dialog .branch-dialog__input.unity-base-text-field:hover:enabled > .unity-base-text-field__input,
+.branch-dialog .branch-dialog__input.unity-base-text-field:focus:enabled > .unity-base-text-field__input {
+    padding: 0 2px;
+}
+
 /* 여러 개 중 하나를 고르는 팝업(GitPickDialog). */
 .pick-dialog__list {
     margin-top: 10px;
@@ -1023,6 +1029,50 @@
 
 .branch-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline {
     border-color: var(--git-danger);
+}
+
+/* 유니티 기본 포커스 테두리(파란 링)는 끈다 — Enter 대상 표시는 위의 채움 하나로만. */
+.confirm-dialog .branch-dialog__create:focus,
+.confirm-dialog .branch-dialog__cancel:focus {
+    border-width: 1px;
+}
+
+.confirm-dialog .branch-dialog__cancel:focus:enabled {
+    border-color: var(--git-button-border);
+}
+
+.confirm-dialog .branch-dialog__create:focus:enabled {
+    border-color: var(--git-accent);
+}
+
+.confirm-dialog .branch-dialog__create.confirm-dialog__button--danger:focus:enabled,
+.confirm-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline:focus:enabled {
+    border-color: var(--git-danger);
+}
+
+/* Enter 가 누를 버튼(confirm-dialog__button--default, 기본은 확인·Tab 으로 옮기면 따라간다): 포커스 규칙보다 뒤·같은 세기라 이것이 이긴다. 마우스를 올린 것처럼 꽉 채워 무엇이 실행될지 보이게 한다. */
+.confirm-dialog.branch-dialog .branch-dialog__create.confirm-dialog__button--default {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.confirm-dialog.branch-dialog .branch-dialog__create.confirm-dialog__button--danger.confirm-dialog__button--default {
+    background-color: var(--git-danger-strong);
+    border-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
+}
+
+.confirm-dialog.branch-dialog .branch-dialog__cancel.confirm-dialog__button--default {
+    background-color: var(--git-accent);
+    border-color: var(--git-accent);
+    color: var(--git-accent-text);
+}
+
+.confirm-dialog.branch-dialog .branch-dialog__cancel.confirm-dialog__button--danger-outline.confirm-dialog__button--default {
+    background-color: var(--git-danger-strong);
+    border-color: var(--git-danger-strong);
+    color: var(--git-on-strong);
 }
 
 /* 안내 글: 아이콘 아래 제목 시작선(배지 44 + 간격 14)에 맞춰 들이고 줄바꿈을 그대로 보인다. */

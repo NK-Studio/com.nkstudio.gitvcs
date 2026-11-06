@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GitVersionControl
@@ -16,6 +17,14 @@ namespace GitVersionControl
         /// <summary><c>%D</c> 그대로("HEAD -> main, origin/main, tag: v1.0"). 없으면 빈 문자열.</summary>
         public string Refs;
         public string Subject;
+
+        /// <summary>
+        /// stash 이름("stash@{0}"). 세로 그래프는 stash 커밋을 첫 부모(만든 자리)만 남겨 그 위에 끼운다 — <see cref="GitHistory.InsertStashes"/>.
+        /// 일반 커밋은 null.
+        /// </summary>
+        public string StashName;
+
+        public bool IsStash => StashName != null;
 
         public bool IsMerge => Parents.Length > 1;
     }
@@ -117,9 +126,19 @@ namespace GitVersionControl
         /// <summary>
         /// Branch Explorer 용: 모든 브랜치·태그에서 닿는 커밋. <paramref name="since"/> 이전 커밋은 빼서 그래프 크기를 제한한다.
         /// </summary>
-        public static async Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount)
+        /// <param name="withStashes">
+        /// 세로 그래프: <c>refs/stash</c> 를 빼고 읽은 뒤(그대로 두면 stash 의 index·새 파일 커밋까지 따라 들어온다) 모든 stash 를
+        /// 만든 자리 위에 따로 끼운다(<see cref="InsertStashes"/>). 그래프는 점선 상자로 그린다.
+        /// </param>
+        public static async Task<(List<GitCommitInfo> commits, string error)> GraphLogAsync(DateTime? since, int maxCount, bool withStashes = false)
         {
-            List<string> args = new() { "log", LogFormat, "--date-order", "--all", $"--max-count={maxCount}" };
+            List<string> args = new() { "log", LogFormat, "--date-order" };
+            if (withStashes)
+            {
+                args.Add("--exclude=refs/stash");
+            }
+            args.Add("--all");
+            args.Add($"--max-count={maxCount}");
             if (since.HasValue)
             {
                 args.Add($"--since={since.Value:yyyy-MM-dd}");
@@ -127,7 +146,89 @@ namespace GitVersionControl
             args.Add("--");
 
             GitResult result = await GitRepository.RunAsync(args.ToArray());
-            return result.Success ? (ParseCommits(result.Output), null) : (new List<GitCommitInfo>(), result.Message);
+            if (result.Success == false)
+            {
+                return (new List<GitCommitInfo>(), result.Message);
+            }
+            List<GitCommitInfo> commits = ParseCommits(result.Output);
+            if (withStashes)
+            {
+                bool truncated = commits.Count >= maxCount || since.HasValue;
+                InsertStashes(commits, await StashCommitsAsync(), truncated);
+            }
+            return (commits, null);
+        }
+
+        /// <summary>stash 마다 (이름, 커밋). 새 stash 가 앞. 읽지 못하면 비운다(그래프에 stash 만 빠진다).</summary>
+        private static async Task<List<(string name, GitCommitInfo commit)>> StashCommitsAsync()
+        {
+            List<(string, GitCommitInfo)> stashes = new();
+            GitResult list = await GitRepository.RunAsync(GitRefs.StashesCommand);
+            if (list.Success == false)
+            {
+                return stashes;
+            }
+            List<GitStashRef> refs = GitRefs.ParseStashes(list.Output);
+            if (refs.Count == 0)
+            {
+                return stashes;
+            }
+            List<string> args = new() { "log", "--no-walk=unsorted", LogFormat };
+            args.AddRange(refs.Select(stash => stash.Hash));
+            GitResult log = await GitRepository.RunAsync(args.ToArray());
+            if (log.Success == false)
+            {
+                return stashes;
+            }
+            Dictionary<string, GitCommitInfo> byHash = new();
+            foreach (GitCommitInfo commit in ParseCommits(log.Output))
+            {
+                byHash[commit.Hash] = commit;
+            }
+            foreach (GitStashRef stash in refs)
+            {
+                if (byHash.TryGetValue(stash.Hash, out GitCommitInfo commit))
+                {
+                    stashes.Add((stash.Name, commit));
+                }
+            }
+            return stashes;
+        }
+
+        /// <summary>
+        /// stash 커밋들을 히스토리(새 커밋이 앞)에 시각 순서대로 끼운다. <paramref name="stashes"/> 는 새 stash 가 앞이다.
+        /// stash 커밋의 index·새 파일 부모는 버리고 첫 부모(만든 자리)만 남긴다 — 늘 그 부모보다 위에 놓인다.
+        /// 읽은 범위(<paramref name="truncated"/>)보다 오래되어 만든 자리도 없는 stash 는 넣지 않는다.
+        /// </summary>
+        public static void InsertStashes(List<GitCommitInfo> commits, List<(string name, GitCommitInfo commit)> stashes, bool truncated)
+        {
+            foreach ((string name, GitCommitInfo stash) in stashes)
+            {
+                stash.Parents = stash.Parents.Length > 0 ? new[] { stash.Parents[0] } : Array.Empty<string>();
+                stash.Refs = string.Empty;
+                stash.StashName = name;
+                int baseAt = stash.Parents.Length > 0 ? commits.FindIndex(c => c.Hash == stash.Parents[0]) : -1;
+                // 같은 시각이면 먼저 넣은(더 새) stash·커밋 밑으로.
+                int byTime = commits.FindIndex(c => c.Date < stash.Date);
+                int at;
+                if (baseAt >= 0)
+                {
+                    at = byTime >= 0 ? Math.Min(byTime, baseAt) : baseAt;
+                }
+                else if (byTime >= 0)
+                {
+                    at = byTime;
+                }
+                else if (truncated)
+                {
+                    continue;
+                }
+                else
+                {
+                    at = commits.Count;
+                }
+                commits.Insert(at, stash);
+            }
         }
 
         /// <summary>커밋이 부모(병합이면 첫 부모) 대비 바꾼 파일. 최초 커밋은 빈 트리 대비.</summary>

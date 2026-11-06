@@ -772,8 +772,9 @@ namespace GitVersionControl
                 {
                     _labels.PlaceCircleImage(Block + "__avatar", avatar, p, radius).style.opacity = opacity;
                 }
-                else
+                else if (_avatars == null || _avatars.IsLoading(node.Commit.AuthorEmail) == false)
                 {
+                    // 받는 중이면 머리글자를 비워 둔다(받으면 다시 그린다).
                     Label initials = _labels.Place(Block + "__initials", GitDisplay.Initials(node.Commit.AuthorName),
                         new Vector2(p.x - radius, p.y - radius), new Vector2(radius * 2f, radius * 2f), initialsSize);
                     initials.style.opacity = opacity;

@@ -39,11 +39,36 @@ namespace GitVersionControl
         public async Task SwitchAsync(GitBranchRef branch, ICollection<string> localNames)
         {
             GitBranchRef target = ResolveSwitchTarget(branch, localNames);
-            if (await PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionSwitch", target.Name)) == false)
+            if (await PrepareWorkingTreeAsync(_services) == false)
             {
                 return;
             }
             await _services.Runner.RunAsync(GitText.Format("op.switch", target.Name), () => _services.Commands.SwitchAsync(target), refreshAssets: true);
+        }
+
+        /// <summary>
+        /// 커밋 그래프의 이름표를 두 번 눌렀을 때(그래프 탭·커밋 목록 탭 공통). 브랜치는 체크아웃하고(원격이면 같은 이름의 로컬로, 없으면 추적 브랜치를 만들어),
+        /// 태그는 그 커밋으로 전환한다. 지금 브랜치(HEAD)면 아무것도 하지 않는다.
+        /// </summary>
+        public Task SwitchToRefAsync(GitGraph graph, GitGraphNode node, CommitRef commitRef)
+        {
+            if (_services.Runner.IsBusy || commitRef.Kind == CommitRefKind.Current)
+            {
+                return Task.CompletedTask;
+            }
+            if (commitRef.Kind == CommitRefKind.Tag)
+            {
+                return new CommitActions(_services).SwitchToAsync(node.Commit);
+            }
+            IReadOnlyList<GitBranchRef> branches = graph?.Branches ?? new List<GitBranchRef>();
+            GitBranchRef branch = branches.FirstOrDefault(b => b.Name == commitRef.Name)
+                                  ?? new GitBranchRef { Name = commitRef.Name, IsRemote = commitRef.Kind == CommitRefKind.Remote };
+            if (branch.IsCurrent)
+            {
+                return Task.CompletedTask;
+            }
+            HashSet<string> localNames = new(branches.Where(b => b.IsRemote == false).Select(b => b.Name));
+            return SwitchAsync(branch, localNames);
         }
 
         /// <returns>만들었으면 true.</returns>
@@ -55,7 +80,7 @@ namespace GitVersionControl
                 await _services.Dialogs.AlertAsync(GitText.Get("branches.createTitle"), GitText.Format("branches.invalidName", name), ActionGlyphKind.Branch);
                 return false;
             }
-            if (switchTo && await PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (switchTo && await PrepareWorkingTreeAsync(_services) == false)
             {
                 return false;
             }
@@ -253,22 +278,13 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 작업 트리가 바뀌기 전에 열린 씬·에셋을 저장하고, 커밋하지 않은 변경이 있으면 Git 창 위 팝업(<see cref="GitConfirmDialog"/>)으로 알린다. 취소하면 false.
-        /// GitKraken 배치는 GitKraken 처럼 묻지 않고 바로 진행한다 — 충돌하지 않는 변경은 따라가고, 충돌하면 git 이 전환을 거부해 아무것도 바뀌지 않는다.
+        /// 작업 트리가 바뀌기 전에 열린 씬·에셋을 저장한다. 저장을 취소하면 false.
+        /// 커밋하지 않은 변경이 있어도 묻지 않고 바로 진행한다(GitKraken·Fork 와 같다) — 충돌하지 않는 변경은 그대로 따라가고,
+        /// 충돌하면 git 이 전환을 거부해 아무것도 바뀌지 않으며 그 이유는 실패 알림으로 보인다.
         /// </summary>
-        public static async Task<bool> PrepareWorkingTreeAsync(GitServices services, string action)
+        public static Task<bool> PrepareWorkingTreeAsync(GitServices services)
         {
-            if (services.Dialogs.SaveOpenWork() == false)
-            {
-                return false;
-            }
-            int pending = services.Repository.Entries.Count;
-            if (pending == 0 || GitLayout.Style == GitLayoutStyle.GitKraken)
-            {
-                return true;
-            }
-            return await GitConfirmDialog.ShowAsync(services, ActionGlyphKind.Branch, GitText.Get("branches.switchTitle"),
-                GitText.Format("branches.pendingWarning", pending, action), GitText.Get("common.continue"));
+            return Task.FromResult(services.Dialogs.SaveOpenWork());
         }
     }
 }

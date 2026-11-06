@@ -237,6 +237,26 @@ namespace GitVersionControl
 
         public override bool ShowsChanges => true;
 
+        /// <summary>앞서 stash 로 채운 메시지. 그대로면 다음 stash 를 적용할 때 바꿔 적는다.</summary>
+        private string _stashMessage;
+
+        /// <summary>stash 를 적용한 뒤: 메시지 칸이 비어 있으면(템플릿 그대로·앞서 stash 로 채운 그대로 포함) 그 stash 메시지를 적는다. 쓰던 메시지는 덮지 않는다.</summary>
+        public override void ShowAppliedStash(string subject)
+        {
+            if (string.IsNullOrEmpty(subject))
+            {
+                return;
+            }
+            string current = _message.value ?? string.Empty;
+            bool untouched = string.IsNullOrWhiteSpace(current) || current == TemplateText() || (_stashMessage != null && current == _stashMessage);
+            if (untouched == false)
+            {
+                return;
+            }
+            _stashMessage = subject;
+            _message.value = subject;
+        }
+
         /// <summary>충돌 안내의 "충돌 보기": 첫 충돌 파일을 골라 diff 를 연다.</summary>
         public override void ShowConflicts()
         {

@@ -15,6 +15,12 @@ namespace GitVersionControl
         /// <param name="commitHash">GitHub 커밋 API 로 찾을 때 쓸, 이 작성자의 커밋 하나.</param>
         Texture2D TryGet(string email, string commitHash);
 
+        /// <summary>
+        /// 이 작성자의 사진을 아직 받는 중인지(<see cref="TryGet"/> 이 받기를 시작한 뒤). 받는 중이면 머리글자 대신 빈 동그라미로 두었다가,
+        /// 받으면 사진·못 받으면 머리글자로 바꾼다(<see cref="AvatarLoaded"/> 가 어느 쪽이든 알린다).
+        /// </summary>
+        bool IsLoading(string email);
+
         event Action AvatarLoaded;
     }
 
@@ -47,7 +53,8 @@ namespace GitVersionControl
         private (string owner, string repository)? _gitHubRemote;
 
         /// <summary>
-        /// 마지막으로 본 로그인 계정(Preferences > Git). 바뀌면 이번 세션의 "없음" 판단을 버리고 다시 찾는다.
+        /// 마지막으로 본 이 저장소의 계정(<see cref="GitAccounts.ApiLogin"/> — Git 창 아래쪽에 보이는 계정). 바뀌면 이번 세션의 "없음" 판단을 버리고 다시 찾는다.
+        /// 예전에는 패키지 로그인(Preferences > Git)을 봐서, 아래쪽은 저장소 계정인데 내 커밋 사진은 패키지 로그인 계정으로 보였다.
         /// </summary>
         private string _signedInLogin;
 
@@ -55,11 +62,33 @@ namespace GitVersionControl
         {
             // 로그인·로그아웃하면 보이는 그래프가 바로 다시 그려지게 한다(다시 그릴 때 위의 판단이 새로 된다).
             GitHubAccount.Changed += () => AvatarLoaded?.Invoke();
+            // 이 저장소의 계정(GitAccounts.ApiToken)이 정해지거나 바뀌면 그 전에 못 받은 사진을 다시 찾는다.
+            // 에디터를 열면 계정이 비동기로 정해져, 그 전에 다른 계정(또는 토큰 없이)으로 물어 실패한 작성자가 세션 내내 머리글자로 남았다.
+            GitAccounts.Changed += OnApiAccountChanged;
+        }
+
+        /// <summary>
+        /// 계정이 바뀐 횟수. 바뀌기 전에 시작한 요청이 실패해도 "없음" 으로 접어 두지 않는다(새 계정으로 다시 물어야 한다).
+        /// </summary>
+        private int _accountGeneration;
+
+        private void OnApiAccountChanged()
+        {
+            _accountGeneration++;
+            _missing.Clear();
+            // 내 커밋 사진은 계정을 따르므로, 앞 계정으로 받아 둔 사진을 메모리에서 버린다(디스크는 계정별 키라 그대로 둔다).
+            ForgetOwnAvatar();
+            AvatarLoaded?.Invoke();
         }
 
         public bool IsEnabled => GitVcsSettings.instance.ShowAvatars;
 
         public event Action AvatarLoaded;
+
+        public bool IsLoading(string email)
+        {
+            return IsEnabled && string.IsNullOrWhiteSpace(email) == false && _pending.Contains(email);
+        }
 
         public Texture2D TryGet(string email, string commitHash)
         {
@@ -67,7 +96,7 @@ namespace GitVersionControl
             {
                 return null;
             }
-            string signedInLogin = GitHubAccount.Login;
+            string signedInLogin = GitAccounts.ApiLogin ?? string.Empty;
             if (_signedInLogin != signedInLogin)
             {
                 bool isFirstLook = _signedInLogin == null;
@@ -99,7 +128,7 @@ namespace GitVersionControl
                 return AiFallback(email);
             }
 
-            string key = GitAvatarSources.CacheKey(email);
+            string key = CacheKeyFor(email);
             if (TryLoadFromDisk(key, out texture, out bool knownMissing))
             {
                 _textures[email] = texture;
@@ -122,6 +151,7 @@ namespace GitVersionControl
             Texture2D texture = null;
             byte[] bytes = null;
             bool temporaryFailure = false;
+            int generation = _accountGeneration;
             try
             {
                 (List<string> urls, bool gitHubAnswered) = await CandidateUrlsAsync(email, commitHash);
@@ -158,8 +188,17 @@ namespace GitVersionControl
 
             if (texture != null)
             {
-                _textures[email] = texture;
+                // 디스크 키에 계정이 들어 있어 앞 계정 사진도 그 계정 몫으로는 맞다. 다만 묻는 사이 계정이 바뀌었으면 내 사진은 지금 계정 것이 아니니 화면에는 쓰지 않는다.
                 SaveToDisk(key, bytes);
+                if (generation == _accountGeneration || IsOwnEmail(email) == false)
+                {
+                    _textures[email] = texture;
+                }
+                AvatarLoaded?.Invoke();
+            }
+            else if (generation != _accountGeneration)
+            {
+                // 묻는 사이 계정이 바뀌었다 — 접어 두지 않고 다시 그려 새 계정으로 다시 묻게 한다.
                 AvatarLoaded?.Invoke();
             }
             else
@@ -170,11 +209,8 @@ namespace GitVersionControl
                 {
                     SaveMissingToDisk(key);
                 }
-                // AI 작성자는 못 받았어도 로고로 바꿔 보이므로 다시 그리게 알린다(사람은 머리글자 그대로라 알릴 것이 없다).
-                if (GitAvatarSources.AiAuthorOf(email) != AiAuthor.None)
-                {
-                    AvatarLoaded?.Invoke();
-                }
+                // 받는 동안 빈 동그라미로 두었으니 못 받았어도 다시 그리게 알린다(사람은 머리글자, AI 작성자는 로고).
+                AvatarLoaded?.Invoke();
             }
         }
 
@@ -205,15 +241,20 @@ namespace GitVersionControl
         private async Task<(List<string> urls, bool gitHubAnswered)> CandidateUrlsAsync(string email, string commitHash)
         {
             List<string> urls = new();
-            // 내 커밋: 아직 푸시하지 않았어도 로그인한 계정 사진을 쓴다(GitKraken 과 같다).
-            if (IsOwnEmail(email) && string.IsNullOrEmpty(GitHubAccount.AvatarUrl) == false)
-            {
-                urls.Add(WithSize(GitHubAccount.AvatarUrl));
-            }
+            // GitHub noreply 이메일이면 그 주소가 가리키는 계정이 곧 작성자다 — 가장 먼저 쓴다.
             string noReply = GitAvatarSources.NoReplyAvatarUrl(email);
             if (noReply != null)
             {
                 urls.Add(noReply);
+            }
+            // 내 커밋: 아직 푸시하지 않았어도 이 저장소의 계정(아래쪽에 보이는 계정) 사진을 쓴다(GitKraken 과 같다).
+            if (IsOwnEmail(email))
+            {
+                string ownAvatar = OwnAccountAvatarUrl();
+                if (ownAvatar != null)
+                {
+                    urls.Add(ownAvatar);
+                }
             }
 
             bool gitHubAnswered = true;
@@ -237,6 +278,33 @@ namespace GitVersionControl
             return avatarUrl + (avatarUrl.Contains("?") ? "&" : "?") + "s=" + GitAvatarSources.Size;
         }
 
+        /// <summary>
+        /// 이 저장소의 계정(<see cref="GitAccounts.ApiLogin"/>) 사진 주소. 패키지 로그인과 같은 계정이면 로그인 때 받은 주소, 다르면 github.com/이름.png.
+        /// </summary>
+        private static string OwnAccountAvatarUrl()
+        {
+            string login = GitAccounts.ApiLogin;
+            if (string.IsNullOrEmpty(login))
+            {
+                return null;
+            }
+            if (string.Equals(login, GitHubAccount.Login, StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(GitHubAccount.AvatarUrl) == false)
+            {
+                return WithSize(GitHubAccount.AvatarUrl);
+            }
+            return $"https://github.com/{Uri.EscapeDataString(login)}.png?size={GitAvatarSources.Size}";
+        }
+
+        /// <summary>
+        /// 디스크 캐시 키. 내 이메일은 계정에 따라 사진이 달라지므로 계정 이름을 섞는다 — 계정을 바꿔도 앞 계정 사진이 7일 동안 남지 않는다.
+        /// </summary>
+        private static string CacheKeyFor(string email)
+        {
+            return IsOwnEmail(email)
+                ? GitAvatarSources.CacheKey(email + "\n" + (GitAccounts.ApiLogin ?? string.Empty))
+                : GitAvatarSources.CacheKey(email);
+        }
+
         private static bool IsOwnEmail(string email)
         {
             return GitAvatarSources.IsSameEmail(email, GitRepository.UserEmail);
@@ -250,6 +318,7 @@ namespace GitVersionControl
                 return;
             }
             _textures.Remove(email);
+            // 예전 키(계정을 섞지 않은 키)로 남은 사진은 어느 계정 것인지 모르니 지운다.
             string key = GitAvatarSources.CacheKey(email);
             try
             {

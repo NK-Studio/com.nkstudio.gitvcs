@@ -29,6 +29,15 @@ namespace GitVersionControl.Tests
         }
 
         [Test]
+        public void Test_StashLabel_DropsWipPrefix()
+        {
+            Assert.AreEqual("Sim: README 한 줄 추가 시험", GitStashRef.Label("On main: Sim: README 한 줄 추가 시험"));
+            Assert.AreEqual("abc1234 커밋 제목", GitStashRef.Label("WIP on feature/x: abc1234 커밋 제목"));
+            Assert.AreEqual("메모만", GitStashRef.Label("메모만"));
+            Assert.AreEqual(string.Empty, GitStashRef.Label(null));
+        }
+
+        [Test]
         public void Test_ParseStashes()
         {
             const string output = "stash@{0}\u001fabc\u001f1700000000\u001fWIP on main: 123 msg\u001e\nstash@{1}\u001fdef\u001f0\u001fOn dev: saved\u001e\n";

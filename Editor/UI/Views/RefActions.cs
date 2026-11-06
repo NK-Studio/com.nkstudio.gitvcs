@@ -2,6 +2,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using UnityEngine.UIElements;
 
 namespace GitVersionControl
 {
@@ -163,7 +164,11 @@ namespace GitVersionControl
                 return;
             }
             string operation = GitText.Format(drop ? "op.stashPop" : "op.stashApply", stash.Name);
-            await _services.Runner.RunAsync(operation, () => _services.Commands.StashApplyAsync(stash.Name, drop), refreshAssets: true);
+            GitResult result = await _services.Runner.RunAsync(operation, () => _services.Commands.StashApplyAsync(stash.Name, drop), refreshAssets: true);
+            if (result.Success)
+            {
+                _services.StashApplied?.Invoke(stash.Message);
+            }
         }
 
         public async Task DropStashAsync(GitStashRef stash)
@@ -174,6 +179,26 @@ namespace GitVersionControl
                 return;
             }
             await _services.Runner.RunAsync(GitText.Format("op.stashDrop", stash.Name), () => _services.Commands.StashDropAsync(stash.Name), refreshAssets: false);
+        }
+
+        /// <summary>stash 우클릭 메뉴. 사이드바 스태시 줄과 세로 그래프의 stash 줄이 함께 쓴다.</summary>
+        public void PopulateStashMenu(DropdownMenu menu, GitStashRef stash)
+        {
+            DropdownMenuAction.Status writable = _services.Runner.IsBusy ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal;
+            menu.AppendAction(GitText.Get("refs.stashApply"), action => _ = ApplyStashAsync(stash, drop: false), writable);
+            menu.AppendAction(GitText.Get("refs.stashPop"), action => _ = ApplyStashAsync(stash, drop: true), writable);
+            menu.AppendAction(GitText.Get("refs.stashDrop"), action => _ = DropStashAsync(stash), writable);
+            menu.AppendSeparator();
+            menu.AppendAction(GitText.Get("refs.stashShow"), action => ShowStash(stash));
+            menu.AppendAction(GitText.Get("refs.stashBranch"), action => _ = BranchFromStashAsync(stash), writable);
+            menu.AppendSeparator();
+            menu.AppendAction(GitText.Get("refs.copyMessage"), action => _services.Assets.CopyToClipboard(stash.Message));
+        }
+
+        /// <summary>그래프에 끼운 stash 커밋(<see cref="GitCommitInfo.StashName"/>)을 사이드바와 같은 stash 참조로.</summary>
+        public static GitStashRef StashOf(GitCommitInfo commit)
+        {
+            return new GitStashRef { Name = commit.StashName, Hash = commit.Hash, Date = commit.Date, Message = commit.Subject };
         }
 
         public void ShowStash(GitStashRef stash)
@@ -192,7 +217,7 @@ namespace GitVersionControl
             {
                 return;
             }
-            if (await BranchActions.PrepareWorkingTreeAsync(_services, GitText.Format("branches.actionCreateSwitch", name)) == false)
+            if (await BranchActions.PrepareWorkingTreeAsync(_services) == false)
             {
                 return;
             }

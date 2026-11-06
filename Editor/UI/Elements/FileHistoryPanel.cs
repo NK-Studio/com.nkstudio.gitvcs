@@ -221,7 +221,9 @@ namespace GitVersionControl
             Texture2D texture = _avatars != null && _avatars.IsEnabled ? _avatars.TryGet(commit.AuthorEmail, commit.Hash) : null;
             avatar.style.backgroundImage = texture == null ? StyleKeyword.Null : new StyleBackground(texture);
             avatar.style.backgroundColor = texture == null ? GraphStyle.AuthorColor(commit.AuthorName) : Color.clear;
-            initials.text = texture == null ? GitDisplay.Initials(commit.AuthorName) : string.Empty;
+            // 받는 중이면 머리글자 없이 색 동그라미만 둔다(받으면 사진, 못 받으면 머리글자로 다시 묶는다).
+            bool loading = texture == null && _avatars != null && _avatars.IsEnabled && _avatars.IsLoading(commit.AuthorEmail);
+            initials.text = texture == null && loading == false ? GitDisplay.Initials(commit.AuthorName) : string.Empty;
         }
 
         private void RefreshAvatars()

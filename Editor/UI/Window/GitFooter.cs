@@ -71,7 +71,7 @@ namespace GitVersionControl
         }
 
         /// <summary>
-        /// 이 저장소에 쓰는 GitHub 계정(<see cref="GitAccounts.ApiLogin"/> — 고른 계정, 없으면 패키지 로그인). 계정을 고르거나 로그인이 바뀔 때 부른다.
+        /// 이 저장소에 쓰는 GitHub 계정(<see cref="GitAccounts.ApiLogin"/> — 고른 계정, 없으면 git 이 쓰는 계정, 그것도 없으면 패키지 로그인). 계정을 고르거나 로그인이 바뀔 때 부른다.
         /// </summary>
         public void SetAccount()
         {

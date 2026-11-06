@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,7 +9,7 @@ namespace GitVersionControl
     /// 확인 팝업. 운영체제 대화상자(<see cref="IDialogService.Confirm"/>) 대신 Git 창 위에 덮어 띄운다(<see cref="GitBranchDialog"/> 와 같은 막·카드).
     /// 같은 패널이라 테마·UI 배율·글꼴이 Git 창과 같다. 카드: 아이콘·제목, 안내 글, 확인(강조색)·취소.
     /// 세 갈래(<see cref="ChooseAsync"/>: 확인·다른 쪽·취소)와 알림(<see cref="AlertAsync"/>: 확인 하나)도 같은 카드로 묻는다.
-    /// Enter 는 확인, Esc·× 는 취소. 막을 눌러도 닫지 않는다(실수로 고른 것으로 치지 않게).
+    /// Enter 는 확인(Tab 으로 다른 버튼에 옮겼으면 그 버튼, 채운 모양으로 표시), Esc·× 는 취소. 키는 포커스와 상관없이 패널 전체에서 받는다. 막을 눌러도 닫지 않는다(실수로 고른 것으로 치지 않게).
     /// </summary>
     public sealed class GitConfirmDialog
     {
@@ -64,7 +65,7 @@ namespace GitVersionControl
         /// <summary>
         /// <paramref name="host"/> 위에 확인·취소 팝업을 띄운다.
         /// </summary>
-        /// <param name="okDanger">확인이 되돌릴 수 없는 일(버리기·덮어쓰기)이면 true. 빨강이고 기본 포커스는 취소.</param>
+        /// <param name="okDanger">확인이 되돌릴 수 없는 일(버리기·덮어쓰기)이면 true. 빨강으로 보인다(Enter 는 그래도 확인).</param>
         /// <param name="cancel">null 이면 현재 언어의 "취소".</param>
         public static async Task<bool> ConfirmAsync(VisualElement host, ActionGlyphKind icon, string title, string message, string ok, bool okDanger = false, string cancel = null)
         {
@@ -116,6 +117,8 @@ namespace GitVersionControl
             {
                 Button close = new(() => Finish(ResultCancel)) { text = "×", tooltip = choices.Cancel ?? GitText.Get("common.close") };
                 close.AddToClassList("branch-dialog__close");
+                // Tab 이 × 로 가면 Enter 대상 표시와 어긋난다. × 는 마우스·Esc 로만.
+                close.focusable = false;
                 card.Add(close);
             }
 
@@ -171,30 +174,107 @@ namespace GitVersionControl
             }
             card.Add(buttons);
 
-            // 위험한 확인(버리기·강제)은 실수로 Enter 를 눌러도 일어나지 않게 취소가 기본이다.
-            Button defaultButton = choices.OkDanger && cancelButton != null ? cancelButton : okButton;
-            int enterResult = defaultButton == okButton ? ResultOk : ResultCancel;
-            // Enter = 기본 버튼, Esc = 취소. 팝업 안 어디에 포커스가 있든 받고, 밑의 창으로는 넘기지 않는다.
-            _overlay.RegisterCallback<KeyDownEvent>(evt =>
+            // Enter 로 바로 처리한다 — 위험한 확인(버리기·강제)도 확인이 기본이다(빨강으로 구분한다).
+            // Enter 가 누를 버튼(기본은 확인)은 채운 모양(confirm-dialog__button--default)으로 보여 무엇이 실행될지 알 수 있게 한다.
+            // 키보드로 다른 버튼에 옮겨 가면(Tab) 표시와 Enter 대상이 함께 그 버튼으로 옮겨 간다. Esc = 취소.
+            _buttons = new List<(Button, int)> { (okButton, ResultOk) };
+            if (altButton != null)
             {
-                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
-                {
-                    Finish(enterResult);
-                    evt.StopPropagation();
-                }
-                else if (evt.keyCode == KeyCode.Escape)
-                {
-                    Finish(ResultCancel);
-                    evt.StopPropagation();
-                }
-            }, TrickleDown.TrickleDown);
+                _buttons.Add((altButton, ResultAlt));
+            }
+            if (cancelButton != null)
+            {
+                _buttons.Add((cancelButton, ResultCancel));
+            }
+            foreach ((Button button, int result) in _buttons)
+            {
+                int captured = result;
+                button.RegisterCallback<FocusInEvent>(_ => SetEnterTarget(captured));
+            }
+            SetEnterTarget(ResultOk);
+
+            // 키는 패널 맨 위(visualTree)에서 받는다 — 포커스가 팝업 밖(밑의 목록·창 밖 메뉴에서 띄운 경우)에 있어도 Esc·Enter 가 먹게.
+            // 밑의 창으로는 넘기지 않는다.
+            _keyRoot = host.panel?.visualTree ?? _overlay;
+            _keyRoot.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+            _keyRoot.RegisterCallback<NavigationSubmitEvent>(StopNavigation, TrickleDown.TrickleDown);
+            _keyRoot.RegisterCallback<NavigationCancelEvent>(StopNavigation, TrickleDown.TrickleDown);
             // 창이 닫히거나 다시 만들어지면(도메인 리로드·언어 전환) 취소로 풀어 준다.
-            _overlay.RegisterCallback<DetachFromPanelEvent>(_ => _done.TrySetResult(ResultCancel));
+            _overlay.RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                UnhookKeys();
+                _done.TrySetResult(ResultCancel);
+            });
 
             _restoreFocus = host.focusController?.focusedElement;
             host.Add(_overlay);
-            // 키를 바로 받도록 기본 버튼에 포커스한다.
-            defaultButton.schedule.Execute(() => defaultButton.Focus());
+            // 키를 바로 받도록 창과 기본 버튼에 포커스한다(메뉴에서 띄웠으면 창에 키보드 포커스가 없을 수 있다).
+            GitPopupHosts.FocusWindowOf(host);
+            okButton.Focus();
+            okButton.schedule.Execute(() =>
+            {
+                if (_closed == false)
+                {
+                    okButton.Focus();
+                }
+            });
+        }
+
+        private readonly List<(Button button, int result)> _buttons;
+        private readonly VisualElement _keyRoot;
+        private int _enterTarget = ResultOk;
+        private bool _closed;
+
+        /// <summary>Enter 가 누를 버튼을 바꾸고 그 버튼만 채운 모양으로 보인다.</summary>
+        private void SetEnterTarget(int result)
+        {
+            _enterTarget = result;
+            foreach ((Button button, int buttonResult) in _buttons)
+            {
+                button.EnableInClassList("confirm-dialog__button--default", buttonResult == result);
+            }
+        }
+
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            if (_closed)
+            {
+                return;
+            }
+            if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+            {
+                Finish(_enterTarget);
+                evt.StopImmediatePropagation();
+            }
+            else if (evt.keyCode == KeyCode.Escape)
+            {
+                Finish(ResultCancel);
+                evt.StopImmediatePropagation();
+            }
+            else if (evt.target is VisualElement target && _overlay.Contains(target) == false)
+            {
+                // 팝업이 떠 있는 동안 밑의 목록·단축키가 키를 받지 않게 한다(Tab 은 막지 않는다 — 버튼 사이를 옮겨 다닌다).
+                if (evt.keyCode != KeyCode.Tab)
+                {
+                    evt.StopImmediatePropagation();
+                }
+            }
+        }
+
+        /// <summary>Enter·Esc 는 <see cref="OnKeyDown"/> 이 처리한다. 버튼의 기본 제출(포커스된 버튼 클릭)이 겹쳐 두 번 처리되지 않게 막는다.</summary>
+        private void StopNavigation(EventBase evt)
+        {
+            if (_closed == false)
+            {
+                evt.StopImmediatePropagation();
+            }
+        }
+
+        private void UnhookKeys()
+        {
+            _keyRoot.UnregisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+            _keyRoot.UnregisterCallback<NavigationSubmitEvent>(StopNavigation, TrickleDown.TrickleDown);
+            _keyRoot.UnregisterCallback<NavigationCancelEvent>(StopNavigation, TrickleDown.TrickleDown);
         }
 
         private static void AddIfAny(VisualElement parent, Button button)
@@ -207,6 +287,12 @@ namespace GitVersionControl
 
         private void Finish(int result)
         {
+            if (_closed)
+            {
+                return;
+            }
+            _closed = true;
+            UnhookKeys();
             _done.TrySetResult(result);
             GitPopupHosts.Close(_overlay, _restoreFocus);
         }

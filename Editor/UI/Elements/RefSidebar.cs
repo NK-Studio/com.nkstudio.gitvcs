@@ -1071,7 +1071,7 @@ namespace GitVersionControl
                     PopulateTagMenu(menu, node.Tag, writable);
                     break;
                 case RefNodeKind.Stash:
-                    PopulateStashMenu(menu, node.Stash, writable);
+                    _actions.PopulateStashMenu(menu, node.Stash);
                     break;
                 case RefNodeKind.Worktree:
                     PopulateWorktreeMenu(menu, node.Worktree, writable);
@@ -1233,18 +1233,6 @@ namespace GitVersionControl
             menu.AppendSeparator();
             menu.AppendAction(GitText.Get("common.copyName"), action => _services.Assets.CopyToClipboard(tag.Name));
             menu.AppendAction(GitText.Get("fork.copySha"), action => _services.Assets.CopyToClipboard(tag.Commit));
-        }
-
-        private void PopulateStashMenu(DropdownMenu menu, GitStashRef stash, DropdownMenuAction.Status writable)
-        {
-            menu.AppendAction(GitText.Get("refs.stashApply"), action => _ = _actions.ApplyStashAsync(stash, drop: false), writable);
-            menu.AppendAction(GitText.Get("refs.stashPop"), action => _ = _actions.ApplyStashAsync(stash, drop: true), writable);
-            menu.AppendAction(GitText.Get("refs.stashDrop"), action => _ = _actions.DropStashAsync(stash), writable);
-            menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("refs.stashShow"), action => _actions.ShowStash(stash));
-            menu.AppendAction(GitText.Get("refs.stashBranch"), action => _ = _actions.BranchFromStashAsync(stash), writable);
-            menu.AppendSeparator();
-            menu.AppendAction(GitText.Get("refs.copyMessage"), action => _services.Assets.CopyToClipboard(stash.Message));
         }
 
         private void PopulateWorktreeMenu(DropdownMenu menu, GitWorktreeRef worktree, DropdownMenuAction.Status writable)

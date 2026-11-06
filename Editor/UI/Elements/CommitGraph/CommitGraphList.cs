@@ -80,6 +80,9 @@ namespace GitVersionControl
             /// </summary>
             public int LaneRow = -1;
 
+            /// <summary>이 줄이 stash 줄이면 true — 띠가 속이 빈 상자 오른쪽 끝에서 시작한다(<see cref="PlaceBand"/>).</summary>
+            public bool IsStash;
+
             /// <summary>
             /// 작업 중 줄의 [제목 입력란][연필]. 이 줄이 작업 중 줄에 처음 묶일 때 만든다(<see cref="EnsureWipEditor"/>).
             /// </summary>
@@ -390,6 +393,11 @@ namespace GitVersionControl
         /// 이름표(줄 이름표나 펼친 목록의 참조)를 두 번 눌렀을 때. 그 참조로 전환한다(GitKraken 과 같다).
         /// </summary>
         public event Action<GitGraphNode, CommitRef> RefActivated;
+
+        /// <summary>
+        /// 커밋 줄을 두 번 눌렀을 때(작업 중 줄·이름표 칸·입력란 제외). 받는 곳이 없으면 두 번 누름은 예전처럼 다룬다.
+        /// </summary>
+        public event Action<GitGraphNode> CommitChosen;
 
         public VisualElement Root { get; }
 
@@ -1054,12 +1062,13 @@ namespace GitVersionControl
 
         /// <summary>
         /// 가지 색 띠를 이 줄 커밋 원의 가운데에서 시작하게 놓는다(그래프 칸 왼쪽의 빈 자리와 왼쪽 가지 위에는 깔지 않는다).
-        /// 작업 중 줄은 HEAD 열의 빈 원(<see cref="DrawWip"/>)에서 시작한다.
+        /// 작업 중 줄은 HEAD 열의 빈 원(<see cref="DrawWip"/>)에서 시작한다. 속이 빈 stash 상자 줄은 상자 오른쪽 끝에서 시작해 상자 안으로 들어오지 않는다.
         /// </summary>
         private void PlaceBand(GraphRow row)
         {
             int laneRow = row.LaneRow >= 0 ? row.LaneRow : HeadNode?.Lane.Row ?? 0;
-            row.Band.style.left = X(laneRow) - _graphOffset;
+            float stashInset = row.LaneRow >= 0 && row.IsStash ? StashSize.Half : 0f;
+            row.Band.style.left = X(laneRow) - _graphOffset + stashInset;
         }
 
         private GitGraphNode HeadNode => _layout.NodesNewestFirst.FirstOrDefault(node => node.IsHead);
@@ -1121,7 +1130,7 @@ namespace GitVersionControl
                 foreach (GitGraphNode node in _layout.NodesNewestFirst)
                 {
                     float y = VerticalGraphLayout.RowCenterY(_layout.RowOf[node], scrollY);
-                    if (node.Commit.IsMerge || y < -VerticalGraphLayout.RowHeight || y > height + VerticalGraphLayout.RowHeight)
+                    if (node.Commit.IsMerge || node.Commit.IsStash || y < -VerticalGraphLayout.RowHeight || y > height + VerticalGraphLayout.RowHeight)
                     {
                         continue;
                     }
@@ -1131,6 +1140,11 @@ namespace GitVersionControl
                     if (avatar != null)
                     {
                         _avatarLayer.PlaceCircleImage("commit-graph__avatar", avatar, center, radius).style.opacity = opacity;
+                        continue;
+                    }
+                    // 받는 중이면 머리글자를 잠깐 보였다 사진으로 바뀌지 않게 비워 둔다(받으면 다시 그린다).
+                    if (_avatars.IsLoading(node.Commit.AuthorEmail))
+                    {
                         continue;
                     }
                     _avatarLayer.Place("commit-graph__initials", GitDisplay.Initials(node.Commit.AuthorName),
@@ -1346,6 +1360,16 @@ namespace GitVersionControl
             // 받는 곳이 없으면(브랜치 탐색기의 커밋 목록 — 오른쪽 상세가 늘 보인다) 풀지 않는다.
             // 수식키는 Shift·Ctrl·Alt·Cmd 만 본다 — NumLock·CapsLock 이 켜져 있으면 modifiers 에 Numeric·CapsLock 이 들어온다.
             const EventModifiers held = EventModifiers.Shift | EventModifiers.Control | EventModifiers.Alt | EventModifiers.Command;
+            // 두 번 누르면 그 커밋을 연다(가로 그래프·작업 공간 목록과 같다). 첫 누름이 고르기를 풀었어도 다시 고른다.
+            if (CommitChosen != null && evt.button == 0 && evt.clickCount == 2 && (evt.modifiers & held) == 0
+                && RowIndexAt(evt.target as VisualElement) is int chosenIndex && chosenIndex < _items.Count && _items[chosenIndex] is GitGraphNode chosen)
+            {
+                evt.StopImmediatePropagation();
+                _swallowPointerUp = true;
+                _list.SetSelection(chosenIndex);
+                CommitChosen.Invoke(chosen);
+                return;
+            }
             if (SelectionToggledOff == null || evt.button != 0 || (evt.modifiers & held) != 0)
             {
                 return;
@@ -1381,6 +1405,25 @@ namespace GitVersionControl
                 _swallowPointerUp = true;
                 _list.SetSelection(index);
             }
+        }
+
+        /// <summary>
+        /// 누른 곳의 줄 번호. 줄 밖·입력란·이름표 칸이면 null.
+        /// </summary>
+        private int? RowIndexAt(VisualElement target)
+        {
+            for (VisualElement element = target; element != null && element != _list; element = element.parent)
+            {
+                if (element is GraphRow graphRow)
+                {
+                    return graphRow.userData is int index ? index : null;
+                }
+                if (element is TextField || (element.parent is GraphRow parentRow && element == parentRow.Refs))
+                {
+                    return null;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -1624,12 +1667,13 @@ namespace GitVersionControl
                 }
                 row.RefCount = 0;
                 row.LaneRow = -1;
+                row.IsStash = false;
                 BindRefs(pill, more, Array.Empty<CommitRef>(), Color.clear);
                 // GitKraken 처럼 작업 중 줄도 HEAD 가지 색 띠를 깐다.
                 GitGraphNode head = HeadNode;
                 if (head != null)
                 {
-                    PaintBand(row, GraphStyle.LaneColor(head.Lane));
+                    PaintBand(row, GraphStyle.VerticalLaneColor(head.Lane));
                 }
                 else
                 {
@@ -1653,17 +1697,18 @@ namespace GitVersionControl
 
             GitGraphNode node = (GitGraphNode)_items[index];
             GitCommitInfo commit = node.Commit;
-            Color laneColor = GraphStyle.LaneColor(node.Lane);
+            Color laneColor = GraphStyle.VerticalLaneColor(node.Lane);
             IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
             BindRefs(pill, more, refs, laneColor);
             row.RefCount = refs.Count;
             // 가지 색 띠: 커밋 원 자리부터 그래프 칸 오른쪽 끝까지 옅게 깔고 끝에 막대를 둬서 줄마다 어느 가지인지 보이게 한다.
             // 막대는 칸 순서와 상관없이 그래프 칸에 붙는다(GitKraken 과 같다 — 기본 순서에서는 메시지 바로 앞).
             row.LaneRow = node.Lane.Row;
+            row.IsStash = commit.IsStash;
             PaintBand(row, laneColor);
             PlaceBand(row);
-            subject.text = commit.Subject;
-            message.tooltip = $"{commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
+            subject.text = commit.IsStash ? StashLabel(commit.Subject) : commit.Subject;
+            message.tooltip = $"{commit.StashName ?? commit.ShortHash}  {commit.Subject}\n{commit.AuthorName}  ·  {GitDisplay.FormatDate(commit.Date)}";
             BindDetails(row, commit);
         }
 
@@ -2003,7 +2048,7 @@ namespace GitVersionControl
                 return;
             }
             IReadOnlyList<CommitRef> refs = CommitRefs.Of(node);
-            Color laneColor = GraphStyle.LaneColor(node.Lane);
+            Color laneColor = GraphStyle.VerticalLaneColor(node.Lane);
             while (_refsPopup.childCount < refs.Count)
             {
                 VisualElement item = CreateRefPill();
@@ -2163,9 +2208,15 @@ namespace GitVersionControl
                 float xp = EdgeX(edge.Parent.Lane.Row);
 
                 // 병합으로 들어오는 선은 들어오는 가지(부모) 색, 나머지는 새 커밋 쪽 줄 색(가로 탐색기와 같은 규칙).
-                Color stroke = GraphStyle.LaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
+                Color stroke = GraphStyle.VerticalLaneColor(edge.IsMergeEdge ? edge.Parent.Lane : edge.Child.Lane);
                 stroke.a *= edgeAlpha;
                 painter.strokeColor = stroke;
+                if (edge.Child.Commit.IsStash)
+                {
+                    // stash 는 상자 밑에서 만든 자리까지 각진 점선(가지 줄을 따라 내려와 만든 자리 줄에서 꺾는다).
+                    DrawStashEdge(painter, new Vector2(xc, yc + StashSize.Half), new Vector2(xp, yp));
+                    continue;
+                }
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(xc, yc));
                 if (Mathf.Approximately(xc, xp))
@@ -2194,6 +2245,11 @@ namespace GitVersionControl
                 }
                 float x = X(node.Lane.Row);
                 float y = VerticalGraphLayout.RowCenterY(row, scrollY);
+                if (node.Commit.IsStash)
+                {
+                    DashedPath(painter, new List<Vector2> { new(x, y + StashSize.Half), new(x, y + rowHeight * 0.8f) }, StashDash, StashDash);
+                    continue;
+                }
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(x, y));
                 painter.LineTo(new Vector2(x, y + rowHeight * 0.8f));
@@ -2229,7 +2285,7 @@ namespace GitVersionControl
                     continue;
                 }
                 // 지금 있는 브랜치(또는 이름을 쓰는 중인 새 브랜치)로 잇는 선만 가지 색 그대로, 나머지는 가라앉힌 색(GitKraken 과 같다).
-                Color laneColor = GraphStyle.LaneColor(node.Lane);
+                Color laneColor = GraphStyle.VerticalLaneColor(node.Lane);
                 bool isCurrent = branchInput || CommitRefs.Of(node).Any(commitRef => commitRef.Kind == CommitRefKind.Current);
                 if (isCurrent != current)
                 {
@@ -2386,7 +2442,7 @@ namespace GitVersionControl
             float y = VerticalGraphLayout.RowCenterY(0, scrollY);
             // 커밋 원의 가지 색 테두리 바깥과 같은 크기(아바타면 아바타 + 2, 아니면 작은 원 바깥).
             float radius = _layout.HasAvatars ? VerticalGraphLayout.AvatarRadius + 2f : 6.5f;
-            Color color = head != null ? GraphStyle.LaneColor(head.Lane) : _mutedColor;
+            Color color = head != null ? GraphStyle.VerticalLaneColor(head.Lane) : _mutedColor;
 
             painter.strokeColor = color;
             painter.lineWidth = 1.5f;
@@ -2456,7 +2512,7 @@ namespace GitVersionControl
                 }
                 path.Add(new Vector2(xi, yi));
             }
-            painter.strokeColor = GraphStyle.LaneColor(incoming.Lane);
+            painter.strokeColor = GraphStyle.VerticalLaneColor(incoming.Lane);
             painter.lineWidth = 1.5f;
             DashedPath(painter, path, 3f, 3f);
             painter.strokeColor = headColor;
@@ -2517,6 +2573,10 @@ namespace GitVersionControl
         /// </summary>
         private float NodeTopRadius(GitGraphNode node)
         {
+            if (node.Commit.IsStash)
+            {
+                return StashSize.Half;
+            }
             if (_layout.HasAvatars && node.Commit.IsMerge == false)
             {
                 return VerticalGraphLayout.AvatarRadius + (node.IsHead ? 4f : 2f);
@@ -2557,7 +2617,12 @@ namespace GitVersionControl
             // 벽에 밀린 원은 바탕색 쪽으로 섞어 가라앉힌다(겹쳐 쌓여도 비쳐 보이지 않게 투명도 대신 섞는다).
             float opacity = NodeOpacity(node.Lane.Row);
             Color Dim(Color color) => Color.Lerp(_outlineColor, color, opacity);
-            Color laneColor = Dim(GraphStyle.LaneColor(node.Lane));
+            Color laneColor = Dim(GraphStyle.VerticalLaneColor(node.Lane));
+            if (node.Commit.IsStash)
+            {
+                DrawStash(painter, center, laneColor);
+                return;
+            }
             if (_layout.HasAvatars && node.Commit.IsMerge == false)
             {
                 // 아바타 원: 줄 색 테두리 + 작성자 색 바탕(그림을 받기 전·머리글자 뒤에 보인다). 그림은 위 층이 얹는다.
@@ -2576,8 +2641,10 @@ namespace GitVersionControl
                 FillCircle(painter, center, 8f, Dim(_headColor));
             }
             FillCircle(painter, center, 6.5f, _outlineColor);
-            FillCircle(painter, center, 5f, node.Commit.IsMerge ? _outlineColor : laneColor);
-            if (node.Commit.IsMerge)
+            // 아바타를 보일 때 병합 커밋은 GitKraken 처럼 열 색으로 채운 작은 점. 아바타가 없으면 일반 커밋 점과 가르게 속이 빈 원.
+            bool ring = node.Commit.IsMerge && _layout.HasAvatars == false;
+            FillCircle(painter, center, 5f, ring ? _outlineColor : laneColor);
+            if (ring)
             {
                 // 병합 커밋은 속이 빈 원.
                 painter.strokeColor = laneColor;
@@ -2586,6 +2653,134 @@ namespace GitVersionControl
                 painter.Arc(center, 4.5f, Angle.Degrees(0f), Angle.Degrees(360f));
                 painter.Stroke();
             }
+        }
+
+        // ── stash(점선 상자 안 받은편지함 그림, 만든 자리까지 점선) ──
+
+        private readonly struct StashMetrics
+        {
+            public readonly float Half;
+            public readonly float Dot;
+            public readonly float Step;
+            public readonly float Icon;
+            public readonly float IconLine;
+
+            public StashMetrics(float half, float dot, float step, float icon, float iconLine)
+            {
+                Half = half;
+                Dot = dot;
+                Step = step;
+                Icon = icon;
+                IconLine = iconLine;
+            }
+        }
+
+        // 아바타를 보일 때 상자는 줄 띠(USS .commit-graph-row__band: 줄 높이 34 에서 위아래 3 씩 띄운 28)와 같은 높이다.
+        // step 은 변 하나의 점 수가 반올림 경계에 걸리지 않게 잡는다(데스크톱 앱과 같은 수가 나오게).
+        private static readonly StashMetrics StashLarge = new(14f, 2f, 4.33f, 16f, 1.5f);
+        private static readonly StashMetrics StashSmall = new(7f, 1.5f, 3f, 9f, 1.1f);
+
+        /// <summary>stash 선 점선의 점·틈 길이.</summary>
+        private const float StashDash = 2f;
+
+        private StashMetrics StashSize => _layout != null && _layout.HasAvatars ? StashLarge : StashSmall;
+
+        /// <summary>stash 메시지 앞의 "WIP on main: "·"On main: " 를 뗀다.</summary>
+        public static string StashLabel(string message)
+        {
+            return GitStashRef.Label(message);
+        }
+
+        /// <summary>
+        /// stash 하나: 점선 상자 안에 받은편지함 그림. 점은 네 모서리에 하나씩 오도록 변마다 고르게 놓는다.
+        /// 안은 칠하지 않는다(줄 띠 색이 비쳐 보이게) — 선은 상자 밑에서 시작한다.
+        /// </summary>
+        private void DrawStash(Painter2D painter, Vector2 center, Color color)
+        {
+            StashMetrics size = StashSize;
+            float run = size.Half * 2f - size.Dot;
+            int count = Mathf.Max(1, Mathf.RoundToInt(run / size.Step));
+            float gap = run / count;
+            float left = center.x - size.Half;
+            float top = center.y - size.Half;
+            float right = center.x + size.Half - size.Dot;
+            float bottom = center.y + size.Half - size.Dot;
+            painter.fillColor = color;
+            for (int i = 0; i < count; i++)
+            {
+                float d = i * gap;
+                FillRect(painter, left + d, top, size.Dot);
+                FillRect(painter, right, top + d, size.Dot);
+                FillRect(painter, right - d, bottom, size.Dot);
+                FillRect(painter, left, bottom - d, size.Dot);
+            }
+
+            // 받은편지함 그림(20 칸): 위가 좁은 상자와 가운데가 파인 받침.
+            float scale = size.Icon / 20f;
+            Vector2 origin = center - new Vector2(size.Icon * 0.5f, size.Icon * 0.5f);
+            Vector2 P(float x, float y) => origin + new Vector2(x, y) * scale;
+            float lineWidth = painter.lineWidth;
+            LineJoin lineJoin = painter.lineJoin;
+            LineCap lineCap = painter.lineCap;
+            painter.strokeColor = color;
+            painter.lineWidth = size.IconLine;
+            painter.lineJoin = LineJoin.Round;
+            painter.lineCap = LineCap.Round;
+            painter.BeginPath();
+            painter.MoveTo(P(3f, 11f));
+            painter.LineTo(P(5.6f, 5f));
+            painter.QuadraticCurveTo(P(6f, 4.2f), P(6.8f, 4.2f));
+            painter.LineTo(P(13.2f, 4.2f));
+            painter.QuadraticCurveTo(P(14f, 4.2f), P(14.4f, 5f));
+            painter.LineTo(P(17f, 11f));
+            painter.LineTo(P(17f, 15f));
+            painter.QuadraticCurveTo(P(17f, 16f), P(16f, 16f));
+            painter.LineTo(P(4f, 16f));
+            painter.QuadraticCurveTo(P(3f, 16f), P(3f, 15f));
+            painter.ClosePath();
+            painter.Stroke();
+            painter.BeginPath();
+            painter.MoveTo(P(3f, 11f));
+            painter.LineTo(P(7f, 11f));
+            painter.LineTo(P(8.3f, 13f));
+            painter.LineTo(P(11.7f, 13f));
+            painter.LineTo(P(13f, 11f));
+            painter.LineTo(P(17f, 11f));
+            painter.Stroke();
+            painter.lineWidth = lineWidth;
+            painter.lineJoin = lineJoin;
+            painter.lineCap = lineCap;
+        }
+
+        /// <summary>stash 선: 상자 밑에서 가지 줄을 따라 내려와 만든 자리 줄에서 둥글게 꺾어 들어가는 각진 점선.</summary>
+        private void DrawStashEdge(Painter2D painter, Vector2 from, Vector2 to)
+        {
+            List<Vector2> points = new() { from };
+            if (Mathf.Approximately(from.x, to.x) == false)
+            {
+                float radius = Mathf.Max(0f, Mathf.Min(EdgeCornerRadius, Mathf.Abs(to.x - from.x), to.y - from.y));
+                float sign = Mathf.Sign(to.x - from.x);
+                Vector2 arcCenter = new(from.x + sign * radius, to.y - radius);
+                const int steps = 6;
+                for (int i = 0; i <= steps; i++)
+                {
+                    float t = i / (float)steps * Mathf.PI * 0.5f;
+                    points.Add(arcCenter + new Vector2(-sign * Mathf.Cos(t) * radius, Mathf.Sin(t) * radius));
+                }
+            }
+            points.Add(to);
+            DashedPath(painter, points, StashDash, StashDash);
+        }
+
+        private static void FillRect(Painter2D painter, float x, float y, float size)
+        {
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(x, y));
+            painter.LineTo(new Vector2(x + size, y));
+            painter.LineTo(new Vector2(x + size, y + size));
+            painter.LineTo(new Vector2(x, y + size));
+            painter.ClosePath();
+            painter.Fill();
         }
 
         private static void FillCircle(Painter2D painter, Vector2 center, float radius, Color color)

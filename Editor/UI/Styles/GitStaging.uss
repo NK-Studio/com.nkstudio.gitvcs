@@ -837,6 +837,12 @@
     background-color: var(--git-field-bg);
 }
 
+/* Unity 기본 스킨은 마우스를 올리거나(:hover) 포커스하면 입력란 안쪽 여백을 바꿔(좌우 2·아래 0) 글자와 칸 높이가 흔들린다 — 같은 여백을 그 상태에도 더 세게 적는다. */
+.commit-graph .commit-graph__branch-input.unity-base-text-field:hover:enabled > .unity-base-text-field__input,
+.commit-graph .commit-graph__branch-input.unity-base-text-field:focus:enabled > .unity-base-text-field__input {
+    padding-left: 8px;
+}
+
 .commit-graph .commit-graph__branch-input--invalid > .unity-base-text-field__input {
     border-color: var(--git-danger);
 }
@@ -1386,6 +1392,12 @@
     padding: 0 4px;
 }
 
+/* Unity 기본 스킨은 마우스를 올리거나(:hover) 포커스하면 입력란 안쪽 여백을 바꿔(좌우 2·아래 0) 글자와 칸 높이가 흔들린다 — 같은 여백을 그 상태에도 더 세게 적는다. */
+.commit-graph .commit-graph-row--wip-editing .commit-graph-wip__input.unity-base-text-field:hover:enabled > .unity-base-text-field__input,
+.commit-graph .commit-graph-row--wip-editing .commit-graph-wip__input.unity-base-text-field:focus:enabled > .unity-base-text-field__input {
+    padding: 0 4px;
+}
+
 .commit-graph .commit-graph-wip__input > .unity-base-text-field__input {
     height: 24px;
     padding: 0 8px;
@@ -1394,6 +1406,12 @@
     border-radius: 4px;
     border-color: var(--git-border);
     background-color: rgba(0, 0, 0, 0);
+}
+
+/* Unity 기본 스킨은 마우스를 올리거나(:hover) 포커스하면 입력란 안쪽 여백을 바꿔(좌우 2·아래 0) 글자와 칸 높이가 흔들린다 — 같은 여백을 그 상태에도 더 세게 적는다. */
+.commit-graph .commit-graph-wip__input.unity-base-text-field:hover:enabled > .unity-base-text-field__input,
+.commit-graph .commit-graph-wip__input.unity-base-text-field:focus:enabled > .unity-base-text-field__input {
+    padding: 0 8px;
 }
 
 .commit-graph .commit-graph-wip__input > .unity-base-text-field__input:hover {

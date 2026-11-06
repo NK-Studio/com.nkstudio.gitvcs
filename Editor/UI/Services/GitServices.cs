@@ -41,6 +41,12 @@ namespace GitVersionControl
         /// <summary>충돌 파일 목록(작업 변경)을 보인다. Git 창이 넣는다.</summary>
         public System.Action ShowConflictsRequested { get; set; }
 
+        /// <summary>
+        /// stash 를 Apply·Pop 했다 — 그 변경이 Unstaged 로 돌아온다. Git 창이 넣는다: 어느 레이아웃이든 작업 변경 탭으로 옮기고
+        /// 커밋 제목 칸에 그 stash 메시지를 적는다(<see cref="GitView.ShowAppliedStash"/>). 인자는 stash 메시지 그대로.
+        /// </summary>
+        public System.Action<string> StashApplied { get; set; }
+
         /// <summary>리모트 추가 서랍을 연다(리모트가 없어 Push 하지 못했을 때 등). Git 창이 넣는다. null 이면 안내만 한다.</summary>
         public System.Action AddRemoteRequested { get; set; }
 
